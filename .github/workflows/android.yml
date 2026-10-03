@@ -26,7 +26,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      # GitHub-hosted Ubuntu runners already include the Android SDK (ANDROID_HOME), so we do not use
+      # android-actions/setup-android (its licence-acceptance step failed). Accept licences best-effort so
+      # Gradle can download any missing platform/build-tools package.
+      - name: Accept Android SDK licenses
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.14.3"

@@ -30,10 +30,28 @@ jobs:
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
+      - name: Select an available iPhone simulator
+        # Simulator names change with every Xcode/runner image (iPhone 16 no longer exists on current
+        # runners), so pick the first available iPhone instead of hard-coding a model.
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          names = [(runtime, d) for runtime, ds in devices.items() if 'iOS' in runtime for d in ds
+                   if d['name'].startswith('iPhone') and d.get('isAvailable', True)]
+          if not names:
+              sys.exit('No available iPhone simulator found')
+          # Prefer the newest runtime and a plain numbered model ('iPhone 17') over Pro/Air/e variants.
+          names.sort(key=lambda t: (t[0], len(t[1]['name'].split()) == 2 and t[1]['name'].split()[1].isdigit(), t[1]['name']), reverse=True)
+          print(names[0][1]['udid'])
+          ")
+          echo "Using simulator $UDID"
+          xcrun simctl list devices available | grep "$UDID" || true
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
       - name: Build and test
         run: |
           xcodebuild test \
             -project ${{ matrix.scheme }}.xcodeproj \
             -scheme ${{ matrix.scheme }} \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "id=$SIM_UDID" \
             CODE_SIGNING_ALLOWED=NO
