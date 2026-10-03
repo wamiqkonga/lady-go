@@ -1,0 +1,10 @@
+# Development profile: local Docker Compose services, API docs enabled.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    com.ladygo: DEBUG

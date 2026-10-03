@@ -1,0 +1,57 @@
+name: LadyGoDriver
+options:
+  bundleIdPrefix: com.ladygo
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+configs:
+  Debug: debug
+  Release: release
+targets:
+  LadyGoDriver:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ladygo.driver
+        TARGETED_DEVICE_FAMILY: "1"
+      configs:
+        Debug:
+          API_BASE_URL: "http://localhost:8080"
+        Release:
+          # Overridden by CI / local xcconfig. Never commit real values.
+          API_BASE_URL: "https://api.invalid"
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: "Lady Go Driver"
+        UILaunchScreen: {}
+        LadyGoAPIBaseURL: $(API_BASE_URL)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+  LadyGoDriverTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: LadyGoDriver
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ladygo.driver.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  LadyGoDriver:
+    build:
+      targets:
+        LadyGoDriver: all
+    test:
+      targets:
+        - LadyGoDriverTests

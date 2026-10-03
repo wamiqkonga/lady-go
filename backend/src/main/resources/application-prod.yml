@@ -1,0 +1,14 @@
+# Production profile: no API docs endpoints, strict CORS from environment (no default, startup fails if unset).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    com.ladygo: INFO
+
+ladygo:
+  cors:
+    allowed-origins: ${LADYGO_CORS_ALLOWED_ORIGINS}

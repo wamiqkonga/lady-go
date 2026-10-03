@@ -1,0 +1,57 @@
+name: LadyGoCustomer
+options:
+  bundleIdPrefix: com.ladygo
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+configs:
+  Debug: debug
+  Release: release
+targets:
+  LadyGoCustomer:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ladygo.customer
+        TARGETED_DEVICE_FAMILY: "1"
+      configs:
+        Debug:
+          API_BASE_URL: "http://localhost:8080"
+        Release:
+          # Overridden by CI / local xcconfig. Never commit real values.
+          API_BASE_URL: "https://api.invalid"
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: "Lady Go"
+        UILaunchScreen: {}
+        LadyGoAPIBaseURL: $(API_BASE_URL)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+  LadyGoCustomerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: LadyGoCustomer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ladygo.customer.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  LadyGoCustomer:
+    build:
+      targets:
+        LadyGoCustomer: all
+    test:
+      targets:
+        - LadyGoCustomerTests

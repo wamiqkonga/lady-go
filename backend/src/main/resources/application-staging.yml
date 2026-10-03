@@ -1,0 +1,14 @@
+# Staging profile: production-like, sandbox providers. All values come from environment variables.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    com.ladygo: INFO
+
+ladygo:
+  cors:
+    allowed-origins: ${LADYGO_CORS_ALLOWED_ORIGINS}

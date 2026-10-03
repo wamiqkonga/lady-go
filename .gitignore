@@ -1,0 +1,40 @@
+# Secrets and environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+application-local.yml
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Backend (Java)
+backend/target/
+backend/build/
+.gradle/
+*.class
+*.log
+
+# Frontend
+node_modules/
+frontend/**/dist/
+frontend/**/coverage/
+
+# Android
+mobile/android-*/build/
+mobile/android-*/.gradle/
+mobile/android-*/local.properties
+
+# iOS
+mobile/ios-*/build/
+mobile/ios-*/DerivedData/
+mobile/ios-*/Pods/
+*.xcuserstate

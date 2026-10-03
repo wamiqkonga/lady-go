@@ -1,0 +1,39 @@
+name: iOS
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ["mobile/ios-*/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["mobile/ios-*/**", ".github/workflows/ios.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: ios-customer
+            scheme: LadyGoCustomer
+          - app: ios-driver
+            scheme: LadyGoDriver
+    defaults:
+      run:
+        working-directory: mobile/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project ${{ matrix.scheme }}.xcodeproj \
+            -scheme ${{ matrix.scheme }} \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO
