@@ -8,7 +8,7 @@ Status: Draft v0.1 · Phase 0
 |------:|------|---------------|---------------|
 | 0 | Discovery | Requirements, architecture, DB design, roadmap | Docs reviewed; open decisions answered or defaulted |
 | 1 | Project foundation (WRITTEN 2026-10-03; backend/Android/iOS awaiting first real build) | Monorepo, Spring Boot skeleton, React website + admin skeletons, Android/iOS skeletons (customer + driver), Docker Compose, CI skeleton | All projects build; CI green; health endpoint |
-| 2 | Database | Flyway migrations V1–V11, PostGIS, entities/repositories, ERD, Testcontainers | Migrations apply from empty DB; repository tests pass |
+| 2 | Database (WRITTEN 2026-10-03; migrations verified on PostGIS 16 locally, Java/Testcontainers tests awaiting first CI run) | Flyway migrations V1–V11, PostGIS, entities/repositories, ERD, Testcontainers | Migrations apply from empty DB; repository tests pass |
 | 3 | Authentication | OTP, JWT, refresh, logout, RBAC, rate limiting, admin MFA | Security tests; auth E2E |
 | 4 | Customer | Profile, saved locations, maps abstraction, fare estimate, booking creation/history | Booking API tests; app flows to booking |
 | 5 | Driver | Onboarding, documents, verification, availability, offers, ride lifecycle | Admin approval path works end to end |
@@ -61,3 +61,14 @@ See `docs/product/requirements.md` section 7.
 - iOS (customer, driver): SwiftUI + MVVM skeleton generated through XcodeGen (`project.yml`). Not built.
 - Dependencies are added only when first used (database, Redis, JWT, Hilt/Retrofit, Maps in later phases).
 - Exit criteria for closing Phase 1: CI green for backend, Android and iOS jobs; fix anything it finds.
+
+## Phase 1 closure (2026-10-03)
+
+Backend, Android and iOS CI jobs went green after two workflow fixes (dynamic iOS simulator selection; use the runner's preinstalled Android SDK instead of `android-actions/setup-android`).
+
+## Phase 2 status notes (2026-10-03)
+
+- Migrations V1–V11 were applied from an empty PostgreSQL 16 + PostGIS database on the authoring machine and the key invariants were exercised with SQL (see `docs/database/erd.md`).
+- Entities (27), enums (29) and repositories are written but **not compiled by Maven here** (Maven Central is blocked on the authoring machine); only a syntax check was possible. Integration tests need Docker (Testcontainers) and first run in CI.
+- Exit criteria for closing Phase 2: backend CI green including `DatabaseMigrationTest`, `EnumSchemaParityTest`, `PersistenceMappingTest`, `DatabaseConstraintsTest`.
+- Likely first-run issues to expect: Hibernate schema validation of geography/jsonb/char columns, Testcontainers/Docker API version, Docker Hub pull limits.

@@ -1,0 +1,5 @@
+# Test profile: real PostgreSQL+PostGIS from Testcontainers (datasource is injected by @ServiceConnection).
+# Only the production migrations are applied - never the dev seed data.
+spring:
+  flyway:
+    locations: classpath:db/migration

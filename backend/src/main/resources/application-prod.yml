@@ -1,4 +1,10 @@
 # Production profile: no API docs endpoints, strict CORS from environment (no default, startup fails if unset).
+# Database connection comes from the environment only; startup fails if any value is missing.
+spring:
+  datasource:
+    url: ${LADYGO_DB_URL}
+    username: ${LADYGO_DB_USERNAME}
+    password: ${LADYGO_DB_PASSWORD}
 springdoc:
   api-docs:
     enabled: false
