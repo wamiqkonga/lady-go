@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.regex.Pattern;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,11 @@ import org.springframework.stereotype.Component;
 @Component
 @EnableConfigurationProperties(TrustedProxyProperties.class)
 public class ClientIpResolver {
+
+    // Deliberately permissive (not a full RFC validator): only needs to reject anything that would
+    // make InetAddress.getByName() fall through to a real DNS lookup (see isIpLiteral below).
+    private static final Pattern IPV4 = Pattern.compile("^[0-9]{1,3}(\\.[0-9]{1,3}){3}$");
+    private static final Pattern IPV6 = Pattern.compile("^[0-9a-fA-F:]+$");
 
     private final TrustedProxyProperties properties;
 
@@ -51,6 +57,14 @@ public class ClientIpResolver {
     }
 
     private boolean matches(String cidr, String address) {
+        // DoS/side-channel fix: InetAddress.getByName() only avoids a real network DNS lookup when
+        // given an IP literal. `address` comes from X-Forwarded-For - attacker-controlled - so a
+        // non-literal value (a hostname) would otherwise make this request thread perform a blocking
+        // outbound DNS query chosen by the attacker. Reject anything that isn't an IP literal first,
+        // with no network call at all.
+        if (!isIpLiteral(address)) {
+            return false;
+        }
         try {
             String[] parts = cidr.split("/");
             InetAddress network = InetAddress.getByName(parts[0]);
@@ -70,5 +84,9 @@ public class ClientIpResolver {
         } catch (UnknownHostException | NumberFormatException | ArrayIndexOutOfBoundsException ex) {
             return false;
         }
+    }
+
+    private boolean isIpLiteral(String address) {
+        return IPV4.matcher(address).matches() || IPV6.matcher(address).matches();
     }
 }

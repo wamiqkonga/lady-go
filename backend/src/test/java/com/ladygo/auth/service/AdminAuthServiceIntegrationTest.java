@@ -201,15 +201,59 @@ class AdminAuthServiceIntegrationTest {
         admin.setMfaSecretEnc(mfaSecretCipher.encrypt(secret));
         users.saveAndFlush(admin);
 
-        String ip = "203.0.113.8";
         long ref = totpService.currentStep(Instant.now());
-        // Three successful logins, more than the max-attempts=2 threshold just configured above - none
-        // of them should count against it, because none of them is a failure.
-        for (long step = ref - 1; step <= ref + 1; step++) {
-            String code = totpService.generateCode(secret, step);
+        String[] ips = {"203.0.113.10", "203.0.113.11", "203.0.113.12"};
+        // Three successful logins from three different IPs (the IP bucket is deliberately never
+        // released - see releaseLoginRateLimit - a shared IP is a separate concern from this test),
+        // more than the max-attempts=2 threshold just configured above on the EMAIL bucket - none of
+        // them should count against it, because none of them is a failure. ref-1/ref/ref+1 are the
+        // only three codes guaranteed valid without waiting for real time to advance a step.
+        for (int i = 0; i < 3; i++) {
+            String code = totpService.generateCode(secret, ref - 1 + i);
             AdminLoginOutcome outcome = adminAuthService.login(
-                    admin.getEmail(), INITIAL_PASSWORD, code, "device-1", ip);
+                    admin.getEmail(), INITIAL_PASSWORD, code, "device-1", ips[i]);
             assertThat(outcome).isInstanceOf(AdminLoginOutcome.Authenticated.class);
         }
+    }
+
+    /**
+     * Automated post-push security review finding: releasing the IP bucket on success (the first
+     * attempt at the fix above) let a DIFFERENT account's successful login from a shared IP (office
+     * NAT, carrier CGNAT) wipe out an attacker's accumulated failed attempts against a VICTIM account
+     * on that same IP - a cross-account rate-limit bypass. Only the email bucket may ever be released.
+     */
+    @Test
+    void successfulLoginByOneAccountDoesNotResetAnotherAccountsFailuresOnTheSameIp() {
+        String ip = "203.0.113.20";
+        User victim = newStaffPendingEnrolment(UserRole.ADMIN);
+        User otherAdmin = newStaffPendingEnrolment(UserRole.ADMIN);
+        otherAdmin.setMustChangePassword(false);
+        otherAdmin.setMfaEnabled(true);
+        String secret = totpService.generateSecret();
+        otherAdmin.setMfaSecretEnc(mfaSecretCipher.encrypt(secret));
+        users.saveAndFlush(otherAdmin);
+
+        // An attacker fails twice against the victim's email, from the shared IP.
+        for (int i = 0; i < 2; i++) {
+            assertThatThrownBy(() -> adminAuthService.login(victim.getEmail(), "wrong", null, "d", ip))
+                    .isInstanceOf(UnauthorizedException.class);
+        }
+        assertThat(ipBucketCount(ip)).isEqualTo(2);
+
+        // A different, legitimate admin successfully logs in from that SAME ip.
+        long step = totpService.currentStep(Instant.now());
+        String code = totpService.generateCode(secret, step);
+        AdminLoginOutcome outcome = adminAuthService.login(otherAdmin.getEmail(), INITIAL_PASSWORD, code, "d", ip);
+        assertThat(outcome).isInstanceOf(AdminLoginOutcome.Authenticated.class);
+
+        // The shared IP bucket must still reflect every attempt so far (2 attacker failures + this
+        // one), not be wiped down by otherAdmin's success.
+        assertThat(ipBucketCount(ip)).isEqualTo(3);
+    }
+
+    private Integer ipBucketCount(String ip) {
+        return jdbc.queryForObject(
+                "SELECT attempt_count FROM auth_rate_limits WHERE bucket_key = ?", Integer.class,
+                "admin_login_ip:" + ip);
     }
 }

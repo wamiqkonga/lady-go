@@ -192,6 +192,15 @@ A fresh agent with no visibility into this implementation session was given only
 
 Checked and found correct (no change): TOTP replay rejection at the exact ±1-step window boundary; concurrent OTP verification (double-consume/double-count); multi-request OTP invalidation; role-confusion/staff-role-escalation paths; the bulk-update-vs-stale-entity bug class (grepped every `@Modifying` query and call site — no other instance beyond the one already fixed before this review); mock SMS confinement to dev/test; no secrets in logs/responses/fixtures; JWT algorithm/expiry/claim handling; the `@PreAuthorize` surface against `docs/product/admin-flows.md` §1 (todo as more endpoints ship in later phases — see the enrolment-scope finding above for why this is easy to regress).
 
+A second, automated review of the pushed fix commit caught two more real issues in the fixes themselves:
+
+| Finding | Severity | Fixed | Test |
+|---|---|---|---|
+| `ClientIpResolver.matches()` called `InetAddress.getByName()` on an attacker-controlled `X-Forwarded-For` entry with no format check first — for anything that isn't an IP literal, that performs a real blocking DNS lookup to a name the attacker chose (request-thread DoS, plus an outbound-DNS side channel) | HIGH | Yes — rejects any non-IP-literal candidate before any lookup, no network call | `ClientIpResolverTest.nonIpLiteralHopIsRejectedWithoutADnsLookup` |
+| The first version of the login-rate-limit fix released the **IP** bucket on any success, not just the email bucket — on a shared IP (office NAT, carrier CGNAT), one account's legitimate login would wipe out an attacker's accumulated failed attempts against a completely different victim account on that same IP: a cross-account rate-limit bypass | HIGH | Yes — only the email bucket (exclusively one account's) is ever released; the IP bucket (shared) is never released | `AdminAuthServiceIntegrationTest.successfulLoginByOneAccountDoesNotResetAnotherAccountsFailuresOnTheSameIp` |
+
+Both were caught before merge, fixed the same way as everything above (regression test first, fix, verify the test fails without it), and are reflected in the "checked and found correct" list going forward — the `@Modifying` grep and the rate-limit-bypass checks should be re-run on any future change to `ClientIpResolver` or the rate-limit release logic specifically.
+
 No existing test was weakened or deleted to make this pass. One pre-existing test (`DatabaseRateLimiterIntegrationTest.windowExpiryResetsTheCount`) had a timing margin tight enough to flake under a cold Testcontainers start, unrelated to this review's findings; its margins were widened (50ms/80ms → 500ms/800ms), not its assertions.
 
 No code has been written beyond what Phase 2 already migrated and what this section now documents as reviewed; the implementation in this document and in `backend/src/main/java/com/ladygo/{auth,security}` is complete for Phase 3.

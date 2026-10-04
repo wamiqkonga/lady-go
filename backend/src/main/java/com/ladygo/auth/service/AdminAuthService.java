@@ -96,7 +96,7 @@ public class AdminAuthService {
             }
             String token = jwtService.issueEnrolmentToken(
                     user.getId(), !user.isMustChangePassword(), user.isMfaEnabled(), enrolmentTtl());
-            releaseLoginRateLimit(email, clientIp);
+            releaseLoginRateLimit(email);
             return new AdminLoginOutcome.EnrolmentRequired(token, List.copyOf(steps));
         }
 
@@ -114,7 +114,7 @@ public class AdminAuthService {
         }
         // Adversarial review finding (MEDIUM): a run of legitimate successful logins must not erode
         // the budget meant to catch repeated failures, or enough real logins self-lock the account.
-        releaseLoginRateLimit(email, clientIp);
+        releaseLoginRateLimit(email);
         String access = accessTokenIssuer.issue(user.getId(), user.getRole());
         String refresh = refreshTokenService.issue(user.getId(), deviceId);
         return new AdminLoginOutcome.Authenticated(new TokenPair(access, refresh));
@@ -226,11 +226,13 @@ public class AdminAuthService {
         }
     }
 
-    private void releaseLoginRateLimit(String email, String clientIp) {
+    private void releaseLoginRateLimit(String email) {
+        // IP bucket is deliberately never released: it is shared across every email attempted from
+        // that IP (office NAT, carrier CGNAT, ...). Releasing it on one account's success would wipe
+        // out an attacker's accumulated failed attempts against a DIFFERENT account from the same
+        // IP, as soon as any legitimate user on that IP happens to log in - a cross-account rate-limit
+        // bypass. Only the email bucket, which is exclusively this account's, is safe to release.
         rateLimiter.release(emailBucket(email));
-        if (clientIp != null) {
-            rateLimiter.release(ipBucket(clientIp));
-        }
     }
 
     private String emailBucket(String email) {

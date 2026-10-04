@@ -67,6 +67,30 @@ class ClientIpResolverTest {
         assertThat(resolver.resolve(request)).isEqualTo("10.0.0.5");
     }
 
+    /**
+     * Automated post-push security review finding: isTrustedProxy() called InetAddress.getByName()
+     * on an attacker-controlled X-Forwarded-For entry with no validation first. For anything that
+     * isn't an IP literal, that performs a real, blocking DNS lookup to a name the attacker chose -
+     * a DoS vector (hangs the request thread) and a side-channel (outbound DNS query timing/targets
+     * leak that a request happened). Must be rejected with no network call at all.
+     */
+    @Test
+    void nonIpLiteralHopIsRejectedWithoutADnsLookup() {
+        ClientIpResolver resolver = new ClientIpResolver(new TrustedProxyProperties(List.of("10.0.0.0/8")));
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("10.0.0.1");
+        request.addHeader("X-Forwarded-For", "attacker-controlled.invalid, 10.0.0.1");
+
+        long startNanos = System.nanoTime();
+        String resolved = resolver.resolve(request);
+        long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+
+        // Not a trusted proxy (never was going to be), so it's returned as the untrusted candidate.
+        assertThat(resolved).isEqualTo("attacker-controlled.invalid");
+        // A real DNS lookup to a non-existent host would take far longer than this.
+        assertThat(elapsedMs).isLessThan(1000);
+    }
+
     @Test
     void peerJustOutsideTheTrustedRangeIsNotTrusted() {
         ClientIpResolver resolver = new ClientIpResolver(new TrustedProxyProperties(List.of("10.0.0.0/24")));
