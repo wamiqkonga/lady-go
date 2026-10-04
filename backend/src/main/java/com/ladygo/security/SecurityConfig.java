@@ -1,6 +1,7 @@
 package com.ladygo.security;
 
 import java.util.List;
+import com.ladygo.security.jwt.JwtAuthenticationFilter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,15 +12,20 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * Phase 1 security baseline: stateless API, secure headers, strict CORS allow-list,
- * every endpoint authenticated except explicit public ones. JWT authentication is added in Phase 3.
+ * Stateless API, secure headers, strict CORS allow-list, every endpoint authenticated except explicit
+ * public ones. JWT authentication (Phase 3): {@link JwtAuthenticationFilter} runs ahead of
+ * {@link UsernamePasswordAuthenticationFilter} and populates the security context from a Bearer token;
+ * enrolment-scoped tokens only satisfy {@code hasAuthority('SCOPE_ENROLMENT')}.
  */
 @Configuration
 @EnableWebSecurity
@@ -29,6 +35,10 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/system/ping",
+            "/api/v1/auth/otp/request",
+            "/api/v1/auth/otp/verify",
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/admin/login",
             "/actuator/health",
             "/actuator/health/**",
             "/actuator/info",
@@ -38,7 +48,8 @@ public class SecurityConfig {
     };
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler)
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http, JsonSecurityErrorHandler errorHandler, JwtAuthenticationFilter jwtFilter)
             throws Exception {
         http
                 // Stateless token API (no cookies/sessions), so CSRF protection is not applicable.
@@ -56,10 +67,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated())
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler));
         return http.build();
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     @Bean

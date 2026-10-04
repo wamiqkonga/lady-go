@@ -2,21 +2,22 @@
 
 A women-focused pick-and-drop transportation platform: customer and driver mobile apps (Android/iOS), a public website, an admin portal, and a Spring Boot backend.
 
-**Current status: Phase 1 (Project Foundation) written. Website and admin portal build and pass tests. Backend, Android and iOS skeletons are written but not yet compiled (see "Build status").**
+**Current status: Phase 1 (Project Foundation) and Phase 2 (Database) complete — backend CI is green including the Testcontainers database tests (see "Build status"). Phase 3 (Authentication) is starting.**
 
-## Build status (Phase 1)
+## Build status
 
 | Project | Verified on authoring machine | How to verify |
 |---------|-------------------------------|---------------|
 | `frontend/website` | Lint, type-check, 13 tests, production build pass | `npm ci && npm run lint && npm run typecheck && npm test && npm run build` |
 | `frontend/admin` | Lint, type-check, 15 tests, production build pass | same |
-| `backend` | **Not compiled** (Maven Central blocked on the authoring machine); syntax-checked only | `cd backend && mvn verify` |
-| `mobile/android-*` | **Not built** (no Android SDK, Google Maven blocked) | See each app's README |
-| `mobile/ios-*` | **Not built** (Linux machine, no Xcode) | See each app's README |
+| `backend` (Phase 1 skeleton) | CI green (build + tests) | `cd backend && mvn verify` (needs Docker for the database tests) |
+| `backend` database (Phase 2) | Migrations V1–V11, entities, repositories and invariants verified on PostgreSQL 16 + PostGIS. `DatabaseMigrationTest`, `EnumSchemaParityTest`, `PersistenceMappingTest`, `DatabaseConstraintsTest` green locally and in CI (Testcontainers) | `cd backend && mvn verify` |
+| `mobile/android-*` | CI green (lint, unit tests, debug build) | See each app's README |
+| `mobile/ios-*` | CI green (build + unit tests on a simulator) | See each app's README |
 | `infrastructure` | `docker compose config` validates | `docker compose up -d` |
-| `.github/workflows` | YAML validated only; never run | Push a branch |
+| `.github/workflows` | All five workflows have run | Push a branch |
 
-Until CI has run green for backend, Android and iOS, treat those three as unverified.
+Phase 2 closed 2026-10-04: backend CI green with the database tests.
 
 ## Getting started (development)
 
@@ -25,7 +26,8 @@ Until CI has run green for backend, Android and iOS, treat those three as unveri
 cd infrastructure && cp .env.example .env && docker compose up -d
 
 # 2. Backend (http://localhost:8080, health: /actuator/health, ping: /api/v1/system/ping)
-cd backend && mvn spring-boot:run
+#    Applies the Flyway migrations on startup. The password is the POSTGRES_PASSWORD from infrastructure/.env.
+cd backend && export POSTGRES_PASSWORD='<same value as in infrastructure/.env>' && mvn spring-boot:run
 
 # 3. Website (http://localhost:5173) and admin portal (http://localhost:5174)
 cd frontend/website && npm ci && npm run dev
@@ -88,4 +90,4 @@ Safety first, privacy by design, configuration over hard-coded rules, replaceabl
 
 ## Next step
 
-Phase 2 — Database (Flyway migrations, PostGIS, entities). First make backend, Android and iOS CI green.
+Phase 3 — Authentication (OTP, JWT, refresh tokens, RBAC, rate limiting, admin MFA). Design in `docs/security/auth-design.md`.

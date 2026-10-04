@@ -1,4 +1,14 @@
 # Development profile: local Docker Compose services, API docs enabled.
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ladygo}
+    username: ${SPRING_DATASOURCE_USERNAME:ladygo}
+    # No default on purpose: export the same POSTGRES_PASSWORD you put in infrastructure/.env
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD}}
+  flyway:
+    # Dev-only reference data (a placeholder city). Never loaded in staging or production.
+    locations: classpath:db/migration,classpath:db/dev
+
 springdoc:
   api-docs:
     enabled: true

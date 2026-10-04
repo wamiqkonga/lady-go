@@ -1,6 +1,6 @@
 # Lady Go — Database Design
 
-Status: Draft v0.1 · Phase 0 (entities only; migrations arrive in Phase 2)
+Status: v0.2 · Phase 2 implemented (Flyway V1–V11). The migrations in `backend/src/main/resources/db/migration` are the source of truth; see [erd.md](erd.md) for diagrams generated from them and the list of database-enforced invariants.
 
 ## 1. Conventions
 
@@ -118,7 +118,7 @@ plus `safety_incident_events` (append-only timeline).
 - `audit_logs(actor_id, created_at)`, `audit_logs(target_type, target_id)`.
 - `location_history(ride_id, recorded_at)`; partitioned by `recorded_at`.
 
-## 5. Migration plan (Phase 2)
+## 5. Migration plan (implemented in Phase 2)
 
 ```text
 V1__extensions_and_base.sql       (postgis, uuid, cities, configuration)
@@ -133,6 +133,15 @@ V9__ratings.sql
 V10__safety_support.sql
 V11__notifications_audit.sql
 ```
+
+Deviations from the Phase 0 draft, decided while implementing:
+
+- `payment_methods` (listed in the overview but not detailed above) is in V8; it stores provider tokens only, never card data.
+- `users.mfa_enabled`, `safety_incidents.resolved_by` and `safety_incidents.legal_hold` were added (the last lets the retention job keep data under a legal hold).
+- `bookings.driver_id` is unique among committed bookings, and a booking has at most one ACCEPTED offer, enforced by partial unique indexes (concurrency safety net for Phase 6).
+- `pricing_rules` has an exclusion constraint so rules for one city and vehicle type can never overlap in time.
+- `audit_logs.ip` is `varchar(45)` (text IPv4/IPv6) rather than `inet`.
+- `location_history` has no JPA entity; Phase 7 writes it with JDBC batch inserts.
 
 ## 6. Data retention (proposal, needs confirmation)
 

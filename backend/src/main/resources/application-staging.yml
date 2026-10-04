@@ -1,4 +1,10 @@
 # Staging profile: production-like, sandbox providers. All values come from environment variables.
+# Database connection comes from the environment only; startup fails if any value is missing.
+spring:
+  datasource:
+    url: ${LADYGO_DB_URL}
+    username: ${LADYGO_DB_USERNAME}
+    password: ${LADYGO_DB_PASSWORD}
 springdoc:
   api-docs:
     enabled: true
@@ -12,3 +18,9 @@ logging:
 ladygo:
   cors:
     allowed-origins: ${LADYGO_CORS_ALLOWED_ORIGINS}
+  jwt:
+    secret: ${LADYGO_JWT_SECRET}
+  otp:
+    hash-secret: ${LADYGO_OTP_HASH_SECRET}
+  mfa:
+    enc-key: ${LADYGO_MFA_ENC_KEY}

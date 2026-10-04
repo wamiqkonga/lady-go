@@ -1,6 +1,6 @@
 # Lady Go — Development Roadmap
 
-Status: Draft v0.1 · Phase 0
+Status: v0.4 · Phases 0–3 closed; Phase 4 (Customer) design in progress
 
 ## Phase plan
 
@@ -8,14 +8,14 @@ Status: Draft v0.1 · Phase 0
 |------:|------|---------------|---------------|
 | 0 | Discovery | Requirements, architecture, DB design, roadmap | Docs reviewed; open decisions answered or defaulted |
 | 1 | Project foundation (WRITTEN 2026-10-03; backend/Android/iOS awaiting first real build) | Monorepo, Spring Boot skeleton, React website + admin skeletons, Android/iOS skeletons (customer + driver), Docker Compose, CI skeleton | All projects build; CI green; health endpoint |
-| 2 | Database | Flyway migrations V1–V11, PostGIS, entities/repositories, ERD, Testcontainers | Migrations apply from empty DB; repository tests pass |
+| 2 | Database (CLOSED 2026-10-04; backend CI green with Testcontainers) | Flyway migrations V1–V11, PostGIS, entities/repositories, ERD, Testcontainers | Migrations apply from empty DB; repository tests pass |
 | 3 | Authentication | OTP, JWT, refresh, logout, RBAC, rate limiting, admin MFA | Security tests; auth E2E |
 | 4 | Customer | Profile, saved locations, maps abstraction, fare estimate, booking creation/history | Booking API tests; app flows to booking |
 | 5 | Driver | Onboarding, documents, verification, availability, offers, ride lifecycle | Admin approval path works end to end |
 | 6 | Matching | Nearby search, ranking, offers, timeouts, retry, cancellation handling | Concurrency tests; configurable rules |
 | 7 | Real-time | WebSocket/STOMP, Redis, live tracking, admin live map | Load test at target scale |
 | 8 | Payments | Abstraction, provider, webhooks, refunds, receipts, cash flow | Idempotency and webhook tests |
-| 9 | Admin portal | Dashboard, management screens, pricing/config, audit | Admin E2E flows |
+| 9 | Admin portal | Dashboard, management screens, pricing/config, audit. **Step-up MFA**: destructive admin actions (pricing/config changes, admin user management per `docs/product/admin-flows.md` §1) must require a fresh TOTP re-verification beyond login-time MFA — deferred from Phase 3 (`docs/security/auth-design.md` §12, OQ-7); do not ship this UI without it. | Admin E2E flows |
 | 10 | Safety | SOS, emergency contacts, share trip, ride PIN, incidents | Incident E2E; ops runbook |
 | 11 | Testing hardening | Coverage of critical flows, E2E, security review, load tests | Definition of Done met across modules |
 | 12 | Deployment | Environments, containers, monitoring, backups, migration strategy | Staging mirrors production |
@@ -38,7 +38,7 @@ Implementation, validation, authorisation, error handling, tests, passing build,
 | D2 | Payment provider and whether cash is allowed at launch | Phase 8 | Cash + one regional online provider behind the abstraction |
 | D3 | SMS/OTP provider and registration requirements | Phase 3 | Provider abstraction + mock in dev |
 | D4 | Maps provider (Google Maps vs alternatives) and pricing | Phase 4 | **DECIDED 2026-10-03: Google Maps Platform behind `MapsService` (see ADR-011).** Still run the local data-quality check on 50–100 Srinagar points early in Phase 4 and measure real API calls per ride. |
-| D5 | Rider and driver eligibility (gender policy, children, companions, male drivers) | Phase 4/5 | Women riders and women drivers; accompanied minors allowed |
+| D5 | Rider and driver eligibility (gender policy, children, companions, male drivers) | Phase 4/5 | Women riders and women drivers; accompanied minors allowed. Phase 4 implements this default behind a clearly marked placeholder `EligibilityPolicy` interface — not hard-coded inline — so a future business decision doesn't require touching booking logic. |
 | D6 | Vehicle types at launch | Phase 4 | Cab only |
 | D7 | Cancellation and no-show policy, fees | Phase 4 | Free grace window, then flat fee (configurable) |
 | D8 | Commission/service-fee model and driver payout approach | Phase 8 | Percentage service fee, manual payouts |
@@ -49,6 +49,15 @@ Implementation, validation, authorisation, error handling, tests, passing build,
 | D13 | App languages | Phase 4 | English first; localisation-ready strings |
 | D14 | Brand assets, app names, bundle IDs | Phase 1 | Placeholder IDs (`com.ladygo.customer`, `com.ladygo.driver`) |
 | D15 | Android/iOS minimum versions | Phase 1 | Android API 26+, iOS 16+ |
+
+## Security backlog (from docs/security/auth-design.md §15)
+
+Two Phase 3 findings were accepted as tradeoffs for now, not fixed immediately — tracked here so they have a concrete trigger instead of being forgotten:
+
+| Item | Trigger | What lands |
+|---|---|---|
+| Refresh-token grace window | Before the mobile apps reach real users (Phase 11 Testing hardening at the latest, ideally before any Phase 13 beta build) | A bounded ~10s grace window so a dropped-connection retry of an already-rotated refresh token isn't treated as theft, provided the successor token is still unused. |
+| Admin login lockout hardening | Before production (Phase 12 Deployment at the latest) | Replace the hard per-(email, IP) lockout with progressive delay, failure alerting, and a `SUPER_ADMIN` unlock path. |
 
 ## Risk register
 See `docs/product/requirements.md` section 7.
@@ -61,3 +70,22 @@ See `docs/product/requirements.md` section 7.
 - iOS (customer, driver): SwiftUI + MVVM skeleton generated through XcodeGen (`project.yml`). Not built.
 - Dependencies are added only when first used (database, Redis, JWT, Hilt/Retrofit, Maps in later phases).
 - Exit criteria for closing Phase 1: CI green for backend, Android and iOS jobs; fix anything it finds.
+
+## Phase 1 closure (2026-10-03)
+
+Backend, Android and iOS CI jobs went green after two workflow fixes (dynamic iOS simulator selection; use the runner's preinstalled Android SDK instead of `android-actions/setup-android`).
+
+## Phase 2 status notes (2026-10-03)
+
+- Migrations V1–V11 were applied from an empty PostgreSQL 16 + PostGIS database on the authoring machine and the key invariants were exercised with SQL (see `docs/database/erd.md`).
+- Entities (27), enums (29) and repositories are written but **not compiled by Maven here** (Maven Central is blocked on the authoring machine); only a syntax check was possible. Integration tests need Docker (Testcontainers) and first run in CI.
+- Exit criteria for closing Phase 2: backend CI green including `DatabaseMigrationTest`, `EnumSchemaParityTest`, `PersistenceMappingTest`, `DatabaseConstraintsTest`.
+- Likely first-run issues to expect: Hibernate schema validation of geography/jsonb/char columns, Testcontainers/Docker API version, Docker Hub pull limits.
+
+## Phase 2 closure (2026-10-04)
+
+`mvn -B verify` passed clean on the first CI run: no Hibernate schema mismatches, no Testcontainers/Docker issues, no enum/migration drift. All four exit-criteria test classes green (`DatabaseMigrationTest` 6, `EnumSchemaParityTest` 1, `PersistenceMappingTest` 9, `DatabaseConstraintsTest` 19), 54 tests total in the module, 0 failures. Confirmed in the Backend GitHub Actions run (not just local) that Testcontainers pulled `postgis/postgis:16-3.4` and exercised the real database. Backend and Security workflows both green on `develop`.
+
+## Phase 3 closure (2026-10-04)
+
+OTP login (CUSTOMER/DRIVER), admin email+password+TOTP with forced enrolment, rotating refresh tokens with reuse detection, database-backed rate limiting, and a client-IP resolver — design in `docs/security/auth-design.md`, approved before implementation. A fresh adversarial-review agent (no session context, same checklist the project owner specified) found 1 CRITICAL, 2 HIGH and 2 MEDIUM real issues; all but the 2 MEDIUM tradeoffs were fixed with a failing-first regression test each (132 backend tests total, 0 failures). The 2 accepted tradeoffs and OQ-8 are decided and tracked above and in `docs/security/auth-design.md` §13/§15. PR #1 (develop→main) green across Backend/Android/iOS/Security from actual logs, not merged (awaiting owner review). `docs/development/auth-local-runbook.md` written and personally walked end to end against a local stack.
