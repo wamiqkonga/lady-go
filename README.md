@@ -2,7 +2,7 @@
 
 A women-focused pick-and-drop transportation platform: customer and driver mobile apps (Android/iOS), a public website, an admin portal, and a Spring Boot backend.
 
-**Current status: Phase 1 (Project Foundation) complete — website, admin portal, backend, Android and iOS CI jobs are green. Phase 2 (Database) is written; its tests run for the first time in CI (see "Build status").**
+**Current status: Phase 1 (Project Foundation) and Phase 2 (Database) complete — backend CI is green including the Testcontainers database tests (see "Build status"). Phase 3 (Authentication) is starting.**
 
 ## Build status
 
@@ -11,13 +11,13 @@ A women-focused pick-and-drop transportation platform: customer and driver mobil
 | `frontend/website` | Lint, type-check, 13 tests, production build pass | `npm ci && npm run lint && npm run typecheck && npm test && npm run build` |
 | `frontend/admin` | Lint, type-check, 15 tests, production build pass | same |
 | `backend` (Phase 1 skeleton) | CI green (build + tests) | `cd backend && mvn verify` (needs Docker for the database tests) |
-| `backend` database (Phase 2) | Migrations V1–V11 applied and invariants exercised on PostgreSQL 16 + PostGIS locally. Java entities/tests **not yet run by Maven** (Maven Central blocked on the authoring machine) | `cd backend && mvn verify` |
+| `backend` database (Phase 2) | Migrations V1–V11, entities, repositories and invariants verified on PostgreSQL 16 + PostGIS. `DatabaseMigrationTest`, `EnumSchemaParityTest`, `PersistenceMappingTest`, `DatabaseConstraintsTest` green locally and in CI (Testcontainers) | `cd backend && mvn verify` |
 | `mobile/android-*` | CI green (lint, unit tests, debug build) | See each app's README |
 | `mobile/ios-*` | CI green (build + unit tests on a simulator) | See each app's README |
 | `infrastructure` | `docker compose config` validates | `docker compose up -d` |
 | `.github/workflows` | All five workflows have run | Push a branch |
 
-Phase 2 is only closed when the backend CI job is green with the new database tests.
+Phase 2 closed 2026-10-04: backend CI green with the database tests.
 
 ## Getting started (development)
 
@@ -90,4 +90,4 @@ Safety first, privacy by design, configuration over hard-coded rules, replaceabl
 
 ## Next step
 
-Close Phase 2 (backend CI green with the database tests), then Phase 3 — Authentication (OTP, JWT, refresh tokens, RBAC, rate limiting, admin MFA).
+Phase 3 — Authentication (OTP, JWT, refresh tokens, RBAC, rate limiting, admin MFA). Design in `docs/security/auth-design.md`.

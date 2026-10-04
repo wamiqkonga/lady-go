@@ -86,6 +86,35 @@ class DatabaseConstraintsTest extends PersistenceTestSupport {
     }
 
     @Test
+    void onlyStaffRolesCanHaveAPendingMfaSecret() {
+        User user = new User();
+        user.setPhone(nextPhone());
+        user.setRole(UserRole.CUSTOMER);
+        user.setMfaPendingSecretEnc("not-for-customers");
+        assertThatThrownBy(() -> users.saveAndFlush(user)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void onlyStaffRolesCanBeForcedToChangePassword() {
+        User user = new User();
+        user.setPhone(nextPhone());
+        user.setRole(UserRole.DRIVER);
+        user.setMustChangePassword(true);
+        assertThatThrownBy(() -> users.saveAndFlush(user)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void adminMayHaveAPendingMfaSecretAndBeForcedToChangePassword() {
+        User admin = new User();
+        admin.setPhone(nextPhone());
+        admin.setRole(UserRole.SUPER_ADMIN);
+        admin.setPasswordHash("argon2-hash");
+        admin.setMfaPendingSecretEnc("pending-secret-ciphertext");
+        admin.setMustChangePassword(true);
+        assertThat(users.saveAndFlush(admin).getId()).isNotNull();
+    }
+
+    @Test
     void emailIsUniqueIgnoringCase() {
         User first = newUser(UserRole.CUSTOMER);
         first.setEmail("Rider@Example.com");

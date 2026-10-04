@@ -50,4 +50,13 @@ public class User extends AuditedEntity {
 
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
+
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
+    @Column(name = "mfa_pending_secret_enc", columnDefinition = "text")
+    private String mfaPendingSecretEnc;
+
+    @Column(name = "mfa_last_used_step")
+    private Long mfaLastUsedStep;
 }

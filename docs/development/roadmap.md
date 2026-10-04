@@ -8,14 +8,14 @@ Status: Draft v0.1 · Phase 0
 |------:|------|---------------|---------------|
 | 0 | Discovery | Requirements, architecture, DB design, roadmap | Docs reviewed; open decisions answered or defaulted |
 | 1 | Project foundation (WRITTEN 2026-10-03; backend/Android/iOS awaiting first real build) | Monorepo, Spring Boot skeleton, React website + admin skeletons, Android/iOS skeletons (customer + driver), Docker Compose, CI skeleton | All projects build; CI green; health endpoint |
-| 2 | Database (WRITTEN 2026-10-03; migrations verified on PostGIS 16 locally, Java/Testcontainers tests awaiting first CI run) | Flyway migrations V1–V11, PostGIS, entities/repositories, ERD, Testcontainers | Migrations apply from empty DB; repository tests pass |
+| 2 | Database (CLOSED 2026-10-04; backend CI green with Testcontainers) | Flyway migrations V1–V11, PostGIS, entities/repositories, ERD, Testcontainers | Migrations apply from empty DB; repository tests pass |
 | 3 | Authentication | OTP, JWT, refresh, logout, RBAC, rate limiting, admin MFA | Security tests; auth E2E |
 | 4 | Customer | Profile, saved locations, maps abstraction, fare estimate, booking creation/history | Booking API tests; app flows to booking |
 | 5 | Driver | Onboarding, documents, verification, availability, offers, ride lifecycle | Admin approval path works end to end |
 | 6 | Matching | Nearby search, ranking, offers, timeouts, retry, cancellation handling | Concurrency tests; configurable rules |
 | 7 | Real-time | WebSocket/STOMP, Redis, live tracking, admin live map | Load test at target scale |
 | 8 | Payments | Abstraction, provider, webhooks, refunds, receipts, cash flow | Idempotency and webhook tests |
-| 9 | Admin portal | Dashboard, management screens, pricing/config, audit | Admin E2E flows |
+| 9 | Admin portal | Dashboard, management screens, pricing/config, audit. **Step-up MFA**: destructive admin actions (pricing/config changes, admin user management per `docs/product/admin-flows.md` §1) must require a fresh TOTP re-verification beyond login-time MFA — deferred from Phase 3 (`docs/security/auth-design.md` §12, OQ-7); do not ship this UI without it. | Admin E2E flows |
 | 10 | Safety | SOS, emergency contacts, share trip, ride PIN, incidents | Incident E2E; ops runbook |
 | 11 | Testing hardening | Coverage of critical flows, E2E, security review, load tests | Definition of Done met across modules |
 | 12 | Deployment | Environments, containers, monitoring, backups, migration strategy | Staging mirrors production |
@@ -72,3 +72,7 @@ Backend, Android and iOS CI jobs went green after two workflow fixes (dynamic iO
 - Entities (27), enums (29) and repositories are written but **not compiled by Maven here** (Maven Central is blocked on the authoring machine); only a syntax check was possible. Integration tests need Docker (Testcontainers) and first run in CI.
 - Exit criteria for closing Phase 2: backend CI green including `DatabaseMigrationTest`, `EnumSchemaParityTest`, `PersistenceMappingTest`, `DatabaseConstraintsTest`.
 - Likely first-run issues to expect: Hibernate schema validation of geography/jsonb/char columns, Testcontainers/Docker API version, Docker Hub pull limits.
+
+## Phase 2 closure (2026-10-04)
+
+`mvn -B verify` passed clean on the first CI run: no Hibernate schema mismatches, no Testcontainers/Docker issues, no enum/migration drift. All four exit-criteria test classes green (`DatabaseMigrationTest` 6, `EnumSchemaParityTest` 1, `PersistenceMappingTest` 9, `DatabaseConstraintsTest` 19), 54 tests total in the module, 0 failures. Confirmed in the Backend GitHub Actions run (not just local) that Testcontainers pulled `postgis/postgis:16-3.4` and exercised the real database. Backend and Security workflows both green on `develop`.
