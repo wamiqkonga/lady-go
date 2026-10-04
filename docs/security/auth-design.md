@@ -1,6 +1,6 @@
 # Lady Go — Authentication & Authorization Design (Phase 3)
 
-Status: v0.3 · **Approved 2026-10-04**; adversarial security review completed and fixes applied 2026-10-04 (§14).
+Status: v0.4 · **Approved 2026-10-04**; adversarial security review completed and fixes applied 2026-10-04 (§13); post-review decisions recorded (§15).
 
 Scope: `auth` module (OTP, login, tokens, logout, admin enrolment), `security` module (JWT filter, method security, rate limiting, crypto primitives), admin password + MFA. Builds on tables already migrated in Phase 2 (`users`, `refresh_tokens`, `otp_requests`) — see `docs/database/database-design.md`. No new business rules beyond the roadmap's decided/defaulted items (D3) and the role matrix already published in `docs/product/admin-flows.md` §1.
 
@@ -170,14 +170,9 @@ public interface SmsService {
 | OQ-5 | Phone-only account creation on first OTP login; profile completion deferred to Phase 4/5. |
 | OQ-6 | Suspension automatically revokes all refresh tokens server-side, wired in Phase 3 even though the admin UI trigger is Phase 9. |
 | OQ-7 | No step-up MFA re-verification in Phase 3 — login-time MFA only. **Action taken**: `docs/development/roadmap.md` Phase 9 now notes that destructive admin actions (pricing/config changes, admin user management per `docs/product/admin-flows.md` §1) need step-up MFA re-verification before that admin UI ships, so it isn't silently forgotten. |
+| OQ-8 | **Decided 2026-10-04**: one role per phone number for the MVP — the current `uq_users_phone` behaviour (flat rejection on `intendedRole` mismatch, §4.3) is correct as implemented, not a gap. On mismatch, the response changes from a fully generic error to a clear, bounded message: *"This number is already registered for the other app."* — enough for a legitimate user to understand what happened and go use the right app, without revealing the account's role, status, or any other detail. No schema change (`(phone, role)` composite uniqueness is explicitly rejected, not deferred). |
 
-## 13. Open question (still needs your decision)
-
-| # | Question | Default if unanswered |
-|---|----------|------------------------|
-| OQ-8 | When an OTP login's `intendedRole` doesn't match an existing user's actual role for that phone (§4.3) — is a flat rejection (current plan) right, or should some cases (e.g. a DRIVER who also wants a CUSTOMER account on the same number) be allowed as two independent accounts keyed by `(phone, role)` instead of one account per phone? The current schema has a single `uq_users_phone` (one account per phone number, full stop), so "two roles, one phone" would need a schema change (composite unique on `(phone, role)`) — out of scope to decide silently. | Reject with a generic error; one account per phone number, as the current unique constraint already enforces |
-
-## 14. Adversarial security review (2026-10-04)
+## 13. Adversarial security review (2026-10-04)
 
 A fresh agent with no visibility into this implementation session was given only this document plus the `auth`/`security` code and tests, and told to try to break it against the checklist the project owner specified. Findings, in severity order:
 
@@ -187,8 +182,8 @@ A fresh agent with no visibility into this implementation session was given only
 | `ClientIpResolver` returned the left-most (client-suppliable) `X-Forwarded-For` hop instead of the right-most non-proxy hop — spoofable even behind a correctly configured trusted proxy, defeating the whole point of §8 | HIGH | Yes — now walks from the right, skipping trusted hops | `ClientIpResolverTest.spoofedClientSuppliedHopIsIgnoredWhenTheProxyAppendsTheRealIp`, `.multiHopChainSkipsEveryTrustedProxyInTheChain` |
 | Enrolment-scoped JWTs satisfied the blanket `anyRequest().authenticated()` rule and could reach any endpoint without a role-specific `@PreAuthorize` (e.g. `/auth/logout`), contradicting this document's §3.2 claim that they are confined to the three enrolment endpoints | HIGH | Yes — `JwtAuthenticationFilter` now refuses to authenticate an enrolment-scoped token outside those three paths; everywhere else it's as if no token were presented | `AdminAuthControllerIntegrationTest.enrolmentTokenCannotBeUsedOnNonEnrolmentEndpoints` |
 | Admin login rate limiting consumed a slot on every call including successes, so enough legitimate logins in one window self-locked the account | MEDIUM | Yes — `RateLimiter.release()` gives back the slot on a successful login (not on failures, so brute-force protection is unaffected) | `AdminAuthServiceIntegrationTest.successfulLoginsDoNotSelfLockTheAccount`; `DatabaseRateLimiterIntegrationTest.consumeThenReleaseStaysWithinBudgetAcrossManyCalls`, `.releaseDoesNotGoBelowZero` |
-| No grace window on refresh-token rotation: a dropped response after a successful rotation means the client's retry with the old (now-revoked) token is indistinguishable from theft and revokes the whole device family, forcing re-login | MEDIUM | **Not fixed — accepted tradeoff, documented.** A grace window would reopen a real reuse window (an attacker who captured the old token would also get a valid session during the grace period); this needs a product decision, not a unilateral backend change. Client guidance: never blind-retry a `/auth/refresh` call with the same raw token after an ambiguous failure (timeout/dropped connection) — treat it as a forced logout and have the user re-authenticate, rather than resending the same refresh token. | — |
-| Admin login lockout is keyed per-email with no IP component, so an attacker who merely knows a staff member's email can lock that account for the full window with 5 wrong-password requests, no auth needed | MEDIUM | **Not fixed — accepted tradeoff, documented.** Mitigations (CAPTCHA, exponential backoff instead of a hard lock, alerting the account owner on lockout) are product/UX decisions outside Phase 3's scope; flagged for a decision before this matters operationally (i.e. before real staff accounts with real attackers exist). | — |
+| No grace window on refresh-token rotation: a dropped response after a successful rotation means the client's retry with the old (now-revoked) token is indistinguishable from theft and revokes the whole device family, forcing re-login | MEDIUM | **Decided 2026-10-04, see §15** — accepted for now, bounded grace window before mobile beta | — |
+| Admin login lockout is keyed per-email with no IP component, so an attacker who merely knows a staff member's email can lock that account for the full window with 5 wrong-password requests, no auth needed | MEDIUM | **Decided 2026-10-04, see §15** — accepted for now, progressive delay + alerting + unlock path before production | — |
 
 Checked and found correct (no change): TOTP replay rejection at the exact ±1-step window boundary; concurrent OTP verification (double-consume/double-count); multi-request OTP invalidation; role-confusion/staff-role-escalation paths; the bulk-update-vs-stale-entity bug class (grepped every `@Modifying` query and call site — no other instance beyond the one already fixed before this review); mock SMS confinement to dev/test; no secrets in logs/responses/fixtures; JWT algorithm/expiry/claim handling; the `@PreAuthorize` surface against `docs/product/admin-flows.md` §1 (todo as more endpoints ship in later phases — see the enrolment-scope finding above for why this is easy to regress).
 
@@ -202,5 +197,14 @@ A second, automated review of the pushed fix commit caught two more real issues 
 Both were caught before merge, fixed the same way as everything above (regression test first, fix, verify the test fails without it), and are reflected in the "checked and found correct" list going forward — the `@Modifying` grep and the rate-limit-bypass checks should be re-run on any future change to `ClientIpResolver` or the rate-limit release logic specifically.
 
 No existing test was weakened or deleted to make this pass. One pre-existing test (`DatabaseRateLimiterIntegrationTest.windowExpiryResetsTheCount`) had a timing margin tight enough to flake under a cold Testcontainers start, unrelated to this review's findings; its margins were widened (50ms/80ms → 500ms/800ms), not its assertions.
+
+## 15. Post-review decisions (2026-10-04) — the two accepted tradeoffs in §13
+
+| # | Decision |
+|---|----------|
+| Refresh-token grace window | Keep the current strict behaviour (any reuse of an already-rotated token revokes the whole device family, no exceptions) through initial launch. **Before mobile beta**: add a bounded ~10 second grace window — a request presenting an already-rotated token is treated as a safe retry (return the *successor* token pair again, no revocation) **only if** that successor token is still unused and the rotation happened within the grace window; a second, later reuse (successor already consumed) still revokes the family immediately as reuse, as does any reuse past the grace window. This bounds the reopened race to "attacker and legitimate client both retry within ~10s of the same rotation," not an unlimited window. |
+| Admin per-email lockout | Accept the current hard per-(email, IP) lockout for now — no real staff accounts exist in production yet, so there is no victim to target. **Before production**: replace the hard lockout with progressive delay (exponential backoff per `(email, IP)` pair rather than a flat block), a failure alert to the account owner and to ops once a threshold is crossed, and a `SUPER_ADMIN` unlock path (parallel to the existing MFA-reset endpoint in `com.ladygo.admin.web.AdminUserController`) so a locked-out legitimate admin isn't stuck waiting out the window. |
+
+Both are now tracked in `docs/development/roadmap.md` against the phases where they must land before being load-bearing (mobile beta / production), not left as implicit assumptions in this document alone.
 
 No code has been written beyond what Phase 2 already migrated and what this section now documents as reviewed; the implementation in this document and in `backend/src/main/java/com/ladygo/{auth,security}` is complete for Phase 3.

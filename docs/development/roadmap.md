@@ -1,6 +1,6 @@
 # Lady Go — Development Roadmap
 
-Status: Draft v0.1 · Phase 0
+Status: v0.4 · Phases 0–3 closed; Phase 4 (Customer) design in progress
 
 ## Phase plan
 
@@ -38,7 +38,7 @@ Implementation, validation, authorisation, error handling, tests, passing build,
 | D2 | Payment provider and whether cash is allowed at launch | Phase 8 | Cash + one regional online provider behind the abstraction |
 | D3 | SMS/OTP provider and registration requirements | Phase 3 | Provider abstraction + mock in dev |
 | D4 | Maps provider (Google Maps vs alternatives) and pricing | Phase 4 | **DECIDED 2026-10-03: Google Maps Platform behind `MapsService` (see ADR-011).** Still run the local data-quality check on 50–100 Srinagar points early in Phase 4 and measure real API calls per ride. |
-| D5 | Rider and driver eligibility (gender policy, children, companions, male drivers) | Phase 4/5 | Women riders and women drivers; accompanied minors allowed |
+| D5 | Rider and driver eligibility (gender policy, children, companions, male drivers) | Phase 4/5 | Women riders and women drivers; accompanied minors allowed. Phase 4 implements this default behind a clearly marked placeholder `EligibilityPolicy` interface — not hard-coded inline — so a future business decision doesn't require touching booking logic. |
 | D6 | Vehicle types at launch | Phase 4 | Cab only |
 | D7 | Cancellation and no-show policy, fees | Phase 4 | Free grace window, then flat fee (configurable) |
 | D8 | Commission/service-fee model and driver payout approach | Phase 8 | Percentage service fee, manual payouts |
@@ -49,6 +49,15 @@ Implementation, validation, authorisation, error handling, tests, passing build,
 | D13 | App languages | Phase 4 | English first; localisation-ready strings |
 | D14 | Brand assets, app names, bundle IDs | Phase 1 | Placeholder IDs (`com.ladygo.customer`, `com.ladygo.driver`) |
 | D15 | Android/iOS minimum versions | Phase 1 | Android API 26+, iOS 16+ |
+
+## Security backlog (from docs/security/auth-design.md §15)
+
+Two Phase 3 findings were accepted as tradeoffs for now, not fixed immediately — tracked here so they have a concrete trigger instead of being forgotten:
+
+| Item | Trigger | What lands |
+|---|---|---|
+| Refresh-token grace window | Before the mobile apps reach real users (Phase 11 Testing hardening at the latest, ideally before any Phase 13 beta build) | A bounded ~10s grace window so a dropped-connection retry of an already-rotated refresh token isn't treated as theft, provided the successor token is still unused. |
+| Admin login lockout hardening | Before production (Phase 12 Deployment at the latest) | Replace the hard per-(email, IP) lockout with progressive delay, failure alerting, and a `SUPER_ADMIN` unlock path. |
 
 ## Risk register
 See `docs/product/requirements.md` section 7.
@@ -76,3 +85,7 @@ Backend, Android and iOS CI jobs went green after two workflow fixes (dynamic iO
 ## Phase 2 closure (2026-10-04)
 
 `mvn -B verify` passed clean on the first CI run: no Hibernate schema mismatches, no Testcontainers/Docker issues, no enum/migration drift. All four exit-criteria test classes green (`DatabaseMigrationTest` 6, `EnumSchemaParityTest` 1, `PersistenceMappingTest` 9, `DatabaseConstraintsTest` 19), 54 tests total in the module, 0 failures. Confirmed in the Backend GitHub Actions run (not just local) that Testcontainers pulled `postgis/postgis:16-3.4` and exercised the real database. Backend and Security workflows both green on `develop`.
+
+## Phase 3 closure (2026-10-04)
+
+OTP login (CUSTOMER/DRIVER), admin email+password+TOTP with forced enrolment, rotating refresh tokens with reuse detection, database-backed rate limiting, and a client-IP resolver — design in `docs/security/auth-design.md`, approved before implementation. A fresh adversarial-review agent (no session context, same checklist the project owner specified) found 1 CRITICAL, 2 HIGH and 2 MEDIUM real issues; all but the 2 MEDIUM tradeoffs were fixed with a failing-first regression test each (132 backend tests total, 0 failures). The 2 accepted tradeoffs and OQ-8 are decided and tracked above and in `docs/security/auth-design.md` §13/§15. PR #1 (develop→main) green across Backend/Android/iOS/Security from actual logs, not merged (awaiting owner review). `docs/development/auth-local-runbook.md` written and personally walked end to end against a local stack.
