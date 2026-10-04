@@ -1,12 +1,14 @@
 # Lady Go — Customer Profile, Saved Locations, Emergency Contacts (Phase 4)
 
-Status: Draft v0.1 · for approval before implementation.
+Status: v0.2 · **Approved 2026-10-04** (decisions C1–C6 below). Implementation proceeds against this version.
 
 Scope: `customers` module. Builds on tables already migrated in Phase 2 (`customers`, `saved_locations`, `emergency_contacts` — `V3__customers.sql`) and the entities/repositories already written there (`Customer`, `SavedLocation`, `EmergencyContact` + their repositories, including `countByCustomerId` on both child repositories — written in Phase 2 clearly anticipating the limits this document now specifies). No schema changes.
 
 ## 1. A gap this phase must close first: customer row creation
 
 `CustomerRepository` requires a `Customer` row keyed by `user_id` (`uq_customers_user`), but `OtpLoginService.verifyOtp` (Phase 3) only ever creates a `User` row — it never creates the matching `Customer` row for a new CUSTOMER signup. Every endpoint below needs `customers.me` to resolve, so Phase 4 adds one thing to existing Phase 3 code: when `OtpLoginService` creates a new `User` with `role = CUSTOMER`, it also creates the corresponding `Customer` row (`user_id`, `default_city_id = null`, `preferences = {}`) in the same transaction. This is a small, backward-compatible addition to `OtpLoginService`, not a redesign — called out here because it's a prerequisite, not because it changes anything about Phase 3's approved behaviour.
+
+**Approved**, with one explicit requirement: a test proving that if the `Customer` insert fails for any reason, the `User` insert in the same call is rolled back too — no orphan `User` row left behind. This is tested with a Mockito spy on the real `CustomerRepository` bean (`@MockitoSpyBean`, Spring Boot 3.4+) configured to throw, calling the real, still-`@Transactional`-proxied `OtpLoginService`, then asserting `UserRepository.findByPhone(...)` is empty afterward — proving the *actual* transactional boundary, not the test framework's own rollback.
 
 ## 2. Profile
 
@@ -32,11 +34,15 @@ Both require `ROLE_CUSTOMER`. The authenticated principal's `userId` resolves to
 }
 ```
 
-`PUT` body: `{ "name": "...", "email": "...", "defaultCityId": "..." }`. `phone` is never editable through this endpoint — per `docs/product/user-flows.md` §2.6 ("Phone/email change requires OTP re-verification") and ADR-010 (phone is the login identifier), changing it is identity-sensitive and out of scope for Phase 4 (OQ-C1 below). `email` *is* editable here with no re-verification step, because there is currently no email-OTP channel to re-verify it with — only phone OTP exists (OQ-C2).
+`PUT` body: `{ "name": "...", "email": "...", "defaultCityId": "..." }`.
 
-`name`: required, 1–120 chars (matches `users.name varchar(120)`). `email`: optional, validated as an email shape, lower-cased before the existing `uq_users_email` (case-insensitive) check — reject with `VALIDATION_FAILED` on conflict, not a 500 from the DB constraint.
+**C1 — decided**: `phone` is never editable through this endpoint. Phone-number change is deferred past Phase 4 entirely (not just the re-verification flow — the whole feature). ADR-010 and `docs/product/user-flows.md` §2.6 stay unimplemented on this point until a later phase deliberately designs it.
 
-`profilePhotoKey` is read-only in Phase 4: the field exists (maps to `users.profile_photo_key`) but there is no upload endpoint yet. Uploading a photo needs the `FileStorage` SPI (private object storage + short-lived signed URLs, per ADR-009), which `docs/architecture/backend-architecture.md` associates with driver documents starting Phase 5. Pulling it forward into Phase 4 just for a profile photo is a scope call for you (OQ-C3) — the default below is to defer it.
+**C2 — decided**: `email` is optional and editable with no re-verification step (no email-OTP channel exists to verify it with). It is **purely contact information** — stored, editable, shown back in the profile — and must never be usable as an authentication factor or an account-recovery channel for a CUSTOMER/DRIVER account (that stays phone+OTP only, per ADR-010 and `docs/security/auth-design.md`). This constrains any future email-verification work too: verifying the email later doesn't change what it's allowed to be used for unless that's a separate, deliberate decision. Validated as an email shape, lower-cased before the existing `uq_users_email` (case-insensitive) check — reject with `VALIDATION_FAILED` on conflict, not a 500 from the DB constraint.
+
+`name`: required, 1–120 chars (matches `users.name varchar(120)`).
+
+**C3 — decided**: `profilePhotoKey` is read-only in Phase 4 — the field exists (maps to `users.profile_photo_key`) but there is no upload endpoint. Photo upload needs the `FileStorage` SPI (ADR-009), deferred to Phase 5 alongside driver documents, its first real consumer.
 
 ## 3. Saved locations
 
@@ -55,17 +61,18 @@ All `ROLE_CUSTOMER`; every lookup scoped to the authenticated customer's own row
 
 `label`: required, 1–50 chars, free text (the schema's `uq_saved_locations_label (customer_id, label)` is a per-customer unique constraint, not a fixed `home`/`work` enum — a customer can label anything). Create/update body: `{ "label", "address", "latitude", "longitude" }`; the service layer builds the `Point` from lat/lon the same way `PersistenceTestSupport.point(lon, lat)` does in tests (longitude first internally — JTS convention — but the API speaks `latitude`/`longitude` like every other map API, not lon/lat, to avoid a footgun for mobile client authors).
 
-**Limit**: a new `configuration` key `customer.saved_locations.max.count` (GLOBAL, INTEGER), read through `ConfigurationService.getInt(...)`, checked via the already-written `SavedLocationRepository.countByCustomerId` before insert. On the limit being hit: `422` with a generic `LIMIT_EXCEEDED` error code (new — see §5) naming the resource and the configured maximum in the message, e.g. *"You can save up to 10 locations."* Proposed default **10** (OQ-C4 — nothing in any existing doc sets this number).
+**Limit — C4, decided: 10**, configurable. A new `configuration` key `customer.saved_locations.max.count` (GLOBAL, INTEGER, seeded by `V14`), read through `ConfigurationService.getInt(...)`, checked via the already-written `SavedLocationRepository.countByCustomerId` before insert. On the limit being hit: `422` `LIMIT_EXCEEDED` (new — §5) naming the resource and the configured maximum, e.g. *"You can save up to 10 locations."*
 
 ## 4. Emergency contacts
 
 ```
 GET    /api/v1/customers/me/emergency-contacts
 POST   /api/v1/customers/me/emergency-contacts
+PUT    /api/v1/customers/me/emergency-contacts/{id}
 DELETE /api/v1/customers/me/emergency-contacts/{id}
 ```
 
-No `PUT` — an emergency contact is small enough that changing it is delete-and-recreate, keeping the API surface smaller (OQ-C5 if you'd rather have update-in-place).
+**C5 — decided**: `PUT` edits in place (reversing the draft's delete-and-recreate proposal).
 
 ```json
 { "id": "...", "name": "...", "phone": "+91...", "relationship": "...", "createdAt": "..." }
@@ -73,7 +80,7 @@ No `PUT` — an emergency contact is small enough that changing it is delete-and
 
 `phone`: required, same E.164 pattern as `users.phone` (schema already enforces it via CHECK; validate client-side too for a fast error). `relationship`: optional free text, ≤50 chars. `uq_emergency_contacts_phone (customer_id, phone)` means the same number can't be added twice for one customer — surfaced as `409` `RESOURCE_NOT_FOUND`... no: as a `VALIDATION_FAILED` with a clear message, not a raw constraint-violation 500.
 
-**Limit**: `customer.emergency_contacts.max.count` (GLOBAL, INTEGER), same mechanism as saved locations. Requirements only ever mention "emergency contact" in the singular (`docs/product/requirements.md` FR-CUS-1), but the schema allows many and SOS (`docs/product/user-flows.md` §2.5) says "emergency contact notified" without saying only one is notified — proposed default **3** (OQ-C6), enough for a realistic safety setup without being unbounded. This limit matters more in Phase 10 (SOS fan-out) than Phase 4, but the cap belongs here where the contacts are created.
+**Limit — C6, decided: 5**, configurable. `customer.emergency_contacts.max.count` (GLOBAL, INTEGER, seeded by `V14`), same mechanism as saved locations. This limit matters more in Phase 10 (SOS fan-out) than Phase 4, but the cap belongs here where the contacts are created.
 
 ## 5. New error code
 
@@ -87,15 +94,15 @@ GET /api/v1/customers/me/rides
 
 `ROLE_CUSTOMER`, paginated (`page`, `size`, `sort` per the existing API convention), backed directly by the already-written `BookingRepository.findByCustomerIdOrderByCreatedAtDesc`. Response items are the same booking-summary shape used elsewhere — see `docs/api/booking.md` §6 for the exact DTO, defined once there rather than duplicated.
 
-## 7. Open questions
+## 7. Decisions (2026-10-04)
 
-| # | Question | Default if unanswered |
-|---|----------|------------------------|
-| OQ-C1 | Should Phase 4 support changing phone number at all (full re-verification via OTP on the new number, with the old number freed only after success)? | Not supported in Phase 4; phone is fixed after signup until a later phase decides this deliberately |
-| OQ-C2 | Email change with no re-verification (no email-OTP channel exists) — acceptable for MVP, or should email changes be blocked entirely until an email-verification channel exists? | Allowed, unverified (matches `users.email` having no `email_verified_at` column today) |
-| OQ-C3 | Pull `FileStorage` (ADR-009) forward into Phase 4 for profile photo upload, or defer to whenever it's first built for driver documents? | Defer; `profilePhotoKey` stays read-only/null until then |
-| OQ-C4 | Saved locations limit — is 10 right? | 10, via `customer.saved_locations.max.count` |
-| OQ-C5 | Emergency contacts: add `PUT` for update-in-place, or is delete-and-recreate fine? | Delete-and-recreate only |
-| OQ-C6 | Emergency contacts limit — is 3 right? | 3, via `customer.emergency_contacts.max.count` |
+| # | Decision |
+|---|----------|
+| C1 | Phone-number change deferred past Phase 4 entirely. |
+| C2 | Email: optional, unverified, editable with no re-verification — contact info only, never an auth/recovery factor. |
+| C3 | Profile photo upload deferred to Phase 5 (needs `FileStorage`). |
+| C4 | Saved-locations limit: 10, configurable (`customer.saved_locations.max.count`). |
+| C5 | Emergency contacts: `PUT` edits in place. |
+| C6 | Emergency-contacts limit: 5, configurable (`customer.emergency_contacts.max.count`). |
 
-No code has been written for this phase yet.
+Implementation follows; see `docs/development/roadmap.md` Phase 4 for exit criteria.
