@@ -10,8 +10,12 @@ import java.util.Base64;
 import java.util.UUID;
 import com.ladygo.auth.domain.RefreshToken;
 import com.ladygo.auth.repository.RefreshTokenRepository;
+import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.UnauthorizedException;
 import com.ladygo.config.ConfigurationService;
+import com.ladygo.users.domain.User;
+import com.ladygo.users.domain.UserStatus;
+import com.ladygo.users.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -29,11 +33,13 @@ public class RefreshTokenService {
     private static final int TOKEN_BYTES = 32;
 
     private final RefreshTokenRepository repository;
+    private final UserRepository users;
     private final ConfigurationService config;
     private final SecureRandom random = new SecureRandom();
 
-    public RefreshTokenService(RefreshTokenRepository repository, ConfigurationService config) {
+    public RefreshTokenService(RefreshTokenRepository repository, UserRepository users, ConfigurationService config) {
         this.repository = repository;
+        this.users = users;
         this.config = config;
     }
 
@@ -66,6 +72,14 @@ public class RefreshTokenService {
         }
         if (existing.getExpiresAt().isBefore(now)) {
             throw new UnauthorizedException();
+        }
+
+        User user = users.findById(existing.getUserId()).orElse(null);
+        if (user == null || user.getStatus() != UserStatus.ACTIVE) {
+            // Adversarial review finding (CRITICAL): a suspended/deleted user could keep refreshing
+            // forever since status was never checked here. Kill the whole session, not just this call.
+            revokeFamily(existing.getUserId(), existing.getDeviceId(), now);
+            throw new ForbiddenException("This account is not active.");
         }
 
         String newRaw = randomToken();

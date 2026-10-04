@@ -11,4 +11,12 @@ public interface RateLimiter {
 
     /** Atomically records one attempt against {@code bucketKey} and reports whether it is still within limit. */
     boolean tryConsume(String bucketKey, int maxAttempts, Duration window);
+
+    /**
+     * Gives back one previously consumed slot in the current window (floored at zero). Used so a
+     * successful attempt doesn't erode the budget meant to catch repeated *failures* - without this,
+     * enough legitimate successful admin logins in one window self-lock the account (adversarial
+     * review finding, MEDIUM). A no-op if the bucket doesn't exist or is already at zero.
+     */
+    void release(String bucketKey);
 }

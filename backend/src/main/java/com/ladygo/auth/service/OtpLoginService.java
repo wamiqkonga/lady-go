@@ -3,9 +3,11 @@ package com.ladygo.auth.service;
 import java.time.Instant;
 import java.util.Optional;
 import com.ladygo.auth.domain.OtpPurpose;
+import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
+import com.ladygo.users.domain.UserStatus;
 import com.ladygo.users.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +67,10 @@ public class OtpLoginService {
             user.setPhone(phone);
             user.setRole(intendedRole);
             user = users.save(user);
+        } else if (user.getStatus() != UserStatus.ACTIVE) {
+            // Adversarial review finding (CRITICAL): status was never checked on this path, so a
+            // suspended/deleted account could still complete OTP login indefinitely.
+            throw new ForbiddenException("This account is not active.");
         }
 
         if (purpose == OtpPurpose.PHONE_VERIFY) {

@@ -31,6 +31,11 @@ public class DatabaseRateLimiter implements RateLimiter {
         this.jdbc = jdbc;
     }
 
+    private static final String RELEASE = """
+            UPDATE auth_rate_limits SET attempt_count = GREATEST(attempt_count - 1, 0), updated_at = now()
+            WHERE bucket_key = ?
+            """;
+
     @Override
     public boolean tryConsume(String bucketKey, int maxAttempts, Duration window) {
         Instant now = Instant.now();
@@ -40,5 +45,10 @@ public class DatabaseRateLimiter implements RateLimiter {
                 Integer.class,
                 bucketKey, Timestamp.from(now), Timestamp.from(cutoff), Timestamp.from(cutoff), Timestamp.from(now));
         return attemptCount != null && attemptCount <= maxAttempts;
+    }
+
+    @Override
+    public void release(String bucketKey) {
+        jdbc.update(RELEASE, bucketKey);
     }
 }

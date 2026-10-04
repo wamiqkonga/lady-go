@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.ladygo.admin.repository.AuditLogRepository;
 import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.UnauthorizedException;
+import com.ladygo.security.crypto.MfaSecretCipher;
 import com.ladygo.security.crypto.TotpService;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.security.jwt.JwtService;
@@ -16,9 +17,11 @@ import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.testsupport.IntegrationTest;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
+import com.ladygo.users.domain.UserStatus;
 import com.ladygo.users.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +50,10 @@ class AdminAuthServiceIntegrationTest {
     private TotpService totpService;
     @Autowired
     private AuditLogRepository auditLogs;
+    @Autowired
+    private MfaSecretCipher mfaSecretCipher;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     private User newStaffPendingEnrolment(UserRole role) {
         User user = new User();
@@ -160,5 +167,49 @@ class AdminAuthServiceIntegrationTest {
             assertThat(entry.getTargetId()).isEqualTo(target.getId().toString());
             assertThat(entry.getActorId()).isEqualTo(actorId);
         });
+    }
+
+    /**
+     * Adversarial review finding (CRITICAL): users.status was never checked on this path, so a
+     * suspended staff account with a correct password (and even a correct TOTP code) could still log in.
+     */
+    @Test
+    void suspendedAdminCannotLogInEvenWithCorrectCredentials() {
+        User admin = newStaffPendingEnrolment(UserRole.ADMIN);
+        admin.setMustChangePassword(false);
+        admin.setMfaEnabled(true);
+        admin.setStatus(UserStatus.SUSPENDED);
+        users.saveAndFlush(admin);
+
+        assertThatThrownBy(() -> adminAuthService.login(
+                admin.getEmail(), INITIAL_PASSWORD, "000000", "device-1", "203.0.113.7"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    /**
+     * Adversarial review finding (MEDIUM): the login rate limit used to consume a slot on every call,
+     * including successful ones, so enough legitimate logins in one window self-locked the account.
+     */
+    @Test
+    void successfulLoginsDoNotSelfLockTheAccount() {
+        jdbc.update("UPDATE configuration SET value = '2' WHERE key = 'admin.login.max.attempts' AND scope = 'GLOBAL'");
+
+        User admin = newStaffPendingEnrolment(UserRole.ADMIN);
+        admin.setMustChangePassword(false);
+        admin.setMfaEnabled(true);
+        String secret = totpService.generateSecret();
+        admin.setMfaSecretEnc(mfaSecretCipher.encrypt(secret));
+        users.saveAndFlush(admin);
+
+        String ip = "203.0.113.8";
+        long ref = totpService.currentStep(Instant.now());
+        // Three successful logins, more than the max-attempts=2 threshold just configured above - none
+        // of them should count against it, because none of them is a failure.
+        for (long step = ref - 1; step <= ref + 1; step++) {
+            String code = totpService.generateCode(secret, step);
+            AdminLoginOutcome outcome = adminAuthService.login(
+                    admin.getEmail(), INITIAL_PASSWORD, code, "device-1", ip);
+            assertThat(outcome).isInstanceOf(AdminLoginOutcome.Authenticated.class);
+        }
     }
 }

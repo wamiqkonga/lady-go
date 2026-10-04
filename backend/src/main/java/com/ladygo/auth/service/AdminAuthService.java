@@ -19,6 +19,7 @@ import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.security.ratelimit.RateLimiter;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
+import com.ladygo.users.domain.UserStatus;
 import com.ladygo.users.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,6 +81,10 @@ public class AdminAuthService {
                 || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new UnauthorizedException();
         }
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            // Adversarial review finding (CRITICAL): status was never checked on this path.
+            throw new ForbiddenException("This account is not active.");
+        }
 
         if (user.isMustChangePassword() || !user.isMfaEnabled()) {
             List<String> steps = new ArrayList<>();
@@ -91,6 +96,7 @@ public class AdminAuthService {
             }
             String token = jwtService.issueEnrolmentToken(
                     user.getId(), !user.isMustChangePassword(), user.isMfaEnabled(), enrolmentTtl());
+            releaseLoginRateLimit(email, clientIp);
             return new AdminLoginOutcome.EnrolmentRequired(token, List.copyOf(steps));
         }
 
@@ -106,6 +112,9 @@ public class AdminAuthService {
             log.warn("operation=totp_replay_rejected userId={}", user.getId());
             throw new UnauthorizedException();
         }
+        // Adversarial review finding (MEDIUM): a run of legitimate successful logins must not erode
+        // the budget meant to catch repeated failures, or enough real logins self-lock the account.
+        releaseLoginRateLimit(email, clientIp);
         String access = accessTokenIssuer.issue(user.getId(), user.getRole());
         String refresh = refreshTokenService.issue(user.getId(), deviceId);
         return new AdminLoginOutcome.Authenticated(new TokenPair(access, refresh));
@@ -210,12 +219,26 @@ public class AdminAuthService {
     private void checkLoginRateLimit(String email, String clientIp) {
         int maxAttempts = config.getInt("admin.login.max.attempts", 5);
         Duration window = config.getMinutes("admin.login.window.minutes", Duration.ofMinutes(15));
-        boolean emailOk = rateLimiter.tryConsume("admin_login_email:" + email.toLowerCase(java.util.Locale.ROOT),
-                maxAttempts, window);
-        boolean ipOk = clientIp == null || rateLimiter.tryConsume("admin_login_ip:" + clientIp, maxAttempts, window);
+        boolean emailOk = rateLimiter.tryConsume(emailBucket(email), maxAttempts, window);
+        boolean ipOk = clientIp == null || rateLimiter.tryConsume(ipBucket(clientIp), maxAttempts, window);
         if (!emailOk || !ipOk) {
             throw new RateLimitExceededException();
         }
+    }
+
+    private void releaseLoginRateLimit(String email, String clientIp) {
+        rateLimiter.release(emailBucket(email));
+        if (clientIp != null) {
+            rateLimiter.release(ipBucket(clientIp));
+        }
+    }
+
+    private String emailBucket(String email) {
+        return "admin_login_email:" + email.toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private String ipBucket(String clientIp) {
+        return "admin_login_ip:" + clientIp;
     }
 
     private Duration enrolmentTtl() {

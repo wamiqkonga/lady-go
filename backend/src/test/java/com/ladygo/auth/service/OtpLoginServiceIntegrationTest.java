@@ -7,10 +7,14 @@ import com.ladygo.auth.domain.OtpPurpose;
 import com.ladygo.auth.domain.OtpRequest;
 import com.ladygo.auth.repository.OtpRequestRepository;
 import com.ladygo.auth.sms.MockSmsService;
+import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.security.crypto.OtpHasher;
 import com.ladygo.testsupport.IntegrationTest;
+import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
+import com.ladygo.users.domain.UserStatus;
+import com.ladygo.users.repository.UserRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
@@ -31,6 +35,8 @@ class OtpLoginServiceIntegrationTest {
     private OtpRequestRepository otpRequests;
     @Autowired
     private OtpHasher otpHasher;
+    @Autowired
+    private UserRepository users;
 
     private static String nextPhone() {
         return "+9194" + String.format("%08d", SEQ.incrementAndGet());
@@ -94,5 +100,39 @@ class OtpLoginServiceIntegrationTest {
         assertThatThrownBy(() -> otpLoginService.verifyOtp(
                 phone, secondCode, OtpPurpose.LOGIN, UserRole.CUSTOMER, "device-1"))
                 .isInstanceOf(OtpVerificationException.class);
+    }
+
+    /**
+     * Adversarial review finding (CRITICAL): users.status was never checked on this path, so a
+     * suspended or deleted account could still complete OTP login and receive a normal token pair.
+     */
+    @Test
+    void suspendedUserCannotLogInEvenWithTheCorrectCode() {
+        String phone = nextPhone();
+        User user = new User();
+        user.setPhone(phone);
+        user.setRole(UserRole.CUSTOMER);
+        user.setStatus(UserStatus.SUSPENDED);
+        users.saveAndFlush(user);
+
+        String code = insertRawOtp(phone, OtpPurpose.LOGIN, "333444");
+
+        assertThatThrownBy(() -> otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.CUSTOMER, "d1"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void deletedUserCannotLogInEvenWithTheCorrectCode() {
+        String phone = nextPhone();
+        User user = new User();
+        user.setPhone(phone);
+        user.setRole(UserRole.DRIVER);
+        user.setStatus(UserStatus.DELETED);
+        users.saveAndFlush(user);
+
+        String code = insertRawOtp(phone, OtpPurpose.LOGIN, "333555");
+
+        assertThatThrownBy(() -> otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.DRIVER, "d1"))
+                .isInstanceOf(ForbiddenException.class);
     }
 }

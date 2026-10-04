@@ -32,7 +32,18 @@ public class ClientIpResolver {
         if (forwardedFor == null || forwardedFor.isBlank()) {
             return remoteAddr;
         }
-        return forwardedFor.split(",")[0].trim();
+        // A real proxy APPENDS its observed peer to any X-Forwarded-For the client already sent; it
+        // does not replace it. So the left-most entry is always attacker-suppliable (adversarial
+        // review finding, HIGH). Walk from the right, skipping any hop that is itself a trusted proxy
+        // (handles proxy chains), and return the first hop that isn't - the actual client.
+        String[] hops = forwardedFor.split(",");
+        for (int i = hops.length - 1; i >= 0; i--) {
+            String candidate = hops[i].trim();
+            if (!isTrustedProxy(candidate)) {
+                return candidate;
+            }
+        }
+        return remoteAddr;
     }
 
     private boolean isTrustedProxy(String remoteAddr) {

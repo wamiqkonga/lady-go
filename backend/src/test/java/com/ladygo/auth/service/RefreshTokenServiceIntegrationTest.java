@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.UUID;
+import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.UnauthorizedException;
 import com.ladygo.testsupport.IntegrationTest;
 import com.ladygo.users.domain.UserRole;
 import com.ladygo.users.domain.User;
+import com.ladygo.users.domain.UserStatus;
 import com.ladygo.users.repository.UserRepository;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -99,5 +101,30 @@ class RefreshTokenServiceIntegrationTest {
 
         assertThatThrownBy(() -> refreshTokenService.rotate(deviceOne)).isInstanceOf(UnauthorizedException.class);
         assertThatThrownBy(() -> refreshTokenService.rotate(deviceTwo)).isInstanceOf(UnauthorizedException.class);
+    }
+
+    /**
+     * Adversarial review finding (CRITICAL): users.status was never checked on this path, so a
+     * suspended/deleted user holding a still-valid refresh token could keep minting new sessions
+     * forever. The fix also kills the rest of that device's family, not just this one call.
+     */
+    @Test
+    void suspendedUsersRefreshTokenIsRejectedAndTheWholeDeviceFamilyIsRevoked() {
+        User user = new User();
+        user.setPhone("+9197" + String.format("%08d", SEQ.incrementAndGet()));
+        user.setRole(UserRole.CUSTOMER);
+        users.saveAndFlush(user);
+        UUID userId = user.getId();
+
+        String deviceOne = refreshTokenService.issue(userId, "device-1");
+        String deviceOneSecondToken = refreshTokenService.issue(userId, "device-1");
+
+        user.setStatus(UserStatus.SUSPENDED);
+        users.saveAndFlush(user);
+
+        assertThatThrownBy(() -> refreshTokenService.rotate(deviceOne)).isInstanceOf(ForbiddenException.class);
+        // The other still-active token on the same device was revoked as part of the same rejection.
+        assertThatThrownBy(() -> refreshTokenService.rotate(deviceOneSecondToken))
+                .isInstanceOf(UnauthorizedException.class);
     }
 }
