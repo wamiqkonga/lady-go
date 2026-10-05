@@ -38,12 +38,12 @@ Implementation, validation, authorisation, error handling, tests, passing build,
 | D2 | Payment provider and whether cash is allowed at launch | Phase 8 | Cash + one regional online provider behind the abstraction |
 | D3 | SMS/OTP provider and registration requirements | Phase 3 | Provider abstraction + mock in dev |
 | D4 | Maps provider (Google Maps vs alternatives) and pricing | Phase 4 | **DECIDED 2026-10-03: Google Maps Platform behind `MapsService` (see ADR-011).** Still run the local data-quality check on 50–100 Srinagar points early in Phase 4 and measure real API calls per ride. |
-| D5 | Rider and driver eligibility (gender policy, children, companions, male drivers) | Phase 4/5 | Women riders and women drivers; accompanied minors allowed. Phase 4 implements this default behind a clearly marked placeholder `EligibilityPolicy` interface — not hard-coded inline — so a future business decision doesn't require touching booking logic. |
+| D5 | Rider and driver eligibility (gender policy, children, companions, male drivers) | Phase 4/5 | **DECIDED 2026-10-05: no Aadhaar; drivers = licence + live selfie + phone + vehicle registration + self-declaration; riders = phone + live selfie + self-declaration; eligibility rests on human admin review (selfie matched to licence photo for drivers) plus the self-declaration — no government gender source (residual risk). See `docs/api/driver-onboarding.md`.** Companions/minors sub-question unchanged: accompanied minors allowed (placeholder `checkCompanions` behaviour). |
 | D6 | Vehicle types at launch | Phase 4 | Cab only |
 | D7 | Cancellation and no-show policy, fees | Phase 4 | Free grace window, then flat fee (configurable) |
 | D8 | Commission/service-fee model and driver payout approach | Phase 8 | Percentage service fee, manual payouts |
 | D9 | SOS operating model (24x7 team, who contacts police/emergency services) | Phase 10 | Admin queue + emergency contact SMS; ops procedure to be defined |
-| D10 | Background-verification approach and required documents | Phase 5 | Manual document review |
+| D10 | Background-verification approach and required documents | Phase 5 | **DECIDED 2026-10-05, as part of D5**: manual admin document/selfie review — see `docs/api/driver-onboarding.md`. Open sub-questions remain: RC photo vs number only, insurance, police verification — listed in that doc's open questions. |
 | D11 | Data retention periods and legal/regulatory review (data protection, transport licensing) | Phase 2/12 | Proposed periods in database-design.md |
 | D12 | Cloud/hosting target | Phase 12 | Containers on a managed cloud provider |
 | D13 | App languages | Phase 4 | English first; localisation-ready strings |
