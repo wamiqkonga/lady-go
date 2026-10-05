@@ -53,6 +53,26 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         TestTransaction.start();
     }
 
+    /**
+     * The Testcontainers database is shared across the whole test run (see the Flyway migration log -
+     * it only runs once), so anything committed via {@link #commitFixtures()} - including whatever
+     * {@link BookingCreationTransaction#insert} itself commits in its own {@code REQUIRES_NEW}
+     * transaction - must be cleaned up for real, not just left for the (now irrelevant) rollback at
+     * the end of this test. Other tests, e.g. {@code DatabaseMigrationTest}, assert the database is
+     * pristine outside the dev profile. Flagging for commit here makes the automatic end-of-test
+     * transaction finish (teardown) commit this cleanup instead of rolling it back.
+     */
+    private void purgeCommitted(City city, Customer customer) {
+        jdbc.update("DELETE FROM booking_events WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
+                customer.getId());
+        jdbc.update("DELETE FROM bookings WHERE customer_id = ?", customer.getId());
+        jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", city.getId());
+        jdbc.update("DELETE FROM customers WHERE id = ?", customer.getId());
+        jdbc.update("DELETE FROM users WHERE id = ?", customer.getUserId());
+        jdbc.update("DELETE FROM cities WHERE id = ?", city.getId());
+        TestTransaction.flagForCommit();
+    }
+
     private City srinagar() {
         return newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
     }
@@ -121,6 +141,8 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         assertThat(events.get(0).getToStatus()).isEqualTo(BookingStatus.REQUESTED);
         assertThat(events.get(1).getToStatus()).isEqualTo(BookingStatus.SEARCHING_DRIVER);
         assertThat(events.get(1).getActorType()).isEqualTo(ActorType.SYSTEM);
+
+        purgeCommitted(city, customer);
     }
 
     @Test
@@ -141,6 +163,8 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         assertThat(second.created()).isFalse();
         assertThat(second.booking().id()).isEqualTo(first.booking().id());
         assertThat(bookingEvents.findByBookingIdOrderByCreatedAtAsc(first.booking().id())).hasSize(2);
+
+        purgeCommitted(city, customer);
     }
 
     @Test

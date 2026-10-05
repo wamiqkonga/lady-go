@@ -46,6 +46,21 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
         TestTransaction.start();
     }
 
+    /** See BookingServiceIntegrationTest#purgeCommitted - the Testcontainers database is shared
+     *  across the whole test run, so real commits made via {@link #commitFixtures()} must be cleaned
+     *  up for real too, or other tests that assert a pristine database (e.g. DatabaseMigrationTest)
+     *  break. */
+    private void purgeCommitted(City city, Customer customer) {
+        jdbc.update("DELETE FROM booking_events WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
+                customer.getId());
+        jdbc.update("DELETE FROM bookings WHERE customer_id = ?", customer.getId());
+        jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", city.getId());
+        jdbc.update("DELETE FROM customers WHERE id = ?", customer.getId());
+        jdbc.update("DELETE FROM users WHERE id = ?", customer.getUserId());
+        jdbc.update("DELETE FROM cities WHERE id = ?", city.getId());
+        TestTransaction.flagForCommit();
+    }
+
     @Test
     void estimateIsReachableWithoutAnyFixtureAndRejectsOutOfArea() throws Exception {
         Customer customer = newCustomer();
@@ -103,6 +118,8 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk());
+
+        purgeCommitted(city, customer);
     }
 
     @Test
