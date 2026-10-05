@@ -15,6 +15,10 @@ public enum ErrorCode {
     PAYMENT_FAILED(HttpStatus.UNPROCESSABLE_ENTITY, "The payment could not be processed."),
     DRIVER_UNAVAILABLE(HttpStatus.CONFLICT, "The driver is not available."),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "Too many requests. Please try again later."),
+    OUT_OF_SERVICE_AREA(HttpStatus.UNPROCESSABLE_ENTITY, "Lady Go is not available in this area yet."),
+    FARE_CHANGED(HttpStatus.UNPROCESSABLE_ENTITY, "The fare has changed since your estimate."),
+    MAPS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Maps service is temporarily unavailable."),
+    LIMIT_EXCEEDED(HttpStatus.UNPROCESSABLE_ENTITY, "A configured limit has been reached."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

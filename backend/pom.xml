@@ -110,6 +110,12 @@
       <version>${jjwt.version}</version>
       <scope>runtime</scope>
     </dependency>
+    <!-- Phase 4: in-process geocode/route caching (docs/api/maps-service.md section 4) - version
+         managed by the Spring Boot BOM, no Redis needed for this yet (see that doc for why). -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
 
     <!-- Tests -->
     <dependency>

@@ -1,5 +1,6 @@
 package com.ladygo.config;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import com.ladygo.config.domain.ConfigScope;
 import com.ladygo.config.repository.ConfigEntryRepository;
@@ -42,6 +43,12 @@ public class ConfigurationService {
     public Duration getMinutes(String key, Duration fallback) {
         return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
                 .map(entry -> Duration.ofMinutes(Long.parseLong(entry.getConfigValue())))
+                .orElse(fallback);
+    }
+
+    public BigDecimal getBigDecimal(String key, BigDecimal fallback) {
+        return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
+                .map(entry -> new BigDecimal(entry.getConfigValue()))
                 .orElse(fallback);
     }
 

@@ -91,6 +91,9 @@ public class Booking extends AuditedEntity {
     @Column(name = "ride_pin_hash", length = 255)
     private String ridePinHash;
 
+    @Column(name = "idempotency_key", length = 100, nullable = false)
+    private String idempotencyKey;
+
     @Version
     @Column(name = "version", nullable = false)
     private Long version;

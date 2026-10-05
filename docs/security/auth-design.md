@@ -148,6 +148,7 @@ public interface SmsService {
 | `LADYGO_OTP_HASH_SECRET` | HMAC key for OTP code hashing | staging, prod (dev placeholder default) |
 | `LADYGO_BOOTSTRAP_ADMIN_EMAIL`, `LADYGO_BOOTSTRAP_ADMIN_PASSWORD`, `LADYGO_BOOTSTRAP_ADMIN_PHONE` | one-time first-SUPER_ADMIN creation (§3.1); phone is required only to satisfy the `users.phone NOT NULL` schema constraint, not used as a staff login factor | set once, anywhere, then should be unset/rotated |
 | `LADYGO_SMS_PROVIDER`, `LADYGO_SMS_API_KEY`, ... | real SMS provider credentials | staging, prod (no dev default — mock is used instead) |
+| `LADYGO_RIDE_PIN_SECRET` | HMAC key the ride PIN is derived from (Phase 4, docs/api/booking.md section 3) — not an auth secret, listed here to keep one inventory of every env-only key | staging, prod (dev placeholder default) |
 
 `ladygo.security.trusted-proxies` (§8) is a deployment-topology setting, not a secret, but still environment-driven (no hard-coded IPs).
 

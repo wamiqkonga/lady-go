@@ -9,6 +9,7 @@ import com.ladygo.auth.repository.OtpRequestRepository;
 import com.ladygo.auth.sms.MockSmsService;
 import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ValidationException;
+import com.ladygo.customers.repository.CustomerRepository;
 import com.ladygo.security.crypto.OtpHasher;
 import com.ladygo.testsupport.IntegrationTest;
 import com.ladygo.users.domain.User;
@@ -37,6 +38,8 @@ class OtpLoginServiceIntegrationTest {
     private OtpHasher otpHasher;
     @Autowired
     private UserRepository users;
+    @Autowired
+    private CustomerRepository customers;
 
     private static String nextPhone() {
         return "+9194" + String.format("%08d", SEQ.incrementAndGet());
@@ -83,6 +86,30 @@ class OtpLoginServiceIntegrationTest {
         assertThat(result).isPresent();
         assertThat(result.get().accessToken()).isNotBlank();
         assertThat(result.get().refreshToken()).isNotBlank();
+    }
+
+    @Test
+    void firstCustomerSignInAlsoCreatesTheCustomerRow() {
+        String phone = nextPhone();
+        otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.CUSTOMER);
+        String code = MockSmsService.lastCodeFor(phone);
+
+        otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.CUSTOMER, "device-1");
+
+        User user = users.findByPhone(phone).orElseThrow();
+        assertThat(customers.findByUserId(user.getId())).isPresent();
+    }
+
+    @Test
+    void firstDriverSignInDoesNotCreateACustomerRow() {
+        String phone = nextPhone();
+        otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER);
+        String code = MockSmsService.lastCodeFor(phone);
+
+        otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.DRIVER, "device-1");
+
+        User user = users.findByPhone(phone).orElseThrow();
+        assertThat(customers.findByUserId(user.getId())).isEmpty();
     }
 
     @Test

@@ -13,18 +13,25 @@ import com.ladygo.drivers.repository.DriverRepository;
 import com.ladygo.locations.domain.City;
 import com.ladygo.locations.repository.CityRepository;
 import com.ladygo.payments.domain.PaymentMode;
+import com.ladygo.pricing.domain.PricingRule;
+import com.ladygo.pricing.repository.PricingRuleRepository;
 import com.ladygo.rides.domain.Ride;
 import com.ladygo.rides.repository.RideRepository;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
 import com.ladygo.users.repository.UserRepository;
+import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleType;
+import com.ladygo.vehicles.repository.VehicleRepository;
 import jakarta.persistence.EntityManager;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -49,6 +56,8 @@ public abstract class PersistenceTestSupport {
     @Autowired protected DriverRepository drivers;
     @Autowired protected BookingRepository bookings;
     @Autowired protected RideRepository rides;
+    @Autowired protected PricingRuleRepository pricingRules;
+    @Autowired protected VehicleRepository vehicles;
 
     /** WGS84 point; note the argument order is longitude first, then latitude. */
     protected static Point point(double lon, double lat) {
@@ -117,11 +126,50 @@ public abstract class PersistenceTestSupport {
         booking.setDestinationAddress("Hazratbal");
         booking.setCurrency("INR");
         booking.setPaymentMethod(PaymentMode.CASH);
+        booking.setIdempotencyKey(UUID.randomUUID().toString());
         booking.setStatus(status);
         if (status == BookingStatus.CANCELLED) {
             booking.setCancelledBy(ActorType.CUSTOMER);
         }
         return bookings.saveAndFlush(booking);
+    }
+
+    /** A city whose service area is a simple rectangle spanning the given bounding box (lon/lat degrees). */
+    protected City newCityWithServiceArea(double lonMin, double latMin, double lonMax, double latMax) {
+        City city = newCity();
+        Polygon serviceArea = GEOMETRY.createPolygon(new Coordinate[] {
+            new Coordinate(lonMin, latMin), new Coordinate(lonMax, latMin),
+            new Coordinate(lonMax, latMax), new Coordinate(lonMin, latMax),
+            new Coordinate(lonMin, latMin)
+        });
+        city.setServiceArea(serviceArea);
+        return cities.saveAndFlush(city);
+    }
+
+    protected PricingRule newPricingRule(City city, VehicleType vehicleType) {
+        PricingRule rule = new PricingRule();
+        rule.setCityId(city.getId());
+        rule.setVehicleType(vehicleType);
+        rule.setCurrency("INR");
+        rule.setBaseFare(5000);
+        rule.setPerKm(1200);
+        rule.setPerMinute(200);
+        rule.setMinimumFare(6000);
+        rule.setCancellationFee(5000);
+        rule.setServiceFeePct(BigDecimal.valueOf(5));
+        rule.setEffectiveFrom(Instant.now().minusSeconds(3600));
+        return pricingRules.saveAndFlush(rule);
+    }
+
+    protected Vehicle newVehicle(Driver driver) {
+        Vehicle vehicle = new Vehicle();
+        vehicle.setDriverId(driver.getId());
+        vehicle.setRegistrationNumber("JK01AB" + SEQUENCE.incrementAndGet());
+        vehicle.setVehicleType(VehicleType.CAB);
+        vehicle.setMake("Maruti");
+        vehicle.setModel("Dzire");
+        vehicle.setColor("White");
+        return vehicles.saveAndFlush(vehicle);
     }
 
     protected Ride newRide(Booking booking, Driver driver) {

@@ -58,6 +58,8 @@ ladygo:
     hash-secret: ${LADYGO_OTP_HASH_SECRET:dev-only-insecure-otp-secret-CHANGE-ME-0123456789}
   mfa:
     enc-key: ${LADYGO_MFA_ENC_KEY:DevInsecureMfaEncKeyChangeMe1234}
+  ride:
+    pin-secret: ${LADYGO_RIDE_PIN_SECRET:dev-only-insecure-ride-pin-secret-CHANGE-ME-0123456789}
   security:
     # CIDR ranges of proxies/load balancers allowed to set X-Forwarded-For. Empty: nothing trusted by
     # default; set via LADYGO_SECURITY_TRUSTEDPROXIES_0, _1, ... or a profile-specific override when deployed

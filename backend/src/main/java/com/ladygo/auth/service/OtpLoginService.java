@@ -5,6 +5,8 @@ import java.util.Optional;
 import com.ladygo.auth.domain.OtpPurpose;
 import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ValidationException;
+import com.ladygo.customers.domain.Customer;
+import com.ladygo.customers.repository.CustomerRepository;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
 import com.ladygo.users.domain.UserStatus;
@@ -24,16 +26,19 @@ public class OtpLoginService {
     private static final Logger log = LoggerFactory.getLogger(OtpLoginService.class);
 
     private final UserRepository users;
+    private final CustomerRepository customers;
     private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
     private final AccessTokenIssuer accessTokenIssuer;
 
     public OtpLoginService(
             UserRepository users,
+            CustomerRepository customers,
             OtpService otpService,
             RefreshTokenService refreshTokenService,
             AccessTokenIssuer accessTokenIssuer) {
         this.users = users;
+        this.customers = customers;
         this.otpService = otpService;
         this.refreshTokenService = refreshTokenService;
         this.accessTokenIssuer = accessTokenIssuer;
@@ -67,6 +72,14 @@ public class OtpLoginService {
             user.setPhone(phone);
             user.setRole(intendedRole);
             user = users.save(user);
+            if (intendedRole == UserRole.CUSTOMER) {
+                // docs/api/customer-profile.md section 1: every CUSTOMER needs a matching Customer
+                // row (uq_customers_user) for the customers/me endpoints to resolve. Same transaction
+                // as the User insert above, so a failure here rolls back the User too - no orphan.
+                Customer customer = new Customer();
+                customer.setUserId(user.getId());
+                customers.save(customer);
+            }
         } else if (user.getStatus() != UserStatus.ACTIVE) {
             // Adversarial review finding (CRITICAL): status was never checked on this path, so a
             // suspended/deleted account could still complete OTP login indefinitely.
