@@ -15,6 +15,9 @@ import com.ladygo.common.exception.ErrorCode;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.common.web.RequestIdFilter;
 import com.ladygo.security.jwt.AuthPrincipal;
+import com.ladygo.verification.service.EligibilityReportService;
+import com.ladygo.verification.web.dto.EligibilityReportRequest;
+import com.ladygo.verification.web.dto.EligibilityReportResponse;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
@@ -48,9 +51,11 @@ public class BookingController {
     private static final int IDEMPOTENCY_KEY_MAX_LENGTH = 100;
 
     private final BookingService bookingService;
+    private final EligibilityReportService eligibilityReportService;
 
-    public BookingController(BookingService bookingService) {
+    public BookingController(BookingService bookingService, EligibilityReportService eligibilityReportService) {
         this.bookingService = bookingService;
+        this.eligibilityReportService = eligibilityReportService;
     }
 
     @PostMapping("/estimate")
@@ -90,6 +95,19 @@ public class BookingController {
     public ApiResponse<PageResponse<BookingDetailResponse>> history(
             @AuthenticationPrincipal AuthPrincipal principal, Pageable pageable) {
         return ApiResponse.ok(bookingService.history(principal.userId(), pageable));
+    }
+
+    /**
+     * docs/api/driver-onboarding.md section 5 - either party on the booking may report the other;
+     * identified to admins, anonymous to the reported person, rate-limited, only between users who
+     * shared this booking (enforced by resolving the subject FROM the booking, not a free-form id).
+     */
+    @PostMapping("/{id}/eligibility-report")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'DRIVER')")
+    public ApiResponse<EligibilityReportResponse> reportEligibilityConcern(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @Valid @RequestBody EligibilityReportRequest request) {
+        return ApiResponse.ok(eligibilityReportService.report(principal.userId(), id, request.reason()));
     }
 
     /**

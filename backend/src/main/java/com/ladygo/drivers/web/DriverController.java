@@ -1,0 +1,85 @@
+package com.ladygo.drivers.web;
+
+import java.util.List;
+import com.ladygo.common.api.ApiResponse;
+import com.ladygo.drivers.domain.DocumentType;
+import com.ladygo.drivers.service.DriverService;
+import com.ladygo.drivers.web.dto.DriverDocumentResponse;
+import com.ladygo.drivers.web.dto.DriverProfileRequest;
+import com.ladygo.drivers.web.dto.DriverProfileResponse;
+import com.ladygo.drivers.web.dto.VehicleRequest;
+import com.ladygo.drivers.web.dto.VehicleResponse;
+import com.ladygo.security.jwt.AuthPrincipal;
+import com.ladygo.verification.web.dto.DeclarationAcceptRequest;
+import com.ladygo.verification.web.dto.DeclarationResponse;
+import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+/** docs/api/driver-onboarding.md section 3. */
+@RestController
+@RequestMapping("/api/v1/drivers/me")
+@PreAuthorize("hasRole('DRIVER')")
+public class DriverController {
+
+    private final DriverService driverService;
+
+    public DriverController(DriverService driverService) {
+        this.driverService = driverService;
+    }
+
+    @PostMapping
+    public ApiResponse<DriverProfileResponse> bootstrapProfile(
+            @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DriverProfileRequest request) {
+        return ApiResponse.ok(driverService.bootstrapProfile(principal.userId(), request.cityId()));
+    }
+
+    @GetMapping
+    public ApiResponse<DriverProfileResponse> getProfile(@AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(driverService.getProfile(principal.userId()));
+    }
+
+    @PostMapping("/documents")
+    public ApiResponse<DriverDocumentResponse> uploadDocument(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam DocumentType type, @RequestPart MultipartFile file) {
+        return ApiResponse.ok(driverService.uploadDocument(principal.userId(), type, file));
+    }
+
+    @GetMapping("/documents")
+    public ApiResponse<List<DriverDocumentResponse>> listDocuments(@AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(driverService.listDocuments(principal.userId()));
+    }
+
+    @PostMapping("/selfie")
+    public ApiResponse<DriverDocumentResponse> uploadSelfie(
+            @AuthenticationPrincipal AuthPrincipal principal, @RequestPart MultipartFile file) {
+        return ApiResponse.ok(driverService.uploadSelfie(principal.userId(), file));
+    }
+
+    @PostMapping("/declaration")
+    public ApiResponse<DeclarationResponse> acceptDeclaration(
+            @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DeclarationAcceptRequest request) {
+        return ApiResponse.ok(driverService.acceptDeclaration(principal.userId(), request.declarationVersion()));
+    }
+
+    @PutMapping("/vehicle")
+    public ApiResponse<VehicleResponse> upsertVehicle(
+            @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody VehicleRequest request) {
+        return ApiResponse.ok(driverService.upsertVehicle(principal.userId(), request));
+    }
+
+    @GetMapping("/vehicle")
+    public ApiResponse<VehicleResponse> getVehicle(@AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(driverService.getVehicle(principal.userId()));
+    }
+}

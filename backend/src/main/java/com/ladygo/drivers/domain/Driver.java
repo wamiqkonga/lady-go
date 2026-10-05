@@ -76,6 +76,16 @@ public class Driver extends AuditedEntity {
     @Column(name = "rejection_reason", columnDefinition = "text")
     private String rejectionReason;
 
+    @Column(name = "reverification_requested_at")
+    private Instant reverificationRequestedAt;
+
+    @Column(name = "reverification_blocks_online_at")
+    private Instant reverificationBlocksOnlineAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reverification_reason", length = 30)
+    private ReverificationReason reverificationReason;
+
     @Version
     @Column(name = "version", nullable = false)
     private Long version;

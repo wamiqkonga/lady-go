@@ -23,11 +23,17 @@ import com.ladygo.customers.web.dto.UpdateProfileRequest;
 import com.ladygo.locations.repository.CityRepository;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.repository.UserRepository;
+import com.ladygo.verification.domain.SubjectType;
+import com.ladygo.verification.service.RideSelfieService;
+import com.ladygo.verification.service.SelfDeclarationService;
+import com.ladygo.verification.web.dto.DeclarationResponse;
+import com.ladygo.verification.web.dto.RideSelfieResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
-/** docs/api/customer-profile.md. */
+/** docs/api/customer-profile.md, docs/api/driver-onboarding.md section 4. */
 @Service
 public class CustomerService {
 
@@ -37,6 +43,8 @@ public class CustomerService {
     private final EmergencyContactRepository emergencyContacts;
     private final ConfigurationService config;
     private final CityRepository cities;
+    private final SelfDeclarationService selfDeclarations;
+    private final RideSelfieService rideSelfies;
 
     public CustomerService(
             CustomerRepository customers,
@@ -44,13 +52,29 @@ public class CustomerService {
             SavedLocationRepository savedLocations,
             EmergencyContactRepository emergencyContacts,
             ConfigurationService config,
-            CityRepository cities) {
+            CityRepository cities,
+            SelfDeclarationService selfDeclarations,
+            RideSelfieService rideSelfies) {
         this.customers = customers;
         this.users = users;
         this.savedLocations = savedLocations;
         this.emergencyContacts = emergencyContacts;
         this.config = config;
         this.cities = cities;
+        this.selfDeclarations = selfDeclarations;
+        this.rideSelfies = rideSelfies;
+    }
+
+    @Transactional
+    public DeclarationResponse acceptDeclaration(UUID userId, String declarationVersion) {
+        Customer customer = resolveCustomer(userId);
+        return selfDeclarations.accept(SubjectType.CUSTOMER, customer.getId(), declarationVersion);
+    }
+
+    @Transactional
+    public RideSelfieResponse captureRideSelfie(UUID userId, MultipartFile file) {
+        Customer customer = resolveCustomer(userId);
+        return rideSelfies.capture(customer.getId(), file);
     }
 
     public CustomerProfileResponse getProfile(UUID userId) {

@@ -46,6 +46,7 @@ import com.ladygo.users.repository.UserRepository;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleType;
 import com.ladygo.vehicles.repository.VehicleRepository;
+import com.ladygo.verification.service.EligibilityReportService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,6 +73,7 @@ public class BookingService {
     private final FareCalculator fareCalculator;
     private final ConfigurationService config;
     private final RateLimiter rateLimiter;
+    private final EligibilityReportService eligibilityReportService;
 
     public BookingService(
             CustomerRepository customers,
@@ -89,7 +91,8 @@ public class BookingService {
             MapsService mapsService,
             FareCalculator fareCalculator,
             ConfigurationService config,
-            RateLimiter rateLimiter) {
+            RateLimiter rateLimiter,
+            EligibilityReportService eligibilityReportService) {
         this.customers = customers;
         this.users = users;
         this.drivers = drivers;
@@ -106,6 +109,7 @@ public class BookingService {
         this.fareCalculator = fareCalculator;
         this.config = config;
         this.rateLimiter = rateLimiter;
+        this.eligibilityReportService = eligibilityReportService;
     }
 
     /** docs/api/booking.md section 1. Degrades to straight-line + approximate:true on a Maps outage. */
@@ -179,7 +183,7 @@ public class BookingService {
         booking.setIdempotencyKey(idempotencyKey);
 
         try {
-            Booking created = creationTransaction.insert(booking);
+            Booking created = creationTransaction.insert(booking, request.rideSelfieId());
             return new BookingCreationResult(toDetail(created), true);
         } catch (DataIntegrityViolationException ex) {
             // A concurrent request with the same key won the race; its transaction already committed.
@@ -209,6 +213,24 @@ public class BookingService {
         Map<String, Object> metadata = assessCancellationFee(booking);
         Booking cancelled = stateMachine.transition(
                 bookingId, BookingStatus.CANCELLED, ActorType.CUSTOMER, customer.getId(), reason, metadata);
+        return toDetail(cancelled);
+    }
+
+    /**
+     * docs/api/driver-onboarding.md section 5 - a driver may cancel without penalty on an eligibility
+     * concern; this auto-creates an eligibility report for admins, with the customer as the subject.
+     */
+    @Transactional
+    public BookingDetailResponse cancelForEligibilityConcern(UUID driverUserId, UUID bookingId, String reason) {
+        Driver driver = drivers.findByUserId(driverUserId).orElseThrow(ResourceNotFoundException::new);
+        Booking booking = bookings.findById(bookingId)
+                .filter(b -> driver.getId().equals(b.getDriverId()))
+                .orElseThrow(ResourceNotFoundException::new);
+
+        Booking cancelled = stateMachine.transition(bookingId, BookingStatus.CANCELLED, ActorType.DRIVER,
+                driver.getId(), reason, Map.of("cancellationFee", 0, "currency", booking.getCurrency()));
+        eligibilityReportService.autoReportFromDriverCancellation(
+                bookingId, driverUserId, booking.getCustomerId(), reason);
         return toDetail(cancelled);
     }
 

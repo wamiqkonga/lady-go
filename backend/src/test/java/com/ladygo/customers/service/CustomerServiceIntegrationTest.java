@@ -225,4 +225,24 @@ class CustomerServiceIntegrationTest extends PersistenceTestSupport {
                 userId, new EmergencyContactRequest("Father", nextPhone(), "Parent")))
                 .isInstanceOf(LimitExceededException.class);
     }
+
+    @Test
+    void acceptDeclarationSucceeds() {
+        UUID userId = newCustomerUserId();
+
+        var response = customerService.acceptDeclaration(userId, "v1");
+
+        assertThat(response.declarationVersion()).isEqualTo("v1");
+    }
+
+    @Test
+    void captureRideSelfieSucceeds() {
+        UUID userId = newCustomerUserId();
+        var file = new org.springframework.mock.web.MockMultipartFile(
+                "file", "selfie.jpg", "image/jpeg", "fake-jpeg-bytes".getBytes());
+
+        var response = customerService.captureRideSelfie(userId, file);
+
+        assertThat(response.rideSelfieId()).isNotNull();
+    }
 }

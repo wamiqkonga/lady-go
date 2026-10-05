@@ -11,6 +11,7 @@ import com.ladygo.security.jwt.JwtService;
 import com.ladygo.testsupport.PersistenceTestSupport;
 import com.ladygo.users.domain.UserRole;
 import com.ladygo.vehicles.domain.VehicleType;
+import com.ladygo.verification.domain.SubjectType;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -61,7 +62,10 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
         }
         jdbc.update("DELETE FROM booking_events WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
                 committedCustomer.getId());
+        jdbc.update("DELETE FROM ride_selfies WHERE customer_id = ?", committedCustomer.getId());
         jdbc.update("DELETE FROM bookings WHERE customer_id = ?", committedCustomer.getId());
+        jdbc.update("DELETE FROM self_declarations WHERE subject_type = 'CUSTOMER' AND subject_id = ?",
+                committedCustomer.getId());
         jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", committedCity.getId());
         jdbc.update("DELETE FROM customers WHERE id = ?", committedCustomer.getId());
         jdbc.update("DELETE FROM users WHERE id = ?", committedCustomer.getUserId());
@@ -125,10 +129,12 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
     }
 
-    /** A body that would otherwise pass every check (fare included) - so if the header check were
-     *  missing, the request would actually reach the idempotency-key logic, not fail earlier for an
-     *  unrelated reason (fare mismatch, out of service area, ...) and mask the bug under test. */
+    /** A body that would otherwise pass every check (fare, declaration, ride selfie included) - so if
+     *  the header check were missing, the request would actually reach the idempotency-key logic, not
+     *  fail earlier for an unrelated reason and mask the bug under test. */
     private String freshBookingRequestBody(Customer customer) throws Exception {
+        acceptCurrentDeclaration(SubjectType.CUSTOMER, customer.getId());
+        UUID rideSelfieId = newRideSelfie(customer.getId());
         String estimateResponse = mockMvc.perform(post("/api/v1/bookings/estimate")
                         .header("Authorization", "Bearer " + tokenFor(customer))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -139,7 +145,8 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
         long freshFare = com.jayway.jsonpath.JsonPath.<Number>read(estimateResponse, "$.data.estimatedFare").longValue();
         return "{\"pickupLatitude\":34.08,\"pickupLongitude\":74.80,\"pickupAddress\":\"Lal Chowk\","
                 + "\"destinationLatitude\":34.13,\"destinationLongitude\":74.87,\"destinationAddress\":\"Hazratbal\","
-                + "\"vehicleType\":\"CAB\",\"paymentMethod\":\"CASH\",\"expectedFare\":" + freshFare + "}";
+                + "\"vehicleType\":\"CAB\",\"paymentMethod\":\"CASH\",\"expectedFare\":" + freshFare
+                + ",\"rideSelfieId\":\"" + rideSelfieId + "\"}";
     }
 
     @Test
@@ -147,6 +154,8 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
+        acceptCurrentDeclaration(SubjectType.CUSTOMER, customer.getId());
+        UUID rideSelfieId = newRideSelfie(customer.getId());
         commitFixtures(city, customer);
         String idempotencyKey = UUID.randomUUID().toString();
 
@@ -161,7 +170,8 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
 
         String body = "{\"pickupLatitude\":34.08,\"pickupLongitude\":74.80,\"pickupAddress\":\"Lal Chowk\","
                 + "\"destinationLatitude\":34.13,\"destinationLongitude\":74.87,\"destinationAddress\":\"Hazratbal\","
-                + "\"vehicleType\":\"CAB\",\"paymentMethod\":\"CASH\",\"expectedFare\":" + freshFare + "}";
+                + "\"vehicleType\":\"CAB\",\"paymentMethod\":\"CASH\",\"expectedFare\":" + freshFare
+                + ",\"rideSelfieId\":\"" + rideSelfieId + "\"}";
 
         mockMvc.perform(post("/api/v1/bookings")
                         .header("Authorization", "Bearer " + tokenFor(customer))
@@ -185,9 +195,11 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
+        acceptCurrentDeclaration(SubjectType.CUSTOMER, customer.getId());
         String body = "{\"pickupLatitude\":34.08,\"pickupLongitude\":74.80,\"pickupAddress\":\"Lal Chowk\","
                 + "\"destinationLatitude\":34.13,\"destinationLongitude\":74.87,\"destinationAddress\":\"Hazratbal\","
-                + "\"vehicleType\":\"CAB\",\"paymentMethod\":\"CASH\",\"expectedFare\":1}";
+                + "\"vehicleType\":\"CAB\",\"paymentMethod\":\"CASH\",\"expectedFare\":1,"
+                + "\"rideSelfieId\":\"" + UUID.randomUUID() + "\"}";
 
         mockMvc.perform(post("/api/v1/bookings")
                         .header("Authorization", "Bearer " + tokenFor(customer))

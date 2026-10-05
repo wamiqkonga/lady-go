@@ -13,6 +13,8 @@ import com.ladygo.drivers.domain.DocumentStatus;
 import com.ladygo.drivers.domain.DocumentType;
 import com.ladygo.drivers.domain.DriverAvailability;
 import com.ladygo.drivers.domain.DriverVerificationStatus;
+import com.ladygo.drivers.domain.ReverificationReason;
+import com.ladygo.drivers.domain.VerificationReason;
 import com.ladygo.notifications.domain.AppType;
 import com.ladygo.notifications.domain.DevicePlatform;
 import com.ladygo.notifications.domain.NotificationChannelType;
@@ -30,6 +32,8 @@ import com.ladygo.users.domain.UserRole;
 import com.ladygo.users.domain.UserStatus;
 import com.ladygo.vehicles.domain.VehicleType;
 import com.ladygo.vehicles.domain.VehicleVerificationStatus;
+import com.ladygo.verification.domain.EligibilityReportStatus;
+import com.ladygo.verification.domain.SubjectType;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.TreeSet;
@@ -102,5 +106,10 @@ class EnumSchemaParityTest {
         check("device_tokens", "app", AppType.class);
         check("notification_logs", "channel", NotificationChannelType.class);
         check("notification_logs", "status", NotificationStatus.class);
+        check("driver_documents", "reason", VerificationReason.class);
+        check("drivers", "reverification_reason", ReverificationReason.class);
+        check("self_declarations", "subject_type", SubjectType.class);
+        check("eligibility_reports", "subject_type", SubjectType.class);
+        check("eligibility_reports", "status", EligibilityReportStatus.class);
     }
 }

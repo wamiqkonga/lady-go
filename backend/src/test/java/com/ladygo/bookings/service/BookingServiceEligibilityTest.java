@@ -17,9 +17,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
- * docs/api/booking.md section 7: the placeholder {@link EligibilityPolicy} is wired into booking
- * creation right after the customer is loaded. D5 itself is undecided - this only proves the seam is
- * actually called, using a mocked denial, not any real eligibility rule.
+ * docs/api/booking.md section 7 / docs/api/driver-onboarding.md section 4: {@link EligibilityPolicy}
+ * is wired into booking creation right after the customer is loaded. Mocking it here proves the seam
+ * itself (denial propagates as a 403), independent of {@link RealEligibilityPolicy}'s own declaration
+ * check, which has its own test coverage.
  */
 class BookingServiceEligibilityTest extends PersistenceTestSupport {
 
@@ -31,7 +32,7 @@ class BookingServiceEligibilityTest extends PersistenceTestSupport {
     private BookingRequest bookingRequest() {
         return new BookingRequest(
                 34.08, 74.80, "Lal Chowk", 34.13, 74.87, "Hazratbal",
-                VehicleType.CAB, PaymentMode.CASH, null, 18500L);
+                VehicleType.CAB, PaymentMode.CASH, null, 18500L, UUID.randomUUID());
     }
 
     @Test

@@ -39,6 +39,7 @@ public class SecurityConfig {
             "/api/v1/auth/otp/verify",
             "/api/v1/auth/refresh",
             "/api/v1/auth/admin/login",
+            "/internal/files",
             "/actuator/health",
             "/actuator/health/**",
             "/actuator/info",

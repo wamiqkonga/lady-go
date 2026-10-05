@@ -26,3 +26,10 @@ ladygo:
     enc-key: ${LADYGO_MFA_ENC_KEY}
   ride:
     pin-secret: ${LADYGO_RIDE_PIN_SECRET}
+  storage:
+    s3:
+      bucket: ${LADYGO_S3_BUCKET}
+      region: ${LADYGO_S3_REGION}
+      endpoint: ${LADYGO_S3_ENDPOINT:}
+      access-key: ${LADYGO_S3_ACCESS_KEY:}
+      secret-key: ${LADYGO_S3_SECRET_KEY:}

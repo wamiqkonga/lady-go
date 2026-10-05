@@ -15,6 +15,7 @@ import com.ladygo.maps.MapsServiceException;
 import com.ladygo.payments.domain.PaymentMode;
 import com.ladygo.testsupport.PersistenceTestSupport;
 import com.ladygo.vehicles.domain.VehicleType;
+import com.ladygo.verification.domain.SubjectType;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,11 +57,12 @@ class BookingServiceMapsOutageTest extends PersistenceTestSupport {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
+        acceptCurrentDeclaration(SubjectType.CUSTOMER, customer.getId());
         when(mapsService.calculateRoute(any(), any())).thenThrow(new MapsServiceException(new RuntimeException("down")));
 
         BookingRequest request = new BookingRequest(
                 34.08, 74.80, "Lal Chowk", 34.13, 74.87, "Hazratbal",
-                VehicleType.CAB, PaymentMode.CASH, null, 18500L);
+                VehicleType.CAB, PaymentMode.CASH, null, 18500L, UUID.randomUUID());
 
         assertThatThrownBy(() -> bookingService.create(customer.getUserId(), request, UUID.randomUUID().toString()))
                 .isInstanceOf(MapsServiceException.class);

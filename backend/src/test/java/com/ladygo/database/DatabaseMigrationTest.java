@@ -16,14 +16,14 @@ class DatabaseMigrationTest {
     private JdbcTemplate jdbc;
 
     @Test
-    void allFifteenMigrationsAppliedSuccessfully() {
+    void allSixteenMigrationsAppliedSuccessfully() {
         Integer applied = jdbc.queryForObject(
                 "SELECT count(*) FROM flyway_schema_history WHERE success AND version IS NOT NULL", Integer.class);
         String latest = jdbc.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",
                 String.class);
-        assertThat(applied).isEqualTo(15);
-        assertThat(latest).isEqualTo("15");
+        assertThat(applied).isEqualTo(16);
+        assertThat(latest).isEqualTo("16");
     }
 
     @Test

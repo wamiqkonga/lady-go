@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.time.Instant;
+import java.util.UUID;
 
 public record BookingRequest(
         @NotNull @DecimalMin("-90") @DecimalMax("90") Double pickupLatitude,
@@ -19,5 +20,7 @@ public record BookingRequest(
         @NotNull VehicleType vehicleType,
         @NotNull PaymentMode paymentMethod,
         Instant scheduledAt,
-        @NotNull @Positive Long expectedFare) {
+        @NotNull @Positive Long expectedFare,
+        /** A fresh, unused selfie captured via POST /customers/me/ride-selfies (docs/api/driver-onboarding.md section 4). */
+        @NotNull UUID rideSelfieId) {
 }

@@ -23,6 +23,7 @@ import com.ladygo.users.repository.UserRepository;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleType;
 import com.ladygo.vehicles.repository.VehicleRepository;
+import com.ladygo.verification.domain.SubjectType;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -178,5 +179,19 @@ public abstract class PersistenceTestSupport {
         ride.setDriverId(driver.getId());
         ride.setCustomerId(booking.getCustomerId());
         return rides.saveAndFlush(ride);
+    }
+
+    /** Accepts the current self-declaration for a subject - docs/api/driver-onboarding.md section 2. */
+    protected void acceptCurrentDeclaration(SubjectType subjectType, UUID subjectId) {
+        jdbc.update("INSERT INTO self_declarations (subject_type, subject_id, declaration_version) "
+                        + "VALUES (?, ?, (SELECT version FROM declaration_versions ORDER BY published_at DESC LIMIT 1))",
+                subjectType.name(), subjectId);
+    }
+
+    /** A fresh, unused ride selfie for a customer - docs/api/driver-onboarding.md section 4. */
+    protected UUID newRideSelfie(UUID customerId) {
+        return jdbc.queryForObject(
+                "INSERT INTO ride_selfies (customer_id, selfie_storage_key) VALUES (?, ?) RETURNING id",
+                UUID.class, customerId, "test-selfie-key-" + SEQUENCE.incrementAndGet());
     }
 }

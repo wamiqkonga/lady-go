@@ -40,6 +40,12 @@ public class ConfigurationService {
                 .orElse(fallback);
     }
 
+    public Duration getHours(String key, Duration fallback) {
+        return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
+                .map(entry -> Duration.ofHours(Long.parseLong(entry.getConfigValue())))
+                .orElse(fallback);
+    }
+
     public Duration getMinutes(String key, Duration fallback) {
         return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
                 .map(entry -> Duration.ofMinutes(Long.parseLong(entry.getConfigValue())))

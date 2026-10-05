@@ -12,6 +12,9 @@ import com.ladygo.customers.web.dto.UpdateProfileRequest;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.common.api.PageResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
+import com.ladygo.verification.web.dto.DeclarationAcceptRequest;
+import com.ladygo.verification.web.dto.DeclarationResponse;
+import com.ladygo.verification.web.dto.RideSelfieResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +28,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /** docs/api/customer-profile.md. */
 @RestController
@@ -109,5 +114,19 @@ public class CustomerController {
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
         customerService.deleteEmergencyContact(principal.userId(), id);
         return ApiResponse.ok(null);
+    }
+
+    /** docs/api/driver-onboarding.md section 4 - no admin review for riders; this is the one-time acceptance. */
+    @PostMapping("/declaration")
+    public ApiResponse<DeclarationResponse> acceptDeclaration(
+            @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DeclarationAcceptRequest request) {
+        return ApiResponse.ok(customerService.acceptDeclaration(principal.userId(), request.declarationVersion()));
+    }
+
+    /** docs/api/driver-onboarding.md section 4 - a fresh selfie captured per booking, not a one-time artifact. */
+    @PostMapping("/ride-selfies")
+    public ApiResponse<RideSelfieResponse> captureRideSelfie(
+            @AuthenticationPrincipal AuthPrincipal principal, @RequestPart MultipartFile file) {
+        return ApiResponse.ok(customerService.captureRideSelfie(principal.userId(), file));
     }
 }

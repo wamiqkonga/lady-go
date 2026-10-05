@@ -46,4 +46,11 @@ public class DriverDocument extends AuditedEntity {
 
     @Column(name = "expires_at")
     private LocalDate expiresAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reason", length = 30, nullable = false)
+    private VerificationReason reason = VerificationReason.INITIAL;
+
+    @Column(name = "content_deleted_at")
+    private Instant contentDeletedAt;
 }

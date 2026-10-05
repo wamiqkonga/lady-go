@@ -24,6 +24,7 @@ import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.testsupport.PersistenceTestSupport;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleType;
+import com.ladygo.verification.domain.SubjectType;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
@@ -38,6 +39,8 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
 
     @Autowired
     private BookingService bookingService;
+    @Autowired
+    private com.ladygo.verification.repository.EligibilityReportRepository eligibilityReports;
     @Autowired
     private BookingEventRepository bookingEvents;
 
@@ -72,7 +75,10 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         }
         jdbc.update("DELETE FROM booking_events WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
                 committedCustomer.getId());
+        jdbc.update("DELETE FROM ride_selfies WHERE customer_id = ?", committedCustomer.getId());
         jdbc.update("DELETE FROM bookings WHERE customer_id = ?", committedCustomer.getId());
+        jdbc.update("DELETE FROM self_declarations WHERE subject_type = 'CUSTOMER' AND subject_id = ?",
+                committedCustomer.getId());
         jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", committedCity.getId());
         jdbc.update("DELETE FROM customers WHERE id = ?", committedCustomer.getId());
         jdbc.update("DELETE FROM users WHERE id = ?", committedCustomer.getUserId());
@@ -84,11 +90,11 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         return newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
     }
 
-    private BookingRequest requestFor(Long expectedFare) {
+    private BookingRequest requestFor(Long expectedFare, UUID rideSelfieId) {
         return new BookingRequest(
                 34.08, 74.80, "Lal Chowk",
                 34.13, 74.87, "Hazratbal",
-                VehicleType.CAB, PaymentMode.CASH, null, expectedFare);
+                VehicleType.CAB, PaymentMode.CASH, null, expectedFare, rideSelfieId);
     }
 
     @Test
@@ -147,13 +153,15 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
+        acceptCurrentDeclaration(SubjectType.CUSTOMER, customer.getId());
+        UUID rideSelfieId = newRideSelfie(customer.getId());
         commitFixtures(city, customer);
 
         FareEstimateResponse estimate = bookingService.estimate(customer.getUserId(),
                 new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB));
 
         BookingCreationResult result = bookingService.create(
-                customer.getUserId(), requestFor(estimate.estimatedFare()), UUID.randomUUID().toString());
+                customer.getUserId(), requestFor(estimate.estimatedFare(), rideSelfieId), UUID.randomUUID().toString());
 
         assertThat(result.created()).isTrue();
         BookingDetailResponse booking = result.booking();
@@ -174,11 +182,13 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
+        acceptCurrentDeclaration(SubjectType.CUSTOMER, customer.getId());
+        UUID rideSelfieId = newRideSelfie(customer.getId());
         commitFixtures(city, customer);
         FareEstimateResponse estimate = bookingService.estimate(customer.getUserId(),
                 new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB));
         String idempotencyKey = UUID.randomUUID().toString();
-        BookingRequest request = requestFor(estimate.estimatedFare());
+        BookingRequest request = requestFor(estimate.estimatedFare(), rideSelfieId);
 
         BookingCreationResult first = bookingService.create(customer.getUserId(), request, idempotencyKey);
         BookingCreationResult second = bookingService.create(customer.getUserId(), request, idempotencyKey);
@@ -194,7 +204,8 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
-        BookingRequest request = requestFor(1L); // wildly stale.
+        acceptCurrentDeclaration(SubjectType.CUSTOMER, customer.getId());
+        BookingRequest request = requestFor(1L, UUID.randomUUID()); // wildly stale; never reaches the selfie claim.
 
         assertThatThrownBy(() -> bookingService.create(customer.getUserId(), request, UUID.randomUUID().toString()))
                 .isInstanceOfSatisfying(FareChangedException.class,
@@ -313,5 +324,38 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
                 .filter(e -> e.getToStatus() == BookingStatus.CANCELLED)
                 .findFirst()
                 .orElseThrow();
+    }
+
+    /** docs/api/driver-onboarding.md section 5 - driver cancels without penalty, auto-creates a report. */
+    @Test
+    void driverCancelForEligibilityConcernIsFreeAndAutoCreatesAReport() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+
+        bookingService.cancelForEligibilityConcern(driver.getUserId(), booking.getId(), "felt unsafe");
+
+        BookingEvent cancelEvent = cancelEventFor(booking.getId());
+        assertThat(((Number) cancelEvent.getMetadata().get("cancellationFee")).longValue()).isZero();
+        assertThat(cancelEvent.getActorType()).isEqualTo(ActorType.DRIVER);
+        assertThat(eligibilityReports.findAll()).anySatisfy(report -> {
+            assertThat(report.getBookingId()).isEqualTo(booking.getId());
+            assertThat(report.getSubjectId()).isEqualTo(customer.getId());
+            assertThat(report.isAutoCreated()).isTrue();
+        });
+    }
+
+    @Test
+    void driverCancelForEligibilityConcernRejectsAnUnassignedDriver() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Driver stranger = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+
+        assertThatThrownBy(() -> bookingService.cancelForEligibilityConcern(
+                stranger.getUserId(), booking.getId(), "not mine"))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }
