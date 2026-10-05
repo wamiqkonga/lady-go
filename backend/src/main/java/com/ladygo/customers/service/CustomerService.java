@@ -20,6 +20,7 @@ import com.ladygo.customers.web.dto.EmergencyContactResponse;
 import com.ladygo.customers.web.dto.SavedLocationRequest;
 import com.ladygo.customers.web.dto.SavedLocationResponse;
 import com.ladygo.customers.web.dto.UpdateProfileRequest;
+import com.ladygo.locations.repository.CityRepository;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -35,18 +36,21 @@ public class CustomerService {
     private final SavedLocationRepository savedLocations;
     private final EmergencyContactRepository emergencyContacts;
     private final ConfigurationService config;
+    private final CityRepository cities;
 
     public CustomerService(
             CustomerRepository customers,
             UserRepository users,
             SavedLocationRepository savedLocations,
             EmergencyContactRepository emergencyContacts,
-            ConfigurationService config) {
+            ConfigurationService config,
+            CityRepository cities) {
         this.customers = customers;
         this.users = users;
         this.savedLocations = savedLocations;
         this.emergencyContacts = emergencyContacts;
         this.config = config;
+        this.cities = cities;
     }
 
     public CustomerProfileResponse getProfile(UUID userId) {
@@ -73,6 +77,11 @@ public class CustomerService {
         users.save(user);
 
         if (request.defaultCityId() != null) {
+            if (!cities.existsById(request.defaultCityId())) {
+                // Without this check, an unknown city id surfaces as a raw FK-violation 500 on save
+                // below instead of a clean 404 (adversarial review finding, LOW).
+                throw new ResourceNotFoundException();
+            }
             customer.setDefaultCityId(request.defaultCityId());
             customers.save(customer);
         }
@@ -89,6 +98,7 @@ public class CustomerService {
     @Transactional
     public SavedLocationResponse createSavedLocation(UUID userId, SavedLocationRequest request) {
         Customer customer = resolveCustomer(userId);
+        customers.lockById(customer.getId()); // serializes concurrent create calls - see CustomerRepository#lockById.
         enforceLimit(savedLocations.countByCustomerId(customer.getId()),
                 config.getInt("customer.saved_locations.max.count", 10), "saved locations");
 
@@ -140,6 +150,7 @@ public class CustomerService {
     @Transactional
     public EmergencyContactResponse createEmergencyContact(UUID userId, EmergencyContactRequest request) {
         Customer customer = resolveCustomer(userId);
+        customers.lockById(customer.getId()); // serializes concurrent create calls - see CustomerRepository#lockById.
         enforceLimit(emergencyContacts.countByCustomerId(customer.getId()),
                 config.getInt("customer.emergency_contacts.max.count", 5), "emergency contacts");
 

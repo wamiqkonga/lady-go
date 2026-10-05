@@ -20,12 +20,14 @@ import com.ladygo.customers.domain.Customer;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.locations.domain.City;
 import com.ladygo.payments.domain.PaymentMode;
+import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.testsupport.PersistenceTestSupport;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleType;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -39,37 +41,42 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
     @Autowired
     private BookingEventRepository bookingEvents;
 
+    private City committedCity;
+    private Customer committedCustomer;
+
     /**
      * {@link BookingCreationTransaction#insert} runs in {@code REQUIRES_NEW} (deliberately, so a
      * unique-constraint violation on one request's insert doesn't abort the whole physical
      * transaction) - that sub-transaction uses a different connection and cannot see fixture rows
      * still uncommitted in this test's own (otherwise rolled-back) transaction. Committing and
      * restarting mid-test makes the fixtures real, the same way they would be in production by the
-     * time a booking request ever reaches this code.
+     * time a booking request ever reaches this code. The city/customer are remembered so
+     * {@link #purgeCommittedFixtures()} can clean them up in {@code @AfterEach}, which JUnit
+     * guarantees runs even if an assertion earlier in the test fails - a trailing cleanup call at the
+     * end of the test method would NOT run in that case, leaking rows into the database this whole
+     * test run shares (adversarial review finding, HIGH - this previously broke an unrelated test,
+     * {@code DatabaseMigrationTest}, depending on run order).
      */
-    private void commitFixtures() {
+    private void commitFixtures(City city, Customer customer) {
+        this.committedCity = city;
+        this.committedCustomer = customer;
         TestTransaction.flagForCommit();
         TestTransaction.end();
         TestTransaction.start();
     }
 
-    /**
-     * The Testcontainers database is shared across the whole test run (see the Flyway migration log -
-     * it only runs once), so anything committed via {@link #commitFixtures()} - including whatever
-     * {@link BookingCreationTransaction#insert} itself commits in its own {@code REQUIRES_NEW}
-     * transaction - must be cleaned up for real, not just left for the (now irrelevant) rollback at
-     * the end of this test. Other tests, e.g. {@code DatabaseMigrationTest}, assert the database is
-     * pristine outside the dev profile. Flagging for commit here makes the automatic end-of-test
-     * transaction finish (teardown) commit this cleanup instead of rolling it back.
-     */
-    private void purgeCommitted(City city, Customer customer) {
+    @AfterEach
+    void purgeCommittedFixtures() {
+        if (committedCustomer == null) {
+            return;
+        }
         jdbc.update("DELETE FROM booking_events WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
-                customer.getId());
-        jdbc.update("DELETE FROM bookings WHERE customer_id = ?", customer.getId());
-        jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", city.getId());
-        jdbc.update("DELETE FROM customers WHERE id = ?", customer.getId());
-        jdbc.update("DELETE FROM users WHERE id = ?", customer.getUserId());
-        jdbc.update("DELETE FROM cities WHERE id = ?", city.getId());
+                committedCustomer.getId());
+        jdbc.update("DELETE FROM bookings WHERE customer_id = ?", committedCustomer.getId());
+        jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", committedCity.getId());
+        jdbc.update("DELETE FROM customers WHERE id = ?", committedCustomer.getId());
+        jdbc.update("DELETE FROM users WHERE id = ?", committedCustomer.getUserId());
+        jdbc.update("DELETE FROM cities WHERE id = ?", committedCity.getId());
         TestTransaction.flagForCommit();
     }
 
@@ -88,8 +95,9 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
     void estimateReturnsBreakdownAndTotal() {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
+        Customer customer = newCustomer();
 
-        FareEstimateResponse estimate = bookingService.estimate(
+        FareEstimateResponse estimate = bookingService.estimate(customer.getUserId(),
                 new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB));
 
         assertThat(estimate.cityId()).isEqualTo(city.getId());
@@ -100,7 +108,8 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
 
     @Test
     void estimateOutsideAnyServiceAreaIsRejected() {
-        assertThatThrownBy(() -> bookingService.estimate(
+        Customer customer = newCustomer();
+        assertThatThrownBy(() -> bookingService.estimate(customer.getUserId(),
                 new FareEstimateRequest(10.0, 10.0, 10.1, 10.1, VehicleType.CAB)))
                 .isInstanceOf(OutOfServiceAreaException.class);
     }
@@ -109,11 +118,28 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
     void estimateOverMaxDistanceIsRejected() {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
+        Customer customer = newCustomer();
         jdbc.update("UPDATE configuration SET value = '1000' WHERE key = 'ride.max.distance.m' AND scope = 'GLOBAL'");
 
-        assertThatThrownBy(() -> bookingService.estimate(
+        assertThatThrownBy(() -> bookingService.estimate(customer.getUserId(),
                 new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB)))
                 .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void estimateCallsBeyondTheConfiguredRateLimitAreRejected() {
+        City city = srinagar();
+        newPricingRule(city, VehicleType.CAB);
+        Customer customer = newCustomer();
+        jdbc.update(
+                "UPDATE configuration SET value = '2' WHERE key = 'bookings.maps.rate.max.attempts' AND scope = 'GLOBAL'");
+        FareEstimateRequest request = new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB);
+
+        bookingService.estimate(customer.getUserId(), request);
+        bookingService.estimate(customer.getUserId(), request);
+
+        assertThatThrownBy(() -> bookingService.estimate(customer.getUserId(), request))
+                .isInstanceOf(RateLimitExceededException.class);
     }
 
     @Test
@@ -121,9 +147,9 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
-        commitFixtures();
+        commitFixtures(city, customer);
 
-        FareEstimateResponse estimate = bookingService.estimate(
+        FareEstimateResponse estimate = bookingService.estimate(customer.getUserId(),
                 new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB));
 
         BookingCreationResult result = bookingService.create(
@@ -141,8 +167,6 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         assertThat(events.get(0).getToStatus()).isEqualTo(BookingStatus.REQUESTED);
         assertThat(events.get(1).getToStatus()).isEqualTo(BookingStatus.SEARCHING_DRIVER);
         assertThat(events.get(1).getActorType()).isEqualTo(ActorType.SYSTEM);
-
-        purgeCommitted(city, customer);
     }
 
     @Test
@@ -150,8 +174,8 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
-        commitFixtures();
-        FareEstimateResponse estimate = bookingService.estimate(
+        commitFixtures(city, customer);
+        FareEstimateResponse estimate = bookingService.estimate(customer.getUserId(),
                 new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB));
         String idempotencyKey = UUID.randomUUID().toString();
         BookingRequest request = requestFor(estimate.estimatedFare());
@@ -163,8 +187,6 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         assertThat(second.created()).isFalse();
         assertThat(second.booking().id()).isEqualTo(first.booking().id());
         assertThat(bookingEvents.findByBookingIdOrderByCreatedAtAsc(first.booking().id())).hasSize(2);
-
-        purgeCommitted(city, customer);
     }
 
     @Test

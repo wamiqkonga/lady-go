@@ -40,10 +40,11 @@ class BookingServiceMapsOutageTest extends PersistenceTestSupport {
     void estimateDegradesToStraightLineDistanceWhenMapsIsDown() {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
+        Customer customer = newCustomer();
         when(mapsService.calculateRoute(any(), any())).thenThrow(new MapsServiceException(new RuntimeException("down")));
         when(mapsService.calculateDistanceMeters(any(), any())).thenReturn(8000.0);
 
-        FareEstimateResponse estimate = bookingService.estimate(
+        FareEstimateResponse estimate = bookingService.estimate(customer.getUserId(),
                 new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB));
 
         assertThat(estimate.approximate()).isTrue();

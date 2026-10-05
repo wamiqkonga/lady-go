@@ -12,10 +12,10 @@ import com.ladygo.common.api.ApiError;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.common.api.PageResponse;
 import com.ladygo.common.exception.ErrorCode;
+import com.ladygo.common.exception.ValidationException;
 import com.ladygo.common.web.RequestIdFilter;
 import com.ladygo.security.jwt.AuthPrincipal;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -39,6 +39,14 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasRole('CUSTOMER')")
 public class BookingController {
 
+    /** Matches {@code bookings.idempotency_key varchar(100)} (V13) - checked here, not via a
+     *  {@code @RequestHeader}-level {@code jakarta.validation} annotation, which this app's
+     *  {@link com.ladygo.common.web.GlobalExceptionHandler} does not reliably map to a clean error
+     *  (adversarial review findings, LOW/MEDIUM: a blank or oversized key previously surfaced as an
+     *  opaque {@code 500}, the latter via a {@code DataIntegrityViolationException} that
+     *  {@code BookingService.create} misread as a concurrent-insert race). */
+    private static final int IDEMPOTENCY_KEY_MAX_LENGTH = 100;
+
     private final BookingService bookingService;
 
     public BookingController(BookingService bookingService) {
@@ -46,15 +54,20 @@ public class BookingController {
     }
 
     @PostMapping("/estimate")
-    public ApiResponse<FareEstimateResponse> estimate(@Valid @RequestBody FareEstimateRequest request) {
-        return ApiResponse.ok(bookingService.estimate(request));
+    public ApiResponse<FareEstimateResponse> estimate(
+            @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody FareEstimateRequest request) {
+        return ApiResponse.ok(bookingService.estimate(principal.userId(), request));
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<BookingDetailResponse>> create(
             @AuthenticationPrincipal AuthPrincipal principal,
-            @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey,
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody BookingRequest request) {
+        if (idempotencyKey.isBlank() || idempotencyKey.length() > IDEMPOTENCY_KEY_MAX_LENGTH) {
+            throw new ValidationException(
+                    "Idempotency-Key must be present and at most " + IDEMPOTENCY_KEY_MAX_LENGTH + " characters.");
+        }
         BookingCreationResult result = bookingService.create(principal.userId(), request, idempotencyKey);
         HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(status).body(ApiResponse.ok(result.booking()));

@@ -15,10 +15,14 @@ import com.ladygo.customers.web.dto.SavedLocationResponse;
 import com.ladygo.customers.web.dto.UpdateProfileRequest;
 import com.ladygo.testsupport.PersistenceTestSupport;
 import com.ladygo.users.domain.User;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.transaction.TestTransaction;
 
 class CustomerServiceIntegrationTest extends PersistenceTestSupport {
 
@@ -55,6 +59,15 @@ class CustomerServiceIntegrationTest extends PersistenceTestSupport {
 
         assertThat(updated.name()).isEqualTo("New Name");
         assertThat(updated.email()).isEqualTo("new@example.com");
+    }
+
+    @Test
+    void updateProfileRejectsAnUnknownDefaultCityId() {
+        UUID userId = newCustomerUserId();
+
+        assertThatThrownBy(() -> customerService.updateProfile(
+                userId, new UpdateProfileRequest("Name", null, UUID.randomUUID())))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -95,6 +108,72 @@ class CustomerServiceIntegrationTest extends PersistenceTestSupport {
         assertThatThrownBy(() -> customerService.createSavedLocation(
                 userId, new SavedLocationRequest("C", "Addr C", 34.2, 74.2)))
                 .isInstanceOf(LimitExceededException.class);
+    }
+
+    /**
+     * Adversarial review finding, MEDIUM: a plain count-then-insert has no protection against two
+     * concurrent requests both passing the check before either commits. Two real threads (each gets
+     * its own transaction, same as two concurrent HTTP requests) race to create a second saved
+     * location against a limit of 1; {@code CustomerRepository#lockById} must serialize them so
+     * exactly one succeeds and the final count never exceeds the limit.
+     */
+    @Test
+    void concurrentSavedLocationCreatesNeverExceedTheLimit() throws InterruptedException {
+        Customer customer = newCustomer();
+        jdbc.update("UPDATE configuration SET value = '1' WHERE key = 'customer.saved_locations.max.count'");
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        TestTransaction.start();
+
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch go = new CountDownLatch(1);
+        List<Throwable> errors = new CopyOnWriteArrayList<>();
+        Runnable createHome = () -> {
+            ready.countDown();
+            await(go);
+            try {
+                customerService.createSavedLocation(customer.getUserId(), new SavedLocationRequest("Home", "Addr A", 34.0, 74.0));
+            } catch (Throwable ex) {
+                errors.add(ex);
+            }
+        };
+        Runnable createWork = () -> {
+            ready.countDown();
+            await(go);
+            try {
+                customerService.createSavedLocation(customer.getUserId(), new SavedLocationRequest("Work", "Addr B", 34.1, 74.1));
+            } catch (Throwable ex) {
+                errors.add(ex);
+            }
+        };
+        Thread t1 = new Thread(createHome);
+        Thread t2 = new Thread(createWork);
+        t1.start();
+        t2.start();
+        ready.await();
+        go.countDown();
+        t1.join();
+        t2.join();
+
+        Integer count = jdbc.queryForObject(
+                "SELECT count(*) FROM saved_locations WHERE customer_id = ?", Integer.class, customer.getId());
+        assertThat(count).isEqualTo(1);
+        assertThat(errors).hasSize(1);
+        assertThat(errors.get(0)).isInstanceOf(LimitExceededException.class);
+
+        jdbc.update("DELETE FROM saved_locations WHERE customer_id = ?", customer.getId());
+        jdbc.update("DELETE FROM customers WHERE id = ?", customer.getId());
+        jdbc.update("DELETE FROM users WHERE id = ?", customer.getUserId());
+        TestTransaction.flagForCommit();
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(ex);
+        }
     }
 
     @Test

@@ -13,6 +13,7 @@ import com.ladygo.users.domain.UserRole;
 import com.ladygo.vehicles.domain.VehicleType;
 import java.time.Duration;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,6 +30,9 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
     @Autowired
     private JwtService jwtService;
 
+    private City committedCity;
+    private Customer committedCustomer;
+
     private City srinagar() {
         return newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
     }
@@ -39,25 +43,29 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
 
     /** See BookingServiceIntegrationTest#commitFixtures - needed whenever a request reaches the
      *  REQUIRES_NEW booking insert, which runs on a connection that can't see this test's own
-     *  otherwise-uncommitted fixture rows. */
-    private void commitFixtures() {
+     *  otherwise-uncommitted fixture rows. Remembered for {@code @AfterEach} cleanup, which JUnit
+     *  guarantees runs even if an earlier assertion in the test fails (a trailing cleanup call would
+     *  not) - adversarial review finding, HIGH. */
+    private void commitFixtures(City city, Customer customer) {
+        this.committedCity = city;
+        this.committedCustomer = customer;
         TestTransaction.flagForCommit();
         TestTransaction.end();
         TestTransaction.start();
     }
 
-    /** See BookingServiceIntegrationTest#purgeCommitted - the Testcontainers database is shared
-     *  across the whole test run, so real commits made via {@link #commitFixtures()} must be cleaned
-     *  up for real too, or other tests that assert a pristine database (e.g. DatabaseMigrationTest)
-     *  break. */
-    private void purgeCommitted(City city, Customer customer) {
+    @AfterEach
+    void purgeCommittedFixtures() {
+        if (committedCustomer == null) {
+            return;
+        }
         jdbc.update("DELETE FROM booking_events WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
-                customer.getId());
-        jdbc.update("DELETE FROM bookings WHERE customer_id = ?", customer.getId());
-        jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", city.getId());
-        jdbc.update("DELETE FROM customers WHERE id = ?", customer.getId());
-        jdbc.update("DELETE FROM users WHERE id = ?", customer.getUserId());
-        jdbc.update("DELETE FROM cities WHERE id = ?", city.getId());
+                committedCustomer.getId());
+        jdbc.update("DELETE FROM bookings WHERE customer_id = ?", committedCustomer.getId());
+        jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", committedCity.getId());
+        jdbc.update("DELETE FROM customers WHERE id = ?", committedCustomer.getId());
+        jdbc.update("DELETE FROM users WHERE id = ?", committedCustomer.getUserId());
+        jdbc.update("DELETE FROM cities WHERE id = ?", committedCity.getId());
         TestTransaction.flagForCommit();
     }
 
@@ -82,12 +90,64 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * Adversarial review findings, LOW/MEDIUM: a blank or oversized {@code Idempotency-Key} previously
+     * surfaced as an opaque {@code 500} (the annotation-only {@code @NotBlank} on the header isn't
+     * reliably enforced by this app's exception model, and an oversized key hit the varchar(100)
+     * column, which {@code BookingService.create}'s unique-violation catch misread as a concurrent
+     * insert race). Both must now be a clean {@code 400 VALIDATION_FAILED} instead. Real city/pricing
+     * fixtures are required so the request would otherwise actually reach the idempotency-key logic
+     * (without them it fails earlier with an unrelated {@code OUT_OF_SERVICE_AREA}, masking the bug).
+     */
+    @Test
+    void blankIdempotencyKeyIsAValidationFailureNotAServerError() throws Exception {
+        newPricingRule(srinagar(), VehicleType.CAB);
+        Customer customer = newCustomer();
+        mockMvc.perform(post("/api/v1/bookings")
+                        .header("Authorization", "Bearer " + tokenFor(customer))
+                        .header("Idempotency-Key", "")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(freshBookingRequestBody(customer)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void oversizedIdempotencyKeyIsAValidationFailureNotAServerError() throws Exception {
+        newPricingRule(srinagar(), VehicleType.CAB);
+        Customer customer = newCustomer();
+        mockMvc.perform(post("/api/v1/bookings")
+                        .header("Authorization", "Bearer " + tokenFor(customer))
+                        .header("Idempotency-Key", "x".repeat(101))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(freshBookingRequestBody(customer)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
+    /** A body that would otherwise pass every check (fare included) - so if the header check were
+     *  missing, the request would actually reach the idempotency-key logic, not fail earlier for an
+     *  unrelated reason (fare mismatch, out of service area, ...) and mask the bug under test. */
+    private String freshBookingRequestBody(Customer customer) throws Exception {
+        String estimateResponse = mockMvc.perform(post("/api/v1/bookings/estimate")
+                        .header("Authorization", "Bearer " + tokenFor(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pickupLatitude\":34.08,\"pickupLongitude\":74.80,"
+                                + "\"destinationLatitude\":34.13,\"destinationLongitude\":74.87,\"vehicleType\":\"CAB\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long freshFare = com.jayway.jsonpath.JsonPath.<Number>read(estimateResponse, "$.data.estimatedFare").longValue();
+        return "{\"pickupLatitude\":34.08,\"pickupLongitude\":74.80,\"pickupAddress\":\"Lal Chowk\","
+                + "\"destinationLatitude\":34.13,\"destinationLongitude\":74.87,\"destinationAddress\":\"Hazratbal\","
+                + "\"vehicleType\":\"CAB\",\"paymentMethod\":\"CASH\",\"expectedFare\":" + freshFare + "}";
+    }
+
     @Test
     void createReturns201ThenReplayReturns200() throws Exception {
         City city = srinagar();
         newPricingRule(city, VehicleType.CAB);
         Customer customer = newCustomer();
-        commitFixtures();
+        commitFixtures(city, customer);
         String idempotencyKey = UUID.randomUUID().toString();
 
         String estimateResponse = mockMvc.perform(post("/api/v1/bookings/estimate")
@@ -118,8 +178,6 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk());
-
-        purgeCommitted(city, customer);
     }
 
     @Test

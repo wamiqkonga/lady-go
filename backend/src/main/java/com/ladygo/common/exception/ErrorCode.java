@@ -19,6 +19,7 @@ public enum ErrorCode {
     FARE_CHANGED(HttpStatus.UNPROCESSABLE_ENTITY, "The fare has changed since your estimate."),
     MAPS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Maps service is temporarily unavailable."),
     LIMIT_EXCEEDED(HttpStatus.UNPROCESSABLE_ENTITY, "A configured limit has been reached."),
+    CONCURRENT_UPDATE(HttpStatus.CONFLICT, "This was just updated by someone else. Please retry."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

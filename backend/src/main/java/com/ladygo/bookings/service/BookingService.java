@@ -2,6 +2,7 @@ package com.ladygo.bookings.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +39,8 @@ import com.ladygo.pricing.domain.PricingRule;
 import com.ladygo.pricing.repository.PricingRuleRepository;
 import com.ladygo.pricing.service.FareCalculator;
 import com.ladygo.pricing.service.FareResult;
+import com.ladygo.security.ratelimit.RateLimitExceededException;
+import com.ladygo.security.ratelimit.RateLimiter;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.repository.UserRepository;
 import com.ladygo.vehicles.domain.Vehicle;
@@ -68,6 +71,7 @@ public class BookingService {
     private final MapsService mapsService;
     private final FareCalculator fareCalculator;
     private final ConfigurationService config;
+    private final RateLimiter rateLimiter;
 
     public BookingService(
             CustomerRepository customers,
@@ -84,7 +88,8 @@ public class BookingService {
             RidePinService ridePinService,
             MapsService mapsService,
             FareCalculator fareCalculator,
-            ConfigurationService config) {
+            ConfigurationService config,
+            RateLimiter rateLimiter) {
         this.customers = customers;
         this.users = users;
         this.drivers = drivers;
@@ -100,10 +105,12 @@ public class BookingService {
         this.mapsService = mapsService;
         this.fareCalculator = fareCalculator;
         this.config = config;
+        this.rateLimiter = rateLimiter;
     }
 
     /** docs/api/booking.md section 1. Degrades to straight-line + approximate:true on a Maps outage. */
-    public FareEstimateResponse estimate(FareEstimateRequest request) {
+    public FareEstimateResponse estimate(UUID userId, FareEstimateRequest request) {
+        enforceMapsRateLimit(userId);
         City city = resolveCity(request.pickupLatitude(), request.pickupLongitude());
         Coordinate origin = new Coordinate(request.pickupLatitude(), request.pickupLongitude());
         Coordinate destination = new Coordinate(request.destinationLatitude(), request.destinationLongitude());
@@ -131,6 +138,7 @@ public class BookingService {
         if (existing.isPresent()) {
             return new BookingCreationResult(toDetail(existing.get()), false);
         }
+        enforceMapsRateLimit(userId);
 
         EligibilityDecision customerEligibility = eligibilityPolicy.checkCustomerEligibility(customer);
         if (!customerEligibility.eligible()) {
@@ -247,6 +255,21 @@ public class BookingService {
 
     private PricingRule activeRule(UUID cityId, VehicleType vehicleType) {
         return pricingRules.findActive(cityId, vehicleType, Instant.now()).orElseThrow(ResourceNotFoundException::new);
+    }
+
+    /**
+     * Bounds how many times a single customer can trigger a real (billed) Maps-provider call per
+     * window - without this, a single valid JWT could loop {@code /bookings/estimate} with jittered
+     * coordinates to force a cache miss every time, defeating ADR-011's cost controls (adversarial
+     * review finding, HIGH). One shared bucket per customer across estimate and create, since both
+     * call the same paid API.
+     */
+    private void enforceMapsRateLimit(UUID userId) {
+        int maxAttempts = config.getInt("bookings.maps.rate.max.attempts", 20);
+        Duration window = config.getMinutes("bookings.maps.rate.window.minutes", Duration.ofMinutes(1));
+        if (!rateLimiter.tryConsume("maps_calls:" + userId, maxAttempts, window)) {
+            throw new RateLimitExceededException();
+        }
     }
 
     private void enforceMaxDistance(int distanceMeters) {
