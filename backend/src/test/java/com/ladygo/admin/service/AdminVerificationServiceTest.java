@@ -10,15 +10,21 @@ import com.ladygo.drivers.domain.DocumentStatus;
 import com.ladygo.drivers.domain.DocumentType;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.drivers.domain.DriverDocument;
+import com.ladygo.drivers.domain.DriverVerificationStatus;
 import com.ladygo.drivers.repository.DriverDocumentRepository;
 import com.ladygo.drivers.service.DriverReverificationService;
 import com.ladygo.locations.domain.City;
 import com.ladygo.testsupport.PersistenceTestSupport;
 import com.ladygo.users.domain.UserRole;
+import com.ladygo.vehicles.domain.Vehicle;
+import com.ladygo.vehicles.domain.VehicleVerificationStatus;
 import com.ladygo.verification.domain.EligibilityReportStatus;
+import com.ladygo.verification.domain.SubjectType;
 import com.ladygo.verification.repository.EligibilityReportRepository;
 import com.ladygo.verification.service.EligibilityReportService;
+import com.ladygo.verification.service.SelfDeclarationService;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +44,8 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
     private EligibilityReportService eligibilityReportService;
     @Autowired
     private EligibilityReportRepository eligibilityReports;
+    @Autowired
+    private SelfDeclarationService selfDeclarations;
 
     private UUID newAdminUserId() {
         return newUser(UserRole.ADMIN).getId();
@@ -146,5 +154,102 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
 
         assertThat(auditLogs.findAll()).anySatisfy(
                 entry -> assertThat(entry.getAction()).isEqualTo("DRIVER_RANDOM_REVERIFICATION_TRIGGERED"));
+    }
+
+    /**
+     * The actual Phase 5 exit criteria: "admin approval path works end to end." Every required piece
+     * (licence, vehicle registration, vehicle photo, insurance, selfie, vehicle approval, declaration)
+     * gets approved/accepted, then the driver-as-a-whole decision flips verificationStatus to
+     * APPROVED - the same status the pre-existing ck_drivers_online_requires_approval constraint
+     * requires before a driver can ever go ONLINE (Phase 6).
+     */
+    @Test
+    void theFullApprovalPathWorksEndToEnd() {
+        Driver driver = newDriver(newCity());
+        Vehicle vehicle = newVehicle(driver);
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "v1");
+        UUID adminId = newAdminUserId();
+
+        for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
+                DocumentType.VEHICLE_PHOTO, DocumentType.INSURANCE, DocumentType.SELFIE)) {
+            DriverDocument document = pendingDocument(driver, type);
+            service.approveDocument(document.getId(), adminId, "ADMIN", "ok", "127.0.0.1");
+        }
+        service.approveVehicle(vehicle.getId(), adminId, "ADMIN", "127.0.0.1");
+
+        var review = service.getDriverReview(driver.getId());
+        assertThat(review.readyForApproval()).isTrue();
+        assertThat(review.missingRequirements()).isEmpty();
+
+        service.approveDriver(driver.getId(), adminId, "ADMIN", "127.0.0.1");
+
+        Driver reloaded = drivers.findById(driver.getId()).orElseThrow();
+        assertThat(reloaded.getVerificationStatus()).isEqualTo(DriverVerificationStatus.APPROVED);
+        assertThat(reloaded.getVerifiedBy()).isEqualTo(adminId);
+        assertThat(auditLogs.findAll()).anySatisfy(entry -> assertThat(entry.getAction()).isEqualTo("DRIVER_APPROVED"));
+    }
+
+    @Test
+    void approvingAnIncompleteDriverIsRejectedWithWhatIsMissing() {
+        Driver driver = newDriver(newCity());
+
+        assertThatThrownBy(() -> service.approveDriver(driver.getId(), newAdminUserId(), "ADMIN", "127.0.0.1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("LICENSE");
+
+        Driver reloaded = drivers.findById(driver.getId()).orElseThrow();
+        assertThat(reloaded.getVerificationStatus()).isNotEqualTo(DriverVerificationStatus.APPROVED);
+    }
+
+    @Test
+    void rejectingADriverRequiresANoteAndWritesAnAuditLogEntry() {
+        Driver driver = newDriver(newCity());
+
+        assertThatThrownBy(() -> service.rejectDriver(driver.getId(), newAdminUserId(), "ADMIN", "", "127.0.0.1"))
+                .isInstanceOf(ValidationException.class);
+
+        service.rejectDriver(driver.getId(), newAdminUserId(), "ADMIN", "fake licence", "127.0.0.1");
+
+        Driver reloaded = drivers.findById(driver.getId()).orElseThrow();
+        assertThat(reloaded.getVerificationStatus()).isEqualTo(DriverVerificationStatus.REJECTED);
+        assertThat(reloaded.getRejectionReason()).isEqualTo("fake licence");
+        assertThat(auditLogs.findAll()).anySatisfy(entry -> assertThat(entry.getAction()).isEqualTo("DRIVER_REJECTED"));
+    }
+
+    @Test
+    void approvingAVehicleWritesAnAuditLogEntry() {
+        Driver driver = newDriver(newCity());
+        Vehicle vehicle = newVehicle(driver);
+
+        service.approveVehicle(vehicle.getId(), newAdminUserId(), "ADMIN", "127.0.0.1");
+
+        assertThat(vehicles.findById(vehicle.getId()).orElseThrow().getVerificationStatus())
+                .isEqualTo(VehicleVerificationStatus.APPROVED);
+        assertThat(auditLogs.findAll()).anySatisfy(entry -> assertThat(entry.getAction()).isEqualTo("VEHICLE_APPROVED"));
+    }
+
+    @Test
+    void policeVerificationIsOnlyRequiredWhenTheConfigFlagIsOn() {
+        jdbc.update("UPDATE configuration SET value = 'true' WHERE key = 'driver.police_verification.required'");
+        Driver driver = newDriver(newCity());
+        Vehicle vehicle = newVehicle(driver);
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "v1");
+        UUID adminId = newAdminUserId();
+        for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
+                DocumentType.VEHICLE_PHOTO, DocumentType.INSURANCE, DocumentType.SELFIE)) {
+            service.approveDocument(pendingDocument(driver, type).getId(), adminId, "ADMIN", "ok", "127.0.0.1");
+        }
+        service.approveVehicle(vehicle.getId(), adminId, "ADMIN", "127.0.0.1");
+
+        assertThatThrownBy(() -> service.approveDriver(driver.getId(), adminId, "ADMIN", "127.0.0.1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("POLICE_VERIFICATION");
+
+        service.approveDocument(pendingDocument(driver, DocumentType.POLICE_VERIFICATION).getId(),
+                adminId, "ADMIN", "ok", "127.0.0.1");
+        service.approveDriver(driver.getId(), adminId, "ADMIN", "127.0.0.1");
+
+        assertThat(drivers.findById(driver.getId()).orElseThrow().getVerificationStatus())
+                .isEqualTo(DriverVerificationStatus.APPROVED);
     }
 }

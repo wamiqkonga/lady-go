@@ -3,6 +3,9 @@ package com.ladygo.vehicles.repository;
 import java.util.List;
 import java.util.UUID;
 import com.ladygo.vehicles.domain.Vehicle;
+import com.ladygo.vehicles.domain.VehicleVerificationStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
@@ -10,4 +13,6 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     List<Vehicle> findByDriverId(UUID driverId);
 
     boolean existsByRegistrationNumberIgnoreCase(String registrationNumber);
+
+    Page<Vehicle> findByVerificationStatusOrderByCreatedAtAsc(VehicleVerificationStatus status, Pageable pageable);
 }

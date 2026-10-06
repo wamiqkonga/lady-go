@@ -11,6 +11,7 @@ import com.ladygo.drivers.domain.DocumentStatus;
 import com.ladygo.drivers.domain.DocumentType;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.drivers.domain.DriverDocument;
+import com.ladygo.drivers.domain.DriverVerificationStatus;
 import com.ladygo.drivers.domain.VerificationReason;
 import com.ladygo.drivers.repository.DriverDocumentRepository;
 import com.ladygo.drivers.repository.DriverRepository;
@@ -87,6 +88,7 @@ public class DriverService {
     @Transactional
     public DriverDocumentResponse uploadDocument(UUID userId, DocumentType type, MultipartFile file) {
         Driver driver = resolveDriver(userId);
+        markPendingReviewIfNotSubmitted(driver);
         DriverDocument saved = storeDocument(driver.getId(), type, file, VerificationReason.INITIAL);
         return toDocumentResponse(saved);
     }
@@ -99,6 +101,7 @@ public class DriverService {
     @Transactional
     public DriverDocumentResponse uploadSelfie(UUID userId, MultipartFile file) {
         Driver driver = resolveDriver(userId);
+        markPendingReviewIfNotSubmitted(driver);
         VerificationReason reason = switch (driver.getReverificationReason()) {
             case REPORTED -> VerificationReason.REPORTED;
             case RANDOM_REVERIFICATION -> VerificationReason.RANDOM_REVERIFICATION;
@@ -111,6 +114,7 @@ public class DriverService {
     @Transactional
     public DeclarationResponse acceptDeclaration(UUID userId, String declarationVersion) {
         Driver driver = resolveDriver(userId);
+        markPendingReviewIfNotSubmitted(driver);
         return selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), declarationVersion);
     }
 
@@ -126,6 +130,7 @@ public class DriverService {
             }
         }
 
+        markPendingReviewIfNotSubmitted(driver);
         Vehicle vehicle = vehicles.findByDriverId(driver.getId()).stream().findFirst().orElseGet(Vehicle::new);
         vehicle.setDriverId(driver.getId());
         vehicle.setRegistrationNumber(request.registrationNumber());
@@ -167,6 +172,14 @@ public class DriverService {
         document.setStorageKey(key);
         document.setReason(reason);
         return documents.saveAndFlush(document);
+    }
+
+    /** First meaningful onboarding action moves a driver from NOT_SUBMITTED into the review queue. */
+    private void markPendingReviewIfNotSubmitted(Driver driver) {
+        if (driver.getVerificationStatus() == DriverVerificationStatus.NOT_SUBMITTED) {
+            driver.setVerificationStatus(DriverVerificationStatus.PENDING_REVIEW);
+            drivers.save(driver);
+        }
     }
 
     private Driver resolveDriver(UUID userId) {

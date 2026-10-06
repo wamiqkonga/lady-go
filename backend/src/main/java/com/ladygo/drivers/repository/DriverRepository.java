@@ -5,6 +5,8 @@ import java.util.Optional;
 import java.util.UUID;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.drivers.domain.DriverVerificationStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +16,8 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     Optional<Driver> findByUserId(UUID userId);
 
     List<Driver> findByVerificationStatus(DriverVerificationStatus status);
+
+    Page<Driver> findByVerificationStatusOrderByCreatedAtAsc(DriverVerificationStatus status, Pageable pageable);
 
     /**
      * Online drivers within {@code radiusM} metres of a point, nearest first (PostGIS geography, metres).

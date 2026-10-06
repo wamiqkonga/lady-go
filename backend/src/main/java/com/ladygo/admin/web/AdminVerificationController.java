@@ -4,6 +4,7 @@ import java.util.UUID;
 import com.ladygo.admin.service.AdminVerificationService;
 import com.ladygo.admin.web.dto.DocumentReviewRequest;
 import com.ladygo.admin.web.dto.DriverDocumentAdminResponse;
+import com.ladygo.admin.web.dto.DriverReviewSummaryResponse;
 import com.ladygo.admin.web.dto.EligibilityReportAdminResponse;
 import com.ladygo.admin.web.dto.EligibilityReportResolveRequest;
 import com.ladygo.common.api.ApiResponse;
@@ -78,6 +79,44 @@ public class AdminVerificationController {
     public ApiResponse<Void> triggerRandomReverification(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id, HttpServletRequest httpRequest) {
         service.triggerRandomReverification(id, principal.userId(), principal.role().name(),
+                clientIpResolver.resolve(httpRequest));
+        return ApiResponse.ok(null);
+    }
+
+    /** Everything needed to decide - the actual "admin approval path" (Phase 5 exit criteria). */
+    @GetMapping("/drivers/{id}/review")
+    public ApiResponse<DriverReviewSummaryResponse> getDriverReview(@PathVariable UUID id) {
+        return ApiResponse.ok(service.getDriverReview(id));
+    }
+
+    @PostMapping("/drivers/{id}/approve")
+    public ApiResponse<Void> approveDriver(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id, HttpServletRequest httpRequest) {
+        service.approveDriver(id, principal.userId(), principal.role().name(), clientIpResolver.resolve(httpRequest));
+        return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/drivers/{id}/reject")
+    public ApiResponse<Void> rejectDriver(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @RequestBody DocumentReviewRequest request, HttpServletRequest httpRequest) {
+        service.rejectDriver(id, principal.userId(), principal.role().name(), request.note(),
+                clientIpResolver.resolve(httpRequest));
+        return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/vehicles/{id}/approve")
+    public ApiResponse<Void> approveVehicle(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id, HttpServletRequest httpRequest) {
+        service.approveVehicle(id, principal.userId(), principal.role().name(), clientIpResolver.resolve(httpRequest));
+        return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/vehicles/{id}/reject")
+    public ApiResponse<Void> rejectVehicle(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @RequestBody DocumentReviewRequest request, HttpServletRequest httpRequest) {
+        service.rejectVehicle(id, principal.userId(), principal.role().name(), request.note(),
                 clientIpResolver.resolve(httpRequest));
         return ApiResponse.ok(null);
     }
