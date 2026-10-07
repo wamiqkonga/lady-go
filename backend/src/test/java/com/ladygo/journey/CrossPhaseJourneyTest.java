@@ -11,14 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.ladygo.auth.sms.MockSmsService;
-import com.ladygo.bookings.domain.Booking;
-import com.ladygo.bookings.domain.BookingStatus;
-import com.ladygo.bookings.repository.BookingRepository;
-import com.ladygo.bookings.service.BookingStateMachine;
-import com.ladygo.common.domain.ActorType;
-import com.ladygo.drivers.domain.Driver;
-import com.ladygo.drivers.domain.DriverAvailability;
-import com.ladygo.drivers.repository.DriverRepository;
 import com.ladygo.locations.domain.City;
 import com.ladygo.pricing.domain.PricingRule;
 import com.ladygo.security.jwt.JwtService;
@@ -42,20 +34,15 @@ import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * One rider and one driver through onboarding, admin review, and a booking - entirely through real
- * HTTP endpoints, the way the mobile apps actually call them. No test shortcut sets a verification
- * status, a document status, or a booking status directly; every one of those is reached by driving
- * the same endpoint a client would call.
- *
- * <p>The single exception, clearly marked below: driver-offer dispatch ("go online", matching, offer
- * acceptance) is Phase 6 work that does not exist yet (see {@code com.ladygo.matching.package-info});
- * only the booking's {@code driver_id} assignment is set directly, and only because no endpoint can set
- * it yet. Every status transition after that point still runs through the real
- * {@link BookingStateMachine}, not a raw status write.
+ * One rider and one driver through onboarding, admin review, matching, and offer acceptance -
+ * entirely through real HTTP endpoints, the way the mobile apps actually call them. No test shortcut
+ * sets a verification status, a document status, a driver's availability, or a booking status
+ * directly; every one of those is reached by driving the same endpoint a client would call (as of
+ * Phase 6, this now includes go-online, location reporting, and offer accept - the direct
+ * {@code driver_id}/status stand-in this test used before Phase 6 shipped is gone).
  *
  * <p>Extend this test, in place, as each later phase ships real endpoints that replace a stand-in step
- * (Phase 6: replace the direct {@code driver_id} assignment with a real offer/accept call; later
- * phases: ride start/PIN, completion, payment). Do not fork a parallel journey test - this one file is
+ * (next: ride start/PIN, completion, payment). Do not fork a parallel journey test - this one file is
  * meant to grow into the full lifecycle so CI always exercises the whole thing together.
  */
 @AutoConfigureMockMvc
@@ -65,12 +52,6 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
     private MockMvc mockMvc;
     @Autowired
     private JwtService jwtService;
-    @Autowired
-    private BookingStateMachine stateMachine;
-    @Autowired
-    private BookingRepository bookingRepository;
-    @Autowired
-    private DriverRepository driverRepository;
 
     private UUID committedCityId;
     private UUID committedCustomerUserId;
@@ -95,6 +76,14 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                 + "(SELECT b.id FROM bookings b JOIN customers c ON c.id = b.customer_id WHERE c.user_id = ?)",
                 committedCustomerUserId);
         jdbc.update("DELETE FROM ride_selfies WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
+                committedCustomerUserId);
+        jdbc.update("DELETE FROM location_history WHERE ride_id IN "
+                + "(SELECT r.id FROM rides r JOIN customers c ON c.id = r.customer_id WHERE c.user_id = ?)",
+                committedCustomerUserId);
+        jdbc.update("DELETE FROM rides WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
+                committedCustomerUserId);
+        jdbc.update("DELETE FROM ride_offers WHERE booking_id IN "
+                + "(SELECT b.id FROM bookings b JOIN customers c ON c.id = b.customer_id WHERE c.user_id = ?)",
                 committedCustomerUserId);
         jdbc.update("DELETE FROM bookings WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
                 committedCustomerUserId);
@@ -244,6 +233,26 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
 
+        // --- Driver: goes online (requires the approvals above) and reports a location near pickup,
+        // through the real Phase 6 endpoints - matching finds this driver once the booking below
+        // reaches SEARCHING_DRIVER. ---
+        mockMvc.perform(put("/api/v1/drivers/me/availability")
+                        .header("Authorization", "Bearer " + driverToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"ONLINE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ONLINE"));
+        mockMvc.perform(post("/api/v1/drivers/me/location")
+                        .header("Authorization", "Bearer " + driverToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"latitude\":34.08,\"longitude\":74.80,\"recordedAt\":\""
+                                + java.time.Instant.now() + "\"}"))
+                .andExpect(status().isOk());
+        // Matching's search runs in BookingCreationTransaction's own REQUIRES_NEW transaction (a
+        // separate connection) - it needs the driver's ONLINE status and location committed, same
+        // reason the earlier commitFixtures() call exists.
+        commitFixtures(city, customerUserId, driverUserId);
+
         // --- Rider: fare estimate, then books, carrying the real rideSelfieId from the real endpoint. ---
         String estimateResponse = mockMvc.perform(post("/api/v1/bookings/estimate")
                         .header("Authorization", "Bearer " + riderToken)
@@ -268,21 +277,21 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                 .andReturn().getResponse().getContentAsString();
         UUID bookingId = UUID.fromString(JsonPath.read(bookingResponse, "$.data.id"));
 
-        // --- STAND-IN for Phase 6 (matching): no "go online" or offer/accept endpoint exists yet, so
-        // this is the one place that sets state directly instead of calling an endpoint. Everything
-        // else below is real production code: the real DriverRepository save and the real
-        // BookingStateMachine, which still enforces its normal transition table and authorisation. ---
-        Driver driver = driverRepository.findById(driverId).orElseThrow();
-        driver.setAvailabilityStatus(DriverAvailability.ONLINE);
-        driver.setCurrentLocation(point(74.80, 34.08));
-        driverRepository.saveAndFlush(driver);
+        // --- Matching already ran synchronously (the SEARCHING_DRIVER event listener), inside the same
+        // transaction as booking creation - the online driver above should already have a live offer.
+        // Driver: polls for it (the HTTP fallback) and accepts, through the real Phase 6 endpoints. ---
+        String currentOfferResponse = mockMvc.perform(get("/api/v1/drivers/me/offers/current")
+                        .header("Authorization", "Bearer " + driverToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bookingId").value(bookingId.toString()))
+                .andReturn().getResponse().getContentAsString();
+        UUID offerId = UUID.fromString(JsonPath.read(currentOfferResponse, "$.data.offerId"));
 
-        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
-        booking.setDriverId(driverId); // the only direct field set anywhere in this test - see comment above.
-        bookingRepository.saveAndFlush(booking);
-        stateMachine.transition(bookingId, BookingStatus.DRIVER_ASSIGNED, ActorType.SYSTEM, null,
-                "stand-in: Phase 6 matching not yet built");
-        stateMachine.transition(bookingId, BookingStatus.DRIVER_ACCEPTED, ActorType.DRIVER, driverId, "accepted");
+        mockMvc.perform(post("/api/v1/drivers/me/offers/" + offerId + "/accept")
+                        .header("Authorization", "Bearer " + driverToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("DRIVER_ACCEPTED"))
+                .andExpect(jsonPath("$.data.pickupAddress").value("Lal Chowk")); // exact address, driver accepted
 
         // --- Driver: fetches the rider's selfie through the real endpoint and actually retrieves it. ---
         String selfieUrlResponse = mockMvc.perform(get("/api/v1/drivers/me/bookings/" + bookingId + "/rider-selfie")

@@ -8,6 +8,7 @@ import com.ladygo.drivers.domain.DriverVerificationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -37,4 +38,19 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
             """, nativeQuery = true)
     List<Driver> findNearbyOnline(@Param("cityId") UUID cityId, @Param("lon") double lon, @Param("lat") double lat,
                                   @Param("radiusM") double radiusM, @Param("maxResults") int maxResults);
+
+    /** Atomic claim for an offer - 0 rows affected means another booking's search already claimed this
+     *  driver (or they went offline), so the caller must move on to the next candidate, same
+     *  check-via-row-count idiom as the ride-selfie claim. */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Driver d SET d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.BUSY "
+            + "WHERE d.id = :id AND d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.ONLINE")
+    int claimForOffer(@Param("id") UUID id);
+
+    /** Releases a driver back to ONLINE after an offer is rejected/expired - a no-op (0 rows) if the
+     *  driver is no longer BUSY (e.g. went offline in the meantime). */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Driver d SET d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.ONLINE "
+            + "WHERE d.id = :id AND d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.BUSY")
+    int releaseFromOffer(@Param("id") UUID id);
 }

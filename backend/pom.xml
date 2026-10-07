@@ -38,11 +38,7 @@
     </dependencies>
   </dependencyManagement>
 
-  <!--
-    Dependencies are added only when first used, each with a reason.
-    Added in later phases (with justification at that time):
-      - spring-boot-starter-data-redis                                       -> Phase 6/7 (matching, real-time)
-  -->
+  <!-- Dependencies are added only when first used, each with a reason (see the comment above each one). -->
   <dependencies>
     <!-- REST API -->
     <dependency>
@@ -64,10 +60,17 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
-    <!-- WebSocket/STOMP for real-time tracking (used from Phase 7) -->
+    <!-- WebSocket/STOMP for real-time offer delivery and booking pushes (Phase 6) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+    <!-- Cross-node WebSocket pub/sub fan-out only (Phase 6, docs/api/matching.md section 4/7) - never
+         the source of truth for offer/booking state, which stays in Postgres; gated behind
+         ladygo.realtime.redis.enabled so dev/test never need a running Redis. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
     <!-- OpenAPI/Swagger documentation (spec requirement) -->
     <dependency>

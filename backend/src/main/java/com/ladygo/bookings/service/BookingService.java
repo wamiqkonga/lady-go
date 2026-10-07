@@ -202,6 +202,17 @@ public class BookingService {
         return toDetail(booking);
     }
 
+    /** docs/api/matching.md section 6 - the exact pickup address becomes visible here, to the
+     *  accepting driver only, via the same ownership-by-booking.driverId pattern every other
+     *  driver-scoped booking action in this codebase already uses. */
+    public BookingDetailResponse getForDriver(UUID driverUserId, UUID bookingId) {
+        Driver driver = drivers.findByUserId(driverUserId).orElseThrow(ResourceNotFoundException::new);
+        Booking booking = bookings.findById(bookingId)
+                .filter(b -> driver.getId().equals(b.getDriverId()))
+                .orElseThrow(ResourceNotFoundException::new);
+        return toDetail(booking);
+    }
+
     /** docs/api/booking.md section 5. */
     @Transactional
     public BookingDetailResponse cancel(UUID userId, UUID bookingId, String reason) {

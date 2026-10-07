@@ -80,4 +80,17 @@ public class JwtService {
             return java.util.Optional.empty();
         }
     }
+
+    /** Used only to schedule a WebSocket session's forced close at token expiry
+     *  (docs/architecture/realtime-architecture.md section 4) - every other authorisation decision
+     *  goes through {@link #parse}. Returns empty for the same invalid-token cases as {@link #parse}. */
+    public java.util.Optional<Instant> expiryOf(String token) {
+        try {
+            Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+            Date expiration = claims.getExpiration();
+            return expiration == null ? java.util.Optional.empty() : java.util.Optional.of(expiration.toInstant());
+        } catch (JwtException | IllegalArgumentException ex) {
+            return java.util.Optional.empty();
+        }
+    }
 }

@@ -3,8 +3,13 @@ package com.ladygo.drivers.web;
 import java.util.List;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.drivers.domain.DocumentType;
+import com.ladygo.drivers.service.DriverAvailabilityService;
+import com.ladygo.drivers.service.DriverLocationService;
 import com.ladygo.drivers.service.DriverService;
+import com.ladygo.drivers.web.dto.DriverAvailabilityRequest;
+import com.ladygo.drivers.web.dto.DriverAvailabilityResponse;
 import com.ladygo.drivers.web.dto.DriverDocumentResponse;
+import com.ladygo.drivers.web.dto.DriverLocationRequest;
 import com.ladygo.drivers.web.dto.DriverProfileRequest;
 import com.ladygo.drivers.web.dto.DriverProfileResponse;
 import com.ladygo.drivers.web.dto.VehicleRequest;
@@ -25,16 +30,35 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-/** docs/api/driver-onboarding.md section 3. */
+/** docs/api/driver-onboarding.md section 3; docs/api/matching.md sections 2/3. */
 @RestController
 @RequestMapping("/api/v1/drivers/me")
 @PreAuthorize("hasRole('DRIVER')")
 public class DriverController {
 
     private final DriverService driverService;
+    private final DriverAvailabilityService availabilityService;
+    private final DriverLocationService locationService;
 
-    public DriverController(DriverService driverService) {
+    public DriverController(
+            DriverService driverService, DriverAvailabilityService availabilityService,
+            DriverLocationService locationService) {
         this.driverService = driverService;
+        this.availabilityService = availabilityService;
+        this.locationService = locationService;
+    }
+
+    @PutMapping("/availability")
+    public ApiResponse<DriverAvailabilityResponse> setAvailability(
+            @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DriverAvailabilityRequest request) {
+        return ApiResponse.ok(availabilityService.setAvailability(principal.userId(), request.status()));
+    }
+
+    @PostMapping("/location")
+    public ApiResponse<Void> updateLocation(
+            @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DriverLocationRequest request) {
+        locationService.updateLocation(principal.userId(), request);
+        return ApiResponse.ok(null);
     }
 
     @PostMapping

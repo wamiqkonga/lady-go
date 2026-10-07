@@ -33,6 +33,14 @@ public class DriverBookingController {
         this.riderSelfieDeliveryService = riderSelfieDeliveryService;
     }
 
+    /** docs/api/matching.md section 6 - exact pickup address becomes visible here, to the accepting
+     *  driver only, once {@code BookingService.getForDriver} confirms ownership. */
+    @GetMapping("/{id}")
+    public ApiResponse<BookingDetailResponse> get(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable java.util.UUID id) {
+        return ApiResponse.ok(bookingService.getForDriver(principal.userId(), id));
+    }
+
     /** Cancel without penalty on an eligibility concern - auto-creates an eligibility report. */
     @PostMapping("/{id}/cancel-eligibility-concern")
     public ApiResponse<BookingDetailResponse> cancelForEligibilityConcern(

@@ -18,6 +18,9 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     boolean existsByDriverIdAndStatusIn(UUID driverId, Collection<BookingStatus> statuses);
 
+    /** At most one row, guaranteed by {@code uq_bookings_one_active_per_driver}. */
+    Optional<Booking> findByDriverIdAndStatusIn(UUID driverId, Collection<BookingStatus> statuses);
+
     /** docs/api/booking.md section 2 (B3): idempotent booking creation lookup. */
     Optional<Booking> findByCustomerIdAndIdempotencyKey(UUID customerId, String idempotencyKey);
 }
