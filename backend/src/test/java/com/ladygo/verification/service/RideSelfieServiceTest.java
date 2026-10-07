@@ -23,7 +23,7 @@ class RideSelfieServiceTest extends PersistenceTestSupport {
     private RideSelfieService service;
 
     private MockMultipartFile jpegFile() {
-        return new MockMultipartFile("file", "selfie.jpg", "image/jpeg", "fake-jpeg-bytes".getBytes());
+        return new MockMultipartFile("file", "selfie.jpg", "image/jpeg", realJpegBytes());
     }
 
     private Booking newBookingFor(Customer customer) {

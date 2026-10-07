@@ -190,7 +190,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
 
         String selfieResponse = mockMvc.perform(multipart("/api/v1/drivers/me/selfie")
                         .file(new MockMultipartFile("file", "driver-selfie.jpg", "image/jpeg",
-                                "fake-jpeg-bytes".getBytes()))
+                                realJpegBytes()))
                         .header("Authorization", "Bearer " + driverToken))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -307,7 +307,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
     private UUID uploadDocument(String driverToken, String type) throws Exception {
         String response = mockMvc.perform(multipart("/api/v1/drivers/me/documents")
                         .file(new MockMultipartFile("file", type.toLowerCase() + ".jpg", "image/jpeg",
-                                "fake-jpeg-bytes".getBytes()))
+                                realJpegBytes()))
                         .param("type", type)
                         .header("Authorization", "Bearer " + driverToken))
                 .andExpect(status().isOk())

@@ -24,6 +24,7 @@ import com.ladygo.verification.repository.EligibilityReportRepository;
 import com.ladygo.verification.service.EligibilityReportService;
 import com.ladygo.verification.service.SelfDeclarationService;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -251,5 +252,35 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
 
         assertThat(drivers.findById(driver.getId()).orElseThrow().getVerificationStatus())
                 .isEqualTo(DriverVerificationStatus.APPROVED);
+    }
+
+    /** Adversarial review finding, MEDIUM: an approved-but-now-expired document (insurance is the one
+     *  type that actually carries an expiry today) previously passed approval silently - the gate only
+     *  ever checked {@code status == APPROVED}, never {@code expiresAt}. */
+    @Test
+    void anApprovedButExpiredDocumentBlocksDriverApproval() {
+        Driver driver = newDriver(newCity());
+        Vehicle vehicle = newVehicle(driver);
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "v1");
+        UUID adminId = newAdminUserId();
+
+        for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
+                DocumentType.VEHICLE_PHOTO, DocumentType.SELFIE)) {
+            service.approveDocument(pendingDocument(driver, type).getId(), adminId, "ADMIN", "ok", "127.0.0.1");
+        }
+        DriverDocument insurance = pendingDocument(driver, DocumentType.INSURANCE);
+        insurance.setExpiresAt(LocalDate.now().minusDays(1));
+        documents.saveAndFlush(insurance);
+        service.approveDocument(insurance.getId(), adminId, "ADMIN", "ok", "127.0.0.1");
+        service.approveVehicle(vehicle.getId(), adminId, "ADMIN", "127.0.0.1");
+
+        var review = service.getDriverReview(driver.getId());
+        assertThat(review.readyForApproval()).isFalse();
+        assertThat(review.missingRequirements()).anySatisfy(
+                m -> assertThat(m).contains("INSURANCE").contains("expired"));
+
+        assertThatThrownBy(() -> service.approveDriver(driver.getId(), adminId, "ADMIN", "127.0.0.1"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("expired");
     }
 }

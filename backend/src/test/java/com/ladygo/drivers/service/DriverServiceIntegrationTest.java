@@ -29,7 +29,7 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
     private DriverReverificationService reverificationService;
 
     private MockMultipartFile jpegFile() {
-        return new MockMultipartFile("file", "doc.jpg", "image/jpeg", "fake-jpeg-bytes".getBytes());
+        return new MockMultipartFile("file", "doc.jpg", "image/jpeg", realJpegBytes());
     }
 
     private UUID newDriverUserId(City city) {

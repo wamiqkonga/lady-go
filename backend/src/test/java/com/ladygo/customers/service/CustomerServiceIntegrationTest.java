@@ -239,7 +239,7 @@ class CustomerServiceIntegrationTest extends PersistenceTestSupport {
     void captureRideSelfieSucceeds() {
         UUID userId = newCustomerUserId();
         var file = new org.springframework.mock.web.MockMultipartFile(
-                "file", "selfie.jpg", "image/jpeg", "fake-jpeg-bytes".getBytes());
+                "file", "selfie.jpg", "image/jpeg", realJpegBytes());
 
         var response = customerService.captureRideSelfie(userId, file);
 

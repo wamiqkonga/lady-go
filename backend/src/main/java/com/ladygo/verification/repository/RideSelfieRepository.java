@@ -1,6 +1,7 @@
 package com.ladygo.verification.repository;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import com.ladygo.verification.domain.RideSelfie;
@@ -12,6 +13,10 @@ import org.springframework.data.repository.query.Param;
 public interface RideSelfieRepository extends JpaRepository<RideSelfie, UUID> {
 
     Optional<RideSelfie> findByBookingId(UUID bookingId);
+
+    /** docs/api/driver-onboarding.md section 7 - no review step for a ride selfie, so the retention
+     *  clock runs from captured_at instead of reviewed_at. */
+    List<RideSelfie> findByCapturedAtBeforeAndContentDeletedAtIsNull(Instant cutoff);
 
     /**
      * Atomically claims a fresh, unused selfie for a booking - the {@code booking_id IS NULL} guard

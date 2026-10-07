@@ -1,5 +1,6 @@
 package com.ladygo.drivers.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,4 +21,7 @@ public interface DriverDocumentRepository extends JpaRepository<DriverDocument, 
 
     /** Most recent upload of a given type for a driver - a resubmission supersedes an earlier one. */
     Optional<DriverDocument> findFirstByDriverIdAndTypeOrderByCreatedAtDesc(UUID driverId, DocumentType type);
+
+    /** docs/api/driver-onboarding.md section 7 - retention clock runs from {@code reviewedAt}, not creation. */
+    List<DriverDocument> findByReviewedAtBeforeAndContentDeletedAtIsNull(Instant cutoff);
 }

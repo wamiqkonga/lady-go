@@ -164,6 +164,15 @@
       <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- S3-compatible server for testing S3FileStorage/StorageConfig against something real (adversarial
+         review finding, HIGH: that code path had never been exercised by any test, mocked or real, and
+         is the only FileStorage wired in staging/prod). docker pull minio/minio is access-denied in this
+         environment (docs/api/driver-onboarding.md section 1); localstack/localstack pulls cleanly. -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>localstack</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

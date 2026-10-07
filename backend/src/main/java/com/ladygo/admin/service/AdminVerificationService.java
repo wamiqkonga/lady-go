@@ -1,8 +1,10 @@
 package com.ladygo.admin.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import com.ladygo.admin.domain.AuditLog;
 import com.ladygo.admin.repository.AuditLogRepository;
@@ -221,11 +223,14 @@ public class AdminVerificationService {
     private List<String> missingRequirements(UUID driverId, Vehicle vehicle, boolean declarationAccepted) {
         List<String> missing = new ArrayList<>();
         for (DocumentType type : requiredTypes()) {
-            boolean approved = documents.findFirstByDriverIdAndTypeOrderByCreatedAtDesc(driverId, type)
-                    .map(d -> d.getStatus() == DocumentStatus.APPROVED)
-                    .orElse(false);
+            Optional<DriverDocument> latest = documents.findFirstByDriverIdAndTypeOrderByCreatedAtDesc(driverId, type);
+            boolean approved = latest.map(d -> d.getStatus() == DocumentStatus.APPROVED).orElse(false);
             if (!approved) {
                 missing.add(type.name() + " not approved");
+            } else if (latest.get().getExpiresAt() != null && latest.get().getExpiresAt().isBefore(LocalDate.now())) {
+                // Adversarial review finding, MEDIUM: expiresAt (populated for INSURANCE) was never
+                // checked here - an approved-but-now-expired document previously passed silently.
+                missing.add(type.name() + " has expired");
             }
         }
         if (vehicle == null) {

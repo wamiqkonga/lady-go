@@ -25,10 +25,13 @@ import com.ladygo.vehicles.domain.VehicleType;
 import com.ladygo.vehicles.repository.VehicleRepository;
 import com.ladygo.verification.domain.SubjectType;
 import jakarta.persistence.EntityManager;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.imageio.ImageIO;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -186,6 +189,20 @@ public abstract class PersistenceTestSupport {
         jdbc.update("INSERT INTO self_declarations (subject_type, subject_id, declaration_version) "
                         + "VALUES (?, ?, (SELECT version FROM declaration_versions ORDER BY published_at DESC LIMIT 1))",
                 subjectType.name(), subjectId);
+    }
+
+    /** A real, tiny, decodable JPEG - {@link com.ladygo.storage.UploadValidator} now actually decodes
+     *  uploads (adversarial review finding, CRITICAL: a declared Content-Type was previously trusted
+     *  with no check the bytes were a real image), so placeholder byte arrays no longer pass. */
+    protected static byte[] realJpegBytes() {
+        try {
+            BufferedImage image = new BufferedImage(20, 20, BufferedImage.TYPE_INT_RGB);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ImageIO.write(image, "jpg", out);
+            return out.toByteArray();
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException(ex);
+        }
     }
 
     /** A fresh, unused ride selfie for a customer - docs/api/driver-onboarding.md section 4. */
