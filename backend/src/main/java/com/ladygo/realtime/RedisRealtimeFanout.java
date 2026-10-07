@@ -31,6 +31,12 @@ public class RedisRealtimeFanout {
     private static final Logger log = LoggerFactory.getLogger(RedisRealtimeFanout.class);
     private static final String CHANNEL_PREFIX = "rt:push:";
 
+    /** One per running instance - tags every message this node publishes, so this SAME node's own
+     *  listener (subscribed to the same pattern it publishes to) can recognise and skip its own
+     *  message instead of delivering the push a second time (adversarial review finding, MEDIUM: Redis
+     *  pub/sub delivers to every subscriber matching the pattern, including the publisher itself). */
+    private static final String NODE_ID = UUID.randomUUID().toString();
+
     @Bean
     @Primary
     RealtimePushService fanoutRealtimePushService(
@@ -38,8 +44,9 @@ public class RedisRealtimeFanout {
         return (userId, destination, payload) -> {
             local.pushToUser(userId, destination, payload); // this node's own sessions, unconditionally
             try {
-                String envelope = objectMapper.writeValueAsString(
-                        Map.of("userId", userId.toString(), "destination", destination, "payload", payload));
+                String envelope = objectMapper.writeValueAsString(Map.of(
+                        "nodeId", NODE_ID, "userId", userId.toString(), "destination", destination,
+                        "payload", payload));
                 redisTemplate.convertAndSend(CHANNEL_PREFIX + userId, envelope);
             } catch (Exception ex) {
                 log.warn("operation=realtime_fanout_publish_failed userId={} error={}", userId, ex.getMessage());
@@ -57,6 +64,9 @@ public class RedisRealtimeFanout {
                 String body = new String(message.getBody(), StandardCharsets.UTF_8);
                 @SuppressWarnings("unchecked")
                 Map<String, Object> envelope = objectMapper.readValue(body, Map.class);
+                if (NODE_ID.equals(envelope.get("nodeId"))) {
+                    return; // already delivered locally by the publishing call on this same node.
+                }
                 UUID userId = UUID.fromString((String) envelope.get("userId"));
                 local.pushToUser(userId, (String) envelope.get("destination"), envelope.get("payload"));
             } catch (Exception ex) {

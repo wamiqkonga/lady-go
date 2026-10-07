@@ -54,9 +54,9 @@ public class OfferSweepJob {
 
     private void expireStaleOffers() {
         for (RideOffer offer : offers.findByStatusAndExpiresAtBefore(OfferStatus.OFFERED, Instant.now())) {
-            offer.setStatus(OfferStatus.EXPIRED);
-            offer.setRespondedAt(Instant.now());
-            offers.save(offer);
+            if (offers.expireIfStillOffered(offer.getId(), Instant.now()) == 0) {
+                continue; // a concurrent accept() already won this offer - leave the driver/booking alone.
+            }
             drivers.releaseFromOffer(offer.getDriverId());
 
             bookings.findById(offer.getBookingId()).filter(b -> b.getStatus() == BookingStatus.DRIVER_ASSIGNED)

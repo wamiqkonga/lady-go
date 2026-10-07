@@ -57,6 +57,43 @@ class OfferSweepJobTest extends PersistenceTestSupport {
                 .isEqualTo(BookingStatus.SEARCHING_DRIVER);
     }
 
+    /** Adversarial review finding, HIGH: the sweep used to unconditionally overwrite whatever offer row
+     *  it selected back to EXPIRED and release the driver, with no check that the offer was still
+     *  OFFERED by the time the sweep's own UPDATE actually ran - a real race window, since the sweep's
+     *  SELECT (by status=OFFERED + expiresAt) and its UPDATE are two separate statements, and a
+     *  driver's accept() can commit in between. That interleaving can't be reproduced deterministically
+     *  in a single-threaded test, so this exercises the actual guard
+     *  (RideOfferRepository.expireIfStillOffered) the fix added, the same way OfferSweepJob itself now
+     *  calls it: given an offer that has ALREADY been accepted (simulating accept() having won that
+     *  race) and whose expiresAt has passed, the guarded expire must affect 0 rows and leave the
+     *  driver/booking exactly as accept() left them - not silently release an already-committed
+     *  driver back to ONLINE where an unrelated booking's search could then claim them mid-ride. */
+    @Test
+    void expireIfStillOfferedRefusesToOverwriteAnAlreadyAcceptedOffer() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Driver driver = newOnlineDriver(city, 74.80, 34.08);
+        driver.setAvailabilityStatus(DriverAvailability.BUSY);
+        drivers.saveAndFlush(driver);
+        Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ACCEPTED, driver.getId());
+        RideOffer offer = new RideOffer();
+        offer.setBookingId(booking.getId());
+        offer.setDriverId(driver.getId());
+        offer.setStatus(OfferStatus.ACCEPTED); // accept() already won the race
+        offer.setExpiresAt(Instant.now().minusSeconds(5)); // but a sweep tick would still have selected it
+        offers.saveAndFlush(offer);
+
+        int rowsAffected = offers.expireIfStillOffered(offer.getId(), Instant.now());
+        flushAndClear();
+
+        assertThat(rowsAffected).isZero();
+        assertThat(offers.findById(offer.getId()).orElseThrow().getStatus()).isEqualTo(OfferStatus.ACCEPTED);
+        assertThat(drivers.findById(driver.getId()).orElseThrow().getAvailabilityStatus())
+                .isEqualTo(DriverAvailability.BUSY); // never released - still genuinely committed
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus())
+                .isEqualTo(BookingStatus.DRIVER_ACCEPTED);
+    }
+
     @Test
     void aBookingPastTheMaxSearchTimeIsCancelledAsNoDriverFound() {
         jdbc.update("UPDATE configuration SET value = '0' WHERE key = 'ride.max.search.time.s'");

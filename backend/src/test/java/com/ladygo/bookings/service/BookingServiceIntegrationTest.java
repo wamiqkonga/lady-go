@@ -395,6 +395,25 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         assertThat(response.pickupAddress()).isEqualTo("Lal Chowk");
     }
 
+    /** Adversarial review finding, CRITICAL: the previous gate was
+     *  {@code status.ordinal() >= DRIVER_ACCEPTED.ordinal()} - but CANCELLED is the LAST value in
+     *  BookingStatus, so that check actually ADMITTED a cancelled booking. A customer can cancel a
+     *  DRIVER_ASSIGNED (offered, not yet accepted) booking at any time; driverId still points at the
+     *  offered driver afterwards (nothing clears it on customer-initiated cancel), so this must be
+     *  rejected on its own, not rely on driverId ever being null here. */
+    @Test
+    void getForDriverRejectsACancelledBookingEvenThoughDriverIdStillPointsAtTheOfferedDriver() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+
+        bookingService.cancel(customer.getUserId(), booking.getId(), "changed my mind");
+
+        assertThatThrownBy(() -> bookingService.getForDriver(driver.getUserId(), booking.getId()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
     @Test
     void driverCancelForEligibilityConcernRejectsAnUnassignedDriver() {
         City city = srinagar();

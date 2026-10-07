@@ -202,18 +202,29 @@ public class BookingService {
         return toDetail(booking);
     }
 
+    /** Every status where a driver who genuinely accepted may legitimately still see this booking's
+     *  exact detail - deliberately an explicit allow-list, not an ordinal inequality. An ordinal check
+     *  (`status.ordinal() >= DRIVER_ACCEPTED.ordinal()`) was tried here first and was itself a bug:
+     *  {@code CANCELLED} is the LAST value in {@link BookingStatus}, so its ordinal is greater than
+     *  DRIVER_ACCEPTED's, meaning that check actually ADMITTED a cancelled booking (adversarial review
+     *  finding, CRITICAL - a customer cancelling a DRIVER_ASSIGNED, not-yet-accepted booking left
+     *  {@code driverId} pointing at the offered driver, who could then call this endpoint and read the
+     *  exact address for a ride they never accepted and that no longer exists). */
+    private static final java.util.Set<BookingStatus> DRIVER_VISIBLE_DETAIL_STATUSES = java.util.Set.of(
+            BookingStatus.DRIVER_ACCEPTED, BookingStatus.DRIVER_ARRIVING, BookingStatus.DRIVER_ARRIVED,
+            BookingStatus.RIDE_STARTED, BookingStatus.RIDE_COMPLETED, BookingStatus.PAYMENT_PENDING,
+            BookingStatus.COMPLETED);
+
     /** docs/api/matching.md section 6 - the exact pickup address becomes visible here, to the
      *  accepting driver only - ownership (booking.driverId) is set as soon as a driver is OFFERED the
      *  booking (docs/api/driver-onboarding.md section 5 needs that for cancel-eligibility-concern), so
-     *  ownership alone is not enough to gate the EXACT address: this also requires status
-     *  DRIVER_ACCEPTED or later (adversarial review finding, HIGH - without this, an offered-but-not
-     *  -yet-accepting driver could call this endpoint directly and read the exact pickup address
-     *  before ever accepting, exactly what docs/api/matching.md section 3 says must not happen). */
+     *  ownership alone is not enough to gate the EXACT address: this also requires a status in
+     *  {@link #DRIVER_VISIBLE_DETAIL_STATUSES}. */
     public BookingDetailResponse getForDriver(UUID driverUserId, UUID bookingId) {
         Driver driver = drivers.findByUserId(driverUserId).orElseThrow(ResourceNotFoundException::new);
         Booking booking = bookings.findById(bookingId)
                 .filter(b -> driver.getId().equals(b.getDriverId()))
-                .filter(b -> b.getStatus().ordinal() >= BookingStatus.DRIVER_ACCEPTED.ordinal())
+                .filter(b -> DRIVER_VISIBLE_DETAIL_STATUSES.contains(b.getStatus()))
                 .orElseThrow(ResourceNotFoundException::new);
         return toDetail(booking);
     }
