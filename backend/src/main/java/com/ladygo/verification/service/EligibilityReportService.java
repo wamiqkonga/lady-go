@@ -1,6 +1,7 @@
 package com.ladygo.verification.service;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 import com.ladygo.bookings.domain.Booking;
 import com.ladygo.bookings.repository.BookingRepository;
@@ -65,12 +66,30 @@ public class EligibilityReportService {
 
     /**
      * The driver-cancel-without-penalty path (docs/api/driver-onboarding.md section 4/5) - not
-     * rate-limited, since it's already naturally bounded (each one costs a real cancelled ride) and a
-     * driver should never be throttled out of reporting a genuine on-the-spot concern.
+     * rate-limited the way the direct report endpoint is, since each one costs a real cancelled ride
+     * and a driver should never be throttled out of reporting a genuine on-the-spot concern. Instead,
+     * a configurable weekly cap (per driver, across all riders) and a tighter per-driver/rider-pair cap
+     * decide whether THIS specific cancellation stays penalty-free - the cancellation/penalty decision
+     * itself belongs to {@code BookingService}, which calls {@link #wouldExceedDriverCancelCap} first.
      */
     @Transactional
-    public void autoReportFromDriverCancellation(UUID bookingId, UUID driverUserId, UUID customerId, String reason) {
-        create(bookingId, driverUserId, SubjectType.CUSTOMER, customerId, reason, true);
+    public void autoReportFromDriverCancellation(
+            UUID bookingId, UUID driverUserId, UUID customerId, String reason, boolean capExceeded) {
+        EligibilityReport report = create(bookingId, driverUserId, SubjectType.CUSTOMER, customerId, reason, true);
+        report.setCapExceeded(capExceeded);
+        reports.save(report);
+    }
+
+    /** Read-only: true if the NEXT free driver-initiated eligibility-cancel against this rider would
+     *  exceed the weekly cap (any rider) or the per-driver/rider-pair cap (this rider specifically). */
+    public boolean wouldExceedDriverCancelCap(UUID driverUserId, UUID customerId) {
+        Instant windowStart = Instant.now().minus(Duration.ofDays(7));
+        int weeklyCap = config.getInt("driver.eligibility_cancel.weekly_cap.max", 3);
+        int pairCap = config.getInt("driver.eligibility_cancel.pair_cap.max", 1);
+        long weeklyCount = reports.countByReporterIdAndAutoCreatedTrueAndCreatedAtAfter(driverUserId, windowStart);
+        long pairCount = reports.countByReporterIdAndSubjectIdAndAutoCreatedTrueAndCreatedAtAfter(
+                driverUserId, customerId, windowStart);
+        return weeklyCount >= weeklyCap || pairCount >= pairCap;
     }
 
     private EligibilityReport create(

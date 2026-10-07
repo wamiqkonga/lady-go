@@ -1,5 +1,6 @@
 package com.ladygo.admin.web;
 
+import java.net.URI;
 import java.util.UUID;
 import com.ladygo.admin.service.AdminVerificationService;
 import com.ladygo.admin.web.dto.DocumentReviewRequest;
@@ -43,6 +44,15 @@ public class AdminVerificationController {
     @GetMapping("/driver-documents")
     public ApiResponse<PageResponse<DriverDocumentAdminResponse>> listPendingDocuments(Pageable pageable) {
         return ApiResponse.ok(service.listPendingDocuments(pageable));
+    }
+
+    /** A short-lived signed URL to view the document/selfie/vehicle-photo image itself, so an admin can
+     *  actually see what they're approving or rejecting. Audited on every call. */
+    @GetMapping("/driver-documents/{id}/view")
+    public ApiResponse<URI> viewDocument(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id, HttpServletRequest httpRequest) {
+        return ApiResponse.ok(service.viewDocumentUrl(
+                id, principal.userId(), principal.role().name(), clientIpResolver.resolve(httpRequest)));
     }
 
     @PostMapping("/driver-documents/{id}/approve")

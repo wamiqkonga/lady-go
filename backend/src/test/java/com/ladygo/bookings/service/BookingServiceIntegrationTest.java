@@ -346,6 +346,28 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         });
     }
 
+    /** The user's own correction: driver-initiated eligibility cancels were never rate-limited by
+     *  design, which was not an approved decision. Beyond the per-driver/rider-pair cap (default 1 per
+     *  rolling 7 days), the cancellation still goes through but takes the normal fee, and the
+     *  auto-created report is flagged for admin review instead of being an ordinary free one. */
+    @Test
+    void driverCancelForEligibilityConcernBeyondThePairCapTakesTheNormalPenaltyAndFlagsTheReport() {
+        City city = srinagar();
+        newPricingRule(city, VehicleType.CAB);
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking first = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+        Booking second = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+
+        bookingService.cancelForEligibilityConcern(driver.getUserId(), first.getId(), "first concern");
+        bookingService.cancelForEligibilityConcern(driver.getUserId(), second.getId(), "second concern");
+
+        BookingEvent secondCancelEvent = cancelEventFor(second.getId());
+        assertThat(((Number) secondCancelEvent.getMetadata().get("cancellationFee")).longValue()).isEqualTo(5000);
+        assertThat(eligibilityReports.findAll()).filteredOn(r -> r.getBookingId().equals(second.getId()))
+                .singleElement().satisfies(r -> assertThat(r.isCapExceeded()).isTrue());
+    }
+
     @Test
     void driverCancelForEligibilityConcernRejectsAnUnassignedDriver() {
         City city = srinagar();

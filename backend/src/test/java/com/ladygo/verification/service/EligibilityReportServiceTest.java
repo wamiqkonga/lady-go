@@ -119,9 +119,47 @@ class EligibilityReportServiceTest extends PersistenceTestSupport {
         Booking booking1 = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
         Booking booking2 = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
 
-        service.autoReportFromDriverCancellation(booking1.getId(), driver.getUserId(), customer.getId(), "first");
-        service.autoReportFromDriverCancellation(booking2.getId(), driver.getUserId(), customer.getId(), "second");
+        service.autoReportFromDriverCancellation(booking1.getId(), driver.getUserId(), customer.getId(), "first", false);
+        service.autoReportFromDriverCancellation(booking2.getId(), driver.getUserId(), customer.getId(), "second", false);
 
         assertThat(reports.findAll()).hasSizeGreaterThanOrEqualTo(2);
+    }
+
+    /** The user's own correction: the original "never rate-limited" design for auto-created reports was
+     *  not an approved decision - there must be a cap. Default pair cap is 1 per rolling 7 days. */
+    @Test
+    void aSecondFreeCancelAgainstTheSameRiderWithinAWeekExceedsThePairCap() {
+        City city = newCity();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking1 = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+        Booking booking2 = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+
+        assertThat(service.wouldExceedDriverCancelCap(driver.getUserId(), customer.getId())).isFalse();
+        service.autoReportFromDriverCancellation(booking1.getId(), driver.getUserId(), customer.getId(), "first", false);
+
+        assertThat(service.wouldExceedDriverCancelCap(driver.getUserId(), customer.getId())).isTrue();
+        service.autoReportFromDriverCancellation(booking2.getId(), driver.getUserId(), customer.getId(), "second", true);
+
+        assertThat(reports.findAll()).filteredOn(r -> r.getBookingId().equals(booking2.getId()))
+                .singleElement().satisfies(r -> assertThat(r.isCapExceeded()).isTrue());
+    }
+
+    /** Default weekly cap is 3 per driver across ALL riders - distinct from, and tighter-triggering
+     *  than, the per-pair cap when each cancel targets a different rider. */
+    @Test
+    void aFourthFreeCancelAgainstDifferentRidersWithinAWeekExceedsTheWeeklyCap() {
+        City city = newCity();
+        Driver driver = newDriver(city);
+
+        for (int i = 0; i < 3; i++) {
+            Customer customer = newCustomer();
+            Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+            assertThat(service.wouldExceedDriverCancelCap(driver.getUserId(), customer.getId())).isFalse();
+            service.autoReportFromDriverCancellation(booking.getId(), driver.getUserId(), customer.getId(), "r" + i, false);
+        }
+
+        Customer fourthRider = newCustomer();
+        assertThat(service.wouldExceedDriverCancelCap(driver.getUserId(), fourthRider.getId())).isTrue();
     }
 }

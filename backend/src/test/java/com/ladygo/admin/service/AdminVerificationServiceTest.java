@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ladygo.admin.repository.AuditLogRepository;
+import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.customers.domain.Customer;
 import com.ladygo.drivers.domain.DocumentStatus;
@@ -23,6 +24,7 @@ import com.ladygo.verification.domain.SubjectType;
 import com.ladygo.verification.repository.EligibilityReportRepository;
 import com.ladygo.verification.service.EligibilityReportService;
 import com.ladygo.verification.service.SelfDeclarationService;
+import java.net.URI;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -282,5 +284,55 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         assertThatThrownBy(() -> service.approveDriver(driver.getId(), adminId, "ADMIN", "127.0.0.1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("expired");
+    }
+
+    /** Records what was actually in force at approval time, since the config flag can be toggled
+     *  after the fact with no other record of what applied to this specific decision. */
+    @Test
+    void approvingADriverRecordsThePoliceVerificationRequiredFlagInTheAuditEntry() {
+        Driver driver = newDriver(newCity());
+        Vehicle vehicle = newVehicle(driver);
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "v1");
+        UUID adminId = newAdminUserId();
+        for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
+                DocumentType.VEHICLE_PHOTO, DocumentType.INSURANCE, DocumentType.SELFIE)) {
+            service.approveDocument(pendingDocument(driver, type).getId(), adminId, "ADMIN", "ok", "127.0.0.1");
+        }
+        service.approveVehicle(vehicle.getId(), adminId, "ADMIN", "127.0.0.1");
+
+        service.approveDriver(driver.getId(), adminId, "ADMIN", "127.0.0.1");
+
+        assertThat(auditLogs.findAll()).filteredOn(e -> e.getAction().equals("DRIVER_APPROVED"))
+                .singleElement()
+                .satisfies(e -> assertThat(e.getMetadata()).containsEntry("policeVerificationRequired", false));
+    }
+
+    @Test
+    void viewingADocumentReturnsASignedUrlAndWritesAnAuditLogEntry() {
+        Driver driver = newDriver(newCity());
+        DriverDocument document = pendingDocument(driver, DocumentType.LICENSE);
+
+        URI url = service.viewDocumentUrl(document.getId(), newAdminUserId(), "ADMIN", "127.0.0.1");
+
+        assertThat(url.toString()).contains("key=");
+        assertThat(auditLogs.findAll()).anySatisfy(
+                e -> assertThat(e.getAction()).isEqualTo("DRIVER_DOCUMENT_VIEWED"));
+    }
+
+    @Test
+    void viewingANonexistentDocumentIs404() {
+        assertThatThrownBy(() -> service.viewDocumentUrl(UUID.randomUUID(), newAdminUserId(), "ADMIN", "127.0.0.1"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void viewingADocumentWhoseContentWasAlreadyPurgedIsRejected() {
+        Driver driver = newDriver(newCity());
+        DriverDocument document = pendingDocument(driver, DocumentType.LICENSE);
+        document.setContentDeletedAt(Instant.now());
+        documents.saveAndFlush(document);
+
+        assertThatThrownBy(() -> service.viewDocumentUrl(document.getId(), newAdminUserId(), "ADMIN", "127.0.0.1"))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }

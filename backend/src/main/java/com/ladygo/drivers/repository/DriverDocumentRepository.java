@@ -22,6 +22,12 @@ public interface DriverDocumentRepository extends JpaRepository<DriverDocument, 
     /** Most recent upload of a given type for a driver - a resubmission supersedes an earlier one. */
     Optional<DriverDocument> findFirstByDriverIdAndTypeOrderByCreatedAtDesc(UUID driverId, DocumentType type);
 
-    /** docs/api/driver-onboarding.md section 7 - retention clock runs from {@code reviewedAt}, not creation. */
-    List<DriverDocument> findByReviewedAtBeforeAndContentDeletedAtIsNull(Instant cutoff);
+    /** docs/api/driver-onboarding.md section 7 - rejected or approved-and-not-exempt documents, past
+     *  the retention cutoff for their own status (the caller picks which status/cutoff pair). */
+    List<DriverDocument> findByStatusAndReviewedAtBeforeAndContentDeletedAtIsNull(
+            DocumentStatus status, Instant cutoff);
+
+    /** An approved driver's LICENSE/SELFIE - exempt from the normal review-age clock while the account
+     *  is active; {@link com.ladygo.verification.service.RetentionPurgeJob} checks account status itself. */
+    List<DriverDocument> findByStatusAndTypeInAndContentDeletedAtIsNull(DocumentStatus status, List<DocumentType> types);
 }

@@ -34,9 +34,11 @@ class S3FileStorageIntegrationTest {
 
     private static final String BUCKET = "ladygo-test-bucket";
 
+    /** Pinned to an exact version, not a floating major tag, so CI doesn't silently pick up a new
+     *  localstack release mid-pipeline (the user's explicit ask after the adversarial review). */
     @Container
     static LocalStackContainer localstack =
-            new LocalStackContainer(DockerImageName.parse("localstack/localstack:3"))
+            new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.8.1"))
                     .withServices(LocalStackContainer.Service.S3);
 
     private FileStorage storage;

@@ -1,9 +1,12 @@
 package com.ladygo.admin.service;
 
+import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import com.ladygo.admin.domain.AuditLog;
@@ -24,6 +27,7 @@ import com.ladygo.drivers.domain.DriverVerificationStatus;
 import com.ladygo.drivers.repository.DriverDocumentRepository;
 import com.ladygo.drivers.repository.DriverRepository;
 import com.ladygo.drivers.service.DriverReverificationService;
+import com.ladygo.storage.FileStorage;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleVerificationStatus;
 import com.ladygo.vehicles.repository.VehicleRepository;
@@ -58,12 +62,13 @@ public class AdminVerificationService {
     private final VehicleRepository vehicles;
     private final SelfDeclarationService selfDeclarations;
     private final ConfigurationService config;
+    private final FileStorage fileStorage;
 
     public AdminVerificationService(
             DriverDocumentRepository documents, EligibilityReportRepository reports,
             AuditLogRepository auditLogs, DriverReverificationService reverificationService,
             DriverRepository drivers, VehicleRepository vehicles, SelfDeclarationService selfDeclarations,
-            ConfigurationService config) {
+            ConfigurationService config, FileStorage fileStorage) {
         this.documents = documents;
         this.reports = reports;
         this.auditLogs = auditLogs;
@@ -72,6 +77,25 @@ public class AdminVerificationService {
         this.vehicles = vehicles;
         this.selfDeclarations = selfDeclarations;
         this.config = config;
+        this.fileStorage = fileStorage;
+    }
+
+    /**
+     * A short-lived signed URL to view one document/selfie/vehicle-photo image - admins had no way to
+     * actually see what they were approving before this (noted by the adversarial review as a product
+     * gap). IDOR-safe by construction: the only input is the document's own id, which either exists or
+     * doesn't - there is no driver-scoped ownership to bypass, since any admin may view any driver's
+     * documents. Every view writes an audit log entry, same as every other admin action here.
+     */
+    @Transactional
+    public URI viewDocumentUrl(UUID documentId, UUID adminUserId, String adminRole, String ip) {
+        DriverDocument document = documents.findById(documentId).orElseThrow(ResourceNotFoundException::new);
+        if (document.getContentDeletedAt() != null) {
+            throw new ResourceNotFoundException();
+        }
+        audit(adminUserId, adminRole, "DRIVER_DOCUMENT_VIEWED", "driver_documents", documentId, ip);
+        int ttlSeconds = config.getInt("verification.document.view_url.ttl.seconds", 60);
+        return fileStorage.presignedDownloadUrl(document.getStorageKey(), Duration.ofSeconds(ttlSeconds));
     }
 
     public PageResponse<DriverDocumentAdminResponse> listPendingDocuments(Pageable pageable) {
@@ -181,7 +205,13 @@ public class AdminVerificationService {
         driver.setRejectionReason(null);
         drivers.save(driver);
 
-        audit(adminUserId, adminRole, "DRIVER_APPROVED", "drivers", driverId, ip);
+        // Records what was actually required at approval time - the flag is read live at approval, so
+        // a later dispute over "was police verification required for this driver" needs this, not the
+        // config table's current value (adversarial review finding, MEDIUM: the flag can be toggled
+        // around a single approval with no other record of what was in force at the time).
+        boolean policeRequired = config.getBoolean("driver.police_verification.required", false);
+        audit(adminUserId, adminRole, "DRIVER_APPROVED", "drivers", driverId, ip,
+                Map.of("policeVerificationRequired", policeRequired));
     }
 
     @Transactional
@@ -256,6 +286,11 @@ public class AdminVerificationService {
     }
 
     private void audit(UUID actorId, String actorRole, String action, String targetType, UUID targetId, String ip) {
+        audit(actorId, actorRole, action, targetType, targetId, ip, null);
+    }
+
+    private void audit(UUID actorId, String actorRole, String action, String targetType, UUID targetId, String ip,
+            Map<String, Object> metadata) {
         AuditLog entry = new AuditLog();
         entry.setActorId(actorId);
         entry.setActorRole(actorRole);
@@ -263,6 +298,7 @@ public class AdminVerificationService {
         entry.setTargetType(targetType);
         entry.setTargetId(targetId.toString());
         entry.setIp(ip);
+        entry.setMetadata(metadata);
         auditLogs.save(entry);
     }
 
@@ -274,6 +310,6 @@ public class AdminVerificationService {
     private static EligibilityReportAdminResponse toReportResponse(EligibilityReport report) {
         return new EligibilityReportAdminResponse(report.getId(), report.getBookingId(), report.getReporterId(),
                 report.getSubjectType(), report.getSubjectId(), report.getReason(), report.isAutoCreated(),
-                report.getStatus(), report.getCreatedAt());
+                report.isCapExceeded(), report.getStatus(), report.getCreatedAt());
     }
 }

@@ -39,6 +39,12 @@ public class User extends AuditedEntity {
     @Column(name = "status", length = 20, nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
 
+    /** Set by whatever future code transitions {@link #status} away from ACTIVE - no such transition
+     *  exists yet (account suspension/deletion isn't built), so this is dormant until it does. Anchors
+     *  the "90 days after account closure" clause of {@code RetentionPurgeJob}'s LICENSE/SELFIE rule. */
+    @Column(name = "status_changed_at")
+    private Instant statusChangedAt;
+
     @Column(name = "profile_photo_key", length = 500)
     private String profilePhotoKey;
 

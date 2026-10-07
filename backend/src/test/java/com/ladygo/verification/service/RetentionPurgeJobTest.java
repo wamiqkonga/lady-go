@@ -11,6 +11,8 @@ import com.ladygo.locations.domain.City;
 import com.ladygo.storage.FileStorage;
 import com.ladygo.storage.FileStorageException;
 import com.ladygo.testsupport.PersistenceTestSupport;
+import com.ladygo.users.domain.User;
+import com.ladygo.users.domain.UserStatus;
 import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -19,9 +21,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * docs/api/driver-onboarding.md section 7. Adversarial review finding, HIGH: no scheduled job existed
- * at all - these tests fail if {@link RetentionPurgeJob} is removed or stops deleting the bytes and
- * marking {@code content_deleted_at} once {@code verification.document.retention.days} has elapsed.
+ * docs/api/driver-onboarding.md section 7, as corrected (the user's own correction of an earlier,
+ * incorrect default): rejected submissions purge sooner (30 days) than approved ones (90 days), and an
+ * approved+active driver's LICENSE/SELFIE survive indefinitely until 90 days after account closure,
+ * not on the normal reviewed-at clock.
  */
 class RetentionPurgeJobTest extends PersistenceTestSupport {
 
@@ -30,19 +33,27 @@ class RetentionPurgeJobTest extends PersistenceTestSupport {
     @Autowired
     private FileStorage fileStorage;
 
-    private DriverDocument newReviewedDocument(Driver driver, Instant reviewedAt) {
+    private DriverDocument newReviewedDocument(
+            Driver driver, DocumentType type, DocumentStatus status, Instant reviewedAt) {
         String key = "driver-documents/" + UUID.randomUUID();
         fileStorage.upload(key, new ByteArrayInputStream("content".getBytes()), 7, "image/jpeg");
 
         DriverDocument document = new DriverDocument();
         document.setDriverId(driver.getId());
-        document.setType(DocumentType.LICENSE);
+        document.setType(type);
         document.setStorageKey(key);
-        document.setStatus(DocumentStatus.APPROVED);
+        document.setStatus(status);
         document.setReviewedAt(reviewedAt);
         em.persist(document);
         em.flush();
         return document;
+    }
+
+    private void closeAccount(UUID userId, Instant statusChangedAt) {
+        User user = em.find(User.class, userId);
+        user.setStatus(UserStatus.SUSPENDED);
+        user.setStatusChangedAt(statusChangedAt);
+        em.flush();
     }
 
     private UUID newCapturedRideSelfie(UUID customerId, Instant capturedAt) {
@@ -54,33 +65,103 @@ class RetentionPurgeJobTest extends PersistenceTestSupport {
     }
 
     @Test
-    void aDocumentReviewedPastRetentionHasItsBytesDeletedAndIsMarked() {
-        City city = newCity();
-        Driver driver = newDriver(city);
-        DriverDocument expired = newReviewedDocument(driver, Instant.now().minus(91, ChronoUnit.DAYS));
-        String expiredKey = expired.getStorageKey();
+    void aRejectedDocumentPastThirtyDaysHasItsBytesDeletedAndIsMarked() {
+        Driver driver = newDriver(newCity());
+        DriverDocument rejected = newReviewedDocument(
+                driver, DocumentType.LICENSE, DocumentStatus.REJECTED, Instant.now().minus(31, ChronoUnit.DAYS));
 
         job.purgeExpiredContent();
         flushAndClear();
 
-        DriverDocument reloaded = em.find(DriverDocument.class, expired.getId());
+        DriverDocument reloaded = em.find(DriverDocument.class, rejected.getId());
         assertThat(reloaded.getContentDeletedAt()).isNotNull();
-        assertThat(reloaded.getStatus()).isEqualTo(DocumentStatus.APPROVED); // decision record survives
-        assertThatThrownBy(() -> fileStorage.download(expiredKey)).isInstanceOf(FileStorageException.class);
+        assertThat(reloaded.getStatus()).isEqualTo(DocumentStatus.REJECTED); // decision record survives
+        assertThatThrownBy(() -> fileStorage.download(rejected.getStorageKey())).isInstanceOf(FileStorageException.class);
     }
 
     @Test
-    void aRecentlyReviewedDocumentIsLeftUntouched() {
-        City city = newCity();
-        Driver driver = newDriver(city);
-        DriverDocument recent = newReviewedDocument(driver, Instant.now().minus(1, ChronoUnit.DAYS));
+    void aRejectedDocumentWithinThirtyDaysIsLeftUntouched() {
+        Driver driver = newDriver(newCity());
+        DriverDocument rejected = newReviewedDocument(
+                driver, DocumentType.LICENSE, DocumentStatus.REJECTED, Instant.now().minus(29, ChronoUnit.DAYS));
 
         job.purgeExpiredContent();
         flushAndClear();
 
-        DriverDocument reloaded = em.find(DriverDocument.class, recent.getId());
-        assertThat(reloaded.getContentDeletedAt()).isNull();
-        assertThat(fileStorage.download(recent.getStorageKey())).isNotEmpty(); // still readable
+        assertThat(em.find(DriverDocument.class, rejected.getId()).getContentDeletedAt()).isNull();
+    }
+
+    @Test
+    void anApprovedNonExemptDocumentPastNinetyDaysHasItsBytesDeletedAndIsMarked() {
+        Driver driver = newDriver(newCity());
+        DriverDocument insurance = newReviewedDocument(
+                driver, DocumentType.INSURANCE, DocumentStatus.APPROVED, Instant.now().minus(91, ChronoUnit.DAYS));
+
+        job.purgeExpiredContent();
+        flushAndClear();
+
+        DriverDocument reloaded = em.find(DriverDocument.class, insurance.getId());
+        assertThat(reloaded.getContentDeletedAt()).isNotNull();
+        assertThat(reloaded.getStatus()).isEqualTo(DocumentStatus.APPROVED);
+    }
+
+    @Test
+    void anApprovedNonExemptDocumentWithinNinetyDaysIsLeftUntouched() {
+        Driver driver = newDriver(newCity());
+        DriverDocument insurance = newReviewedDocument(
+                driver, DocumentType.INSURANCE, DocumentStatus.APPROVED, Instant.now().minus(89, ChronoUnit.DAYS));
+
+        job.purgeExpiredContent();
+        flushAndClear();
+
+        assertThat(em.find(DriverDocument.class, insurance.getId()).getContentDeletedAt()).isNull();
+    }
+
+    /** The specific regression the user asked for: an active, approved driver's licence/selfie must
+     *  survive the purge no matter how old reviewedAt is - the normal 90-day clock does not apply to
+     *  these two document types while the account is active. */
+    @Test
+    void anActiveApprovedDriversLicenceAndSelfieSurviveNoMatterHowOldTheReview() {
+        Driver driver = newDriver(newCity());
+        DriverDocument licence = newReviewedDocument(
+                driver, DocumentType.LICENSE, DocumentStatus.APPROVED, Instant.now().minus(400, ChronoUnit.DAYS));
+        DriverDocument selfie = newReviewedDocument(
+                driver, DocumentType.SELFIE, DocumentStatus.APPROVED, Instant.now().minus(400, ChronoUnit.DAYS));
+
+        job.purgeExpiredContent();
+        flushAndClear();
+
+        assertThat(em.find(DriverDocument.class, licence.getId()).getContentDeletedAt()).isNull();
+        assertThat(em.find(DriverDocument.class, selfie.getId()).getContentDeletedAt()).isNull();
+        assertThat(fileStorage.download(licence.getStorageKey())).isNotEmpty();
+    }
+
+    @Test
+    void aClosedAccountsLicenceIsPurgedNinetyDaysAfterClosure() {
+        Driver driver = newDriver(newCity());
+        DriverDocument licence = newReviewedDocument(
+                driver, DocumentType.LICENSE, DocumentStatus.APPROVED, Instant.now().minus(400, ChronoUnit.DAYS));
+        closeAccount(driver.getUserId(), Instant.now().minus(91, ChronoUnit.DAYS));
+
+        job.purgeExpiredContent();
+        flushAndClear();
+
+        DriverDocument reloaded = em.find(DriverDocument.class, licence.getId());
+        assertThat(reloaded.getContentDeletedAt()).isNotNull();
+        assertThatThrownBy(() -> fileStorage.download(licence.getStorageKey())).isInstanceOf(FileStorageException.class);
+    }
+
+    @Test
+    void aRecentlyClosedAccountsLicenceIsNotYetPurged() {
+        Driver driver = newDriver(newCity());
+        DriverDocument licence = newReviewedDocument(
+                driver, DocumentType.LICENSE, DocumentStatus.APPROVED, Instant.now().minus(400, ChronoUnit.DAYS));
+        closeAccount(driver.getUserId(), Instant.now().minus(10, ChronoUnit.DAYS)); // within the 90-day grace
+
+        job.purgeExpiredContent();
+        flushAndClear();
+
+        assertThat(em.find(DriverDocument.class, licence.getId()).getContentDeletedAt()).isNull();
     }
 
     @Test

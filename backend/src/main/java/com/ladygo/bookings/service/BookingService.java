@@ -219,6 +219,10 @@ public class BookingService {
     /**
      * docs/api/driver-onboarding.md section 5 - a driver may cancel without penalty on an eligibility
      * concern; this auto-creates an eligibility report for admins, with the customer as the subject.
+     * Penalty-free only up to a configurable weekly cap (per driver, across all riders) and a tighter
+     * per-driver/rider-pair cap - adversarial review finding: the original "never rate-limited" design
+     * was not an approved decision, so beyond either cap the cancellation still goes through but takes
+     * the normal cancellation fee, and the auto-created report is flagged for admin review.
      */
     @Transactional
     public BookingDetailResponse cancelForEligibilityConcern(UUID driverUserId, UUID bookingId, String reason) {
@@ -227,11 +231,22 @@ public class BookingService {
                 .filter(b -> driver.getId().equals(b.getDriverId()))
                 .orElseThrow(ResourceNotFoundException::new);
 
-        Booking cancelled = stateMachine.transition(bookingId, BookingStatus.CANCELLED, ActorType.DRIVER,
-                driver.getId(), reason, Map.of("cancellationFee", 0, "currency", booking.getCurrency()));
+        boolean capExceeded = eligibilityReportService.wouldExceedDriverCancelCap(driverUserId, booking.getCustomerId());
+        Map<String, Object> metadata = capExceeded
+                ? Map.of("cancellationFee", standardCancellationFee(booking), "currency", booking.getCurrency())
+                : Map.of("cancellationFee", 0, "currency", booking.getCurrency());
+
+        Booking cancelled = stateMachine.transition(
+                bookingId, BookingStatus.CANCELLED, ActorType.DRIVER, driver.getId(), reason, metadata);
         eligibilityReportService.autoReportFromDriverCancellation(
-                bookingId, driverUserId, booking.getCustomerId(), reason);
+                bookingId, driverUserId, booking.getCustomerId(), reason, capExceeded);
         return toDetail(cancelled);
+    }
+
+    private int standardCancellationFee(Booking booking) {
+        return pricingRules.findActive(booking.getCityId(), booking.getVehicleType(), Instant.now())
+                .map(rule -> (int) rule.getCancellationFee())
+                .orElse(0);
     }
 
     public PageResponse<BookingDetailResponse> history(UUID userId, Pageable pageable) {

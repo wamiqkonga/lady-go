@@ -53,4 +53,10 @@ public class EligibilityReport extends AuditedEntity {
 
     @Column(name = "reviewed_at")
     private Instant reviewedAt;
+
+    /** Set when this auto-created report came from a driver cancellation that exceeded the weekly or
+     *  per-driver/rider-pair free-cancellation cap - lets admins prioritise it (docs/api/driver-onboarding.md
+     *  section 5). */
+    @Column(name = "cap_exceeded", nullable = false)
+    private boolean capExceeded = false;
 }
