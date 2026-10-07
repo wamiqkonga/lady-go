@@ -273,7 +273,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                                 + "\"paymentMethod\":\"CASH\",\"expectedFare\":" + fare
                                 + ",\"rideSelfieId\":\"" + rideSelfieId + "\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.status").value("SEARCHING_DRIVER"))
+                .andExpect(jsonPath("$.data.status").value("DRIVER_ASSIGNED")) // matching ran synchronously
                 .andReturn().getResponse().getContentAsString();
         UUID bookingId = UUID.fromString(JsonPath.read(bookingResponse, "$.data.id"));
 

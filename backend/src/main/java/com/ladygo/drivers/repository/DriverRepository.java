@@ -41,15 +41,23 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
 
     /** Atomic claim for an offer - 0 rows affected means another booking's search already claimed this
      *  driver (or they went offline), so the caller must move on to the next candidate, same
-     *  check-via-row-count idiom as the ride-selfie claim. */
-    @Modifying(clearAutomatically = true)
+     *  check-via-row-count idiom as the ride-selfie claim. {@code flushAutomatically} (NOT
+     *  {@code clearAutomatically}) - matching's own code runs this from inside a re-entrant
+     *  {@code BookingStatusChangedEvent} listener (one booking's accept/reject immediately searches
+     *  for the next), so clearing the whole persistence context here would silently discard an
+     *  outer, not-yet-flushed change to the SAME booking that is still in progress a few stack frames
+     *  up - a real bug this caused (a booking's pending status write disappeared, surfacing later as a
+     *  spurious BookingStateException). Flushing first is enough to make this bulk update see
+     *  up-to-date data without blowing away anyone else's in-flight change. */
+    @Modifying(flushAutomatically = true)
     @Query("UPDATE Driver d SET d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.BUSY "
             + "WHERE d.id = :id AND d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.ONLINE")
     int claimForOffer(@Param("id") UUID id);
 
     /** Releases a driver back to ONLINE after an offer is rejected/expired - a no-op (0 rows) if the
-     *  driver is no longer BUSY (e.g. went offline in the meantime). */
-    @Modifying(clearAutomatically = true)
+     *  driver is no longer BUSY (e.g. went offline in the meantime). See {@link #claimForOffer} for why
+     *  this is {@code flushAutomatically}, not {@code clearAutomatically}. */
+    @Modifying(flushAutomatically = true)
     @Query("UPDATE Driver d SET d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.ONLINE "
             + "WHERE d.id = :id AND d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.BUSY")
     int releaseFromOffer(@Param("id") UUID id);
