@@ -99,17 +99,20 @@ public class DriverLocationService {
 
     /** Rejects a physically implausible jump since the driver's last known point - a cheap, effective
      *  defence against a spoofed/teleporting GPS feed. Nothing to compare against on the very first
-     *  update ever, so it's allowed through. */
+     *  update ever, so that one is allowed through. An out-of-order or duplicate-timestamp update is
+     *  rejected outright rather than silently skipped (adversarial review finding, MEDIUM: skipping
+     *  let an attacker bypass the speed check entirely - and still have the point applied - just by
+     *  sending a non-increasing timestamp on an otherwise-teleporting update). */
     private void validateSpeed(Driver driver, Point newPoint, Instant recordedAt) {
         Point lastPoint = driver.getCurrentLocation();
         Instant lastAt = driver.getCurrentLocationAt();
-        if (lastPoint == null || lastAt == null || !recordedAt.isAfter(lastAt)) {
+        if (lastPoint == null || lastAt == null) {
             return;
+        }
+        if (!recordedAt.isAfter(lastAt)) {
+            throw new ValidationException("Location update is out of order.");
         }
         double elapsedSeconds = Duration.between(lastAt, recordedAt).toMillis() / 1000.0;
-        if (elapsedSeconds <= 0) {
-            return;
-        }
         double distanceMeters = GeoPoints.haversineMeters(lastPoint, newPoint);
         double speedKmh = (distanceMeters / elapsedSeconds) * 3.6;
         int maxSpeedKmh = config.getInt("driver.location.max_speed.kmh", 150);

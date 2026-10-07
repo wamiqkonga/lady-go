@@ -104,6 +104,23 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         assertThat(drivers.findById(driver.getId()).orElseThrow().getCurrentLocation().getY()).isEqualTo(34.081);
     }
 
+    /** Adversarial review finding, MEDIUM: an out-of-order/duplicate timestamp previously SKIPPED the
+     *  speed check entirely (and still applied the point) instead of being rejected - letting an
+     *  attacker bypass teleport detection just by sending a non-increasing timestamp. */
+    @Test
+    void anOutOfOrderTimestampIsRejectedRatherThanSkippingValidation() {
+        loosenLocationRateLimit();
+        Driver driver = onlineDriver(newCity());
+        Instant first = Instant.now();
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, first));
+
+        assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
+                new DriverLocationRequest(40.0, 74.80, first))) // same timestamp, huge jump
+                .isInstanceOf(ValidationException.class);
+        // the teleporting point must never have been applied.
+        assertThat(drivers.findById(driver.getId()).orElseThrow().getCurrentLocation().getY()).isEqualTo(34.08);
+    }
+
     @Test
     void repeatedUpdatesFasterThanTheThrottleAreRejected() {
         Driver driver = onlineDriver(newCity());

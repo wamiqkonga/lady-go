@@ -368,6 +368,33 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
                 .singleElement().satisfies(r -> assertThat(r.isCapExceeded()).isTrue());
     }
 
+    /** Adversarial review finding, HIGH: booking.driverId is set as soon as a driver is OFFERED
+     *  (DRIVER_ASSIGNED), not only once they accept - needed so cancel-eligibility-concern (above)
+     *  still works pre-acceptance. That means ownership-by-driverId alone is not enough to gate the
+     *  exact pickup address: an offered-but-not-yet-accepting driver must still be rejected. */
+    @Test
+    void getForDriverRejectsAnOfferedButNotYetAcceptingDriver() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+
+        assertThatThrownBy(() -> bookingService.getForDriver(driver.getUserId(), booking.getId()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void getForDriverAllowsTheAcceptingDriver() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ACCEPTED, driver.getId());
+
+        var response = bookingService.getForDriver(driver.getUserId(), booking.getId());
+
+        assertThat(response.pickupAddress()).isEqualTo("Lal Chowk");
+    }
+
     @Test
     void driverCancelForEligibilityConcernRejectsAnUnassignedDriver() {
         City city = srinagar();
