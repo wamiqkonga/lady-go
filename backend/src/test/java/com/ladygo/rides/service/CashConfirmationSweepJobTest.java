@@ -4,14 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ladygo.bookings.domain.Booking;
 import com.ladygo.bookings.domain.BookingStatus;
-import com.ladygo.common.domain.ActorType;
 import com.ladygo.customers.domain.Customer;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.locations.domain.City;
-import com.ladygo.rides.domain.RideFlag;
-import com.ladygo.rides.domain.RideFlagType;
-import com.ladygo.rides.repository.RideFlagRepository;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import com.ladygo.testsupport.PersistenceTestSupport;
@@ -23,8 +18,6 @@ class CashConfirmationSweepJobTest extends PersistenceTestSupport {
 
     @Autowired
     private CashConfirmationSweepJob job;
-    @Autowired
-    private RideFlagRepository rideFlags;
 
     private City srinagar() {
         return newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
@@ -59,16 +52,18 @@ class CashConfirmationSweepJobTest extends PersistenceTestSupport {
         assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus()).isEqualTo(BookingStatus.PAYMENT_PENDING);
     }
 
+    /** Security review finding, HIGH: the gate is the booking's own {@code cashDisputedAt} column
+     *  (bumping its {@code @Version}, so a real concurrent dispute loses to this sweep with an
+     *  {@code OptimisticLockingFailureException} rather than silently - see RideLifecycleService.
+     *  disputeCash/autoCompleteCashBookingIfUndisputed), not a separate RideFlag query - this test
+     *  proves the functional gate; the true concurrent race isn't simulated here (same acknowledged
+     *  limitation as OfferSweepJobTest's own equivalent race fix - not deterministically reproducible
+     *  single-threaded), only that @Version is what the two sides now actually share. */
     @Test
     void aDisputedBookingIsNeverAutoCompleted() {
         Booking booking = paymentPendingCashBooking(Instant.now().minus(2, ChronoUnit.HOURS));
-        RideFlag flag = new RideFlag();
-        flag.setBookingId(booking.getId());
-        flag.setCustomerId(booking.getCustomerId());
-        flag.setDriverId(booking.getDriverId());
-        flag.setType(RideFlagType.CASH_DISPUTE);
-        flag.setRaisedBy(ActorType.CUSTOMER);
-        rideFlags.saveAndFlush(flag);
+        booking.setCashDisputedAt(Instant.now());
+        bookings.saveAndFlush(booking);
 
         job.sweep();
         flushAndClear();

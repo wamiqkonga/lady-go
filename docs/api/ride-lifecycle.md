@@ -143,7 +143,16 @@ Recalculation only happens for:
   = pricingRules.findById(booking.getPricingRuleId())` — the **recorded** rule from booking time, never
   a fresh `findActive` lookup (a rule could have changed since). `FareCalculator` already floors to
   `rule.getMinimumFare()` internally, so "fare for distance travelled with the minimum fare" falls out
-  of the existing calculator with no new logic.
+  of the existing calculator with no new logic. **Security review finding, CRITICAL**: without a
+  floor on how "early" counts as early, ending a ride the instant it starts drove `actualDistanceM`/
+  `actualDurationS` to ~0, which `FareCalculator` floors to the rule's bare minimum fare - a free way
+  to pay far less than the agreed estimate on any ride, zero cost or risk to either party. Fixed with
+  `ride.early_end.min_elapsed.seconds` (default 120) / `ride.early_end.min_distance.m` (default 500):
+  below EITHER threshold, the early end charges the full `estimatedFare` instead (same as a normal
+  completion); the distance-based recompute only applies once real progress has actually happened.
+  This doesn't address a driver spoofing slow GPS for the whole trip to keep the recompute low even
+  past the threshold - that's the same already-accepted device-location-trust residual risk from
+  docs/api/matching.md §3, not a new gap this introduces.
 - **Rider-changed destination mid-ride**: out of this phase's explicit scope (no destination-change
   endpoint exists yet) — noted here only because it's the other case you named for recalculation; if you
   want it in this phase rather than deferred, flag it and I'll design the endpoint.
@@ -158,20 +167,30 @@ path — no change to the sampling logic itself.
 
 ## 8. Cash confirmation and the dispute window
 
-New `Booking.cashConfirmedAt` (nullable timestamp; a single fact per booking, not worth a separate
-table). Flow, `paymentMethod == CASH` only:
+New `Booking.cashConfirmedAt` and `Booking.cashDisputedAt` (nullable timestamps on the booking itself,
+not a separate table). Flow, `paymentMethod == CASH` only:
 
 1. `RIDE_COMPLETED → PAYMENT_PENDING` happens automatically at §2.4/§2.5 completion, same as today's
    enum ordering implies.
 2. Driver calls §2.6, setting `cashConfirmedAt = now()`.
 3. Rider has `ride.cash.dispute.window.minutes` (default 60, configurable) from `cashConfirmedAt` to call
-   §2.7. A dispute raises `RideFlag(CASH_DISPUTE)` and **stops** the auto-complete sweep below for that
-   booking — it now waits on admin resolution (Phase 9), not the clock.
-4. A `@Scheduled` sweep job (same shape as `OfferSweepJob`) finds bookings where `status =
-   PAYMENT_PENDING AND paymentMethod = CASH AND cashConfirmedAt IS NOT NULL AND
-   now() - cashConfirmedAt > dispute.window AND no undisputed RideFlag(CASH_DISPUTE) exists`, and
-   transitions them to `COMPLETED`. `ONLINE` bookings are left at `PAYMENT_PENDING` for Phase 8 to pick
-   up — no auto-complete for those, since there's no cash-collection fact to confirm against.
+   §2.7, which sets `cashDisputedAt = now()` **on the booking itself** and raises `RideFlag(CASH_DISPUTE)`
+   for the admin queue (Phase 9). **Security review finding, HIGH**: the first implementation only
+   raised the flag, never writing to the `bookings` row - with nothing to bump that row's `@Version`,
+   a dispute landing in the same window as a sweep tick (§8.4) could lose the race silently (the sweep
+   reads "no dispute" and completes the booking anyway, the dispute flag existing alongside a
+   now-already-COMPLETED booking). `cashDisputedAt` gives the dispute an actual write to the same row
+   the sweep writes to, so a race now fails the sweep's attempt with the ordinary
+   `OptimisticLockingFailureException` every other concurrent booking transition already relies on,
+   rather than two operations silently succeeding against each other's assumptions.
+4. A `@Scheduled` sweep job (same shape as `OfferSweepJob`) finds `PAYMENT_PENDING`/`CASH` candidates,
+   then re-reads and completes each one in its **own** transaction (via a genuinely separate bean call,
+   not same-bean self-invocation, which Spring's proxy-based `@Transactional` would silently ignore),
+   gated on `cashConfirmedAt IS NOT NULL AND cashDisputedAt IS NULL AND now() - cashConfirmedAt >
+   dispute.window`. A per-booking optimistic-lock conflict is caught and skipped (same resilience shape
+   as `OfferSweepJob`'s own concurrent-accept handling), not allowed to abort the rest of the batch.
+   `ONLINE` bookings are left at `PAYMENT_PENDING` for Phase 8 to pick up - no auto-complete for those,
+   since there's no cash-collection fact to confirm against.
 
 ## 9. Anti-spoofing: how the known residual risk interacts with this phase
 

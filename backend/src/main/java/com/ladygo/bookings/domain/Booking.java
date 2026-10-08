@@ -103,6 +103,14 @@ public class Booking extends AuditedEntity {
     @Column(name = "cash_confirmed_at")
     private Instant cashConfirmedAt;
 
+    /** Set when the rider disputes a cash confirmation. Security review finding, HIGH: this needs to
+     *  be an actual write to THIS row (not just a RideFlag insert) so it bumps {@code version} -
+     *  {@link com.ladygo.rides.service.CashConfirmationSweepJob}'s concurrent read-then-complete can
+     *  only race this if neither side ever touches the same row's version, which is exactly what let
+     *  a dispute silently lose to an in-flight sweep tick before this column existed. */
+    @Column(name = "cash_disputed_at")
+    private Instant cashDisputedAt;
+
     /** Set at the DRIVER_ARRIVING transition - the clock the rider's confirm-arrival gate bypass
      *  (docs/api/ride-lifecycle.md section 13b-4) waits against. */
     @Column(name = "driver_arriving_at")

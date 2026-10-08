@@ -256,7 +256,15 @@ public class RideLifecycleService {
     }
 
     /** docs/api/ride-lifecycle.md section 8 - rider-only, within the dispute window; stops the
-     *  auto-complete sweep for this booking until admin resolution (Phase 9). */
+     *  auto-complete sweep for this booking until admin resolution (Phase 9).
+     *
+     * <p>Security review finding, HIGH: this used to only insert a {@link RideFlag}, never writing to
+     * the {@code bookings} row itself - with no {@code @Version} bump to race against, a dispute
+     * landing in the same window as a concurrent {@link CashConfirmationSweepJob} tick could lose
+     * silently (the sweep reads "no dispute yet" and completes the booking anyway). Setting
+     * {@code cashDisputedAt} on the booking gives this an actual row write, so the sweep's own save
+     * now fails with the same {@code OptimisticLockingFailureException} every other concurrent
+     * booking transition already relies on - see the sweep job for the other half of this fix. */
     @Transactional
     public BookingDetailResponse disputeCash(UUID customerUserId, UUID bookingId, String reason) {
         Customer customer = resolveCustomer(customerUserId);
@@ -271,8 +279,30 @@ public class RideLifecycleService {
             throw new ValidationException("The dispute window for this ride has closed.");
         }
         Driver driver = drivers.findById(booking.getDriverId()).orElseThrow(ResourceNotFoundException::new);
+        booking.setCashDisputedAt(Instant.now());
+        bookings.save(booking);
         raiseFlag(booking, driver, RideFlagType.CASH_DISPUTE, ActorType.CUSTOMER, null, false);
         return bookingService.get(customerUserId, bookingId);
+    }
+
+    /** Called by {@link CashConfirmationSweepJob} - see its class javadoc for why this is a separate
+     *  bean method (own transaction, not a same-bean self-invocation) and why the gate is
+     *  {@code cashDisputedAt} rather than a {@code RideFlag} query. */
+    @Transactional
+    public void autoCompleteCashBookingIfUndisputed(UUID bookingId) {
+        Duration window = config.getMinutes("ride.cash.dispute.window.minutes", Duration.ofMinutes(60));
+        Booking booking = bookings.findById(bookingId).orElseThrow(ResourceNotFoundException::new);
+        if (booking.getStatus() != BookingStatus.PAYMENT_PENDING
+                || booking.getPaymentMethod() != PaymentMode.CASH
+                || booking.getCashConfirmedAt() == null
+                || booking.getCashDisputedAt() != null) {
+            return;
+        }
+        if (Duration.between(booking.getCashConfirmedAt(), Instant.now()).compareTo(window) < 0) {
+            return; // dispute window still open.
+        }
+        stateMachine.transition(bookingId, BookingStatus.COMPLETED, ActorType.SYSTEM, null,
+                "cash_confirmed_auto_complete");
     }
 
     /** docs/api/ride-lifecycle.md section 2.8 - the rider's response to a specific flag that prompted
@@ -296,8 +326,17 @@ public class RideLifecycleService {
         int actualDurationS = ride.getStartedAt() == null ? 0
                 : (int) Duration.between(ride.getStartedAt(), completedAt).getSeconds();
 
+        // Security review finding, CRITICAL: ending a ride the instant it starts left
+        // actualDistanceM/actualDurationS near zero, which FareCalculator floors to the pricing
+        // rule's bare minimum fare - a free way to pay far less than the agreed estimate for any
+        // trip, with zero cost or risk. Below this threshold, an early end isn't "genuinely early
+        // enough to deserve a smaller fare" - it's charged the full estimate, same as a normal
+        // completion; the distance-based recompute only applies once real progress has actually
+        // happened. This doesn't address a driver spoofing slow GPS for the WHOLE trip - that's the
+        // same already-accepted device-location-trust residual risk from docs/api/matching.md
+        // section 3, not a new gap introduced here.
         long finalFare;
-        if (early) {
+        if (early && isGenuinelyEarly(actualDistanceM, actualDurationS)) {
             PricingRule rule = pricingRules.findById(booking.getPricingRuleId()).orElseThrow(ResourceNotFoundException::new);
             FareResult fare = fareCalculator.calculate(rule, actualDistanceM, actualDurationS);
             finalFare = fare.totalFare();
@@ -316,6 +355,14 @@ public class RideLifecycleService {
         rides.save(ride);
 
         stateMachine.transition(booking.getId(), BookingStatus.PAYMENT_PENDING, ActorType.SYSTEM, null, "awaiting_payment");
+    }
+
+    /** True only once the ride has covered enough real distance or time to make a distance-based
+     *  fare recompute meaningful rather than exploitable (see completeRideInternal's comment). */
+    private boolean isGenuinelyEarly(int actualDistanceM, int actualDurationS) {
+        int minElapsedSeconds = config.getInt("ride.early_end.min_elapsed.seconds", 120);
+        int minDistanceM = config.getInt("ride.early_end.min_distance.m", 500);
+        return actualDurationS >= minElapsedSeconds || actualDistanceM >= minDistanceM;
     }
 
     private int sumLocationHistoryDistanceMeters(UUID rideId) {

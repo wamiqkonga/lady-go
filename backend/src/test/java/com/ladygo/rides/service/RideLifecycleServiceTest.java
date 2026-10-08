@@ -336,13 +336,44 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         assertThat(flags).hasSize(1);
     }
 
+    /** Security review finding, CRITICAL: ending a ride the instant it starts used to float the fare
+     *  down to the pricing rule's bare minimum (zero actual distance/duration), a free way to pay far
+     *  less than the agreed estimate on any ride. Below the configured elapsed-time/distance
+     *  threshold, the full estimated fare is charged instead - same as a normal completion. */
     @Test
-    void endingRideEarlyAsDriverRecomputesFareWithTheMinimumFloorAndFlags() {
+    void endingRideEarlyImmediatelyAfterStartChargesTheFullEstimatedFareNotTheMinimumFloor() {
         City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
         Customer customer = newCustomer();
         Driver driver = driverAcceptedFor(city);
         PricingRule rule = newPricingRule(city, VehicleType.CAB); // minimumFare = 6000 (test helper default).
         Booking booking = rideStartedBooking(customer, city, driver, rule);
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+        ride.setStartedAt(Instant.now()); // started just now - the exploit's whole premise.
+        rides.saveAndFlush(ride);
+
+        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+        Booking ended = bookings.findById(booking.getId()).orElseThrow();
+        assertThat(ended.getFinalFare()).isEqualTo(15000L); // the full estimate, not the 6300 floor.
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END);
+        assertThat(flags).hasSize(1);
+        assertThat(flags.get(0).getRaisedBy()).isEqualTo(com.ladygo.common.domain.ActorType.DRIVER);
+    }
+
+    /** The legitimate case the threshold must not break: a ride that genuinely ran long enough to
+     *  justify a distance-based recompute still gets one, floored at the pricing rule's minimum fare
+     *  same as before this fix. */
+    @Test
+    void endingRideEarlyAfterGenuineProgressStillRecomputesTheFareWithTheMinimumFloor() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB); // minimumFare = 6000 (test helper default).
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+        ride.setStartedAt(Instant.now().minusSeconds(200)); // past the 120s min-elapsed threshold.
+        rides.saveAndFlush(ride);
 
         BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
 
@@ -350,9 +381,6 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         Booking ended = bookings.findById(booking.getId()).orElseThrow();
         // Zero actual distance -> subtotal floored to the 6000 minimum, plus the rule's 5% service fee.
         assertThat(ended.getFinalFare()).isEqualTo(6300L);
-        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END);
-        assertThat(flags).hasSize(1);
-        assertThat(flags.get(0).getRaisedBy()).isEqualTo(com.ladygo.common.domain.ActorType.DRIVER);
     }
 
     @Test
