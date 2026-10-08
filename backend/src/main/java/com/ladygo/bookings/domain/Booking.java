@@ -91,6 +91,23 @@ public class Booking extends AuditedEntity {
     @Column(name = "ride_pin_hash", length = 255)
     private String ridePinHash;
 
+    /** Set the moment the ride PIN's per-ride attempt cap trips (docs/api/ride-lifecycle.md section 5)
+     *  - a durable lock, independent of the rolling rate-limit window it sits alongside. Non-null means
+     *  {@code start} is rejected outright until this is cleared (admin intervention, out of this
+     *  phase's scope) or the rider cancels via the fee-free safety-concern path. */
+    @Column(name = "ride_pin_locked_at")
+    private Instant ridePinLockedAt;
+
+    /** Set when the driver confirms cash collected (docs/api/ride-lifecycle.md section 8); starts the
+     *  rider's dispute window, after which an unsolicited sweep auto-completes the booking. */
+    @Column(name = "cash_confirmed_at")
+    private Instant cashConfirmedAt;
+
+    /** Set at the DRIVER_ARRIVING transition - the clock the rider's confirm-arrival gate bypass
+     *  (docs/api/ride-lifecycle.md section 13b-4) waits against. */
+    @Column(name = "driver_arriving_at")
+    private Instant driverArrivingAt;
+
     @Column(name = "idempotency_key", length = 100, nullable = false)
     private String idempotencyKey;
 

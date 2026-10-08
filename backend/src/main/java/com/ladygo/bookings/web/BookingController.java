@@ -6,6 +6,8 @@ import com.ladygo.bookings.service.FareChangedException;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
 import com.ladygo.bookings.web.dto.BookingRequest;
 import com.ladygo.bookings.web.dto.CancelBookingRequest;
+import com.ladygo.bookings.web.dto.DestinationChangeEstimateRequest;
+import com.ladygo.bookings.web.dto.DestinationChangeRequest;
 import com.ladygo.bookings.web.dto.FareEstimateRequest;
 import com.ladygo.bookings.web.dto.FareEstimateResponse;
 import com.ladygo.common.api.ApiError;
@@ -14,6 +16,10 @@ import com.ladygo.common.api.PageResponse;
 import com.ladygo.common.exception.ErrorCode;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.common.web.RequestIdFilter;
+import com.ladygo.rides.service.RideLifecycleService;
+import com.ladygo.rides.web.dto.DisputeCashRequest;
+import com.ladygo.rides.web.dto.EndRideEarlyRequest;
+import com.ladygo.rides.web.dto.RideFlagRespondRequest;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.verification.service.EligibilityReportService;
 import com.ladygo.verification.web.dto.EligibilityReportRequest;
@@ -52,10 +58,14 @@ public class BookingController {
 
     private final BookingService bookingService;
     private final EligibilityReportService eligibilityReportService;
+    private final RideLifecycleService rideLifecycleService;
 
-    public BookingController(BookingService bookingService, EligibilityReportService eligibilityReportService) {
+    public BookingController(
+            BookingService bookingService, EligibilityReportService eligibilityReportService,
+            RideLifecycleService rideLifecycleService) {
         this.bookingService = bookingService;
         this.eligibilityReportService = eligibilityReportService;
+        this.rideLifecycleService = rideLifecycleService;
     }
 
     @PostMapping("/estimate")
@@ -95,6 +105,63 @@ public class BookingController {
     public ApiResponse<PageResponse<BookingDetailResponse>> history(
             @AuthenticationPrincipal AuthPrincipal principal, Pageable pageable) {
         return ApiResponse.ok(bookingService.history(principal.userId(), pageable));
+    }
+
+    /** docs/api/ride-lifecycle.md section 13b-1 - fee-free rider cancel on a safety concern. */
+    @PostMapping("/{id}/cancel-safety-concern")
+    public ApiResponse<BookingDetailResponse> cancelForSafetyConcern(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @Valid @RequestBody CancelBookingRequest request) {
+        return ApiResponse.ok(bookingService.cancelForSafetyConcern(principal.userId(), id, request.reason()));
+    }
+
+    /** docs/api/ride-lifecycle.md section 13b-3 - no-mutation estimate step. */
+    @PostMapping("/{id}/estimate-destination-change")
+    public ApiResponse<FareEstimateResponse> estimateDestinationChange(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @Valid @RequestBody DestinationChangeEstimateRequest request) {
+        return ApiResponse.ok(bookingService.estimateDestinationChange(principal.userId(), id, request));
+    }
+
+    /** docs/api/ride-lifecycle.md section 13b-3 - the confirm step. */
+    @PostMapping("/{id}/change-destination")
+    public ApiResponse<BookingDetailResponse> changeDestination(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @Valid @RequestBody DestinationChangeRequest request) {
+        return ApiResponse.ok(bookingService.changeDestination(principal.userId(), id, request));
+    }
+
+    /** docs/api/ride-lifecycle.md section 13b-4 - rider-confirm-arrival gate bypass. */
+    @PostMapping("/{id}/confirm-arrival")
+    public ApiResponse<BookingDetailResponse> confirmArrival(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
+        return ApiResponse.ok(rideLifecycleService.confirmArrival(principal.userId(), id));
+    }
+
+    /** docs/api/ride-lifecycle.md section 4 - either party may end a started ride early. */
+    @PostMapping("/{id}/end-early")
+    public ApiResponse<BookingDetailResponse> endEarly(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @Valid @RequestBody EndRideEarlyRequest request) {
+        return ApiResponse.ok(rideLifecycleService.endRideEarlyAsCustomer(principal.userId(), id, request.reason()));
+    }
+
+    /** docs/api/ride-lifecycle.md section 8 - within the dispute window only. */
+    @PostMapping("/{id}/dispute-cash")
+    public ApiResponse<BookingDetailResponse> disputeCash(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @Valid @RequestBody DisputeCashRequest request) {
+        return ApiResponse.ok(rideLifecycleService.disputeCash(principal.userId(), id, request.reason()));
+    }
+
+    /** docs/api/ride-lifecycle.md section 2.8 - the rider's response to a specific flag that prompted
+     *  them (identified by flagId - a booking can carry more than one flag over its lifetime). */
+    @PostMapping("/{id}/ride-flags/{flagId}/respond")
+    public ApiResponse<Void> respondToFlag(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id, @PathVariable UUID flagId,
+            @Valid @RequestBody RideFlagRespondRequest request) {
+        rideLifecycleService.respondToFlag(principal.userId(), id, flagId, request.action());
+        return ApiResponse.ok(null);
     }
 
     /**

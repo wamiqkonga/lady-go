@@ -53,6 +53,13 @@ public class Driver extends AuditedEntity {
     @Column(name = "current_location_device_recorded_at")
     private Instant currentLocationDeviceRecordedAt;
 
+    /** Device-reported GPS accuracy (metres) for that same last update - widens, within a configured
+     *  cap, the proximity radius the ride-lifecycle arrived/start gate checks against
+     *  (docs/api/ride-lifecycle.md section 3). Mandatory in the API contract; a driver app that omits
+     *  it (outside the dev-only bypass) has its location update rejected before this is ever set. */
+    @Column(name = "current_location_accuracy_m")
+    private Double currentLocationAccuracyM;
+
     @Column(name = "rating_avg", precision = 3, scale = 2, nullable = false)
     private BigDecimal ratingAvg = BigDecimal.ZERO;
 

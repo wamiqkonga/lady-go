@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.ladygo.auth.sms.MockSmsService;
+import com.ladygo.bookings.service.RidePinService;
 import com.ladygo.locations.domain.City;
 import com.ladygo.pricing.domain.PricingRule;
 import com.ladygo.security.jwt.JwtService;
@@ -52,6 +53,8 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
     private MockMvc mockMvc;
     @Autowired
     private JwtService jwtService;
+    @Autowired
+    private RidePinService ridePinService;
 
     private UUID committedCityId;
     private UUID committedCustomerUserId;
@@ -74,6 +77,8 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
         em.flush(); // the DRIVER_ACCEPTED transition's BookingEvent may still be unflushed in this session.
         jdbc.update("DELETE FROM booking_events WHERE booking_id IN "
                 + "(SELECT b.id FROM bookings b JOIN customers c ON c.id = b.customer_id WHERE c.user_id = ?)",
+                committedCustomerUserId);
+        jdbc.update("DELETE FROM ride_flags WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
                 committedCustomerUserId);
         jdbc.update("DELETE FROM ride_selfies WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
                 committedCustomerUserId);
@@ -242,12 +247,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                         .content("{\"status\":\"ONLINE\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("ONLINE"));
-        mockMvc.perform(post("/api/v1/drivers/me/location")
-                        .header("Authorization", "Bearer " + driverToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"latitude\":34.08,\"longitude\":74.80,\"recordedAt\":\""
-                                + java.time.Instant.now() + "\"}"))
-                .andExpect(status().isOk());
+        reportDriverLocation(driverToken, 34.08, 74.80);
         // Matching's search runs in BookingCreationTransaction's own REQUIRES_NEW transaction (a
         // separate connection) - it needs the driver's ONLINE status and location committed, same
         // reason the earlier commitFixtures() call exists.
@@ -308,9 +308,55 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                 .andReturn().getResponse().getContentAsByteArray();
         assertThat(fetchedSelfie).isNotEmpty();
 
+        // --- Driver: arrives (gated on the location already reported above, near pickup), starts with
+        // the real ride PIN, completes, then confirms cash collected - all through the real Phase 6.5
+        // endpoints (docs/api/ride-lifecycle.md). ---
+        mockMvc.perform(post("/api/v1/drivers/me/rides/" + bookingId + "/arriving")
+                        .header("Authorization", "Bearer " + driverToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("DRIVER_ARRIVING"));
+
+        mockMvc.perform(post("/api/v1/drivers/me/rides/" + bookingId + "/arrived")
+                        .header("Authorization", "Bearer " + driverToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("DRIVER_ARRIVED"));
+
+        String ridePin = ridePinService.derive(bookingId);
+        mockMvc.perform(post("/api/v1/drivers/me/rides/" + bookingId + "/start")
+                        .header("Authorization", "Bearer " + driverToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pin\":\"" + ridePin + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("RIDE_STARTED"));
+
+        // This test never simulates turn-by-turn driving to the destination, so the driver's last
+        // known point is still near pickup when completing - the completion-time far-from-destination
+        // check (docs/api/ride-lifecycle.md section 4) is expected to raise a RideFlag here. That's
+        // fine: it's a soft, non-blocking check by design (purgeCommittedFixtures cleans up the row).
+        // completeRide runs RIDE_COMPLETED -> PAYMENT_PENDING synchronously, so the response already
+        // reflects PAYMENT_PENDING.
+        mockMvc.perform(post("/api/v1/drivers/me/rides/" + bookingId + "/complete")
+                        .header("Authorization", "Bearer " + driverToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PAYMENT_PENDING"));
+
+        mockMvc.perform(post("/api/v1/drivers/me/rides/" + bookingId + "/confirm-cash-collected")
+                        .header("Authorization", "Bearer " + driverToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PAYMENT_PENDING"));
+
         // The rate-limit config seeded for this pricing rule stays referenced so the fixture compiles
-        // cleanly even as later phases extend this test with ride-start/PIN/payment steps.
+        // cleanly even as later phases extend this test with SOS/trip-share/payment steps.
         assertThat(pricingRule.getId()).isNotNull();
+    }
+
+    private void reportDriverLocation(String driverToken, double latitude, double longitude) throws Exception {
+        mockMvc.perform(post("/api/v1/drivers/me/location")
+                        .header("Authorization", "Bearer " + driverToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"latitude\":" + latitude + ",\"longitude\":" + longitude
+                                + ",\"recordedAt\":\"" + java.time.Instant.now() + "\",\"accuracyMeters\":5.0}"))
+                .andExpect(status().isOk());
     }
 
     private UUID uploadDocument(String driverToken, String type) throws Exception {

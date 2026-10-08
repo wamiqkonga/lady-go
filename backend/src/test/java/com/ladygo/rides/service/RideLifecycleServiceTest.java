@@ -1,0 +1,412 @@
+package com.ladygo.rides.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.ladygo.bookings.domain.Booking;
+import com.ladygo.bookings.domain.BookingStatus;
+import com.ladygo.bookings.service.RidePinService;
+import com.ladygo.bookings.web.dto.BookingDetailResponse;
+import com.ladygo.common.exception.BookingStateException;
+import com.ladygo.common.exception.ResourceNotFoundException;
+import com.ladygo.common.exception.ValidationException;
+import com.ladygo.customers.domain.Customer;
+import com.ladygo.drivers.domain.Driver;
+import com.ladygo.drivers.domain.DriverVerificationStatus;
+import com.ladygo.locations.domain.City;
+import com.ladygo.pricing.domain.PricingRule;
+import com.ladygo.rides.domain.Ride;
+import com.ladygo.rides.domain.RideFlag;
+import com.ladygo.rides.domain.RideFlagRiderResponse;
+import com.ladygo.rides.domain.RideFlagType;
+import com.ladygo.rides.domain.RideStatus;
+import com.ladygo.rides.repository.RideFlagRepository;
+import com.ladygo.security.ratelimit.RateLimitExceededException;
+import com.ladygo.testsupport.PersistenceTestSupport;
+import com.ladygo.vehicles.domain.VehicleType;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+
+/** docs/api/ride-lifecycle.md. */
+class RideLifecycleServiceTest extends PersistenceTestSupport {
+
+    @Autowired
+    private RideLifecycleService service;
+    @Autowired
+    private RidePinService ridePinService;
+    @Autowired
+    private RideFlagRepository rideFlags;
+
+    private Driver driverAcceptedFor(City city) {
+        Driver driver = newDriver(city);
+        driver.setVerificationStatus(DriverVerificationStatus.APPROVED);
+        driver.setAvailabilityStatus(com.ladygo.drivers.domain.DriverAvailability.BUSY);
+        driver.setCurrentLocation(point(74.80, 34.08)); // matches newBooking's fixed pickup.
+        driver.setCurrentLocationAt(Instant.now());
+        driver.setCurrentLocationAccuracyM(5.0);
+        drivers.saveAndFlush(driver);
+        return driver;
+    }
+
+    private Booking acceptedBooking(Customer customer, City city, Driver driver, PricingRule rule) {
+        Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ACCEPTED, driver.getId());
+        booking.setPricingRuleId(rule.getId());
+        booking.setEstimatedFare(15000L);
+        bookings.saveAndFlush(booking);
+        newRide(booking, driver);
+        return booking;
+    }
+
+    private Booking rideStartedBooking(Customer customer, City city, Driver driver, PricingRule rule) {
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+        booking.setStatus(BookingStatus.RIDE_STARTED);
+        bookings.saveAndFlush(booking);
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+        ride.setStatus(RideStatus.STARTED);
+        ride.setStartedAt(Instant.now().minusSeconds(60));
+        ride.setStartLocation(point(74.80, 34.08));
+        rides.saveAndFlush(ride);
+        return booking;
+    }
+
+    @Test
+    void markArrivingTransitionsAndSetsTheArrivingTimestamp() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+
+        BookingDetailResponse response = service.markArriving(driver.getUserId(), booking.getId());
+
+        assertThat(response.status()).isEqualTo(BookingStatus.DRIVER_ARRIVING);
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getDriverArrivingAt()).isNotNull();
+    }
+
+    @Test
+    void markArrivingIsIdempotent() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+
+        service.markArriving(driver.getUserId(), booking.getId());
+        BookingDetailResponse second = service.markArriving(driver.getUserId(), booking.getId());
+
+        assertThat(second.status()).isEqualTo(BookingStatus.DRIVER_ARRIVING);
+    }
+
+    @Test
+    void markArrivedPassesWhenWithinRadiusAndFresh() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+        service.markArriving(driver.getUserId(), booking.getId());
+
+        BookingDetailResponse response = service.markArrived(driver.getUserId(), booking.getId());
+
+        assertThat(response.status()).isEqualTo(BookingStatus.DRIVER_ARRIVED);
+    }
+
+    @Test
+    void markArrivedFailsClosedWhenTooFarFromPickup() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        driver.setCurrentLocation(point(74.10, 34.40)); // far from the fixed (74.80, 34.08) pickup.
+        drivers.saveAndFlush(driver);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+        service.markArriving(driver.getUserId(), booking.getId());
+
+        assertThatThrownBy(() -> service.markArrived(driver.getUserId(), booking.getId()))
+                .isInstanceOf(ValidationException.class);
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus())
+                .isEqualTo(BookingStatus.DRIVER_ARRIVING);
+    }
+
+    @Test
+    void markArrivedFailsClosedWhenLocationIsStale() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        driver.setCurrentLocationAt(Instant.now().minus(5, ChronoUnit.MINUTES));
+        drivers.saveAndFlush(driver);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+        service.markArriving(driver.getUserId(), booking.getId());
+
+        assertThatThrownBy(() -> service.markArrived(driver.getUserId(), booking.getId()))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    private Booking arrivedBooking(Customer customer, City city, Driver driver, PricingRule rule) {
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+        booking.setStatus(BookingStatus.DRIVER_ARRIVED);
+        bookings.saveAndFlush(booking);
+        return booking;
+    }
+
+    @Test
+    void startRideWithTheCorrectPinStartsTheRideAndTheRideRow() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = arrivedBooking(customer, city, driver, rule);
+        String pin = ridePinService.derive(booking.getId());
+
+        BookingDetailResponse response = service.startRide(driver.getUserId(), booking.getId(), pin);
+
+        assertThat(response.status()).isEqualTo(BookingStatus.RIDE_STARTED);
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+        assertThat(ride.getStatus()).isEqualTo(RideStatus.STARTED);
+        assertThat(ride.getStartedAt()).isNotNull();
+        assertThat(ride.getStartLocation()).isNotNull();
+    }
+
+    @Test
+    void startRideWithAWrongPinIsRejectedAndDoesNotStartTheRide() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = arrivedBooking(customer, city, driver, rule);
+
+        assertThatThrownBy(() -> service.startRide(driver.getUserId(), booking.getId(), "0000"))
+                .isInstanceOf(ValidationException.class);
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus())
+                .isEqualTo(BookingStatus.DRIVER_ARRIVED);
+    }
+
+    @Test
+    void startRideFailsTheGateEvenWithACorrectPinWhenTooFarFromPickup() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        driver.setCurrentLocation(point(74.10, 34.40));
+        drivers.saveAndFlush(driver);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = arrivedBooking(customer, city, driver, rule);
+        String pin = ridePinService.derive(booking.getId());
+
+        assertThatThrownBy(() -> service.startRide(driver.getUserId(), booking.getId(), pin))
+                .isInstanceOf(ValidationException.class);
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus())
+                .isEqualTo(BookingStatus.DRIVER_ARRIVED);
+    }
+
+    /** docs/api/ride-lifecycle.md section 5: the per-ride rate-limiter's own cap (default 5 attempts)
+     *  upgrades into a durable lock, independent of its rolling window, and raises a flag. */
+    @Test
+    void repeatedWrongPinsLockTheRideDurablyAndRaiseAFlag() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = arrivedBooking(customer, city, driver, rule);
+
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> service.startRide(driver.getUserId(), booking.getId(), "0000"))
+                    .isInstanceOf(ValidationException.class);
+        }
+        assertThatThrownBy(() -> service.startRide(driver.getUserId(), booking.getId(), "0000"))
+                .isInstanceOf(RateLimitExceededException.class);
+
+        Booking locked = bookings.findById(booking.getId()).orElseThrow();
+        assertThat(locked.getRidePinLockedAt()).isNotNull();
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.PIN_LOCKOUT);
+        assertThat(flags).hasSize(1);
+
+        String correctPin = ridePinService.derive(booking.getId());
+        assertThatThrownBy(() -> service.startRide(driver.getUserId(), booking.getId(), correctPin))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void completeRideUsesTheEstimatedFareAndAdvancesToPaymentPending() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+
+        BookingDetailResponse response = service.completeRide(driver.getUserId(), booking.getId());
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+        Booking completed = bookings.findById(booking.getId()).orElseThrow();
+        assertThat(completed.getFinalFare()).isEqualTo(15000L);
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+        assertThat(ride.getStatus()).isEqualTo(RideStatus.COMPLETED);
+        assertThat(ride.getCompletedAt()).isNotNull();
+    }
+
+    @Test
+    void completingFarFromTheDestinationRaisesASoftFlagButStillCompletes() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city); // still at the pickup point, far from destination.
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+
+        BookingDetailResponse response = service.completeRide(driver.getUserId(), booking.getId());
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING); // never blocked.
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.COMPLETION_FAR_FROM_DESTINATION);
+        assertThat(flags).hasSize(1);
+    }
+
+    @Test
+    void endingRideEarlyAsDriverRecomputesFareWithTheMinimumFloorAndFlags() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB); // minimumFare = 6000 (test helper default).
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+
+        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+        Booking ended = bookings.findById(booking.getId()).orElseThrow();
+        // Zero actual distance -> subtotal floored to the 6000 minimum, plus the rule's 5% service fee.
+        assertThat(ended.getFinalFare()).isEqualTo(6300L);
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END);
+        assertThat(flags).hasSize(1);
+        assertThat(flags.get(0).getRaisedBy()).isEqualTo(com.ladygo.common.domain.ActorType.DRIVER);
+    }
+
+    @Test
+    void endingRideEarlyAsCustomerFlagsAndCompletes() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+
+        BookingDetailResponse response = service.endRideEarlyAsCustomer(customer.getUserId(), booking.getId(), "feeling unwell");
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END);
+        assertThat(flags).hasSize(1);
+        assertThat(flags.get(0).getRaisedBy()).isEqualTo(com.ladygo.common.domain.ActorType.CUSTOMER);
+    }
+
+    @Test
+    void endingRideEarlyOutsideRideStartedIsRejected() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = acceptedBooking(customer, city, driver, rule); // not RIDE_STARTED yet.
+
+        assertThatThrownBy(() -> service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "x"))
+                .isInstanceOf(BookingStateException.class);
+    }
+
+    @Test
+    void confirmArrivalRejectsBeforeTheWaitElapses() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+        service.markArriving(driver.getUserId(), booking.getId());
+
+        assertThatThrownBy(() -> service.confirmArrival(customer.getUserId(), booking.getId()))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void confirmArrivalSucceedsAfterTheWaitAndFlags() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = acceptedBooking(customer, city, driver, rule);
+        service.markArriving(driver.getUserId(), booking.getId());
+        flushAndClear();
+        jdbc.update("UPDATE bookings SET driver_arriving_at = ? WHERE id = ?",
+                Timestamp.from(Instant.now().minus(10, ChronoUnit.MINUTES)), booking.getId());
+        flushAndClear();
+
+        BookingDetailResponse response = service.confirmArrival(customer.getUserId(), booking.getId());
+
+        assertThat(response.status()).isEqualTo(BookingStatus.DRIVER_ARRIVED);
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.RIDER_CONFIRMED_ARRIVAL);
+        assertThat(flags).hasSize(1);
+    }
+
+    @Test
+    void confirmCashCollectedThenDisputeWithinTheWindowFlagsAndADisputeOutsideItIsRejected() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        service.completeRide(driver.getUserId(), booking.getId()); // -> PAYMENT_PENDING.
+
+        service.confirmCashCollected(driver.getUserId(), booking.getId());
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getCashConfirmedAt()).isNotNull();
+
+        service.disputeCash(customer.getUserId(), booking.getId(), "paid by card, not cash");
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.CASH_DISPUTE);
+        assertThat(flags).hasSize(1);
+    }
+
+    @Test
+    void disputeCashIsRejectedOutsideTheWindow() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        service.completeRide(driver.getUserId(), booking.getId());
+        service.confirmCashCollected(driver.getUserId(), booking.getId());
+        flushAndClear();
+        jdbc.update("UPDATE bookings SET cash_confirmed_at = ? WHERE id = ?",
+                Timestamp.from(Instant.now().minus(2, ChronoUnit.HOURS)), booking.getId());
+        flushAndClear();
+
+        assertThatThrownBy(() -> service.disputeCash(customer.getUserId(), booking.getId(), "too late"))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void respondToFlagRecordsTheRidersResponse() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "stop requested");
+        RideFlag flag = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END).get(0);
+
+        service.respondToFlag(customer.getUserId(), booking.getId(), flag.getId(), RideFlagRiderResponse.ACKNOWLEDGED);
+
+        RideFlag reloaded = rideFlags.findById(flag.getId()).orElseThrow();
+        assertThat(reloaded.getRiderResponse()).isEqualTo(RideFlagRiderResponse.ACKNOWLEDGED);
+        assertThat(reloaded.getRiderRespondedAt()).isNotNull();
+    }
+
+    @Test
+    void respondToFlagRejectsAMismatchedBooking() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "stop requested");
+        RideFlag flag = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END).get(0);
+
+        assertThatThrownBy(() -> service.respondToFlag(
+                customer.getUserId(), java.util.UUID.randomUUID(), flag.getId(), RideFlagRiderResponse.DISPUTED))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+}

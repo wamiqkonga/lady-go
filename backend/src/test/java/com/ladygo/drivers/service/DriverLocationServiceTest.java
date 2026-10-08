@@ -45,7 +45,7 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
     void aValidUpdatePersistsTheDriversCurrentLocation() {
         Driver driver = onlineDriver(newCity());
 
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, Instant.now()));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, Instant.now(), 5.0));
 
         Driver reloaded = drivers.findById(driver.getId()).orElseThrow();
         assertThat(reloaded.getCurrentLocation().getY()).isEqualTo(34.08);
@@ -57,7 +57,18 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         Driver driver = newDriver(newCity()); // OFFLINE by default
 
         assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(34.08, 74.80, Instant.now())))
+                new DriverLocationRequest(34.08, 74.80, Instant.now(), 5.0)))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    /** docs/api/ride-lifecycle.md section 13b-2: mandatory in the API contract outside the dev-only
+     *  bypass - this test runs under the "test" profile, where the bypass is off by default. */
+    @Test
+    void aMissingAccuracyIsRejectedByDefault() {
+        Driver driver = onlineDriver(newCity());
+
+        assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
+                new DriverLocationRequest(34.08, 74.80, Instant.now(), null)))
                 .isInstanceOf(ValidationException.class);
     }
 
@@ -69,7 +80,7 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         Driver driver = onlineDriver(newCity());
 
         service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(34.08, 74.80, Instant.now().minus(1, ChronoUnit.HOURS)));
+                new DriverLocationRequest(34.08, 74.80, Instant.now().minus(1, ChronoUnit.HOURS), 5.0));
 
         assertThat(drivers.findById(driver.getId()).orElseThrow().getCurrentLocation().getY()).isEqualTo(34.08);
     }
@@ -79,10 +90,10 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
     void anImpossibleSpeedJumpIsRejected() {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, Instant.now()));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, Instant.now(), 5.0));
 
         assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(40.0, 74.80, Instant.now().plusSeconds(30))))
+                new DriverLocationRequest(40.0, 74.80, Instant.now().plusSeconds(30), 5.0)))
                 .isInstanceOf(ValidationException.class);
     }
 
@@ -91,11 +102,11 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
         Instant first = Instant.now();
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, first));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, first, 5.0));
 
         // ~110m away, 3s later - a perfectly normal driving speed.
         service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(34.081, 74.80, first.plusSeconds(3)));
+                new DriverLocationRequest(34.081, 74.80, first.plusSeconds(3), 5.0));
 
         assertThat(drivers.findById(driver.getId()).orElseThrow().getCurrentLocation().getY()).isEqualTo(34.081);
     }
@@ -108,10 +119,10 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
         Instant first = Instant.now();
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, first));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, first, 5.0));
 
         assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(40.0, 74.80, first))) // same device timestamp, huge jump
+                new DriverLocationRequest(40.0, 74.80, first, 5.0))) // same device timestamp, huge jump
                 .isInstanceOf(ValidationException.class);
         // the teleporting point must never have been applied.
         assertThat(drivers.findById(driver.getId()).orElseThrow().getCurrentLocation().getY()).isEqualTo(34.08);
@@ -125,10 +136,10 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
         Instant skewed = Instant.now().minus(10, ChronoUnit.MINUTES);
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, skewed));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, skewed, 5.0));
 
         service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(34.081, 74.80, skewed.plusSeconds(3)));
+                new DriverLocationRequest(34.081, 74.80, skewed.plusSeconds(3), 5.0));
 
         assertThat(drivers.findById(driver.getId()).orElseThrow().getCurrentLocation().getY()).isEqualTo(34.081);
     }
@@ -141,10 +152,10 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
         Instant skewed = Instant.now().minus(10, ChronoUnit.MINUTES);
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, skewed));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, skewed, 5.0));
 
         assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(40.0, 74.80, skewed.plusSeconds(30))))
+                new DriverLocationRequest(40.0, 74.80, skewed.plusSeconds(30), 5.0)))
                 .isInstanceOf(ValidationException.class);
     }
 
@@ -157,7 +168,7 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
         service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(34.08, 74.80, Instant.now().minus(5, ChronoUnit.MINUTES)));
+                new DriverLocationRequest(34.08, 74.80, Instant.now().minus(5, ChronoUnit.MINUTES), 5.0));
         flushAndClear(); // flush that call's write BEFORE backdating, or the backdate below gets
                           // silently overwritten when this flushes again afterward.
 
@@ -170,7 +181,7 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         // A huge implied jump if compared against the stale point, from a buffered point captured
         // while offline - accepted, because the gap since last SERVER contact exceeds max_age.
         service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(40.0, 74.80, Instant.now().minus(1, ChronoUnit.MINUTES)));
+                new DriverLocationRequest(40.0, 74.80, Instant.now().minus(1, ChronoUnit.MINUTES), 5.0));
 
         assertThat(drivers.findById(driver.getId()).orElseThrow().getCurrentLocation().getY()).isEqualTo(40.0);
     }
@@ -184,12 +195,12 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
         Instant bufferedBase = Instant.now().minus(2, ChronoUnit.MINUTES); // captured while offline
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, bufferedBase));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, bufferedBase, 5.0));
 
         // Sent moments later in real time (still part of the same reconnect burst) - within max_age of
         // the point just accepted, so this one IS compared, and the implied speed is impossible.
         assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(40.0, 74.80, bufferedBase.plusSeconds(30))))
+                new DriverLocationRequest(40.0, 74.80, bufferedBase.plusSeconds(30), 5.0)))
                 .isInstanceOf(ValidationException.class);
     }
 
@@ -199,10 +210,10 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
         Instant bufferedBase = Instant.now().minus(2, ChronoUnit.MINUTES);
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, bufferedBase));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, bufferedBase, 5.0));
 
         service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(34.081, 74.80, bufferedBase.plusSeconds(10)));
+                new DriverLocationRequest(34.081, 74.80, bufferedBase.plusSeconds(10), 5.0));
 
         assertThat(drivers.findById(driver.getId()).orElseThrow().getCurrentLocation().getY()).isEqualTo(34.081);
     }
@@ -217,12 +228,12 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         loosenLocationRateLimit();
         Driver driver = onlineDriver(newCity());
         Instant first = Instant.now();
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, first));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, first, 5.0));
 
         // ~10km away, claimed 10 minutes later by the DEVICE clock, but the server received both
         // calls moments apart - uncapped, 10km/600s = 60km/h would sail through the speed check.
         assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(34.17, 74.80, first.plusSeconds(600))))
+                new DriverLocationRequest(34.17, 74.80, first.plusSeconds(600), 5.0)))
                 .isInstanceOf(ValidationException.class);
     }
 
@@ -230,10 +241,10 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
     void repeatedUpdatesFasterThanTheThrottleAreRejected() {
         Driver driver = onlineDriver(newCity());
         Instant now = Instant.now();
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, now));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, now, 5.0));
 
         assertThatThrownBy(() -> service.updateLocation(driver.getUserId(),
-                new DriverLocationRequest(34.0801, 74.80, now.plusMillis(200))))
+                new DriverLocationRequest(34.0801, 74.80, now.plusMillis(200), 5.0)))
                 .isInstanceOf(RateLimitExceededException.class);
     }
 
@@ -245,7 +256,7 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
         Booking booking = newBooking(customer, city, BookingStatus.DRIVER_ACCEPTED, driver.getId());
         Ride ride = newRide(booking, driver);
 
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, Instant.now()));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, Instant.now(), 5.0));
 
         Integer count = jdbc.queryForObject(
                 "SELECT count(*) FROM location_history WHERE ride_id = ?", Integer.class, ride.getId());
@@ -256,7 +267,7 @@ class DriverLocationServiceTest extends PersistenceTestSupport {
     void locationHistoryIsNotSampledWhileJustIdlyOnline() {
         Driver driver = onlineDriver(newCity());
 
-        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, Instant.now()));
+        service.updateLocation(driver.getUserId(), new DriverLocationRequest(34.08, 74.80, Instant.now(), 5.0));
 
         Integer count = jdbc.queryForObject(
                 "SELECT count(*) FROM location_history WHERE driver_id = ?", Integer.class, driver.getId());

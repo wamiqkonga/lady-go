@@ -15,6 +15,8 @@ import com.ladygo.bookings.repository.BookingEventRepository;
 import com.ladygo.bookings.repository.BookingRepository;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
 import com.ladygo.bookings.web.dto.BookingRequest;
+import com.ladygo.bookings.web.dto.DestinationChangeEstimateRequest;
+import com.ladygo.bookings.web.dto.DestinationChangeRequest;
 import com.ladygo.bookings.web.dto.DriverSummaryResponse;
 import com.ladygo.bookings.web.dto.FareEstimateRequest;
 import com.ladygo.bookings.web.dto.FareEstimateResponse;
@@ -22,6 +24,7 @@ import com.ladygo.common.api.PageResponse;
 import com.ladygo.common.domain.ActorType;
 import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.OutOfServiceAreaException;
+import com.ladygo.common.exception.PaymentMethodUnavailableException;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.common.geo.GeoPoints;
@@ -36,10 +39,16 @@ import com.ladygo.maps.Coordinate;
 import com.ladygo.maps.MapsService;
 import com.ladygo.maps.MapsServiceException;
 import com.ladygo.maps.RouteResult;
+import com.ladygo.payments.domain.PaymentMode;
 import com.ladygo.pricing.domain.PricingRule;
 import com.ladygo.pricing.repository.PricingRuleRepository;
 import com.ladygo.pricing.service.FareCalculator;
 import com.ladygo.pricing.service.FareResult;
+import com.ladygo.realtime.RealtimePushService;
+import com.ladygo.rides.domain.RideFlag;
+import com.ladygo.rides.domain.RideFlagType;
+import com.ladygo.rides.repository.RideFlagRepository;
+import com.ladygo.rides.repository.RideRepository;
 import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.security.ratelimit.RateLimiter;
 import com.ladygo.users.domain.User;
@@ -75,6 +84,9 @@ public class BookingService {
     private final ConfigurationService config;
     private final RateLimiter rateLimiter;
     private final EligibilityReportService eligibilityReportService;
+    private final RideFlagRepository rideFlags;
+    private final RideRepository rides;
+    private final RealtimePushService push;
 
     public BookingService(
             CustomerRepository customers,
@@ -93,7 +105,10 @@ public class BookingService {
             FareCalculator fareCalculator,
             ConfigurationService config,
             RateLimiter rateLimiter,
-            EligibilityReportService eligibilityReportService) {
+            EligibilityReportService eligibilityReportService,
+            RideFlagRepository rideFlags,
+            RideRepository rides,
+            RealtimePushService push) {
         this.customers = customers;
         this.users = users;
         this.drivers = drivers;
@@ -111,6 +126,9 @@ public class BookingService {
         this.config = config;
         this.rateLimiter = rateLimiter;
         this.eligibilityReportService = eligibilityReportService;
+        this.rideFlags = rideFlags;
+        this.rides = rides;
+        this.push = push;
     }
 
     /** docs/api/booking.md section 1. Degrades to straight-line + approximate:true on a Maps outage. */
@@ -137,6 +155,11 @@ public class BookingService {
     /** docs/api/booking.md section 2. Fails closed (503) on a Maps outage - no fallback, unlike {@link #estimate}. */
     @Transactional
     public BookingCreationResult create(UUID userId, BookingRequest request, String idempotencyKey) {
+        // docs/api/ride-lifecycle.md section 13b-5: no payment provider exists yet (Phase 8) - rejected
+        // here, at creation, rather than left to surface later as a stuck PAYMENT_PENDING booking.
+        if (request.paymentMethod() == PaymentMode.ONLINE) {
+            throw new PaymentMethodUnavailableException();
+        }
         Customer customer = resolveCustomer(userId);
 
         Optional<Booking> existing = bookings.findByCustomerIdAndIdempotencyKey(customer.getId(), idempotencyKey);
@@ -261,6 +284,134 @@ public class BookingService {
         eligibilityReportService.autoReportFromDriverCancellation(
                 bookingId, driverUserId, booking.getCustomerId(), reason, capExceeded);
         return toDetail(cancelled, BookingViewerRole.DRIVER);
+    }
+
+    /**
+     * docs/api/ride-lifecycle.md section 13b-1 - a rider may cancel without penalty on a safety
+     * concern, generalizing the driver-side eligibility-cancel waiver above to the rider's own side.
+     * Not an {@link com.ladygo.verification.domain.EligibilityReport} (that models peer-reporting the
+     * OTHER person for an eligibility violation; this is the rider declaring the ride itself unsafe for
+     * them) - raises a {@link RideFlag} instead. Penalty-free only up to the same two-cap shape
+     * (weekly, and a tighter per-rider/driver-pair cap); beyond either, the cancellation still goes
+     * through but takes the normal fee, and the flag is marked cap-exceeded for priority review.
+     */
+    @Transactional
+    public BookingDetailResponse cancelForSafetyConcern(UUID customerUserId, UUID bookingId, String reason) {
+        Customer customer = resolveCustomer(customerUserId);
+        Booking booking = bookings.findById(bookingId)
+                .filter(b -> b.getCustomerId().equals(customer.getId()))
+                .orElseThrow(ResourceNotFoundException::new);
+        if (booking.getDriverId() == null) {
+            throw new ValidationException("This booking has no driver assigned yet.");
+        }
+        Driver driver = drivers.findById(booking.getDriverId()).orElseThrow(ResourceNotFoundException::new);
+
+        boolean capExceeded = wouldExceedRiderSafetyCancelCap(customer.getId(), driver.getId());
+        Map<String, Object> metadata = capExceeded
+                ? Map.of("cancellationFee", standardCancellationFee(booking), "currency", booking.getCurrency())
+                : Map.of("cancellationFee", 0, "currency", booking.getCurrency());
+
+        Booking cancelled = stateMachine.transition(
+                bookingId, BookingStatus.CANCELLED, ActorType.CUSTOMER, customer.getId(), reason, metadata);
+        raiseRiderSafetyCancelFlag(cancelled, driver, capExceeded);
+        return toDetail(cancelled, BookingViewerRole.CUSTOMER);
+    }
+
+    private boolean wouldExceedRiderSafetyCancelCap(UUID customerId, UUID driverId) {
+        Instant windowStart = Instant.now().minus(Duration.ofDays(7));
+        int weeklyCap = config.getInt("rider.safety_cancel.weekly_cap.max", 3);
+        int pairCap = config.getInt("rider.safety_cancel.pair_cap.max", 1);
+        long weeklyCount = rideFlags.countByCustomerIdAndTypeAndCreatedAtAfter(
+                customerId, RideFlagType.RIDER_SAFETY_CANCEL, windowStart);
+        long pairCount = rideFlags.countByCustomerIdAndDriverIdAndTypeAndCreatedAtAfter(
+                customerId, driverId, RideFlagType.RIDER_SAFETY_CANCEL, windowStart);
+        return weeklyCount >= weeklyCap || pairCount >= pairCap;
+    }
+
+    private void raiseRiderSafetyCancelFlag(Booking booking, Driver driver, boolean capExceeded) {
+        RideFlag flag = new RideFlag();
+        flag.setRideId(rides.findByBookingId(booking.getId()).map(r -> r.getId()).orElse(null));
+        flag.setBookingId(booking.getId());
+        flag.setCustomerId(booking.getCustomerId());
+        flag.setDriverId(driver.getId());
+        flag.setType(RideFlagType.RIDER_SAFETY_CANCEL);
+        flag.setRaisedBy(ActorType.CUSTOMER);
+        flag.setCapExceeded(capExceeded);
+        rideFlags.save(flag);
+    }
+
+    /**
+     * docs/api/ride-lifecycle.md section 13b-3 - a rider may change the destination any time before
+     * RIDE_STARTED. This step never mutates the booking; it's the same estimate-then-confirm shape as
+     * {@link #estimate}/{@link #create}, so the client can show the new fare before the rider commits.
+     */
+    public FareEstimateResponse estimateDestinationChange(
+            UUID userId, UUID bookingId, DestinationChangeEstimateRequest request) {
+        Customer customer = resolveCustomer(userId);
+        Booking booking = requireChangeableBooking(customer, bookingId);
+        enforceMapsRateLimit(userId);
+
+        City city = resolveCity(booking.getPickupLocation().getY(), booking.getPickupLocation().getX());
+        Coordinate origin = new Coordinate(booking.getPickupLocation().getY(), booking.getPickupLocation().getX());
+        Coordinate destination = new Coordinate(request.destinationLatitude(), request.destinationLongitude());
+        RouteOutcome route;
+        try {
+            RouteResult result = mapsService.calculateRoute(origin, destination);
+            route = new RouteOutcome(result.distanceMeters(), result.durationSeconds(), false);
+        } catch (MapsServiceException ex) {
+            route = approximateRoute(origin, destination);
+        }
+        enforceMaxDistance(route.distanceMeters());
+        PricingRule rule = activeRule(city.getId(), booking.getVehicleType());
+        FareResult fare = fareCalculator.calculate(rule, route.distanceMeters(), route.durationSeconds());
+        return toEstimateResponse(city, booking.getVehicleType(), route, rule, fare);
+    }
+
+    /** The confirm step for the above - mutates the booking, notifies an already-assigned driver. */
+    @Transactional
+    public BookingDetailResponse changeDestination(UUID userId, UUID bookingId, DestinationChangeRequest request) {
+        Customer customer = resolveCustomer(userId);
+        Booking booking = requireChangeableBooking(customer, bookingId);
+
+        City city = resolveCity(booking.getPickupLocation().getY(), booking.getPickupLocation().getX());
+        Coordinate origin = new Coordinate(booking.getPickupLocation().getY(), booking.getPickupLocation().getX());
+        Coordinate destination = new Coordinate(request.destinationLatitude(), request.destinationLongitude());
+        RouteResult route = mapsService.calculateRoute(origin, destination); // no fallback - propagates as 503.
+
+        enforceMaxDistance(route.distanceMeters());
+        PricingRule rule = activeRule(city.getId(), booking.getVehicleType());
+        FareResult fare = fareCalculator.calculate(rule, route.distanceMeters(), route.durationSeconds());
+        checkFareTolerance(fare.totalFare(), request.expectedFare(),
+                toEstimateResponse(city, booking.getVehicleType(),
+                        new RouteOutcome(route.distanceMeters(), route.durationSeconds(), false), rule, fare));
+
+        booking.setDestinationLocation(GeoPoints.of(request.destinationLatitude(), request.destinationLongitude()));
+        booking.setDestinationAddress(request.destinationAddress());
+        booking.setEstimatedDistanceM(route.distanceMeters());
+        booking.setEstimatedDurationS(route.durationSeconds());
+        booking.setEstimatedFare(fare.totalFare());
+        booking.setPricingRuleId(rule.getId());
+        bookings.save(booking);
+
+        if (booking.getDriverId() != null) {
+            drivers.findById(booking.getDriverId()).ifPresent(
+                    driver -> push.pushToUser(driver.getUserId(), "/queue/booking", toDetail(booking, BookingViewerRole.DRIVER)));
+        }
+        return toDetail(booking, BookingViewerRole.CUSTOMER);
+    }
+
+    private static final Set<BookingStatus> DESTINATION_CHANGEABLE_STATUSES = Set.of(
+            BookingStatus.REQUESTED, BookingStatus.SEARCHING_DRIVER, BookingStatus.DRIVER_ASSIGNED,
+            BookingStatus.DRIVER_ACCEPTED, BookingStatus.DRIVER_ARRIVING, BookingStatus.DRIVER_ARRIVED);
+
+    private Booking requireChangeableBooking(Customer customer, UUID bookingId) {
+        Booking booking = bookings.findById(bookingId)
+                .filter(b -> b.getCustomerId().equals(customer.getId()))
+                .orElseThrow(ResourceNotFoundException::new);
+        if (!DESTINATION_CHANGEABLE_STATUSES.contains(booking.getStatus())) {
+            throw new ValidationException("The destination can no longer be changed for this booking.");
+        }
+        return booking;
     }
 
     private int standardCancellationFee(Booking booking) {

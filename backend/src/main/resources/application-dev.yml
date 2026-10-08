@@ -15,6 +15,13 @@ springdoc:
   swagger-ui:
     enabled: true
 
+ladygo:
+  dev:
+    # docs/api/ride-lifecycle.md section 13b-2: local testing convenience so a driver location update
+    # doesn't need a real GPS accuracy reading. Guarded by DevOnlyFlagsStartupGuard - never true in
+    # staging/prod.
+    allow_missing_location_accuracy: true
+
 logging:
   level:
     com.ladygo: DEBUG

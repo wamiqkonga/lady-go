@@ -100,14 +100,23 @@ public class BookingStateMachine {
         return booking;
     }
 
+    private static final Set<BookingStatus> CUSTOMER_ALLOWED_TARGETS = Set.of(
+            CANCELLED,
+            // docs/api/ride-lifecycle.md section 13b-4: the rider-confirm-arrival gate bypass.
+            DRIVER_ARRIVED,
+            // docs/api/ride-lifecycle.md section 13b-1/§4: a rider may end their own ride early.
+            RIDE_COMPLETED);
+
     /**
-     * CUSTOMER may only ever initiate a transition to CANCELLED; every other transition is driven by
-     * SYSTEM (matching, Phase 6) or DRIVER/ADMIN in later phases. Phase 4 only exercises
-     * REQUESTED-&gt;SEARCHING_DRIVER (system) and *-&gt;CANCELLED (customer).
+     * CUSTOMER may only ever initiate a transition to CANCELLED, DRIVER_ARRIVED (the confirm-arrival
+     * gate bypass), or RIDE_COMPLETED (ending their own ride early) - every other transition is driven
+     * by SYSTEM (matching, Phase 6) or DRIVER/ADMIN. The {@code ALLOWED} map above already constrains
+     * which {@code from} state makes each of these reachable (e.g. RIDE_COMPLETED only from
+     * RIDE_STARTED), so this only widens the actor check, not the state machine itself.
      */
     private void authorise(ActorType actorType, BookingStatus to) {
-        if (actorType == ActorType.CUSTOMER && to != CANCELLED) {
-            throw new ForbiddenException("Customers may only cancel a booking.");
+        if (actorType == ActorType.CUSTOMER && !CUSTOMER_ALLOWED_TARGETS.contains(to)) {
+            throw new ForbiddenException("Customers may only cancel a booking, confirm driver arrival, or end their own ride.");
         }
     }
 }

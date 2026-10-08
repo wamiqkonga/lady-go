@@ -1,19 +1,23 @@
 # Lady Go — Development Roadmap
 
-Status: v0.4 · Phases 0–3 closed; Phase 4 (Customer) design in progress
+Status: v0.5 · Phases 0–6 closed (auth, customer booking, driver onboarding, matching/offers); Phase
+6.5 (ride lifecycle, inserted ahead of Payments — see note below) in progress; WebSocket/Redis realtime
+infra (part of Phase 7) built, but live-tracking UI and admin live map not yet started
 
 ## Phase plan
 
 | Phase | Name | Main outcomes | Exit criteria |
 |------:|------|---------------|---------------|
 | 0 | Discovery | Requirements, architecture, DB design, roadmap | Docs reviewed; open decisions answered or defaulted |
-| 1 | Project foundation (WRITTEN 2026-10-03; backend/Android/iOS awaiting first real build) | Monorepo, Spring Boot skeleton, React website + admin skeletons, Android/iOS skeletons (customer + driver), Docker Compose, CI skeleton | All projects build; CI green; health endpoint |
+| 1 | Project foundation (CLOSED 2026-10-03) | Monorepo, Spring Boot skeleton, React website + admin skeletons, Android/iOS skeletons (customer + driver), Docker Compose, CI skeleton | All projects build; CI green; health endpoint |
 | 2 | Database (CLOSED 2026-10-04; backend CI green with Testcontainers) | Flyway migrations V1–V11, PostGIS, entities/repositories, ERD, Testcontainers | Migrations apply from empty DB; repository tests pass |
-| 3 | Authentication | OTP, JWT, refresh, logout, RBAC, rate limiting, admin MFA | Security tests; auth E2E |
-| 4 | Customer | Profile, saved locations, maps abstraction, fare estimate, booking creation/history | Booking API tests; app flows to booking |
-| 5 | Driver | Onboarding, documents, verification, availability, offers, ride lifecycle | Admin approval path works end to end |
-| 6 | Matching | Nearby search, ranking, offers, timeouts, retry, cancellation handling | Concurrency tests; configurable rules |
-| 7 | Real-time | WebSocket/STOMP, Redis, live tracking, admin live map | Load test at target scale |
+| 3 | Authentication (CLOSED 2026-10-04) | OTP, JWT, refresh, logout, RBAC, rate limiting, admin MFA | Security tests; auth E2E |
+| 4 | Customer (BUILT; see note below) | Profile, saved locations, maps abstraction, fare estimate, booking creation/history | Booking API tests; app flows to booking |
+| 5 | Driver (BUILT; see note below) | Onboarding, documents, verification, availability, offers | Admin approval path works end to end |
+| 6 | Matching (BUILT 2026-10-07; see note below) | Nearby search, ranking, offers, timeouts, retry, cancellation handling | Concurrency tests; configurable rules |
+| 6.5 | Ride lifecycle (IN PROGRESS — inserted here, ahead of Payments; not in the original plan, see note below) | Arrive/PIN-start/complete/early-end, ride PIN flow, destination change, cash confirmation | Design in `docs/api/ride-lifecycle.md`, approved; adversarial review before closing |
+| 7 | Real-time (PARTIAL — WebSocket/Redis infra built 2026-10-07; live tracking UI and admin live map not started) | WebSocket/STOMP, Redis, live tracking, admin live map | Load test at target scale |
+| 7.5 | SOS + trip sharing (PLANNED — next phase after 6.5, still ahead of Payments; not in the original plan, see note below) | In-ride panic action + admin triage queue, trip-share link (uses existing empty `TripShare` domain) | Design doc first, same as every other phase |
 | 8 | Payments | Abstraction, provider, webhooks, refunds, receipts, cash flow | Idempotency and webhook tests |
 | 9 | Admin portal | Dashboard, management screens, pricing/config, audit. **Step-up MFA**: destructive admin actions (pricing/config changes, admin user management per `docs/product/admin-flows.md` §1) must require a fresh TOTP re-verification beyond login-time MFA — deferred from Phase 3 (`docs/security/auth-design.md` §12, OQ-7); do not ship this UI without it. | Admin E2E flows |
 | 10 | Safety | SOS, emergency contacts, share trip, ride PIN, incidents | Incident E2E; ops runbook |
@@ -21,7 +25,17 @@ Status: v0.4 · Phases 0–3 closed; Phase 4 (Customer) design in progress
 | 12 | Deployment | Environments, containers, monitoring, backups, migration strategy | Staging mirrors production |
 | 13 | App release | Signing, store metadata, policies, production config | Store submissions |
 
-## Suggested order tweak (for confirmation)
+## Order change (decided, 2026-10-08) — supersedes the "suggested order tweak" below
+
+Phases 4, 5 and 6 were built out of strict numeric order (customer booking, driver onboarding, and
+matching/offers/WebSocket infra all shipped together as part of what the commit history calls "Phase
+6"), closing CI-green along the way. Ride lifecycle (6.5) and SOS+trip-sharing (7.5) are inserted ahead
+of Payments (8) because Payments needs a completed ride with a real final fare to charge against —
+building it earlier would mean building it against data that doesn't exist yet. This is the rationale
+the old "suggested order tweak" note below was gesturing at (ride PIN/trip-share pulled earlier for
+safety); it's now a decided phase-list change, not just a note.
+
+## Suggested order tweak (historical — see "Order change" above, which supersedes this)
 Phase 10 (ride PIN, SOS basics) depends on the ride lifecycle (Phase 5). Because safety is a core differentiator, the ride PIN and trip-share endpoints may be pulled into Phase 5/7 and only the incident-management console left for Phase 10. This does not change the phase list; it is noted for planning.
 
 ## Branching and commits
@@ -89,3 +103,20 @@ Backend, Android and iOS CI jobs went green after two workflow fixes (dynamic iO
 ## Phase 3 closure (2026-10-04)
 
 OTP login (CUSTOMER/DRIVER), admin email+password+TOTP with forced enrolment, rotating refresh tokens with reuse detection, database-backed rate limiting, and a client-IP resolver — design in `docs/security/auth-design.md`, approved before implementation. A fresh adversarial-review agent (no session context, same checklist the project owner specified) found 1 CRITICAL, 2 HIGH and 2 MEDIUM real issues; all but the 2 MEDIUM tradeoffs were fixed with a failing-first regression test each (132 backend tests total, 0 failures). The 2 accepted tradeoffs and OQ-8 are decided and tracked above and in `docs/security/auth-design.md` §13/§15. PR #1 (develop→main) green across Backend/Android/iOS/Security from actual logs, not merged (awaiting owner review). `docs/development/auth-local-runbook.md` written and personally walked end to end against a local stack.
+
+## Phases 4–6 status (2026-10-07) — built together, not in strict numeric order
+
+Customer booking (fare estimate, creation, history, cancellation), driver onboarding/verification,
+availability, and matching/offers/WebSocket+Redis realtime infra were implemented and adversarially
+reviewed across several commits culminating in `60b367a`/`bd21632` on `develop`. A central
+`BookingVisibilityPolicy` (allow-listed fields per viewer role/status) and an ArchUnit rule banning
+`Enum.ordinal()` comparisons were added after a fresh-context review found a real ordinal-comparison
+bug admitting cancelled bookings into a detail view. Driver location staleness is judged from server
+receive time, not the device clock (`docs/api/matching.md` §3), with a documented, accepted residual
+risk around device-delta chaining. Backend and Security CI green on every commit in this range.
+
+## Phase 6.5 status (in progress, started 2026-10-08)
+
+Design in `docs/api/ride-lifecycle.md`, approved with decisions on fee-free safety cancels, mandatory
+GPS accuracy, pre-start destination change, a rider-confirm-arrival gate bypass, and rejecting `ONLINE`
+payment until Phase 8. Implementation in progress; this section will be updated on closure.

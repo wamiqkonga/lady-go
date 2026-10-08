@@ -25,6 +25,8 @@ import com.ladygo.payments.domain.PaymentStatus;
 import com.ladygo.payments.domain.RefundStatus;
 import com.ladygo.payments.domain.WebhookStatus;
 import com.ladygo.ratings.domain.RaterRole;
+import com.ladygo.rides.domain.RideFlagRiderResponse;
+import com.ladygo.rides.domain.RideFlagType;
 import com.ladygo.rides.domain.RideStatus;
 import com.ladygo.testsupport.IntegrationTest;
 import com.ladygo.support.domain.IncidentSeverity;
@@ -111,5 +113,8 @@ class EnumSchemaParityTest {
         check("self_declarations", "subject_type", SubjectType.class);
         check("eligibility_reports", "subject_type", SubjectType.class);
         check("eligibility_reports", "status", EligibilityReportStatus.class);
+        check("ride_flags", "type", RideFlagType.class);
+        check("ride_flags", "raised_by", ActorType.class);
+        check("ride_flags", "rider_response", RideFlagRiderResponse.class);
     }
 }

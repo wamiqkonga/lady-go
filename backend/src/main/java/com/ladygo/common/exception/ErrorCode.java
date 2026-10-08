@@ -20,6 +20,7 @@ public enum ErrorCode {
     MAPS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Maps service is temporarily unavailable."),
     LIMIT_EXCEEDED(HttpStatus.UNPROCESSABLE_ENTITY, "A configured limit has been reached."),
     CONCURRENT_UPDATE(HttpStatus.CONFLICT, "This was just updated by someone else. Please retry."),
+    PAYMENT_METHOD_UNAVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "This payment method is not available yet."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

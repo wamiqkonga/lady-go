@@ -23,6 +23,7 @@ import com.ladygo.rides.repository.RideRepository;
 import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.security.ratelimit.RateLimiter;
 import org.locationtech.jts.geom.Point;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,15 +59,19 @@ public class DriverLocationService {
     private final ConfigurationService config;
     private final JdbcTemplate jdbc;
 
+    private final boolean allowMissingAccuracy;
+
     public DriverLocationService(
             DriverRepository drivers, BookingRepository bookings, RideRepository rides, RateLimiter rateLimiter,
-            ConfigurationService config, JdbcTemplate jdbc) {
+            ConfigurationService config, JdbcTemplate jdbc,
+            @Value("${ladygo.dev.allow_missing_location_accuracy:false}") boolean allowMissingAccuracy) {
         this.drivers = drivers;
         this.bookings = bookings;
         this.rides = rides;
         this.rateLimiter = rateLimiter;
         this.config = config;
         this.jdbc = jdbc;
+        this.allowMissingAccuracy = allowMissingAccuracy;
     }
 
     @Transactional
@@ -74,6 +79,12 @@ public class DriverLocationService {
         Driver driver = drivers.findByUserId(userId).orElseThrow(ResourceNotFoundException::new);
         if (driver.getAvailabilityStatus() == DriverAvailability.OFFLINE) {
             throw new ValidationException("Driver is OFFLINE.");
+        }
+        // docs/api/ride-lifecycle.md section 13b-2: mandatory in the API contract - a dev-profile-only
+        // bypass exists so local testing doesn't need a real GPS fix, guarded at startup (PaymentStubGuard)
+        // so it can never be true in staging/prod.
+        if (request.accuracyMeters() == null && !allowMissingAccuracy) {
+            throw new ValidationException("accuracyMeters is required.");
         }
         enforceRateLimit(driver.getId());
 
@@ -84,6 +95,7 @@ public class DriverLocationService {
         driver.setCurrentLocation(newPoint);
         driver.setCurrentLocationAt(serverReceivedAt);
         driver.setCurrentLocationDeviceRecordedAt(request.recordedAt());
+        driver.setCurrentLocationAccuracyM(request.accuracyMeters());
         drivers.save(driver);
 
         sampleLocationHistoryIfOnActiveRide(driver, newPoint, request.recordedAt());
