@@ -12,9 +12,12 @@ import com.ladygo.bookings.domain.OfferStatus;
 import com.ladygo.bookings.domain.RideOffer;
 import com.ladygo.bookings.repository.BookingRepository;
 import com.ladygo.bookings.repository.RideOfferRepository;
+import com.ladygo.bookings.service.BookingField;
 import com.ladygo.bookings.service.BookingService;
 import com.ladygo.bookings.service.BookingStateMachine;
 import com.ladygo.bookings.service.BookingStatusChangedEvent;
+import com.ladygo.bookings.service.BookingVisibilityPolicy;
+import com.ladygo.bookings.service.BookingViewerRole;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
 import com.ladygo.common.domain.ActorType;
 import com.ladygo.common.exception.ResourceNotFoundException;
@@ -202,7 +205,18 @@ public class MatchingService {
         return drivers.findByUserId(userId).orElseThrow(ResourceNotFoundException::new);
     }
 
+    /** Same {@link BookingVisibilityPolicy} every other booking/offer/selfie read path uses - the
+     *  approximate point is only ever included because the policy grants
+     *  {@link BookingField#PICKUP_LOCATION_APPROXIMATE} for an OFFERED, not-yet-accepted driver; it
+     *  never includes the exact address (that field is simply absent from {@link OfferResponse}). */
     private OfferResponse toOfferResponse(RideOffer offer, Booking booking) {
+        boolean approximateVisible = BookingVisibilityPolicy.isVisible(
+                BookingViewerRole.DRIVER, booking.getStatus(), BookingField.PICKUP_LOCATION_APPROXIMATE);
+        if (!approximateVisible) {
+            return new OfferResponse(offer.getId(), booking.getId(), booking.getVehicleType(),
+                    null, null, booking.getEstimatedFare(), booking.getCurrency(),
+                    offer.getDistanceM(), offer.getExpiresAt());
+        }
         int approxRadiusM = config.getInt("booking.pickup.approximate.radius.m", 300);
         Point approx = GeoPoints.roundToGrid(booking.getPickupLocation(), approxRadiusM);
         return new OfferResponse(offer.getId(), booking.getId(), booking.getVehicleType(),

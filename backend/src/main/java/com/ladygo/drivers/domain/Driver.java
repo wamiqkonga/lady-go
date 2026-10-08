@@ -41,8 +41,17 @@ public class Driver extends AuditedEntity {
     @Column(name = "current_location", columnDefinition = "geography(Point,4326)")
     private Point currentLocation;
 
+    /** Server receive time of the last accepted location update - freshness is judged against THIS,
+     *  never the device's own clock (docs: a skewed device clock must not get every update rejected
+     *  as stale just because it disagrees with real time). */
     @Column(name = "current_location_at")
     private Instant currentLocationAt;
+
+    /** The device's own claimed timestamp for that same last update - kept ONLY to order consecutive
+     *  updates relative to each other (the teleport-speed check's elapsed-time denominator), never
+     *  compared against server time. */
+    @Column(name = "current_location_device_recorded_at")
+    private Instant currentLocationDeviceRecordedAt;
 
     @Column(name = "rating_avg", precision = 3, scale = 2, nullable = false)
     private BigDecimal ratingAvg = BigDecimal.ZERO;

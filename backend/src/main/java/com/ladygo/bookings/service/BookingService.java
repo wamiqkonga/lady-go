@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import com.ladygo.bookings.domain.Booking;
 import com.ladygo.bookings.domain.BookingEvent;
@@ -140,7 +141,7 @@ public class BookingService {
 
         Optional<Booking> existing = bookings.findByCustomerIdAndIdempotencyKey(customer.getId(), idempotencyKey);
         if (existing.isPresent()) {
-            return new BookingCreationResult(toDetail(existing.get()), false);
+            return new BookingCreationResult(toDetail(existing.get(), BookingViewerRole.CUSTOMER), false);
         }
         enforceMapsRateLimit(userId);
 
@@ -184,13 +185,13 @@ public class BookingService {
 
         try {
             Booking created = creationTransaction.insert(booking, request.rideSelfieId());
-            return new BookingCreationResult(toDetail(created), true);
+            return new BookingCreationResult(toDetail(created, BookingViewerRole.CUSTOMER), true);
         } catch (DataIntegrityViolationException ex) {
             // A concurrent request with the same key won the race; its transaction already committed.
             Booking winner = bookings.findByCustomerIdAndIdempotencyKey(customer.getId(), idempotencyKey)
                     .orElseThrow(() -> new IllegalStateException(
                             "Idempotent insert failed but no winning booking row was found", ex));
-            return new BookingCreationResult(toDetail(winner), false);
+            return new BookingCreationResult(toDetail(winner, BookingViewerRole.CUSTOMER), false);
         }
     }
 
@@ -199,34 +200,26 @@ public class BookingService {
         Booking booking = bookings.findById(bookingId)
                 .filter(b -> b.getCustomerId().equals(customer.getId()))
                 .orElseThrow(ResourceNotFoundException::new);
-        return toDetail(booking);
+        return toDetail(booking, BookingViewerRole.CUSTOMER);
     }
-
-    /** Every status where a driver who genuinely accepted may legitimately still see this booking's
-     *  exact detail - deliberately an explicit allow-list, not an ordinal inequality. An ordinal check
-     *  (`status.ordinal() >= DRIVER_ACCEPTED.ordinal()`) was tried here first and was itself a bug:
-     *  {@code CANCELLED} is the LAST value in {@link BookingStatus}, so its ordinal is greater than
-     *  DRIVER_ACCEPTED's, meaning that check actually ADMITTED a cancelled booking (adversarial review
-     *  finding, CRITICAL - a customer cancelling a DRIVER_ASSIGNED, not-yet-accepted booking left
-     *  {@code driverId} pointing at the offered driver, who could then call this endpoint and read the
-     *  exact address for a ride they never accepted and that no longer exists). */
-    private static final java.util.Set<BookingStatus> DRIVER_VISIBLE_DETAIL_STATUSES = java.util.Set.of(
-            BookingStatus.DRIVER_ACCEPTED, BookingStatus.DRIVER_ARRIVING, BookingStatus.DRIVER_ARRIVED,
-            BookingStatus.RIDE_STARTED, BookingStatus.RIDE_COMPLETED, BookingStatus.PAYMENT_PENDING,
-            BookingStatus.COMPLETED);
 
     /** docs/api/matching.md section 6 - the exact pickup address becomes visible here, to the
      *  accepting driver only - ownership (booking.driverId) is set as soon as a driver is OFFERED the
      *  booking (docs/api/driver-onboarding.md section 5 needs that for cancel-eligibility-concern), so
-     *  ownership alone is not enough to gate the EXACT address: this also requires a status in
-     *  {@link #DRIVER_VISIBLE_DETAIL_STATUSES}. */
+     *  ownership alone is not enough to gate the EXACT address: this also requires
+     *  {@link BookingVisibilityPolicy} to grant {@link BookingField#PICKUP_ADDRESS_EXACT} for
+     *  {@link BookingViewerRole#DRIVER} at the booking's current status - the SAME check
+     *  {@link #toDetail} itself uses to decide whether to null the address out, so the gate and the
+     *  redaction can never drift apart again (adversarial review finding, CRITICAL - see
+     *  {@link BookingVisibilityPolicy}'s own javadoc for how they drifted apart before). */
     public BookingDetailResponse getForDriver(UUID driverUserId, UUID bookingId) {
         Driver driver = drivers.findByUserId(driverUserId).orElseThrow(ResourceNotFoundException::new);
         Booking booking = bookings.findById(bookingId)
                 .filter(b -> driver.getId().equals(b.getDriverId()))
-                .filter(b -> DRIVER_VISIBLE_DETAIL_STATUSES.contains(b.getStatus()))
+                .filter(b -> BookingVisibilityPolicy.isVisible(
+                        BookingViewerRole.DRIVER, b.getStatus(), BookingField.PICKUP_ADDRESS_EXACT))
                 .orElseThrow(ResourceNotFoundException::new);
-        return toDetail(booking);
+        return toDetail(booking, BookingViewerRole.DRIVER);
     }
 
     /** docs/api/booking.md section 5. */
@@ -240,7 +233,7 @@ public class BookingService {
         Map<String, Object> metadata = assessCancellationFee(booking);
         Booking cancelled = stateMachine.transition(
                 bookingId, BookingStatus.CANCELLED, ActorType.CUSTOMER, customer.getId(), reason, metadata);
-        return toDetail(cancelled);
+        return toDetail(cancelled, BookingViewerRole.CUSTOMER);
     }
 
     /**
@@ -267,7 +260,7 @@ public class BookingService {
                 bookingId, BookingStatus.CANCELLED, ActorType.DRIVER, driver.getId(), reason, metadata);
         eligibilityReportService.autoReportFromDriverCancellation(
                 bookingId, driverUserId, booking.getCustomerId(), reason, capExceeded);
-        return toDetail(cancelled);
+        return toDetail(cancelled, BookingViewerRole.DRIVER);
     }
 
     private int standardCancellationFee(Booking booking) {
@@ -369,13 +362,22 @@ public class BookingService {
                 fare.totalFare(), fare.breakdown(), rule.getId());
     }
 
-    private BookingDetailResponse toDetail(Booking booking) {
-        DriverSummaryResponse driver = booking.getDriverId() != null ? buildDriverSummary(booking.getDriverId()) : null;
-        String ridePin = booking.getStatus().ordinal() < BookingStatus.RIDE_STARTED.ordinal()
-                ? ridePinService.derive(booking.getId())
+    /** The ONE place a {@link Booking} becomes a {@link BookingDetailResponse} - every field that
+     *  isn't unconditionally safe (address, PIN, driver summary) goes through
+     *  {@link BookingVisibilityPolicy} for the given viewer, rather than this method inventing its own
+     *  per-field rule (that duplication, drifting out of sync with {@code getForDriver}'s own gate, is
+     *  exactly how the CRITICAL ordinal-comparison bug happened). */
+    private BookingDetailResponse toDetail(Booking booking, BookingViewerRole viewer) {
+        Set<BookingField> visible = BookingVisibilityPolicy.visibleFields(viewer, booking.getStatus());
+        DriverSummaryResponse driver = (visible.contains(BookingField.DRIVER_SUMMARY) && booking.getDriverId() != null)
+                ? buildDriverSummary(booking.getDriverId())
                 : null;
+        String ridePin = visible.contains(BookingField.RIDE_PIN) ? ridePinService.derive(booking.getId()) : null;
+        String pickupAddress = visible.contains(BookingField.PICKUP_ADDRESS_EXACT) ? booking.getPickupAddress() : null;
+        String destinationAddress = visible.contains(BookingField.DESTINATION_ADDRESS_EXACT)
+                ? booking.getDestinationAddress() : null;
         return new BookingDetailResponse(
-                booking.getId(), booking.getStatus(), booking.getPickupAddress(), booking.getDestinationAddress(),
+                booking.getId(), booking.getStatus(), pickupAddress, destinationAddress,
                 booking.getVehicleType(), booking.getPaymentMethod(), booking.getEstimatedFare(),
                 booking.getFinalFare(), booking.getCurrency(), ridePin, driver,
                 booking.getCreatedAt(), booking.getScheduledAt());

@@ -12,6 +12,7 @@ import com.ladygo.drivers.domain.DocumentType;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.drivers.domain.DriverDocument;
 import com.ladygo.drivers.domain.DriverVerificationStatus;
+import com.ladygo.drivers.domain.ReverificationReason;
 import com.ladygo.drivers.domain.VerificationReason;
 import com.ladygo.drivers.repository.DriverDocumentRepository;
 import com.ladygo.drivers.repository.DriverRepository;
@@ -102,11 +103,19 @@ public class DriverService {
     public DriverDocumentResponse uploadSelfie(UUID userId, MultipartFile file) {
         Driver driver = resolveDriver(userId);
         markPendingReviewIfNotSubmitted(driver);
-        VerificationReason reason = switch (driver.getReverificationReason()) {
-            case REPORTED -> VerificationReason.REPORTED;
-            case RANDOM_REVERIFICATION -> VerificationReason.RANDOM_REVERIFICATION;
-            case null -> VerificationReason.INITIAL;
-        };
+        // if/== rather than switch-on-enum: javac compiles an enum switch via an ordinal()-indexed
+        // jump table, and ordinal() is banned outright in this codebase's production code (see
+        // ArchitectureTest) - not because this particular mapping is a security boundary, but because
+        // a blanket rule is simpler and more robust long-term than curating which switches "count".
+        ReverificationReason pending = driver.getReverificationReason();
+        VerificationReason reason;
+        if (pending == ReverificationReason.REPORTED) {
+            reason = VerificationReason.REPORTED;
+        } else if (pending == ReverificationReason.RANDOM_REVERIFICATION) {
+            reason = VerificationReason.RANDOM_REVERIFICATION;
+        } else {
+            reason = VerificationReason.INITIAL;
+        }
         DriverDocument saved = storeDocument(driver.getId(), DocumentType.SELFIE, file, reason);
         return toDocumentResponse(saved);
     }

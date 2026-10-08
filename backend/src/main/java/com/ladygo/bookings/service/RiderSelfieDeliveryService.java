@@ -4,7 +4,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.UUID;
 import com.ladygo.bookings.domain.Booking;
-import com.ladygo.bookings.domain.BookingStatus;
 import com.ladygo.bookings.repository.BookingRepository;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.config.ConfigurationService;
@@ -47,8 +46,8 @@ public class RiderSelfieDeliveryService {
         if (!driver.getId().equals(booking.getDriverId())) {
             throw new ResourceNotFoundException();
         }
-        boolean visible = booking.getStatus().ordinal() >= BookingStatus.DRIVER_ACCEPTED.ordinal()
-                && booking.getStatus().ordinal() < BookingStatus.RIDE_STARTED.ordinal();
+        boolean visible = BookingVisibilityPolicy.isVisible(
+                BookingViewerRole.DRIVER, booking.getStatus(), BookingField.RIDER_SELFIE);
         if (!visible) {
             throw new ResourceNotFoundException();
         }

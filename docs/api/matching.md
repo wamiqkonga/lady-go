@@ -75,11 +75,43 @@ it becomes a real problem.
 POST /api/v1/drivers/me/location   { latitude, longitude, recordedAt }
 ```
 
-HTTP only for this phase (per §1, the WebSocket location channel is Phase 7's job). Validates
-lat/lon bounds and that `recordedAt` isn't absurdly stale/future (reuses the same kind of sanity check
-`realtime-architecture.md` §2 already specifies for the future WS path, so Phase 7 doesn't have to
-invent a second version of it). Writes `drivers.current_location`/`current_location_at` (already
-columns, never written to). Only accepted while `availabilityStatus != OFFLINE`.
+HTTP only for this phase (per §1, the WebSocket location channel is Phase 7's job). Writes
+`drivers.current_location`/`current_location_at` (already columns, never written to before this phase).
+Only accepted while `availabilityStatus != OFFLINE`.
+
+**Expected app cadence**: the driver app should call this roughly every **5 seconds** while ONLINE or
+on a ride (within the `driver.location.rate.*` throttle below, which allows one accepted update per 2
+seconds - comfortably more frequent than the app needs). This isn't a hard-enforced interval; it's the
+cadence the staleness/speed-check defaults below (particularly `max_age.seconds` = 60) are tuned
+around, and the number Phase 7's live-tracking work should treat as the baseline.
+
+Staleness is judged from the **server's own receive time**, never the device's clock (decision,
+superseding the original design's "reuses the WS sanity check" framing above): a device whose clock
+is wrong - or simply behind, after being offline for a while - must not have every update rejected as
+"too old" just because its own clock disagrees with real time. The device-supplied `recordedAt` is
+kept, but only to order consecutive updates relative to EACH OTHER (the teleport-speed check's
+elapsed-time denominator), never compared against `Instant.now()` directly:
+
+- If the gap since the last SERVER-accepted update (by the server's own clock) exceeds
+  `driver.location.max_age.seconds`, the speed check is skipped for this one update - too much real
+  time has passed to judge a meaningful speed from it, so it's treated as a fresh start, same as the
+  very first update ever. This is what makes a post-reconnect batch of buffered points (sent as a
+  rapid sequence of individual calls once connectivity returns) work: each point in the batch arrives
+  moments apart in real/server time even though its own device timestamp is old, so only the FIRST one
+  after the gap gets the "fresh start" treatment - the rest are compared against each other normally.
+- Otherwise, the device's own `recordedAt` deltas between consecutive updates feed the teleport-speed
+  check (`driver.location.max_speed.kmh`) exactly as before. An out-of-order or duplicate device
+  timestamp is rejected outright, not silently skipped (a silent skip would let an attacker bypass the
+  speed check entirely while still having the point applied).
+- The device delta used as the speed check's elapsed-time denominator is capped at
+  `driver.location.max_age.seconds`, so a single call can't claim an inflated gap (e.g. "10 minutes
+  passed") to shrink a real distance jump down to a plausible speed while the server-side gap stays
+  near zero. **Known residual risk**: this bounds a single call's "free" distance to
+  `max_speed.kmh * max_age.seconds`, but doesn't fully close an attacker chaining many such claims
+  across rapid real calls - genuinely distinguishing that from a legitimate skewed-clock/reconnect-
+  batch update isn't possible from `(server_time, device_time, lat/lon)` alone. A cumulative
+  drift-budget check (track per-driver device/server clock divergence over time, not just per call)
+  would close this fully but needs more design work; accepted as a documented trade-off for now.
 
 If Redis is adopted (§4), this same endpoint also does the `GEOADD`; Postgres stays the system of
 record either way (driver's last-known point survives a Redis restart/eviction).
@@ -184,6 +216,12 @@ already says exactly this is the intended extension point.
 | `driver.response.timeout.s` | 20 | How long a driver has to accept/reject before the offer expires |
 | `ride.max.search.time.s` | 180 | Give up (NO_DRIVER_FOUND) after this long regardless of candidates left |
 | `matching.max.offers` | 10 | Max candidates tried per booking before giving up |
+| `booking.pickup.approximate.radius.m` | 300 | Jitter radius for the pre-acceptance approximate pickup point shown to a candidate driver (§3's exact-address leak fix) |
+| `driver.location.max_speed.kmh` | 150 | Teleport-speed guard: reject a location update implying a higher speed than this since the driver's last accepted point |
+| `driver.location.max_age.seconds` | 60 | By server receive time: if the gap since the last accepted update exceeds this, skip the speed check for this one update (fresh start) instead of comparing against a stale baseline |
+| `driver.location.rate.max.attempts` | 1 | Location-update throttle: max accepted updates per window |
+| `driver.location.rate.window.seconds` | 2 | Window the above throttle applies over (app should report roughly every 5s, so this throttle never binds in normal operation) |
+| `websocket.max_connections_per_user` | 3 | Per-user cap on simultaneous WebSocket connections |
 
 No new config keys needed for the Postgres-only recommendation in §4 — the sweep interval is an infra
 constant like `RetentionPurgeJob`'s, not a business value.
