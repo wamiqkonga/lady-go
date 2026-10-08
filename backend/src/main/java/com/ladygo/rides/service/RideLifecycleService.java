@@ -145,8 +145,17 @@ public class RideLifecycleService {
      * otherwise be a 15-minute cooldown into a persistent lock, and raises a flag + frees the rider's
      * safety-concern cancel. A separate per-driver bucket (across all rides) catches a driver cycling
      * through many different riders' PINs.
+     *
+     * <p>Security review finding, MEDIUM: both exceptions below are thrown only BEFORE any
+     * status-mutating write in this method (gate/transition/ride-row updates all happen strictly
+     * after a successful PIN verification), so {@code noRollbackFor} here only protects the rate
+     * limiter's own attempt-counter write and this method's own lockRidePinAndFlag write - without
+     * it, Spring's default rollback-on-RuntimeException would silently erase BOTH on every single
+     * rejected attempt (not just the final, lock-triggering one), since reporting "incorrect PIN" or
+     * "rate limited" to the caller is this method's deliberate unhappy-path return value, not a sign
+     * that something went wrong that should be undone.
      */
-    @Transactional
+    @Transactional(noRollbackFor = {ValidationException.class, RateLimitExceededException.class})
     public BookingDetailResponse startRide(UUID driverUserId, UUID bookingId, String pin) {
         Driver driver = resolveDriver(driverUserId);
         Booking booking = requireDriverBooking(driver, bookingId);

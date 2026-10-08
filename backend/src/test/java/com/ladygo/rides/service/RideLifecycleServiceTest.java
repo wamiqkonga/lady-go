@@ -28,8 +28,11 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.transaction.TestTransaction;
 
 /** docs/api/ride-lifecycle.md. */
 class RideLifecycleServiceTest extends PersistenceTestSupport {
@@ -40,6 +43,36 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
     private RidePinService ridePinService;
     @Autowired
     private RideFlagRepository rideFlags;
+
+    private UUID committedCityId;
+    private UUID committedCustomerUserId;
+    private UUID committedDriverUserId;
+
+    /** Only used by {@link #theDurableLockActuallyPersistsAcrossARealCommitNotJustWithinTheTestsOwnTransaction()}
+     *  below, which commits for real instead of relying on this class's normal test-transaction
+     *  auto-rollback - every other test leaves this null and this is a no-op for them. Same shape as
+     *  CrossPhaseJourneyTest's purgeCommittedFixtures. */
+    @AfterEach
+    void purgeCommittedFixture() {
+        if (committedCustomerUserId == null) {
+            return;
+        }
+        jdbc.update("DELETE FROM ride_flags WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
+                committedCustomerUserId);
+        jdbc.update("DELETE FROM rides WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
+                committedCustomerUserId);
+        jdbc.update("DELETE FROM booking_events WHERE booking_id IN "
+                + "(SELECT b.id FROM bookings b JOIN customers c ON c.id = b.customer_id WHERE c.user_id = ?)",
+                committedCustomerUserId);
+        jdbc.update("DELETE FROM bookings WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
+                committedCustomerUserId);
+        jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", committedCityId);
+        jdbc.update("DELETE FROM drivers WHERE user_id = ?", committedDriverUserId);
+        jdbc.update("DELETE FROM customers WHERE user_id = ?", committedCustomerUserId);
+        jdbc.update("DELETE FROM users WHERE id IN (?, ?)", committedCustomerUserId, committedDriverUserId);
+        jdbc.update("DELETE FROM cities WHERE id = ?", committedCityId);
+        TestTransaction.flagForCommit();
+    }
 
     private Driver driverAcceptedFor(City city) {
         Driver driver = newDriver(city);
@@ -228,6 +261,46 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         String correctPin = ridePinService.derive(booking.getId());
         assertThatThrownBy(() -> service.startRide(driver.getUserId(), booking.getId(), correctPin))
                 .isInstanceOf(ValidationException.class);
+    }
+
+    /** Security review finding, MEDIUM: startRide's @Transactional boundary would otherwise roll back
+     *  the durable PIN lock (and the per-ride rate limiter's own attempt counter, on EVERY rejected
+     *  attempt, not just the final one) the instant it rethrows - but every other test in this class
+     *  runs inside the test harness's own never-committed transaction, where nested @Transactional
+     *  calls share that same transaction, so a rollback-and-rethrow has no visible effect until the
+     *  whole test ends anyway. That's exactly what hid this bug: {@code
+     *  repeatedWrongPinsLockTheRideDurablyAndRaiseAFlag} above still passes with or without the fix.
+     *  This test forces each startRide call into its OWN independently-committing transaction, the way
+     *  a real HTTP request actually behaves, to prove the lock survives for real. */
+    @Test
+    void theDurableLockActuallyPersistsAcrossARealCommitNotJustWithinTheTestsOwnTransaction() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = arrivedBooking(customer, city, driver, rule);
+        committedCityId = city.getId();
+        committedCustomerUserId = customer.getUserId();
+        committedDriverUserId = driver.getUserId();
+        TestTransaction.flagForCommit();
+        TestTransaction.end(); // the setup above is now a real, committed fact - not just session-visible.
+
+        for (int i = 0; i < 6; i++) {
+            TestTransaction.start();
+            try {
+                service.startRide(driver.getUserId(), booking.getId(), "0000");
+            } catch (RuntimeException expected) {
+                // every one of the 6 calls rejects - either "incorrect PIN" or, on the 6th, the
+                // rate-limiter's own cap. What matters is whether the lock survives the commit below.
+            }
+            TestTransaction.flagForCommit();
+            TestTransaction.end(); // commits (or would roll back, pre-fix) for real, independently.
+        }
+
+        TestTransaction.start();
+        Booking reloaded = bookings.findById(booking.getId()).orElseThrow();
+        assertThat(reloaded.getRidePinLockedAt()).isNotNull();
+        assertThat(rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.PIN_LOCKOUT)).hasSize(1);
     }
 
     @Test
