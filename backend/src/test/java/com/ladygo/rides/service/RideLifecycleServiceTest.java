@@ -364,6 +364,32 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
     /** The legitimate case the threshold must not break: a ride that genuinely ran long enough to
      *  justify a distance-based recompute still gets one, floored at the pricing rule's minimum fare
      *  same as before this fix. */
+    /** Security review finding: isGenuinelyEarly was originally OR, not AND - elapsed time alone
+     *  (parked, doing nothing, zero actual distance) satisfied it, so idling for ~200s and then
+     *  ending early still got the distance-based recompute and floored the fare to the pricing rule's
+     *  bare minimum (6300) instead of the full 15000 estimate. Fixed to AND: time elapsing for free
+     *  must never be enough on its own; real road distance is also required. */
+    @Test
+    void endingRideEarlyAfterOnlyElapsedTimeWithNoActualDistanceStillChargesTheFullEstimate() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+        ride.setStartedAt(Instant.now().minusSeconds(200)); // past the 120s threshold, but zero distance.
+        rides.saveAndFlush(ride);
+
+        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+        Booking ended = bookings.findById(booking.getId()).orElseThrow();
+        assertThat(ended.getFinalFare()).isEqualTo(15000L); // the full estimate, not the 6300 floor.
+    }
+
+    /** The legitimate case the AND must not break: real road distance AND real elapsed time both
+     *  present still gets the distance-based recompute, floored at the pricing rule's minimum fare
+     *  same as before this fix. */
     @Test
     void endingRideEarlyAfterGenuineProgressStillRecomputesTheFareWithTheMinimumFloor() {
         City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
@@ -374,13 +400,26 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
         ride.setStartedAt(Instant.now().minusSeconds(200)); // past the 120s min-elapsed threshold.
         rides.saveAndFlush(ride);
+        // Two samples ~600m apart (past the 500m threshold), as DriverLocationService would have
+        // written them during the ride.
+        Instant t0 = Instant.now().minusSeconds(150);
+        jdbc.update("INSERT INTO location_history (ride_id, driver_id, location, recorded_at) "
+                + "VALUES (?, ?, CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography), ?)",
+                ride.getId(), driver.getId(), 74.80, 34.08, java.sql.Timestamp.from(t0));
+        jdbc.update("INSERT INTO location_history (ride_id, driver_id, location, recorded_at) "
+                + "VALUES (?, ?, CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography), ?)",
+                ride.getId(), driver.getId(), 74.806, 34.08, java.sql.Timestamp.from(t0.plusSeconds(60)));
 
         BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
         Booking ended = bookings.findById(booking.getId()).orElseThrow();
-        // Zero actual distance -> subtotal floored to the 6000 minimum, plus the rule's 5% service fee.
-        assertThat(ended.getFinalFare()).isEqualTo(6300L);
+        // ~554m / ~200s -> a genuine distance+time recompute (5000 base + ~665 distance + ~667 time =
+        // ~6332 subtotal, above the 6000 minimum so the floor doesn't even need to apply here) plus the
+        // rule's 5% service fee - far less than the 15000 estimate, which is the whole point: real
+        // progress earns a real discount, unlike the zero-distance idle-time case above.
+        assertThat(ended.getFinalFare()).isEqualTo(6649L);
+        assertThat(ended.getFinalFare()).isLessThan(15000L).isGreaterThan(0L);
     }
 
     @Test
@@ -409,6 +448,80 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
 
         assertThatThrownBy(() -> service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "x"))
                 .isInstanceOf(BookingStateException.class);
+    }
+
+    /** Explicit invariant check (item 4 of the ride-lifecycle security follow-up): no double-complete
+     *  under concurrency - a second completion attempt on an already-completed booking must be
+     *  rejected, not silently re-process (duplicate fare write, duplicate PAYMENT_PENDING transition,
+     *  etc). completeRideInternal's own ALLOWED-map + @Version guard (BookingStateMachine) is what
+     *  makes this safe; this proves it end to end through the public service method. */
+    @Test
+    void completingAnAlreadyCompletedRideIsRejectedNotReprocessed() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        service.completeRide(driver.getUserId(), booking.getId());
+        long fareAfterFirstComplete = bookings.findById(booking.getId()).orElseThrow().getFinalFare();
+
+        assertThatThrownBy(() -> service.completeRide(driver.getUserId(), booking.getId()))
+                .isInstanceOf(BookingStateException.class);
+
+        // The rejected second attempt must not have mutated anything.
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getFinalFare())
+                .isEqualTo(fareAfterFirstComplete);
+    }
+
+    /** Explicit invariant check: the final fare equals the estimate on a normal completion (never
+     *  exceeds, never falls short) and is always positive - the "except via the documented early-end
+     *  rules" exception in the invariant is specifically scoped to the early-end path, not this one. */
+    @Test
+    void normalCompletionFareExactlyEqualsTheEstimateNeverMoreNeverLess() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+
+        service.completeRide(driver.getUserId(), booking.getId());
+
+        long finalFare = bookings.findById(booking.getId()).orElseThrow().getFinalFare();
+        assertThat(finalFare).isEqualTo(15000L).isPositive();
+    }
+
+    /** Explicit invariant check: the documented early-end exception is real and intentional in BOTH
+     *  directions - a genuinely-early end with real distance/duration CAN land above or below the
+     *  estimate, driven only by actual GPS/clock data, never by any client-supplied value (the
+     *  end-early request body carries nothing but a free-text reason - no distance, duration, or
+     *  location field exists on it at all, so there is no input for a client to manipulate here even
+     *  in principle; this is a code-shape fact, not something a test can additionally force). This
+     *  test exercises the "exceeds the estimate" direction specifically, which the fare-floor fixes
+     *  above don't touch (they only defend the "pay far less than the estimate" direction). */
+    @Test
+    void genuineEarlyEndFareCanExceedTheEstimateWhenActualProgressExceedsIt() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        booking.setEstimatedFare(100L); // a deliberately tiny estimate so real progress exceeds it.
+        bookings.saveAndFlush(booking);
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+        ride.setStartedAt(Instant.now().minusSeconds(200));
+        rides.saveAndFlush(ride);
+        Instant t0 = Instant.now().minusSeconds(150);
+        jdbc.update("INSERT INTO location_history (ride_id, driver_id, location, recorded_at) "
+                + "VALUES (?, ?, CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography), ?)",
+                ride.getId(), driver.getId(), 74.80, 34.08, java.sql.Timestamp.from(t0));
+        jdbc.update("INSERT INTO location_history (ride_id, driver_id, location, recorded_at) "
+                + "VALUES (?, ?, CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography), ?)",
+                ride.getId(), driver.getId(), 74.806, 34.08, java.sql.Timestamp.from(t0.plusSeconds(60)));
+
+        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
+
+        long finalFare = bookings.findById(booking.getId()).orElseThrow().getFinalFare();
+        assertThat(finalFare).isGreaterThan(100L).isPositive(); // exceeds the tiny estimate - by design.
     }
 
     @Test
@@ -457,6 +570,28 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         assertThat(bookings.findById(booking.getId()).orElseThrow().getCashConfirmedAt()).isNotNull();
 
         service.disputeCash(customer.getUserId(), booking.getId(), "paid by card, not cash");
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.CASH_DISPUTE);
+        assertThat(flags).hasSize(1);
+    }
+
+    /** Security review finding (missing-idempotency-guard / race-condition): disputeCash used to be a
+     *  plain read-then-write with no guard against a repeat call - a flaky client retry (or two
+     *  concurrent requests) could each pass the "not yet disputed" check and both insert their own
+     *  RideFlag for the same dispute, duplicating the admin queue entry. The atomic claim
+     *  (BookingRepository.markCashDisputedIfNotAlready) makes a second call a no-op. */
+    @Test
+    void disputingTheSameCashConfirmationTwiceOnlyRaisesOneFlag() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        service.completeRide(driver.getUserId(), booking.getId());
+        service.confirmCashCollected(driver.getUserId(), booking.getId());
+
+        service.disputeCash(customer.getUserId(), booking.getId(), "first dispute call");
+        service.disputeCash(customer.getUserId(), booking.getId(), "retry of the same dispute");
+
         List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.CASH_DISPUTE);
         assertThat(flags).hasSize(1);
     }

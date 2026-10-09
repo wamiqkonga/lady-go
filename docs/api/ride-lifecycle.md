@@ -148,11 +148,20 @@ Recalculation only happens for:
   `actualDurationS` to ~0, which `FareCalculator` floors to the rule's bare minimum fare - a free way
   to pay far less than the agreed estimate on any ride, zero cost or risk to either party. Fixed with
   `ride.early_end.min_elapsed.seconds` (default 120) / `ride.early_end.min_distance.m` (default 500):
-  below EITHER threshold, the early end charges the full `estimatedFare` instead (same as a normal
+  below the threshold, the early end charges the full `estimatedFare` instead (same as a normal
   completion); the distance-based recompute only applies once real progress has actually happened.
-  This doesn't address a driver spoofing slow GPS for the whole trip to keep the recompute low even
-  past the threshold - that's the same already-accepted device-location-trust residual risk from
-  docs/api/matching.md §3, not a new gap this introduces.
+  **Follow-up finding**: the first version of this fix used OR between the two thresholds - elapsed
+  time alone (parked, doing nothing, zero actual distance) satisfied it, so waiting ~120s and then
+  ending early still got the discount with no real travel at all. Fixed to AND: both real distance
+  AND real elapsed time are required, so time passing for free can never be the only thing that
+  unlocks the lower recompute in place of the full estimate. This doesn't address a driver spoofing
+  slow GPS for the whole trip to keep the recompute low even past the threshold - that's the same
+  already-accepted device-location-trust residual risk from docs/api/matching.md §3, not a new gap
+  this introduces. The early-end recompute can land either below OR above the original estimate
+  (driven only by real GPS/clock data - the end-early request carries nothing but a free-text reason,
+  no distance/duration/location field exists on it for a client to manipulate even in principle) -
+  that asymmetry is the documented exception to "fare never exceeds the estimate," scoped to this one
+  path.
 - **Rider-changed destination mid-ride**: out of this phase's explicit scope (no destination-change
   endpoint exists yet) — noted here only because it's the other case you named for recalculation; if you
   want it in this phase rather than deferred, flag it and I'll design the endpoint.
@@ -191,6 +200,19 @@ not a separate table). Flow, `paymentMethod == CASH` only:
    as `OfferSweepJob`'s own concurrent-accept handling), not allowed to abort the rest of the batch.
    `ONLINE` bookings are left at `PAYMENT_PENDING` for Phase 8 to pick up - no auto-complete for those,
    since there's no cash-collection fact to confirm against.
+
+**Two follow-up findings** on top of the HIGH fix above:
+- `disputeCash` was a plain read-then-write with no guard against a repeat call - a flaky client retry
+  (or two overlapping requests) could each pass "not yet disputed" and both insert their own
+  `RideFlag`, duplicating the admin queue entry. Fixed with an atomic conditional claim
+  (`BookingRepository.markCashDisputedIfNotAlready`, same shape as `RideOfferRepository.
+  expireIfStillOffered`) - 0 rows affected means already disputed, treated as an idempotent success
+  rather than a second flag.
+- The sweep's per-booking catch only caught `OptimisticLockingFailureException` - any OTHER
+  unexpected failure on one booking (e.g. a genuinely missing row) propagated out of the loop and
+  aborted that whole tick, silently skipping every other eligible booking in the same batch too, not
+  because anything was wrong with them. Widened to catch any `RuntimeException` per candidate so one
+  booking's problem never blocks another's; the next tick still retries the failed one.
 
 ## 9. Anti-spoofing: how the known residual risk interacts with this phase
 

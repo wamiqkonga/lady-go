@@ -26,6 +26,14 @@ import org.springframework.stereotype.Component;
  * {@code OptimisticLockingFailureException} instead of silently losing the race. One booking's
  * conflict is caught and skipped (same resilience shape as {@code OfferSweepJob}'s own
  * concurrent-accept handling) rather than aborting the rest of the batch.
+ *
+ * <p>Security review finding (fail-open-state-drift): catching only {@code
+ * OptimisticLockingFailureException} meant any OTHER unexpected failure on one booking (e.g. a
+ * genuinely missing row) propagated out of the loop and aborted the whole tick - every other
+ * eligible booking in that same candidate list silently failed to auto-complete too, not because
+ * anything was wrong with THEM, just because they were later in the list than the one that threw.
+ * Each candidate's {@code RuntimeException} is now caught individually so one booking's problem never
+ * blocks another's.
  */
 @Component
 public class CashConfirmationSweepJob {
@@ -48,6 +56,9 @@ public class CashConfirmationSweepJob {
             } catch (OptimisticLockingFailureException ex) {
                 log.info("operation=cash_auto_complete booking_id={} result=skipped reason=concurrent_update",
                         candidate.getId());
+            } catch (RuntimeException ex) {
+                log.warn("operation=cash_auto_complete booking_id={} result=failed reason=unexpected_error",
+                        candidate.getId(), ex);
             }
         }
     }

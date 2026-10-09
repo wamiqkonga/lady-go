@@ -278,9 +278,17 @@ public class RideLifecycleService {
         if (Duration.between(booking.getCashConfirmedAt(), Instant.now()).compareTo(window) > 0) {
             throw new ValidationException("The dispute window for this ride has closed.");
         }
+        // Security review finding: atomic claim, not a plain read-then-write - a repeat or concurrent
+        // call that loses the claim (0 rows affected, already disputed by this call or another) must
+        // not raise a second RideFlag for the same dispute.
+        Instant disputedAt = Instant.now();
+        if (bookings.markCashDisputedIfNotAlready(bookingId, disputedAt) == 0) {
+            return bookingService.get(customerUserId, bookingId);
+        }
+        // The bulk update above bypasses this already-loaded entity - keep it in sync with the exact
+        // value just written, rather than leaving a stale in-memory read for the rest of this request.
+        booking.setCashDisputedAt(disputedAt);
         Driver driver = drivers.findById(booking.getDriverId()).orElseThrow(ResourceNotFoundException::new);
-        booking.setCashDisputedAt(Instant.now());
-        bookings.save(booking);
         raiseFlag(booking, driver, RideFlagType.CASH_DISPUTE, ActorType.CUSTOMER, null, false);
         return bookingService.get(customerUserId, bookingId);
     }
@@ -357,12 +365,19 @@ public class RideLifecycleService {
         stateMachine.transition(booking.getId(), BookingStatus.PAYMENT_PENDING, ActorType.SYSTEM, null, "awaiting_payment");
     }
 
-    /** True only once the ride has covered enough real distance or time to make a distance-based
-     *  fare recompute meaningful rather than exploitable (see completeRideInternal's comment). */
+    /** True only once the ride has covered enough real distance AND real time to make a
+     *  distance-based fare recompute meaningful rather than exploitable (see completeRideInternal's
+     *  comment). Security review finding: this was originally OR, not AND - elapsed time alone
+     *  (parked, doing nothing) satisfied it with zero actual distance, so waiting ~120s and then
+     *  ending early still floored the fare to the pricing rule's bare minimum. Real road travel
+     *  (not just a running clock) is required on both axes now - the per-minute component of
+     *  FareCalculator still means standing time this does count toward a genuine recompute's
+     *  duration-based charge, but it can no longer be the ONLY thing that unlocks the recompute path
+     *  in place of the full estimate. */
     private boolean isGenuinelyEarly(int actualDistanceM, int actualDurationS) {
         int minElapsedSeconds = config.getInt("ride.early_end.min_elapsed.seconds", 120);
         int minDistanceM = config.getInt("ride.early_end.min_distance.m", 500);
-        return actualDurationS >= minElapsedSeconds || actualDistanceM >= minDistanceM;
+        return actualDurationS >= minElapsedSeconds && actualDistanceM >= minDistanceM;
     }
 
     private int sumLocationHistoryDistanceMeters(UUID rideId) {

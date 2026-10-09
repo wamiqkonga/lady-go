@@ -1,6 +1,7 @@
 package com.ladygo.rides.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.ladygo.bookings.domain.Booking;
 import com.ladygo.bookings.domain.BookingStatus;
@@ -18,6 +19,8 @@ class CashConfirmationSweepJobTest extends PersistenceTestSupport {
 
     @Autowired
     private CashConfirmationSweepJob job;
+    @Autowired
+    private RideLifecycleService rideLifecycleService;
 
     private City srinagar() {
         return newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
@@ -69,6 +72,41 @@ class CashConfirmationSweepJobTest extends PersistenceTestSupport {
         flushAndClear();
 
         assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+    }
+
+    /** Explicit invariant check (item 4 of the ride-lifecycle security follow-up): the sweep's own
+     *  completion action is conditional and idempotent - running it again against a booking it
+     *  already completed must be a safe no-op, never a duplicate transition or error. */
+    @Test
+    void sweepingAnAlreadyCompletedBookingAgainIsASafeNoOp() {
+        Booking booking = paymentPendingCashBooking(Instant.now().minus(2, ChronoUnit.HOURS));
+
+        job.sweep();
+        flushAndClear();
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus()).isEqualTo(BookingStatus.COMPLETED);
+
+        job.sweep(); // second tick, same booking - already COMPLETED, not PAYMENT_PENDING anymore.
+        flushAndClear();
+
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus()).isEqualTo(BookingStatus.COMPLETED);
+    }
+
+    /** Same invariant, exercised directly against the per-booking method rather than through the
+     *  status filter that makes the sweep-level test above almost trivially safe - this proves
+     *  autoCompleteCashBookingIfUndisputed's own internal status re-check (not just the candidate
+     *  query) is what makes a repeat call on an already-COMPLETED booking a safe no-op. */
+    @Test
+    void autoCompleteIsIdempotentWhenCalledDirectlyOnAnAlreadyCompletedBooking() {
+        Booking booking = paymentPendingCashBooking(Instant.now().minus(2, ChronoUnit.HOURS));
+
+        rideLifecycleService.autoCompleteCashBookingIfUndisputed(booking.getId());
+        flushAndClear();
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus()).isEqualTo(BookingStatus.COMPLETED);
+
+        assertThatCode(() -> rideLifecycleService.autoCompleteCashBookingIfUndisputed(booking.getId()))
+                .doesNotThrowAnyException();
+        flushAndClear();
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus()).isEqualTo(BookingStatus.COMPLETED);
     }
 
     @Test
