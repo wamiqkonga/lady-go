@@ -79,7 +79,7 @@ jobs:
         with:
           name: owasp-dependency-check-report
           path: backend/target/dependency-check-report.*
-          retention-days: 30
+          retention-days: 7
 
   # SAST via Semgrep's local CLI (not the `semgrep-action`/`semgrep ci` GitHub integration, which talks
   # to Semgrep's own cloud service and would need yet another API token) - no account or secret needed.
@@ -105,6 +105,20 @@ jobs:
   #   for a one-file Java smoke test). Still a network fetch (no local rule vendoring in this pass), but
   #   no dynamic auto-detection phone-home, and `SEMGREP_SEND_METRICS=off` explicitly disables
   #   Semgrep's own anonymous usage-metrics ping that would otherwise fire regardless of config.
+  #
+  # Two further findings on this version, accepted as documented tradeoffs rather than fixed, since
+  # there's no clean low-effort fix for either and both are lower-severity than the rounds above:
+  # - The named registry packs (`p/security-audit` etc.) aren't pinned to a specific version/commit -
+  #   Semgrep's registry doesn't version packs the way `pip`/Maven version a release, so "pinning" one
+  #   would mean vendoring the whole rules repo at a fixed commit instead of referencing the registry at
+  #   all. A scanner's ruleset drifting over time (more/different findings on the same code) is the
+  #   normal, expected behavior of a maintained threat-detection feed, not a supply-chain risk in the
+  #   same sense as an unpinned CLI tool or library - accepted as-is.
+  # - `continue-on-error: true` makes this a non-blocking ("fail-open") gate by design, same reasoning
+  #   as the OWASP job's permissive CVSS threshold: there is no triaged baseline yet, and flipping this
+  #   to blocking before a single real finding has been reviewed would fail every future run on
+  #   whatever Semgrep happens to flag first, with no signal yet on whether that's a true or false
+  #   positive. Tightening this is a deliberate follow-up once a baseline exists, not an oversight here.
   sast:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -128,7 +142,7 @@ jobs:
         with:
           name: semgrep-results
           path: semgrep-results.json
-          retention-days: 30
+          retention-days: 7
 
   # Disabled: this repo is private, owned by a personal (not Organization) account, on the Free plan.
   # CodeQL/code scanning on a private repo requires a GitHub Code Security (Advanced Security) license,
