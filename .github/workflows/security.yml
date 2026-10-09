@@ -21,3 +21,65 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Free, no API key, works on private repos with no GitHub Advanced Security license (unlike CodeQL -
+  # see the disabled "codeql" job below for why that one isn't included yet). Diffs a PR's dependency
+  # changes against known advisories; only runs on pull_request (it has nothing to diff on a plain push).
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+
+  # OWASP Dependency-Check against the backend's resolved Maven dependencies. Needs secrets.NVD_API_KEY
+  # for the NVD feed download to be fast/reliable in CI - without one, NVD's public rate limit makes
+  # this step slow and prone to timing out, hence continue-on-error so a slow/failed feed download
+  # never blocks the rest of this workflow. Get a free key at https://nvd.nist.gov/developers/request-an-api-key
+  # and add it as a repo secret to make this reliable.
+  owasp-dependency-check:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: OWASP Dependency-Check
+        run: >
+          mvn -B org.owasp:dependency-check-maven:13.0.0:check
+          -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+          -DfailBuildOnCVSS=9
+          -Dformats=HTML,JSON
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owasp-dependency-check-report
+          path: backend/target/dependency-check-report.*
+          retention-days: 30
+
+  # Disabled: this repo is private, owned by a personal (not Organization) account, on the Free plan.
+  # CodeQL/code scanning on a private repo requires a GitHub Code Security (Advanced Security) license,
+  # which personal accounts cannot purchase at all - only Organizations on GitHub Team/Enterprise can
+  # (confirmed via the repo's code-scanning API, which 403s: "Code scanning is not enabled for this
+  # repository" - and via GitHub's own docs on this exact restriction). It's free only for public repos.
+  # To enable: make the repo public, or move it into an Organization with Code Security enabled, then
+  # flip `if: false` to `if: true` below - everything else is ready to run as-is.
+  codeql:
+    if: false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin, javascript-typescript, swift
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
