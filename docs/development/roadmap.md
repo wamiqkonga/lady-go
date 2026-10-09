@@ -1,8 +1,9 @@
 # Lady Go — Development Roadmap
 
-Status: v0.5 · Phases 0–6 closed (auth, customer booking, driver onboarding, matching/offers); Phase
-6.5 (ride lifecycle, inserted ahead of Payments — see note below) in progress; WebSocket/Redis realtime
-infra (part of Phase 7) built, but live-tracking UI and admin live map not yet started
+Status: v0.6 · Phases 0–6 closed (auth, customer booking, driver onboarding, matching/offers); Phase 6.5
+(ride lifecycle) and Phase 7.5 (trip sharing; SOS deferred) built, pilot scope only — see notes below;
+WebSocket/Redis realtime infra (part of Phase 7) built, but live-tracking UI and admin live map not yet
+started; closed-pilot client build order decided (Android first, iOS after)
 
 ## Phase plan
 
@@ -15,9 +16,9 @@ infra (part of Phase 7) built, but live-tracking UI and admin live map not yet s
 | 4 | Customer (BUILT; see note below) | Profile, saved locations, maps abstraction, fare estimate, booking creation/history | Booking API tests; app flows to booking |
 | 5 | Driver (BUILT; see note below) | Onboarding, documents, verification, availability, offers | Admin approval path works end to end |
 | 6 | Matching (BUILT 2026-10-07; see note below) | Nearby search, ranking, offers, timeouts, retry, cancellation handling | Concurrency tests; configurable rules |
-| 6.5 | Ride lifecycle (IN PROGRESS — inserted here, ahead of Payments; not in the original plan, see note below) | Arrive/PIN-start/complete/early-end, ride PIN flow, destination change, cash confirmation | Design in `docs/api/ride-lifecycle.md`, approved; adversarial review before closing |
+| 6.5 | Ride lifecycle (BUILT 2026-10-09; inserted here, ahead of Payments; not in the original plan, see note below) | Arrive/PIN-start/complete/early-end, ride PIN flow, destination change, cash confirmation | Design in `docs/api/ride-lifecycle.md`, approved; adversarial review before closing |
 | 7 | Real-time (PARTIAL — WebSocket/Redis infra built 2026-10-07; live tracking UI and admin live map not started) | WebSocket/STOMP, Redis, live tracking, admin live map | Load test at target scale |
-| 7.5 | SOS + trip sharing (PLANNED — next phase after 6.5, still ahead of Payments; not in the original plan, see note below) | In-ride panic action + admin triage queue, trip-share link (uses existing empty `TripShare` domain) | Design doc first, same as every other phase |
+| 7.5 | Trip sharing + Call 112 (BUILT 2026-10-09, pilot scope only — SOS deferred to a public-launch gate, see "Launch gates" below; not in the original plan, see note below) | Trip-share link (rider-only, hashed token, expiring/revocable), one-tap Call 112 | Design doc first, same as every other phase |
 | 8 | Payments | Abstraction, provider, webhooks, refunds, receipts, cash flow | Idempotency and webhook tests |
 | 9 | Admin portal | Dashboard, management screens, pricing/config, audit. **Step-up MFA**: destructive admin actions (pricing/config changes, admin user management per `docs/product/admin-flows.md` §1) must require a fresh TOTP re-verification beyond login-time MFA — deferred from Phase 3 (`docs/security/auth-design.md` §12, OQ-7); do not ship this UI without it. | Admin E2E flows |
 | 10 | Safety | SOS, emergency contacts, share trip, ride PIN, incidents | Incident E2E; ops runbook |
@@ -130,8 +131,48 @@ bug admitting cancelled bookings into a detail view. Driver location staleness i
 receive time, not the device clock (`docs/api/matching.md` §3), with a documented, accepted residual
 risk around device-delta chaining. Backend and Security CI green on every commit in this range.
 
-## Phase 6.5 status (in progress, started 2026-10-08)
+## Phase 6.5 status (started 2026-10-08)
 
 Design in `docs/api/ride-lifecycle.md`, approved with decisions on fee-free safety cancels, mandatory
 GPS accuracy, pre-start destination change, a rider-confirm-arrival gate bypass, and rejecting `ONLINE`
-payment until Phase 8. Implementation in progress; this section will be updated on closure.
+payment until Phase 8. Implemented, adversarially reviewed (7 automated findings, each fixed with a
+regression test or proven a false positive), early-end fare policy corrected per the initiator×progress
+table. A follow-up root-cause audit (2026-10-09, prompted by the trip-share finding below) found
+`Ride.status` was only ever written on two of the transitions that affect it, and
+`DriverRepository.releaseFromOffer` was never called after a ride actually concluded — both fixed by
+`RideStatusSyncListener` (see `docs/api/ride-lifecycle.md` §1 "Root-cause fix"). Backend and Security CI
+green throughout.
+
+## Phase 7.5 status (started 2026-10-09, pilot scope only — trip sharing + Call 112; SOS deferred)
+
+Design in `docs/api/safety.md`. Trip sharing implemented: rider-only creation, 256-bit hashed/
+constant-time-compared token, configurable post-ride-end expiry, revocation, active-link cap, narrow
+public response (driver first name/vehicle/plate/live location only), per-IP and per-token rate limits,
+identical error for every failure mode, no-store headers. A fresh-context adversarial review found a
+CRITICAL finding (a cancelled booking's stale `Ride.status` let a trip-share link keep leaking live
+location after the ride was actually over) — fixed, then root-caused per the Phase 6.5 note above. "Call
+112" is a native-dialer button client-side only, no backend involvement. SOS itself stays deferred past
+the pilot per the Launch gates table.
+
+## OpenAPI spec (2026-10-09)
+
+`docs/api/openapi.json` is checked in (springdoc-generated, canonicalised for a readable diff).
+`OpenApiSpecDriftTest` fails `mvn verify` — and therefore the existing Backend CI job, no new workflow
+needed — if the live spec no longer matches the checked-in file.
+
+## Closed-pilot client build order (decided 2026-10-09) — Android first, iOS after
+
+Per the approved closed-pilot plan (`docs/product/pilot-plan.md`): cohort is 5–10 drivers and 30–50
+known riders, one area, 2–4 weeks, daytime only, founder-monitored via the admin console, cash only, no
+SOS. Build order:
+
+1. OpenAPI contract checked into CI (done above) — every client below is generated/validated against it.
+2. Admin web (`frontend/admin`) — the founder's own monitoring tool; needed before any pilot user touches
+   the app at all.
+3. Driver Android app (`mobile/android-driver`).
+4. Customer Android app (`mobile/android-customer`).
+5. Public trip-tracking page (website phase) — polls `~`8s with backoff when the tab is hidden.
+
+iOS (`mobile/ios-driver`, `mobile/ios-customer`) starts only after the Android-only pilot concludes —
+the cohort size (5–10 drivers, 30–50 riders) doesn't justify building and maintaining two native stacks
+before the first real-world signal comes back.
