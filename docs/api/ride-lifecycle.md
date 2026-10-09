@@ -7,8 +7,9 @@ Status: design draft, approved decisions baked in below, open questions at the e
 `BookingStatus` already defines `DRIVER_ARRIVING → DRIVER_ARRIVED → RIDE_STARTED → RIDE_COMPLETED →
 PAYMENT_PENDING → COMPLETED`, and `Booking.finalFare`, `Ride.startedAt/completedAt/startLocation/
 endLocation/actualDistanceM/actualDurationS` all exist as columns. Nothing drives any of it today —
-the only writer is `RideBootstrapListener`, which creates a bare `ASSIGNED` row on `DRIVER_ACCEPTED`
-purely as an FK target for `location_history`. Payments (Phase 8) needs a completed ride with a real
+the only writer was `RideBootstrapListener` (since renamed `RideStatusSyncListener` — see the root-cause
+fix below), which created a bare `ASSIGNED` row on `DRIVER_ACCEPTED` purely as an FK target for
+`location_history`, and left every other transition untouched. Payments (Phase 8) needs a completed ride with a real
 `finalFare` to charge against; building it now would mean building it against `null`. This phase closes
 that gap and is the direct prerequisite for Payments.
 
@@ -24,11 +25,32 @@ or Phase 8's job for online).
 
 **Ride status** (existing enum, unchanged — `ASSIGNED, STARTED, COMPLETED, CANCELLED`): tracks only the
 in-vehicle boundary. `ASSIGNED` (set at `DRIVER_ACCEPTED`) → `STARTED` (at `RIDE_STARTED`) →
-`COMPLETED` (at `RIDE_COMPLETED`, including an early end — see §4). `CANCELLED` is reserved for a
-pre-start cancellation path that already exists at the booking level; this phase doesn't touch it.
+`COMPLETED` (at `RIDE_COMPLETED`, including an early end — see §4). `CANCELLED` is set when the
+booking is abandoned post-acceptance — see "Root-cause fix" below; this was a gap in the original
+version of this phase, not a deliberate design choice.
 
 **No plain mid-ride cancel.** Once `RIDE_STARTED`, cancellation is replaced entirely by the early-end
 path in §4 — there is no "cancel and walk away" after the meter's running, per your decision.
+
+**Root-cause fix — `Ride.status` / driver-availability drift (post-pilot-plan security audit)**:
+the original `RideBootstrapListener` only ever wrote `Ride.status = ASSIGNED` on `DRIVER_ACCEPTED`
+and never touched it again — a booking cancelled after acceptance left its `Ride` row sitting at
+`ASSIGNED` forever, which is what the trip-share leak (docs/api/safety.md §4) actually exploited.
+Replaced by `RideStatusSyncListener`, which reacts to every `BookingStatusChangedEvent` that can
+affect a ride: `DRIVER_ACCEPTED` creates or revives the row (handling reacceptance after a bounce-back
+to `SEARCHING_DRIVER`, since `rides.booking_id` is unique — the existing row is updated, never
+duplicated); `CANCELLED`/`SEARCHING_DRIVER` mark the ride `CANCELLED` (unless already `COMPLETED`);
+`RIDE_COMPLETED` is unchanged for `Ride.status` (still written by `completeRideInternal`) but now
+also releases the driver. That last point was a second, independently-significant finding from the
+same audit: `DriverRepository.releaseFromOffer` (`BUSY → ONLINE`) was only ever called from
+offer-reject/expire, never from ride completion or post-acceptance cancellation, so every driver got
+stuck `BUSY` forever after their first ride, with no self-service recovery
+(`DriverAvailabilityService.setAvailability` refuses to change availability away from `BUSY`
+directly). Fixed using the existing `releaseFromOffer` primitive rather than introducing the unused
+`ON_RIDE` enum value, which is a separate, larger product question (out of scope here).
+`location_history` sampling and `BookingVisibilityPolicy` were both audited for the same drift and
+found clean — both key on `Booking.status`, never `Ride.status`. One state test per transition in
+`RideStatusSyncListenerTest`.
 
 ## 2. Endpoints
 

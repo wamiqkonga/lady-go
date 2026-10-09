@@ -54,7 +54,7 @@ own user id, `location` = the coordinates in the request (client-supplied — se
 intentionally trusted here, unlike the location-spoofing-defended driver-location-update path).
 
 **Open question - `ride_id NOT NULL`**: the column as it exists today requires a ride. `rides` rows
-only exist from `DRIVER_ACCEPTED` onward (`RideBootstrapListener`, docs/api/matching.md). That means a
+only exist from `DRIVER_ACCEPTED` onward (`RideStatusSyncListener`, docs/api/matching.md). That means a
 rider who feels unsafe while still `SEARCHING_DRIVER` or with a driver only `DRIVER_ASSIGNED` (not yet
 accepted) has **no incident to attach to** under the current schema - exactly the moment an SOS feature
 exists for. Proposing a migration: make `ride_id` nullable, add `booking_id` (nullable too - a driver or
