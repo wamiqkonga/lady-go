@@ -57,7 +57,8 @@ public class S3FileStorage implements FileStorage {
     public URI presignedDownloadUrl(String key, Duration ttl) {
         GetObjectPresignRequest request = GetObjectPresignRequest.builder()
                 .signatureDuration(ttl)
-                .getObjectRequest(GetObjectRequest.builder().bucket(bucket).key(key).build())
+                .getObjectRequest(GetObjectRequest.builder()
+                        .bucket(bucket).key(key).responseCacheControl("no-store").build())
                 .build();
         try {
             return presigner.presignGetObject(request).url().toURI();

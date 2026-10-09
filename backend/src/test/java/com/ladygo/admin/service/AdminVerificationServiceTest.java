@@ -15,6 +15,7 @@ import com.ladygo.drivers.domain.DriverVerificationStatus;
 import com.ladygo.drivers.repository.DriverDocumentRepository;
 import com.ladygo.drivers.service.DriverReverificationService;
 import com.ladygo.locations.domain.City;
+import com.ladygo.storage.FileStorage;
 import com.ladygo.testsupport.PersistenceTestSupport;
 import com.ladygo.users.domain.UserRole;
 import com.ladygo.vehicles.domain.Vehicle;
@@ -24,11 +25,17 @@ import com.ladygo.verification.domain.SubjectType;
 import com.ladygo.verification.repository.EligibilityReportRepository;
 import com.ladygo.verification.service.EligibilityReportService;
 import com.ladygo.verification.service.SelfDeclarationService;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -49,6 +56,8 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
     private EligibilityReportRepository eligibilityReports;
     @Autowired
     private SelfDeclarationService selfDeclarations;
+    @Autowired
+    private FileStorage fileStorage;
 
     private UUID newAdminUserId() {
         return newUser(UserRole.ADMIN).getId();
@@ -60,6 +69,22 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         document.setType(type);
         document.setStorageKey("k-" + UUID.randomUUID());
         return documents.saveAndFlush(document);
+    }
+
+    private byte[] realPngBytes() throws Exception {
+        BufferedImage image = new BufferedImage(20, 20, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", out);
+        return out.toByteArray();
+    }
+
+    /** Only {@code viewDocumentUrl} tests need real, decodable bytes behind the storage key - every
+     *  other test here only exercises status transitions, never the actual watermarking step. */
+    private DriverDocument pendingDocumentWithRealImage(Driver driver, DocumentType type) throws Exception {
+        DriverDocument document = pendingDocument(driver, type);
+        byte[] png = realPngBytes();
+        fileStorage.upload(document.getStorageKey(), new ByteArrayInputStream(png), png.length, "image/png");
+        return document;
     }
 
     @Test
@@ -308,15 +333,31 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
     }
 
     @Test
-    void viewingADocumentReturnsASignedUrlAndWritesAnAuditLogEntry() {
+    void viewingADocumentReturnsASignedUrlAndWritesAnAuditLogEntry() throws Exception {
         Driver driver = newDriver(newCity());
-        DriverDocument document = pendingDocument(driver, DocumentType.LICENSE);
+        DriverDocument document = pendingDocumentWithRealImage(driver, DocumentType.LICENSE);
 
         URI url = service.viewDocumentUrl(document.getId(), newAdminUserId(), "ADMIN", "127.0.0.1");
 
         assertThat(url.toString()).contains("key=");
         assertThat(auditLogs.findAll()).anySatisfy(
                 e -> assertThat(e.getAction()).isEqualTo("DRIVER_DOCUMENT_VIEWED"));
+    }
+
+    /** Security-review-driven requirement (docs/product/admin-web-design.md section 2): the admin
+     *  never gets a link straight to the original - only to a watermarked throwaway derivative. If
+     *  this regresses to returning the original key directly, an admin screenshot/leak of the viewed
+     *  image is indistinguishable from a leak of the raw, un-watermarked source file. */
+    @Test
+    void viewingADocumentReturnsADerivativeKeyNeverTheOriginal() throws Exception {
+        Driver driver = newDriver(newCity());
+        DriverDocument document = pendingDocumentWithRealImage(driver, DocumentType.LICENSE);
+
+        URI url = service.viewDocumentUrl(document.getId(), newAdminUserId(), "ADMIN", "127.0.0.1");
+
+        String decodedUrl = URLDecoder.decode(url.toString(), StandardCharsets.UTF_8);
+        assertThat(decodedUrl).doesNotContain(document.getStorageKey());
+        assertThat(decodedUrl).contains("driver-document-derivatives/");
     }
 
     @Test

@@ -6,8 +6,9 @@ import java.util.UUID;
 import com.ladygo.rides.domain.RideFlag;
 import com.ladygo.rides.domain.RideFlagType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface RideFlagRepository extends JpaRepository<RideFlag, UUID> {
+public interface RideFlagRepository extends JpaRepository<RideFlag, UUID>, JpaSpecificationExecutor<RideFlag> {
 
     /** Weekly-per-rider cap check (docs/api/ride-lifecycle.md section 13b-1). */
     long countByCustomerIdAndTypeAndCreatedAtAfter(UUID customerId, RideFlagType type, Instant createdAtAfter);
@@ -18,4 +19,10 @@ public interface RideFlagRepository extends JpaRepository<RideFlag, UUID> {
 
     /** Undisputed cash-dispute flags block the auto-complete sweep (docs/api/ride-lifecycle.md section 8). */
     List<RideFlag> findByBookingIdAndType(UUID bookingId, RideFlagType type);
+
+    /** Admin ride-detail view (docs/product/admin-web-design.md section 4). */
+    List<RideFlag> findByBookingIdOrderByCreatedAtDesc(UUID bookingId);
+
+    /** Admin rides-list "open flags" column - counts only, no need to load full rows. */
+    long countByBookingIdAndAdminReviewedAtIsNull(UUID bookingId);
 }

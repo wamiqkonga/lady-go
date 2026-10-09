@@ -60,4 +60,13 @@ public class RideFlag extends AuditedEntity {
 
     @Column(name = "rider_responded_at")
     private Instant riderRespondedAt;
+
+    /** Admin triage state - separate from {@link #riderResponse}, which is the rider's own
+     *  acknowledge/dispute of a flag raised about them. This is the admin-web oversight screen's own
+     *  "has anyone actually looked at this" marker (docs/product/admin-web-design.md section 4). */
+    @Column(name = "admin_reviewed_by")
+    private UUID adminReviewedBy;
+
+    @Column(name = "admin_reviewed_at")
+    private Instant adminReviewedAt;
 }

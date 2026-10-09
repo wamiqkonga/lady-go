@@ -91,4 +91,18 @@ class S3FileStorageIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.body()).isEqualTo("presigned-bytes".getBytes(StandardCharsets.UTF_8));
     }
+
+    /** docs/product/admin-web-design.md section 2 / docs/product/pilot-plan.md's security defaults -
+     *  a presigned URL to a sensitive document/selfie derivative must never be cacheable, in case it
+     *  ends up in a shared proxy or browser disk cache after the TTL's purpose has already been served. */
+    @Test
+    void presignedDownloadUrlResponseIsNeverCacheable() throws Exception {
+        storage.upload("k4", new ByteArrayInputStream("sensitive".getBytes(StandardCharsets.UTF_8)), 9, "text/plain");
+        URI url = storage.presignedDownloadUrl("k4", Duration.ofMinutes(5));
+
+        HttpResponse<byte[]> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder(url).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+
+        assertThat(response.headers().firstValue("cache-control")).hasValue("no-store");
+    }
 }

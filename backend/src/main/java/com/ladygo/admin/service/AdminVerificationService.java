@@ -28,6 +28,9 @@ import com.ladygo.drivers.repository.DriverDocumentRepository;
 import com.ladygo.drivers.repository.DriverRepository;
 import com.ladygo.drivers.service.DriverReverificationService;
 import com.ladygo.storage.FileStorage;
+import com.ladygo.storage.ImageWatermarker;
+import com.ladygo.users.domain.User;
+import com.ladygo.users.repository.UserRepository;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleVerificationStatus;
 import com.ladygo.vehicles.repository.VehicleRepository;
@@ -63,12 +66,13 @@ public class AdminVerificationService {
     private final SelfDeclarationService selfDeclarations;
     private final ConfigurationService config;
     private final FileStorage fileStorage;
+    private final UserRepository users;
 
     public AdminVerificationService(
             DriverDocumentRepository documents, EligibilityReportRepository reports,
             AuditLogRepository auditLogs, DriverReverificationService reverificationService,
             DriverRepository drivers, VehicleRepository vehicles, SelfDeclarationService selfDeclarations,
-            ConfigurationService config, FileStorage fileStorage) {
+            ConfigurationService config, FileStorage fileStorage, UserRepository users) {
         this.documents = documents;
         this.reports = reports;
         this.auditLogs = auditLogs;
@@ -78,10 +82,15 @@ public class AdminVerificationService {
         this.selfDeclarations = selfDeclarations;
         this.config = config;
         this.fileStorage = fileStorage;
+        this.users = users;
     }
 
     /**
-     * A short-lived signed URL to view one document/selfie/vehicle-photo image - admins had no way to
+     * A short-lived signed URL to a watermarked throwaway derivative (the viewing admin's own name and
+     * the view timestamp burned into the image, docs/product/admin-web-design.md's security defaults) -
+     * never a raw presigned URL straight to the original, since that could carry no watermark and,
+     * once shared, would be indistinguishable from a leak with no way to trace who viewed it. Same
+     * pattern as {@link com.ladygo.bookings.service.RiderSelfieDeliveryService}. Admins had no way to
      * actually see what they were approving before this (noted by the adversarial review as a product
      * gap). IDOR-safe by construction: the only input is the document's own id, which either exists or
      * doesn't - there is no driver-scoped ownership to bypass, since any admin may view any driver's
@@ -94,8 +103,18 @@ public class AdminVerificationService {
             throw new ResourceNotFoundException();
         }
         audit(adminUserId, adminRole, "DRIVER_DOCUMENT_VIEWED", "driver_documents", documentId, ip);
+
+        User admin = users.findById(adminUserId).orElseThrow(ResourceNotFoundException::new);
+        String watermarkText = (admin.getName() == null ? adminUserId.toString() : admin.getName())
+                + " · " + Instant.now();
+        byte[] original = fileStorage.download(document.getStorageKey());
+        byte[] watermarked = ImageWatermarker.withTextWatermark(original, watermarkText);
+
+        String derivativeKey = "driver-document-derivatives/" + UUID.randomUUID();
+        fileStorage.upload(derivativeKey, ImageWatermarker.asStream(watermarked), watermarked.length, "image/png");
+
         int ttlSeconds = config.getInt("verification.document.view_url.ttl.seconds", 60);
-        return fileStorage.presignedDownloadUrl(document.getStorageKey(), Duration.ofSeconds(ttlSeconds));
+        return fileStorage.presignedDownloadUrl(derivativeKey, Duration.ofSeconds(ttlSeconds));
     }
 
     public PageResponse<DriverDocumentAdminResponse> listPendingDocuments(Pageable pageable) {

@@ -1,6 +1,101 @@
 {
   "components": {
     "schemas": {
+      "AdminAuditLogResponse": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actorId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "actorRole": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "targetType": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AdminConfigEntryResponse": {
+        "properties": {
+          "cityId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "configKey": {
+            "type": "string"
+          },
+          "configValue": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "GLOBAL",
+              "CITY"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "valueType": {
+            "enum": [
+              "STRING",
+              "INTEGER",
+              "DECIMAL",
+              "BOOLEAN",
+              "JSON"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AdminConfigUpdateRequest": {
+        "properties": {
+          "value": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      },
       "AdminLoginRequest": {
         "properties": {
           "deviceId": {
@@ -43,6 +138,234 @@
         ],
         "type": "object"
       },
+      "AdminRideDetailResponse": {
+        "properties": {
+          "bookingId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "bookingStatus": {
+            "enum": [
+              "REQUESTED",
+              "SEARCHING_DRIVER",
+              "DRIVER_ASSIGNED",
+              "DRIVER_ACCEPTED",
+              "DRIVER_ARRIVING",
+              "DRIVER_ARRIVED",
+              "RIDE_STARTED",
+              "RIDE_COMPLETED",
+              "PAYMENT_PENDING",
+              "COMPLETED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "cancelReason": {
+            "type": "string"
+          },
+          "cancelledBy": {
+            "enum": [
+              "CUSTOMER",
+              "DRIVER",
+              "ADMIN",
+              "SYSTEM"
+            ],
+            "type": "string"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "driverId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "estimatedFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "finalFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/AdminRideFlagResponse"
+            },
+            "type": "array"
+          },
+          "paymentMethod": {
+            "enum": [
+              "CASH",
+              "ONLINE"
+            ],
+            "type": "string"
+          },
+          "rideId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "rideStatus": {
+            "enum": [
+              "ASSIGNED",
+              "STARTED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AdminRideFlagResponse": {
+        "properties": {
+          "adminReviewedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "adminReviewedBy": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "bookingId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "capExceeded": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "distanceFromExpectedM": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "driverId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "raisedBy": {
+            "enum": [
+              "CUSTOMER",
+              "DRIVER",
+              "ADMIN",
+              "SYSTEM"
+            ],
+            "type": "string"
+          },
+          "rideId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "riderRespondedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "riderResponse": {
+            "enum": [
+              "ACKNOWLEDGED",
+              "DISPUTED"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "EARLY_END",
+              "COMPLETION_FAR_FROM_DESTINATION",
+              "PIN_LOCKOUT",
+              "CASH_DISPUTE",
+              "RIDER_SAFETY_CANCEL",
+              "RIDER_CONFIRMED_ARRIVAL"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AdminRideSummaryResponse": {
+        "properties": {
+          "bookingId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "bookingStatus": {
+            "enum": [
+              "REQUESTED",
+              "SEARCHING_DRIVER",
+              "DRIVER_ASSIGNED",
+              "DRIVER_ACCEPTED",
+              "DRIVER_ARRIVING",
+              "DRIVER_ARRIVED",
+              "RIDE_STARTED",
+              "RIDE_COMPLETED",
+              "PAYMENT_PENDING",
+              "COMPLETED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "customerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "driverId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "estimatedFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "finalFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "openFlagCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rideId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "rideStatus": {
+            "enum": [
+              "ASSIGNED",
+              "STARTED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ApiError": {
         "properties": {
           "code": {
@@ -58,6 +381,69 @@
             "type": "string"
           },
           "requestId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseAdminConfigEntryResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminConfigEntryResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseAdminRideDetailResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminRideDetailResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseAdminRideFlagResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminRideFlagResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
             "type": "string"
           }
         },
@@ -315,6 +701,30 @@
         },
         "type": "object"
       },
+      "ApiResponseListAdminConfigEntryResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AdminConfigEntryResponse"
+            },
+            "type": "array"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ApiResponseListDriverDocumentResponse": {
         "properties": {
           "data": {
@@ -476,6 +886,69 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/OfferResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponsePageResponseAdminAuditLogResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PageResponseAdminAuditLogResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponsePageResponseAdminRideFlagResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PageResponseAdminRideFlagResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponsePageResponseAdminRideSummaryResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PageResponseAdminRideSummaryResponse"
           },
           "error": {
             "$ref": "#/components/schemas/ApiError"
@@ -1727,6 +2200,87 @@
         ],
         "type": "object"
       },
+      "PageResponseAdminAuditLogResponse": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/AdminAuditLogResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageResponseAdminRideFlagResponse": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/AdminRideFlagResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageResponseAdminRideSummaryResponse": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/AdminRideSummaryResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageResponseBookingDetailResponse": {
         "properties": {
           "content": {
@@ -2138,6 +2692,148 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/audit-logs": {
+      "get": {
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actorId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "targetType",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "targetId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdAfter",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdBefore",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseAdminAuditLogResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-audit-log-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/config": {
+      "get": {
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListAdminConfigEntryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-config-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/config/{id}": {
+      "put": {
+        "operationId": "update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminConfigUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminConfigEntryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-config-controller"
+        ]
+      }
+    },
     "/api/v1/admin/driver-documents": {
       "get": {
         "operationId": "listPendingDocuments",
@@ -2482,6 +3178,209 @@
         },
         "tags": [
           "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/ride-flags": {
+      "get": {
+        "operationId": "listFlags",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "EARLY_END",
+                "COMPLETION_FAR_FROM_DESTINATION",
+                "PIN_LOCKOUT",
+                "CASH_DISPUTE",
+                "RIDER_SAFETY_CANCEL",
+                "RIDER_CONFIRMED_ARRIVAL"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reviewed",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseAdminRideFlagResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-ride-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/ride-flags/{id}/review": {
+      "post": {
+        "operationId": "reviewFlag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminRideFlagResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-ride-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/rides": {
+      "get": {
+        "operationId": "listRides",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "REQUESTED",
+                "SEARCHING_DRIVER",
+                "DRIVER_ASSIGNED",
+                "DRIVER_ACCEPTED",
+                "DRIVER_ARRIVING",
+                "DRIVER_ARRIVED",
+                "RIDE_STARTED",
+                "RIDE_COMPLETED",
+                "PAYMENT_PENDING",
+                "COMPLETED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "driverId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "customerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdAfter",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "createdBefore",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseAdminRideSummaryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-ride-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/rides/{bookingId}": {
+      "get": {
+        "operationId": "getRide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "bookingId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminRideDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-ride-controller"
         ]
       }
     },
