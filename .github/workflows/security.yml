@@ -96,11 +96,15 @@ jobs:
   # - `--config auto` is NOT a local/offline ruleset choice (an earlier version of this comment claimed
   #   it was, incorrectly) - it calls out to Semgrep's registry AND sends repo metadata (language mix,
   #   rough size) to pick which rulesets to auto-apply, which is both an "untrusted remote config
-  #   fetched at runtime" and a "telemetry to a third party" concern for a private repo. Replaced with
-  #   `p/ci`, a fixed, named, Semgrep-maintained registry pack - still fetched over the network (there's
-  #   no vendoring rules locally in this pass), but no dynamic auto-detection phone-home, and
-  #   `SEMGREP_SEND_METRICS=off` explicitly disables Semgrep's own anonymous usage-metrics ping that
-  #   would otherwise fire on every scan regardless of which config is used.
+  #   fetched at runtime" and a "telemetry to a third party" concern for a private repo. First replaced
+  #   with the single `p/ci` pack, which fixed that but was a real detection-coverage regression - `p/ci`
+  #   is a small CI-smoke-test set, nowhere near what `auto` would actually have selected. Replaced
+  #   again with an explicit, fixed list of named registry packs matching this repo's real stack
+  #   (general security-audit + OWASP Top Ten, plus the four languages actually in this repo: Java,
+  #   TypeScript, Kotlin, Swift) - verified locally that all five pack names resolve (693 rules loaded
+  #   for a one-file Java smoke test). Still a network fetch (no local rule vendoring in this pass), but
+  #   no dynamic auto-detection phone-home, and `SEMGREP_SEND_METRICS=off` explicitly disables
+  #   Semgrep's own anonymous usage-metrics ping that would otherwise fire regardless of config.
   sast:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -114,7 +118,11 @@ jobs:
       - name: Install Semgrep
         run: pip install semgrep==1.180.0
       - name: Semgrep scan
-        run: semgrep scan --config p/ci --json --output semgrep-results.json --error
+        run: >
+          semgrep scan
+          --config p/security-audit --config p/owasp-top-ten
+          --config p/java --config p/typescript --config p/kotlin --config p/swift
+          --json --output semgrep-results.json --error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
