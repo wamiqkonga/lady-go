@@ -32,11 +32,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
 
-  # OWASP Dependency-Check against the backend's resolved Maven dependencies. Needs secrets.NVD_API_KEY
-  # for the NVD feed download to be fast/reliable in CI - without one, NVD's public rate limit makes
-  # this step slow and prone to timing out, hence continue-on-error so a slow/failed feed download
-  # never blocks the rest of this workflow. Get a free key at https://nvd.nist.gov/developers/request-an-api-key
-  # and add it as a repo secret to make this reliable.
+  # OWASP Dependency-Check against the backend's resolved Maven dependencies. Needs secrets.NVD_API_KEY -
+  # confirmed in CI (not just documented from the tool's own docs): dependency-check-maven 13.x hard-
+  # rejects an empty/missing key outright ("Invalid API Key, length of 0") rather than falling back to
+  # slow unauthenticated access, so without the secret this step is SKIPPED cleanly instead of failing
+  # on every run. Get a free key at https://nvd.nist.gov/developers/request-an-api-key and add it as a
+  # repo secret named NVD_API_KEY to turn this on.
   owasp-dependency-check:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -45,19 +46,24 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+      - name: Skip notice (no NVD_API_KEY secret configured)
+        if: ${{ !secrets.NVD_API_KEY }}
+        run: echo "::notice::Skipping OWASP Dependency-Check - no NVD_API_KEY repo secret configured. See this job's definition in .github/workflows/security.yml for how to get one."
       - uses: actions/setup-java@v4
+        if: ${{ secrets.NVD_API_KEY }}
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
       - name: OWASP Dependency-Check
+        if: ${{ secrets.NVD_API_KEY }}
         run: >
           mvn -B org.owasp:dependency-check-maven:13.0.0:check
           -DnvdApiKey=${{ secrets.NVD_API_KEY }}
           -DfailBuildOnCVSS=9
           -Dformats=HTML,JSON
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ secrets.NVD_API_KEY && always() }}
         with:
           name: owasp-dependency-check-report
           path: backend/target/dependency-check-report.*
