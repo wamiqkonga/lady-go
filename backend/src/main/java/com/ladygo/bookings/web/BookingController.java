@@ -17,9 +17,11 @@ import com.ladygo.common.exception.ErrorCode;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.common.web.RequestIdFilter;
 import com.ladygo.rides.service.RideLifecycleService;
+import com.ladygo.rides.service.TripShareService;
 import com.ladygo.rides.web.dto.DisputeCashRequest;
 import com.ladygo.rides.web.dto.EndRideEarlyRequest;
 import com.ladygo.rides.web.dto.RideFlagRespondRequest;
+import com.ladygo.rides.web.dto.TripShareCreatedResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.verification.service.EligibilityReportService;
 import com.ladygo.verification.web.dto.EligibilityReportRequest;
@@ -33,6 +35,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -59,13 +62,15 @@ public class BookingController {
     private final BookingService bookingService;
     private final EligibilityReportService eligibilityReportService;
     private final RideLifecycleService rideLifecycleService;
+    private final TripShareService tripShareService;
 
     public BookingController(
             BookingService bookingService, EligibilityReportService eligibilityReportService,
-            RideLifecycleService rideLifecycleService) {
+            RideLifecycleService rideLifecycleService, TripShareService tripShareService) {
         this.bookingService = bookingService;
         this.eligibilityReportService = eligibilityReportService;
         this.rideLifecycleService = rideLifecycleService;
+        this.tripShareService = tripShareService;
     }
 
     @PostMapping("/estimate")
@@ -162,6 +167,20 @@ public class BookingController {
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id, @PathVariable UUID flagId,
             @Valid @RequestBody RideFlagRespondRequest request) {
         rideLifecycleService.respondToFlag(principal.userId(), id, flagId, request.action());
+        return ApiResponse.ok(null);
+    }
+
+    /** docs/api/safety.md section 4 - rider-only. Returns the raw token exactly once. */
+    @PostMapping("/{id}/trip-shares")
+    public ApiResponse<TripShareCreatedResponse> createTripShare(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
+        return ApiResponse.ok(tripShareService.create(principal.userId(), id));
+    }
+
+    @DeleteMapping("/{id}/trip-shares/{shareId}")
+    public ApiResponse<Void> revokeTripShare(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id, @PathVariable UUID shareId) {
+        tripShareService.revoke(principal.userId(), id, shareId);
         return ApiResponse.ok(null);
     }
 

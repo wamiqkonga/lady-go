@@ -106,37 +106,53 @@ since getting this wrong in either direction is a real safety (not just UX) deci
 resolve) round out the admin side, each appending a `safety_incident_events` row (`ESCALATED`,
 `RESOLVED`) and, for `resolve`, setting `legal_hold` per §5 below.
 
-## 4. Trip sharing
+## 4. Trip sharing — **implemented**
 
 ```
-POST   /api/v1/customers/me/rides/{rideId}/trip-share   -> { shareUrl, expiresAt }
-DELETE /api/v1/customers/me/rides/{rideId}/trip-shares/{id}   (revoke)
-GET    /api/v1/trip-shares/{token}   -- PUBLIC, unauthenticated
+POST   /api/v1/bookings/{bookingId}/trip-shares              -> { id, token, expiresAt }
+DELETE /api/v1/bookings/{bookingId}/trip-shares/{shareId}     (revoke)
+GET    /api/v1/trip-shares/lookup                             -- PUBLIC, unauthenticated
+       header: X-Trip-Share-Token: <token>
 ```
 
-- **Token**: a cryptographically random value (not HMAC-derived like the ride PIN - that's deliberate
-  there, to avoid storage, but a leaked/guessable trip-share link is a much bigger exposure than a
-  4-digit PIN exchanged in person, so this needs real entropy). Only `SHA-256(token)` is stored in
-  `token_hash`; the raw token appears exactly once, in the creation response, same principle as
-  `refresh_tokens`.
-- **Expiry**: defaults to the ride's own expected lifetime - `ride.gate.rider_confirm_wait`-style
-  config, proposing `trip_share.default_ttl.hours` (default 6, generous for a delayed/long ride) rather
-  than tying it precisely to ride completion, since a share created early (e.g. right after booking)
-  should outlive a trip that runs long.
+Keyed by `bookingId`, not `rideId` as originally drafted - resolved to the underlying `Ride`
+internally, for API consistency with every other customer-facing ride-lifecycle endpoint
+(docs/api/ride-lifecycle.md), all of which are booking-id-keyed. `trip_shares.ride_id` is still what
+the schema stores.
+
+The public lookup token travels in a request header (`X-Trip-Share-Token`), never a URL path/query
+parameter - a typical access log captures the request line (method + path + query string) but not
+headers, so this keeps the raw secret out of that log surface. `Cache-Control: no-store` on every
+response. A missing header is rejected with the identical generic error as every other failure case
+(§4's "identical error" requirement) - not a distinct 400.
+
+- **Token**: a cryptographically random 256-bit value (`SecureRandom`, base64url-encoded for the
+  shareable form - not HMAC-derived like the ride PIN, deliberately: a leaked/guessable trip-share link
+  is a much bigger exposure than a 4-digit PIN exchanged in person, so this needs real entropy, not a
+  small keyspace). Only `SHA-256(token)` hex is stored in `token_hash`; the raw token appears exactly
+  once, in the creation response, same principle as `refresh_tokens`. The lookup's hash comparison uses
+  `MessageDigest.isEqual` (constant-time) rather than a plain string/array equality, in addition to the
+  DB-side indexed exact-match lookup.
+- **Expiry**: two layers. `trip_share.default_ttl.hours` (12) is a creation-time safety ceiling,
+  independent of when the ride actually ends (a share created early, right after booking, shouldn't
+  expire just because the ride itself hasn't started yet). Once the underlying `Ride` reaches
+  `COMPLETED`/`CANCELLED`, `trip_share.post_ride_grace.minutes` (30) governs the real cutoff instead -
+  computed at lookup time by joining to the `rides` table, not written back onto `trip_shares` at ride
+  completion (keeps ride-lifecycle code from needing to know trip-sharing exists at all).
 - **Revocable**: `revoked_at` set by the creator (the rider) at any time; the public endpoint checks
-  both `expires_at` and `revoked_at IS NULL`.
-- **What a share link shows**: NOT the full `BookingDetailResponse` shape - a non-user with a leaked
-  link should see the minimum needed for someone to help ("where is this person, who's driving them"),
-  never the rider's own PII. Proposing a dedicated, narrow response: driver's first name + vehicle
-  registration/photo + a live/last-known location point + ETA if available - reusing
-  `BookingVisibilityPolicy`'s allow-list PATTERN (a fixed field set per viewer "role", here a new
-  implicit role, "PUBLIC_SHARE_LINK") rather than its existing roles, which are all authenticated-user
-  roles. **Open question**: exact field list - flagging that the pattern is decided, the precise fields
-  are yours to confirm.
-- **Rate limiting the public endpoint**: unauthenticated and token-guessing-resistant only via entropy,
-  not a login wall - needs its own `RateLimiter` bucket keyed by token (or by IP, token-less lookups
-  shouldn't be free to hammer) to blunt brute-force guessing against the token space, same defense-in-
-  depth principle as every other public-ish endpoint in this codebase.
+  `revoked_at IS NULL` and both expiry layers above, failing the exact same generic way for all of them.
+- **Active-link cap**: `trip_share.max_active_per_ride` (3) - counts non-revoked, non-expired shares
+  for the ride; revoking one frees a slot.
+- **What a share link shows**: implemented as its own narrow DTO (`TripShareLookupResponse`), not a
+  view of `BookingDetailResponse` at all - driver first name (never the full name - split off the first
+  token of `User.name`), vehicle make/model/color/registration, and the driver's live/last-known
+  location point + its server-receive timestamp. No rider details, no phone numbers, nothing else.
+- **Rate limiting the public endpoint**: two independent `RateLimiter` buckets -
+  `trip_share.lookup.rate.max.attempts` (10 per 60s) keyed by the token's hash (never the raw token, to
+  keep the rate limiter's own storage from becoming a second place the secret could end up), and
+  `trip_share.lookup.ip.rate.max.attempts` (30 per 60s) keyed by the resolved client IP
+  (`ClientIpResolver`, already built for exactly this), which catches guessing spread across many
+  different tokens from one source.
 
 ## 5. `legal_hold` interplay with retention — a real gap, not yet wired to anything
 
