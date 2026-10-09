@@ -1,0 +1,4580 @@
+{
+  "components": {
+    "schemas": {
+      "AdminLoginRequest": {
+        "properties": {
+          "deviceId": {
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "totpCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object"
+      },
+      "AdminPasswordChangeRequest": {
+        "properties": {
+          "currentPassword": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "newPassword": {
+            "maxLength": 2147483647,
+            "minLength": 12,
+            "type": "string"
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ],
+        "type": "object"
+      },
+      "ApiError": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/FieldViolation"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseBookingDetailResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BookingDetailResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseCustomerProfileResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CustomerProfileResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseDeclarationResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeclarationResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseDriverAvailabilityResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DriverAvailabilityResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseDriverDocumentAdminResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DriverDocumentAdminResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseDriverDocumentResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DriverDocumentResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseDriverProfileResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DriverProfileResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseDriverReviewSummaryResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DriverReviewSummaryResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseEligibilityReportAdminResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EligibilityReportAdminResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseEligibilityReportResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EligibilityReportResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseEmergencyContactResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EmergencyContactResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseFareEstimateResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FareEstimateResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseListDriverDocumentResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DriverDocumentResponse"
+            },
+            "type": "array"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseListEmergencyContactResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/EmergencyContactResponse"
+            },
+            "type": "array"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseListSavedLocationResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SavedLocationResponse"
+            },
+            "type": "array"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseMapStringString": {
+        "properties": {
+          "data": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseMessageResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MessageResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseMfaEnrollResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaEnrollResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseObject": {
+        "properties": {
+          "data": {},
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseOfferResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OfferResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponsePageResponseBookingDetailResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PageResponseBookingDetailResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponsePageResponseDriverDocumentAdminResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PageResponseDriverDocumentAdminResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponsePageResponseEligibilityReportAdminResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PageResponseEligibilityReportAdminResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseRideSelfieResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RideSelfieResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseSavedLocationResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SavedLocationResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseTokenResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TokenResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseTripShareCreatedResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TripShareCreatedResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseTripShareLookupResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TripShareLookupResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseURI": {
+        "properties": {
+          "data": {
+            "format": "uri",
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseVehicleResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/VehicleResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseVoid": {
+        "properties": {
+          "data": {},
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BookingDetailResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "destinationAddress": {
+            "type": "string"
+          },
+          "driver": {
+            "$ref": "#/components/schemas/DriverSummaryResponse"
+          },
+          "estimatedFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "finalFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "paymentMethod": {
+            "enum": [
+              "CASH",
+              "ONLINE"
+            ],
+            "type": "string"
+          },
+          "pickupAddress": {
+            "type": "string"
+          },
+          "ridePin": {
+            "type": "string"
+          },
+          "scheduledAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "REQUESTED",
+              "SEARCHING_DRIVER",
+              "DRIVER_ASSIGNED",
+              "DRIVER_ACCEPTED",
+              "DRIVER_ARRIVING",
+              "DRIVER_ARRIVED",
+              "RIDE_STARTED",
+              "RIDE_COMPLETED",
+              "PAYMENT_PENDING",
+              "COMPLETED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "vehicleType": {
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BookingRequest": {
+        "properties": {
+          "destinationAddress": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "destinationLatitude": {
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "destinationLongitude": {
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "expectedFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "paymentMethod": {
+            "enum": [
+              "CASH",
+              "ONLINE"
+            ],
+            "type": "string"
+          },
+          "pickupAddress": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "pickupLatitude": {
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "pickupLongitude": {
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "rideSelfieId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "scheduledAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "vehicleType": {
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "destinationAddress",
+          "destinationLatitude",
+          "destinationLongitude",
+          "expectedFare",
+          "paymentMethod",
+          "pickupAddress",
+          "pickupLatitude",
+          "pickupLongitude",
+          "rideSelfieId",
+          "vehicleType"
+        ],
+        "type": "object"
+      },
+      "CancelBookingRequest": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "CustomerProfileResponse": {
+        "properties": {
+          "defaultCityId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "phoneVerifiedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "preferences": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "profilePhotoKey": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DeclarationAcceptRequest": {
+        "properties": {
+          "declarationVersion": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "declarationVersion"
+        ],
+        "type": "object"
+      },
+      "DeclarationResponse": {
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "declarationVersion": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DestinationChangeEstimateRequest": {
+        "properties": {
+          "destinationLatitude": {
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "destinationLongitude": {
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "destinationLatitude",
+          "destinationLongitude"
+        ],
+        "type": "object"
+      },
+      "DestinationChangeRequest": {
+        "properties": {
+          "destinationAddress": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "destinationLatitude": {
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "destinationLongitude": {
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "expectedFare": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "destinationAddress",
+          "destinationLatitude",
+          "destinationLongitude",
+          "expectedFare"
+        ],
+        "type": "object"
+      },
+      "DisputeCashRequest": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DocumentReviewRequest": {
+        "properties": {
+          "note": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DriverAvailabilityRequest": {
+        "properties": {
+          "status": {
+            "enum": [
+              "OFFLINE",
+              "ONLINE",
+              "BUSY",
+              "ON_RIDE",
+              "SUSPENDED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "DriverAvailabilityResponse": {
+        "properties": {
+          "status": {
+            "enum": [
+              "OFFLINE",
+              "ONLINE",
+              "BUSY",
+              "ON_RIDE",
+              "SUSPENDED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DriverDocumentAdminResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "driverId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "INITIAL",
+              "RANDOM_REVERIFICATION",
+              "REPORTED"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "GOVERNMENT_ID",
+              "LICENSE",
+              "VEHICLE_REGISTRATION",
+              "VEHICLE_PHOTO",
+              "INSURANCE",
+              "FITNESS_CERTIFICATE",
+              "POLLUTION_CERTIFICATE",
+              "POLICE_VERIFICATION",
+              "PERMIT",
+              "PHOTO",
+              "SELFIE",
+              "OTHER"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DriverDocumentResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reviewNote": {
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "GOVERNMENT_ID",
+              "LICENSE",
+              "VEHICLE_REGISTRATION",
+              "VEHICLE_PHOTO",
+              "INSURANCE",
+              "FITNESS_CERTIFICATE",
+              "POLLUTION_CERTIFICATE",
+              "POLICE_VERIFICATION",
+              "PERMIT",
+              "PHOTO",
+              "SELFIE",
+              "OTHER"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DriverLocationRequest": {
+        "properties": {
+          "accuracyMeters": {
+            "description": "Device-reported GPS accuracy in metres. Required outside the dev profile.",
+            "format": "double",
+            "type": "number"
+          },
+          "latitude": {
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "longitude": {
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "recordedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accuracyMeters",
+          "latitude",
+          "longitude",
+          "recordedAt"
+        ],
+        "type": "object"
+      },
+      "DriverProfileRequest": {
+        "properties": {
+          "cityId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cityId"
+        ],
+        "type": "object"
+      },
+      "DriverProfileResponse": {
+        "properties": {
+          "cityId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "verificationStatus": {
+            "enum": [
+              "NOT_SUBMITTED",
+              "PENDING_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DriverReviewSummaryResponse": {
+        "properties": {
+          "declarationAccepted": {
+            "type": "boolean"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DriverDocumentAdminResponse"
+            },
+            "type": "array"
+          },
+          "driverId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "missingRequirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "readyForApproval": {
+            "type": "boolean"
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/VehicleAdminResponse"
+          },
+          "verificationStatus": {
+            "enum": [
+              "NOT_SUBMITTED",
+              "PENDING_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DriverSummaryResponse": {
+        "properties": {
+          "driverId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "profilePhotoKey": {
+            "type": "string"
+          },
+          "ratingAvg": {
+            "type": "number"
+          },
+          "vehicleColor": {
+            "type": "string"
+          },
+          "vehicleMake": {
+            "type": "string"
+          },
+          "vehicleModel": {
+            "type": "string"
+          },
+          "vehicleRegistration": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EligibilityReportAdminResponse": {
+        "properties": {
+          "autoCreated": {
+            "type": "boolean"
+          },
+          "bookingId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "capExceeded": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "reporterId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "REVIEWED",
+              "DISMISSED",
+              "ACTIONED"
+            ],
+            "type": "string"
+          },
+          "subjectId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "subjectType": {
+            "enum": [
+              "CUSTOMER",
+              "DRIVER"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EligibilityReportRequest": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "EligibilityReportResolveRequest": {
+        "properties": {
+          "note": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "REVIEWED",
+              "DISMISSED",
+              "ACTIONED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "EligibilityReportResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EmergencyContactRequest": {
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 0,
+            "type": "string"
+          },
+          "phone": {
+            "minLength": 1,
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "type": "string"
+          },
+          "relationship": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ],
+        "type": "object"
+      },
+      "EmergencyContactResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EndRideEarlyRequest": {
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "safetyConcern": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "FareBreakdown": {
+        "properties": {
+          "baseFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "distanceFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "serviceFee": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "timeFare": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "FareEstimateRequest": {
+        "properties": {
+          "destinationLatitude": {
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "destinationLongitude": {
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "pickupLatitude": {
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "pickupLongitude": {
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          },
+          "vehicleType": {
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "destinationLatitude",
+          "destinationLongitude",
+          "pickupLatitude",
+          "pickupLongitude",
+          "vehicleType"
+        ],
+        "type": "object"
+      },
+      "FareEstimateResponse": {
+        "properties": {
+          "approximate": {
+            "type": "boolean"
+          },
+          "breakdown": {
+            "$ref": "#/components/schemas/FareBreakdown"
+          },
+          "cityId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "distanceMeters": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "durationSeconds": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "estimatedFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "pricingRuleId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "vehicleType": {
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FieldViolation": {
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LogoutRequest": {
+        "properties": {
+          "logoutAll": {
+            "type": "boolean"
+          },
+          "refreshToken": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object"
+      },
+      "MessageResponse": {
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MfaEnrollConfirmRequest": {
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "pattern": "^[0-9]{6}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      },
+      "MfaEnrollResponse": {
+        "properties": {
+          "provisioningUri": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "OfferRejectRequest": {
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "OfferResponse": {
+        "properties": {
+          "approximatePickupLatitude": {
+            "format": "double",
+            "type": "number"
+          },
+          "approximatePickupLongitude": {
+            "format": "double",
+            "type": "number"
+          },
+          "bookingId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "distanceMeters": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "estimatedFare": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "offerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "vehicleType": {
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "OtpRequestRequest": {
+        "properties": {
+          "intendedRole": {
+            "enum": [
+              "CUSTOMER",
+              "DRIVER",
+              "ADMIN",
+              "SUPER_ADMIN",
+              "SUPPORT"
+            ],
+            "type": "string"
+          },
+          "phone": {
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "LOGIN",
+              "PHONE_VERIFY",
+              "ADMIN_MFA"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "intendedRole",
+          "phone",
+          "purpose"
+        ],
+        "type": "object"
+      },
+      "OtpVerifyRequest": {
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "pattern": "^[0-9]{6}$",
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "intendedRole": {
+            "enum": [
+              "CUSTOMER",
+              "DRIVER",
+              "ADMIN",
+              "SUPER_ADMIN",
+              "SUPPORT"
+            ],
+            "type": "string"
+          },
+          "phone": {
+            "pattern": "^\\+[1-9][0-9]{7,14}$",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "LOGIN",
+              "PHONE_VERIFY",
+              "ADMIN_MFA"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "intendedRole",
+          "phone",
+          "purpose"
+        ],
+        "type": "object"
+      },
+      "PageResponseBookingDetailResponse": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/BookingDetailResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageResponseDriverDocumentAdminResponse": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/DriverDocumentAdminResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageResponseEligibilityReportAdminResponse": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/EligibilityReportAdminResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Pageable": {
+        "properties": {
+          "page": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "size": {
+            "format": "int32",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sort": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refreshToken": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object"
+      },
+      "RideFlagRespondRequest": {
+        "properties": {
+          "action": {
+            "enum": [
+              "ACKNOWLEDGED",
+              "DISPUTED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      },
+      "RideSelfieResponse": {
+        "properties": {
+          "capturedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "rideSelfieId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SavedLocationRequest": {
+        "properties": {
+          "address": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "latitude": {
+            "format": "double",
+            "maximum": 90,
+            "minimum": -90,
+            "type": "number"
+          },
+          "longitude": {
+            "format": "double",
+            "maximum": 180,
+            "minimum": -180,
+            "type": "number"
+          }
+        },
+        "required": [
+          "address",
+          "label",
+          "latitude",
+          "longitude"
+        ],
+        "type": "object"
+      },
+      "SavedLocationResponse": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "latitude": {
+            "format": "double",
+            "type": "number"
+          },
+          "longitude": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "StartRideRequest": {
+        "properties": {
+          "pin": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "pin"
+        ],
+        "type": "object"
+      },
+      "TokenResponse": {
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TripShareCreatedResponse": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TripShareLookupResponse": {
+        "properties": {
+          "driverFirstName": {
+            "type": "string"
+          },
+          "latitude": {
+            "format": "double",
+            "type": "number"
+          },
+          "locationAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "longitude": {
+            "format": "double",
+            "type": "number"
+          },
+          "vehicleColor": {
+            "type": "string"
+          },
+          "vehicleMake": {
+            "type": "string"
+          },
+          "vehicleModel": {
+            "type": "string"
+          },
+          "vehicleRegistration": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateProfileRequest": {
+        "properties": {
+          "defaultCityId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "minLength": 0,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "VehicleAdminResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": "string"
+          },
+          "vehicleType": {
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ],
+            "type": "string"
+          },
+          "verificationStatus": {
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "VehicleRequest": {
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "make": {
+            "type": "string"
+          },
+          "manufactureYear": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "model": {
+            "type": "string"
+          },
+          "registrationNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "vehicleType": {
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "registrationNumber",
+          "vehicleType"
+        ],
+        "type": "object"
+      },
+      "VehicleResponse": {
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "make": {
+            "type": "string"
+          },
+          "manufactureYear": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "model": {
+            "type": "string"
+          },
+          "registrationNumber": {
+            "type": "string"
+          },
+          "vehicleType": {
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ],
+            "type": "string"
+          },
+          "verificationStatus": {
+            "enum": [
+              "PENDING",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "OpenAPI definition",
+    "version": "v0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/admin/driver-documents": {
+      "get": {
+        "operationId": "listPendingDocuments",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseDriverDocumentAdminResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/driver-documents/{id}/approve": {
+      "post": {
+        "operationId": "approveDocument",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverDocumentAdminResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/driver-documents/{id}/reject": {
+      "post": {
+        "operationId": "rejectDocument",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverDocumentAdminResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/driver-documents/{id}/view": {
+      "get": {
+        "operationId": "viewDocument",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseURI"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}/approve": {
+      "post": {
+        "operationId": "approveDriver",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}/reject": {
+      "post": {
+        "operationId": "rejectDriver",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}/review": {
+      "get": {
+        "operationId": "getDriverReview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverReviewSummaryResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/drivers/{id}/trigger-reverification": {
+      "post": {
+        "operationId": "triggerRandomReverification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/eligibility-reports": {
+      "get": {
+        "operationId": "listOpenReports",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseEligibilityReportAdminResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/eligibility-reports/{id}/resolve": {
+      "post": {
+        "operationId": "resolveReport",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EligibilityReportResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseEligibilityReportAdminResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{id}/mfa/reset": {
+      "post": {
+        "operationId": "resetMfa",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-user-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/vehicles/{id}/approve": {
+      "post": {
+        "operationId": "approveVehicle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/admin/vehicles/{id}/reject": {
+      "post": {
+        "operationId": "rejectVehicle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-verification-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/admin/login": {
+      "post": {
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-auth-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/admin/mfa/enroll": {
+      "post": {
+        "operationId": "startMfaEnrollment",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMfaEnrollResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-auth-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/admin/mfa/enroll/confirm": {
+      "post": {
+        "operationId": "confirmMfaEnrollment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaEnrollConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-auth-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/admin/password/change": {
+      "post": {
+        "operationId": "changePassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-auth-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "auth-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/otp/request": {
+      "post": {
+        "operationId": "requestOtp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMessageResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "auth-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/otp/verify": {
+      "post": {
+        "operationId": "verifyOtp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseObject"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "auth-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "refresh",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTokenResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "auth-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings": {
+      "get": {
+        "operationId": "history",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      },
+      "post": {
+        "operationId": "create",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/estimate": {
+      "post": {
+        "operationId": "estimate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FareEstimateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseFareEstimateResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}": {
+      "get": {
+        "operationId": "get_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/cancel": {
+      "post": {
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/cancel-safety-concern": {
+      "post": {
+        "operationId": "cancelForSafetyConcern",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/change-destination": {
+      "post": {
+        "operationId": "changeDestination",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/confirm-arrival": {
+      "post": {
+        "operationId": "confirmArrival",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/dispute-cash": {
+      "post": {
+        "operationId": "disputeCash",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisputeCashRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/eligibility-report": {
+      "post": {
+        "operationId": "reportEligibilityConcern",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EligibilityReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseEligibilityReportResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/end-early": {
+      "post": {
+        "operationId": "endEarly_1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndRideEarlyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/estimate-destination-change": {
+      "post": {
+        "operationId": "estimateDestinationChange",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DestinationChangeEstimateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseFareEstimateResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/ride-flags/{flagId}/respond": {
+      "post": {
+        "operationId": "respondToFlag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "flagId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RideFlagRespondRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/trip-shares": {
+      "post": {
+        "operationId": "createTripShare",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTripShareCreatedResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/bookings/{id}/trip-shares/{shareId}": {
+      "delete": {
+        "operationId": "revokeTripShare",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shareId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "booking-controller"
+        ]
+      }
+    },
+    "/api/v1/customers/me": {
+      "get": {
+        "operationId": "getProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCustomerProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      },
+      "put": {
+        "operationId": "updateProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCustomerProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      }
+    },
+    "/api/v1/customers/me/declaration": {
+      "post": {
+        "operationId": "acceptDeclaration_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclarationAcceptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDeclarationResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      }
+    },
+    "/api/v1/customers/me/emergency-contacts": {
+      "get": {
+        "operationId": "listEmergencyContacts",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListEmergencyContactResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createEmergencyContact",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmergencyContactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseEmergencyContactResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      }
+    },
+    "/api/v1/customers/me/emergency-contacts/{id}": {
+      "delete": {
+        "operationId": "deleteEmergencyContact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      },
+      "put": {
+        "operationId": "updateEmergencyContact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmergencyContactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseEmergencyContactResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      }
+    },
+    "/api/v1/customers/me/ride-selfies": {
+      "post": {
+        "operationId": "captureRideSelfie",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseRideSelfieResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      }
+    },
+    "/api/v1/customers/me/rides": {
+      "get": {
+        "operationId": "rideHistory",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pageable",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      }
+    },
+    "/api/v1/customers/me/saved-locations": {
+      "get": {
+        "operationId": "listSavedLocations",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListSavedLocationResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      },
+      "post": {
+        "operationId": "createSavedLocation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedLocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSavedLocationResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      }
+    },
+    "/api/v1/customers/me/saved-locations/{id}": {
+      "delete": {
+        "operationId": "deleteSavedLocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      },
+      "put": {
+        "operationId": "updateSavedLocation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedLocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSavedLocationResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "customer-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me": {
+      "get": {
+        "operationId": "getProfile_1",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      },
+      "post": {
+        "operationId": "bootstrapProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/availability": {
+      "put": {
+        "operationId": "setAvailability",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverAvailabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverAvailabilityResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/bookings/{id}": {
+      "get": {
+        "operationId": "get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-booking-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/bookings/{id}/cancel-eligibility-concern": {
+      "post": {
+        "operationId": "cancelForEligibilityConcern",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBookingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-booking-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/bookings/{id}/rider-selfie": {
+      "get": {
+        "operationId": "riderSelfie",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseURI"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-booking-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/declaration": {
+      "post": {
+        "operationId": "acceptDeclaration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclarationAcceptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDeclarationResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/documents": {
+      "get": {
+        "operationId": "listDocuments",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListDriverDocumentResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      },
+      "post": {
+        "operationId": "uploadDocument",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "GOVERNMENT_ID",
+                "LICENSE",
+                "VEHICLE_REGISTRATION",
+                "VEHICLE_PHOTO",
+                "INSURANCE",
+                "FITNESS_CERTIFICATE",
+                "POLLUTION_CERTIFICATE",
+                "POLICE_VERIFICATION",
+                "PERMIT",
+                "PHOTO",
+                "SELFIE",
+                "OTHER"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverDocumentResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/location": {
+      "post": {
+        "operationId": "updateLocation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverLocationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/offers/current": {
+      "get": {
+        "operationId": "currentOffer",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseOfferResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-offer-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/offers/{id}/accept": {
+      "post": {
+        "operationId": "accept",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-offer-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/offers/{id}/reject": {
+      "post": {
+        "operationId": "reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferRejectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-offer-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/rides/{id}/arrived": {
+      "post": {
+        "operationId": "arrived",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "ride-lifecycle-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/rides/{id}/arriving": {
+      "post": {
+        "operationId": "arriving",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "ride-lifecycle-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/rides/{id}/complete": {
+      "post": {
+        "operationId": "complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "ride-lifecycle-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/rides/{id}/confirm-cash-collected": {
+      "post": {
+        "operationId": "confirmCashCollected",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "ride-lifecycle-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/rides/{id}/end-early": {
+      "post": {
+        "operationId": "endEarly",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndRideEarlyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "ride-lifecycle-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/rides/{id}/start": {
+      "post": {
+        "operationId": "start",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRideRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "ride-lifecycle-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/selfie": {
+      "post": {
+        "operationId": "uploadSelfie",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverDocumentResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      }
+    },
+    "/api/v1/drivers/me/vehicle": {
+      "get": {
+        "operationId": "getVehicle",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVehicleResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      },
+      "put": {
+        "operationId": "upsertVehicle",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVehicleResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "driver-controller"
+        ]
+      }
+    },
+    "/api/v1/system/ping": {
+      "get": {
+        "operationId": "ping",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMapStringString"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "system-controller"
+        ]
+      }
+    },
+    "/api/v1/trip-shares/lookup": {
+      "get": {
+        "operationId": "lookup",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Trip-Share-Token",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTripShareLookupResponse"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "trip-share-lookup-controller"
+        ]
+      }
+    },
+    "/internal/files": {
+      "get": {
+        "operationId": "serve",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exp",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sig",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "format": "byte",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "local-file-storage-controller"
+        ]
+      }
+    }
+  },
+  "servers": [
+    {
+      "description": "Generated server url",
+      "url": "http://localhost"
+    }
+  ]
+}
