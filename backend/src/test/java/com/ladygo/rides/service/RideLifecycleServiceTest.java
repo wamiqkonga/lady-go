@@ -340,37 +340,40 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
      *  down to the pricing rule's bare minimum (zero actual distance/duration), a free way to pay far
      *  less than the agreed estimate on any ride. Below the configured elapsed-time/distance
      *  threshold, the full estimated fare is charged instead - same as a normal completion. */
+    /** docs/api/ride-lifecycle.md section 13c: a driver-initiated no-progress early end is always
+     *  fee-waived, unconditionally - the rider pays nothing, not the full estimate (an earlier version
+     *  of this fix charged the full estimate here, which your explicit correction replaced with this
+     *  cancellation-fee-style policy). This is one of the three regressions you asked for by name
+     *  ("driver ends with no progress"). */
     @Test
-    void endingRideEarlyImmediatelyAfterStartChargesTheFullEstimatedFareNotTheMinimumFloor() {
+    void driverEndingTheRideImmediatelyWithNoProgressWaivesTheFareEntirely() {
         City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
         Customer customer = newCustomer();
         Driver driver = driverAcceptedFor(city);
-        PricingRule rule = newPricingRule(city, VehicleType.CAB); // minimumFare = 6000 (test helper default).
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
         Booking booking = rideStartedBooking(customer, city, driver, rule);
         Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
-        ride.setStartedAt(Instant.now()); // started just now - the exploit's whole premise.
+        ride.setStartedAt(Instant.now()); // started just now - zero progress.
         rides.saveAndFlush(ride);
 
         BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
         Booking ended = bookings.findById(booking.getId()).orElseThrow();
-        assertThat(ended.getFinalFare()).isEqualTo(15000L); // the full estimate, not the 6300 floor.
+        assertThat(ended.getFinalFare()).isZero(); // waived, not the 15000 estimate, not a fee.
         List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END);
         assertThat(flags).hasSize(1);
         assertThat(flags.get(0).getRaisedBy()).isEqualTo(com.ladygo.common.domain.ActorType.DRIVER);
     }
 
-    /** The legitimate case the threshold must not break: a ride that genuinely ran long enough to
-     *  justify a distance-based recompute still gets one, floored at the pricing rule's minimum fare
-     *  same as before this fix. */
     /** Security review finding: isGenuinelyEarly was originally OR, not AND - elapsed time alone
      *  (parked, doing nothing, zero actual distance) satisfied it, so idling for ~200s and then
-     *  ending early still got the distance-based recompute and floored the fare to the pricing rule's
-     *  bare minimum (6300) instead of the full 15000 estimate. Fixed to AND: time elapsing for free
-     *  must never be enough on its own; real road distance is also required. */
+     *  ending early still got treated as "genuine progress" instead of "no progress". Fixed to AND:
+     *  time elapsing for free must never be enough on its own; real road distance is also required.
+     *  Proven here via the driver-waived outcome still applying (the no-progress branch, not the
+     *  distance-based recompute branch, is what actually ran). */
     @Test
-    void endingRideEarlyAfterOnlyElapsedTimeWithNoActualDistanceStillChargesTheFullEstimate() {
+    void endingRideEarlyAfterOnlyElapsedTimeWithNoActualDistanceIsStillNoProgress() {
         City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
         Customer customer = newCustomer();
         Driver driver = driverAcceptedFor(city);
@@ -384,7 +387,9 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
         Booking ended = bookings.findById(booking.getId()).orElseThrow();
-        assertThat(ended.getFinalFare()).isEqualTo(15000L); // the full estimate, not the 6300 floor.
+        // Driver-waived (no-progress branch) - if the OR bug were reintroduced, this would instead hit
+        // the distance-based recompute branch and NOT be zero (it would floor to a nonzero minimum).
+        assertThat(ended.getFinalFare()).isZero();
     }
 
     /** The legitimate case the AND must not break: real road distance AND real elapsed time both
@@ -422,20 +427,80 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         assertThat(ended.getFinalFare()).isLessThan(15000L).isGreaterThan(0L);
     }
 
+    /** docs/api/ride-lifecycle.md section 13c: a rider-initiated no-progress early end, NOT
+     *  safety-tagged, is charged the ordinary cancellation fee - not waived, not the full estimate.
+     *  This is one of the three regressions you asked for by name ("rider ends with no progress"). */
     @Test
-    void endingRideEarlyAsCustomerFlagsAndCompletes() {
+    void customerEndingTheRideWithNoProgressChargesTheNormalCancellationFee() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB); // cancellationFee = 5000 (test helper default).
+        Booking booking = rideStartedBooking(customer, city, driver, rule); // startedAt = now-60s, zero distance.
+
+        BookingDetailResponse response = service.endRideEarlyAsCustomer(
+                customer.getUserId(), booking.getId(), "feeling unwell", false);
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+        Booking ended = bookings.findById(booking.getId()).orElseThrow();
+        assertThat(ended.getFinalFare()).isEqualTo(5000L); // the cancellation fee, not waived.
+        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END);
+        assertThat(flags).hasSize(1);
+        assertThat(flags.get(0).getRaisedBy()).isEqualTo(com.ladygo.common.domain.ActorType.CUSTOMER);
+    }
+
+    /** Same no-progress scenario, but safety-tagged - waived, and raises a RIDER_SAFETY_CANCEL flag
+     *  sharing the same weekly/pair cap budget as the pre-start cancelForSafetyConcern. */
+    @Test
+    void customerEndingTheRideWithNoProgressAndASafetyTagIsWaived() {
         City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
         Customer customer = newCustomer();
         Driver driver = driverAcceptedFor(city);
         PricingRule rule = newPricingRule(city, VehicleType.CAB);
         Booking booking = rideStartedBooking(customer, city, driver, rule);
 
-        BookingDetailResponse response = service.endRideEarlyAsCustomer(customer.getUserId(), booking.getId(), "feeling unwell");
+        BookingDetailResponse response = service.endRideEarlyAsCustomer(
+                customer.getUserId(), booking.getId(), "felt unsafe", true);
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
-        List<RideFlag> flags = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END);
-        assertThat(flags).hasSize(1);
-        assertThat(flags.get(0).getRaisedBy()).isEqualTo(com.ladygo.common.domain.ActorType.CUSTOMER);
+        Booking ended = bookings.findById(booking.getId()).orElseThrow();
+        assertThat(ended.getFinalFare()).isZero();
+        assertThat(rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.RIDER_SAFETY_CANCEL)).hasSize(1);
+    }
+
+    /** The safety-tagged waiver shares its abuse cap with the pre-start cancelForSafetyConcern path -
+     *  a rider can't get a second, uncapped free-exit budget just by waiting until RIDE_STARTED. */
+    @Test
+    void theSafetyTaggedWaiverSharesItsCapWithThePreStartSafetyCancel() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        // Use up the pair cap (default 1) via the pre-start path, same as BookingServiceRideLifecycleTest.
+        // ride_flags.booking_id has an FK - needs a real prior booking, not a random UUID. CANCELLED
+        // (not an "active" status) so it doesn't collide with uq_bookings_one_active_per_driver when
+        // the real rideStartedBooking below claims this same driver.
+        Booking priorBooking = newBooking(customer, city, BookingStatus.CANCELLED, driver.getId());
+        RideFlag priorSafetyCancel = new RideFlag();
+        priorSafetyCancel.setBookingId(priorBooking.getId());
+        priorSafetyCancel.setCustomerId(customer.getId());
+        priorSafetyCancel.setDriverId(driver.getId());
+        priorSafetyCancel.setType(RideFlagType.RIDER_SAFETY_CANCEL);
+        priorSafetyCancel.setRaisedBy(com.ladygo.common.domain.ActorType.CUSTOMER);
+        rideFlags.saveAndFlush(priorSafetyCancel);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+
+        BookingDetailResponse response = service.endRideEarlyAsCustomer(
+                customer.getUserId(), booking.getId(), "felt unsafe again", true);
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+        Booking ended = bookings.findById(booking.getId()).orElseThrow();
+        assertThat(ended.getFinalFare()).isEqualTo(5000L); // cap exceeded - normal fee applies anyway.
+        var flag = rideFlags.findAll().stream()
+                .filter(f -> f.getBookingId().equals(booking.getId())
+                        && f.getType() == RideFlagType.RIDER_SAFETY_CANCEL)
+                .findFirst().orElseThrow();
+        assertThat(flag.isCapExceeded()).isTrue();
     }
 
     @Test
@@ -490,26 +555,29 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         assertThat(finalFare).isEqualTo(15000L).isPositive();
     }
 
-    /** Explicit invariant check: the documented early-end exception is real and intentional in BOTH
-     *  directions - a genuinely-early end with real distance/duration CAN land above or below the
-     *  estimate, driven only by actual GPS/clock data, never by any client-supplied value (the
-     *  end-early request body carries nothing but a free-text reason - no distance, duration, or
-     *  location field exists on it at all, so there is no input for a client to manipulate here even
-     *  in principle; this is a code-shape fact, not something a test can additionally force). This
-     *  test exercises the "exceeds the estimate" direction specifically, which the fare-floor fixes
-     *  above don't touch (they only defend the "pay far less than the estimate" direction). */
+    /** docs/api/ride-lifecycle.md section 13c: the early-end recompute is capped at
+     *  {@code min(computed, estimatedFare)} - a real OR spoofed-inflated actual distance (the driver's
+     *  own reported location_history, not independently-verified ground truth - see the doc's
+     *  corrected claim on this) must never be able to push the fare above what the rider originally
+     *  agreed to. This is the third of the three regressions you asked for by name ("spoofed inflated
+     *  distance on early end"). Simulates the inflated-distance case directly (same mechanism a real
+     *  GPS spoof or a genuinely long detour would produce) with a deliberately tiny estimate so an
+     *  uncapped recompute would clearly exceed it. */
     @Test
-    void genuineEarlyEndFareCanExceedTheEstimateWhenActualProgressExceedsIt() {
+    void earlyEndFareIsCappedAtTheEstimateEvenWithAnInflatedActualDistance() {
         City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
         Customer customer = newCustomer();
         Driver driver = driverAcceptedFor(city);
         PricingRule rule = newPricingRule(city, VehicleType.CAB);
         Booking booking = rideStartedBooking(customer, city, driver, rule);
-        booking.setEstimatedFare(100L); // a deliberately tiny estimate so real progress exceeds it.
+        booking.setEstimatedFare(100L); // deliberately tiny, so an uncapped recompute would exceed it.
         bookings.saveAndFlush(booking);
         Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
         ride.setStartedAt(Instant.now().minusSeconds(200));
         rides.saveAndFlush(ride);
+        // Simulates a spoofed/inflated location_history trail (or an equally-real long detour) -
+        // ~554m, same mechanism as the genuine-progress test above, enough to compute a recompute of
+        // ~6649 if uncapped.
         Instant t0 = Instant.now().minusSeconds(150);
         jdbc.update("INSERT INTO location_history (ride_id, driver_id, location, recorded_at) "
                 + "VALUES (?, ?, CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography), ?)",
@@ -521,7 +589,7 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
 
         long finalFare = bookings.findById(booking.getId()).orElseThrow().getFinalFare();
-        assertThat(finalFare).isGreaterThan(100L).isPositive(); // exceeds the tiny estimate - by design.
+        assertThat(finalFare).isEqualTo(100L); // capped at the estimate, not the ~6649 raw recompute.
     }
 
     @Test

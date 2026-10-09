@@ -137,31 +137,43 @@ derivation. What's missing, to add:
 
 Per your decision: `booking.finalFare = booking.estimatedFare` by default at `RIDE_COMPLETED` — no
 recalculation on a normal trip, regardless of how actual distance/duration compared to the estimate.
-Recalculation only happens for:
 
-- **Early end (§2.5)**: `FareCalculator.calculate(rule, actualDistanceM, actualDurationS)` where `rule
-  = pricingRules.findById(booking.getPricingRuleId())` — the **recorded** rule from booking time, never
-  a fresh `findActive` lookup (a rule could have changed since). `FareCalculator` already floors to
-  `rule.getMinimumFare()` internally, so "fare for distance travelled with the minimum fare" falls out
-  of the existing calculator with no new logic. **Security review finding, CRITICAL**: without a
-  floor on how "early" counts as early, ending a ride the instant it starts drove `actualDistanceM`/
-  `actualDurationS` to ~0, which `FareCalculator` floors to the rule's bare minimum fare - a free way
-  to pay far less than the agreed estimate on any ride, zero cost or risk to either party. Fixed with
-  `ride.early_end.min_elapsed.seconds` (default 120) / `ride.early_end.min_distance.m` (default 500):
-  below the threshold, the early end charges the full `estimatedFare` instead (same as a normal
-  completion); the distance-based recompute only applies once real progress has actually happened.
-  **Follow-up finding**: the first version of this fix used OR between the two thresholds - elapsed
-  time alone (parked, doing nothing, zero actual distance) satisfied it, so waiting ~120s and then
-  ending early still got the discount with no real travel at all. Fixed to AND: both real distance
-  AND real elapsed time are required, so time passing for free can never be the only thing that
-  unlocks the lower recompute in place of the full estimate. This doesn't address a driver spoofing
-  slow GPS for the whole trip to keep the recompute low even past the threshold - that's the same
-  already-accepted device-location-trust residual risk from docs/api/matching.md §3, not a new gap
-  this introduces. The early-end recompute can land either below OR above the original estimate
-  (driven only by real GPS/clock data - the end-early request carries nothing but a free-text reason,
-  no distance/duration/location field exists on it for a client to manipulate even in principle) -
-  that asymmetry is the documented exception to "fare never exceeds the estimate," scoped to this one
-  path.
+**Correction to an earlier claim in this doc**: a previous revision said early-end's recompute uses
+"no client-supplied value" for pricing. That's not quite right, and the imprecision mattered:
+`actualDistanceM`/`actualDurationS` are computed server-side, but FROM `location_history`, which is
+populated from the **driver's own device's** periodic location reports (docs/api/matching.md §3). The
+early-end HTTP request itself carries no distance/duration/location field - but the device-reported
+GPS trail those numbers are derived from is not independently-verified ground truth either; a
+compromised or colluding driver app is the same already-accepted residual risk documented in
+docs/api/matching.md §3's anti-spoofing section. The policy below is designed so that risk, even at
+its worst, bounds how much it can cost the rider - see the cap in the "genuine progress" row.
+
+### Early-end fare policy, by initiator × progress
+
+| Initiator | Progress | Fare | Notes |
+|---|---|---|---|
+| Rider | None (fails `isGenuinelyEarly`) | Normal cancellation fee (`rule.getCancellationFee()`) | **Not** waived by default - this is the ordinary post-acceptance cancellation cost, now reached via a different action. Flagged (`EARLY_END`) for admin review. |
+| Rider | None, **safety-tagged** | Waived (0), unless the shared safety-cancel cap (weekly/pair, same budget as the pre-start `cancelForSafetyConcern`) is exceeded - then the normal fee applies anyway | Raises `RIDER_SAFETY_CANCEL` (shared cap counter) **and** `EARLY_END`. Beyond the cap, still flagged `capExceeded` for priority review. |
+| Driver | None | **Always** waived (0) - unconditional, no cap | The driver forgoes their own payout here; no abuse incentive the way a free rider exit would have. Flagged (`EARLY_END`) for admin review regardless. |
+| Rider or Driver | Genuine progress | `min(FareCalculator.calculate(rule, actualDistanceM, actualDurationS).totalFare(), booking.estimatedFare)` | Never exceeds the estimate - the cap mentioned above. Can land below it (a real short trip) or hit the cap exactly (a trip that ran long). |
+| Rider or Driver | Reached the actual destination (just ended via this action instead of `complete`) | Same formula as "genuine progress" - no separate case needed, since `actualDistanceM`/`actualDurationS` will be close to the full trip and the `min()` cap naturally resolves to (at most) the estimate | Not a distinct code path - this row exists to make clear the formula already covers it correctly. |
+
+"Genuinely early" (the no-progress row) is still gated by `ride.early_end.min_elapsed.seconds`
+(120) **AND** `ride.early_end.min_distance.m` (500) both being met - either alone is insufficient (see
+the follow-up finding below).
+
+**Security review findings on the original version of this table**:
+- The first fix charged the **full estimate** (not a cancellation fee) below the threshold, for
+  every actor uniformly - no distinction by initiator, no cancellation-fee framing, no waiver logic.
+  Replaced with the table above per your explicit correction.
+- That first fix's threshold used OR, not AND, between the elapsed-time and distance conditions -
+  elapsed time alone (parked, doing nothing, zero actual distance) satisfied it, so waiting ~120s and
+  then ending early still got the lower recompute with no real travel. Fixed to AND.
+- The recompute itself was uncapped - a real or spoofed-inflated actual distance/duration could in
+  principle push the recomputed fare ABOVE the original estimate. Fixed with the `min(computed,
+  estimate)` cap in the table above, which is also what bounds the device-location-trust residual
+  risk's financial impact for this specific path.
+
 - **Rider-changed destination mid-ride**: out of this phase's explicit scope (no destination-change
   endpoint exists yet) — noted here only because it's the other case you named for recalculation; if you
   want it in this phase rather than deferred, flag it and I'll design the endpoint.

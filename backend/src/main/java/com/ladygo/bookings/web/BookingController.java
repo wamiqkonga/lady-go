@@ -143,7 +143,8 @@ public class BookingController {
     public ApiResponse<BookingDetailResponse> endEarly(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
             @Valid @RequestBody EndRideEarlyRequest request) {
-        return ApiResponse.ok(rideLifecycleService.endRideEarlyAsCustomer(principal.userId(), id, request.reason()));
+        return ApiResponse.ok(rideLifecycleService.endRideEarlyAsCustomer(
+                principal.userId(), id, request.reason(), request.safetyConcern()));
     }
 
     /** docs/api/ride-lifecycle.md section 8 - within the dispute window only. */

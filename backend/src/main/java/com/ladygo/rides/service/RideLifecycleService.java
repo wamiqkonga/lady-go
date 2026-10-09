@@ -194,7 +194,7 @@ public class RideLifecycleService {
         if (booking.getStatus() != BookingStatus.RIDE_STARTED) {
             throw new BookingStateException();
         }
-        completeRideInternal(booking, driver, false, ActorType.DRIVER, driver.getId(), "ride_completed");
+        completeRideInternal(booking, driver, false, ActorType.DRIVER, driver.getId(), "ride_completed", false);
         gate.distanceIfFresh(driver, booking.getDestinationLocation()).filter(gate::isFar).ifPresent(
                 distance -> raiseFlag(
                         booking, driver, RideFlagType.COMPLETION_FAR_FROM_DESTINATION, ActorType.DRIVER, distance, false));
@@ -210,7 +210,10 @@ public class RideLifecycleService {
         if (booking.getStatus() != BookingStatus.RIDE_STARTED) {
             throw new BookingStateException();
         }
-        completeRideInternal(booking, driver, true, ActorType.DRIVER, driver.getId(), "ride_ended_early: " + reason);
+        // docs/api/ride-lifecycle.md section 13c: driver-initiated no-progress early ends are always
+        // fee-waived (the rider pays nothing), per the decided policy table - unconditionally, no cap,
+        // since the driver (not the rider) is the one forgoing a payout here.
+        completeRideInternal(booking, driver, true, ActorType.DRIVER, driver.getId(), "ride_ended_early: " + reason, true);
         Integer distance = gate.distanceIfFresh(driver, booking.getDestinationLocation()).orElse(null);
         boolean far = distance != null && gate.isFar(distance);
         RideFlag flag = raiseFlag(booking, driver, RideFlagType.EARLY_END, ActorType.DRIVER, distance, false);
@@ -222,7 +225,8 @@ public class RideLifecycleService {
     }
 
     @Transactional
-    public BookingDetailResponse endRideEarlyAsCustomer(UUID customerUserId, UUID bookingId, String reason) {
+    public BookingDetailResponse endRideEarlyAsCustomer(
+            UUID customerUserId, UUID bookingId, String reason, boolean safetyConcern) {
         Customer customer = resolveCustomer(customerUserId);
         Booking booking = bookings.findById(bookingId)
                 .filter(b -> b.getCustomerId().equals(customer.getId()))
@@ -231,9 +235,36 @@ public class RideLifecycleService {
             throw new BookingStateException();
         }
         Driver driver = drivers.findById(booking.getDriverId()).orElseThrow(ResourceNotFoundException::new);
-        completeRideInternal(booking, driver, true, ActorType.CUSTOMER, customer.getId(), "ride_ended_early: " + reason);
+        // docs/api/ride-lifecycle.md section 13c: a rider-initiated no-progress early end is charged
+        // the normal cancellation fee by default - waived only when safety-tagged, and only up to the
+        // same weekly/pair cap already shared with the pre-start safety cancel (cancelForSafetyConcern),
+        // so this can't be used to get a second, uncapped free-exit budget. Beyond the cap, the fee
+        // still applies but the flag is still marked cap-exceeded for priority admin review.
+        boolean capExceeded = safetyConcern && wouldExceedRiderSafetyCancelCap(customer.getId(), driver.getId());
+        boolean waiveNoProgressFee = safetyConcern && !capExceeded;
+        completeRideInternal(
+                booking, driver, true, ActorType.CUSTOMER, customer.getId(), "ride_ended_early: " + reason,
+                waiveNoProgressFee);
+        if (safetyConcern) {
+            raiseFlag(booking, driver, RideFlagType.RIDER_SAFETY_CANCEL, ActorType.CUSTOMER, null, capExceeded);
+        }
         raiseFlag(booking, driver, RideFlagType.EARLY_END, ActorType.CUSTOMER, null, false);
         return bookingService.get(customerUserId, bookingId);
+    }
+
+    /** Shared with {@code BookingService.wouldExceedRiderSafetyCancelCap} (pre-start safety cancel) -
+     *  duplicated rather than extracted, since the two live in different packages/layers and it's a
+     *  two-line predicate; both read from the same {@code RIDER_SAFETY_CANCEL} flag history, so the
+     *  cap is a single shared budget regardless of which entry point a rider uses. */
+    private boolean wouldExceedRiderSafetyCancelCap(UUID customerId, UUID driverId) {
+        Instant windowStart = Instant.now().minus(Duration.ofDays(7));
+        int weeklyCap = config.getInt("rider.safety_cancel.weekly_cap.max", 3);
+        int pairCap = config.getInt("rider.safety_cancel.pair_cap.max", 1);
+        long weeklyCount = rideFlags.countByCustomerIdAndTypeAndCreatedAtAfter(
+                customerId, RideFlagType.RIDER_SAFETY_CANCEL, windowStart);
+        long pairCount = rideFlags.countByCustomerIdAndDriverIdAndTypeAndCreatedAtAfter(
+                customerId, driverId, RideFlagType.RIDER_SAFETY_CANCEL, windowStart);
+        return weeklyCount >= weeklyCap || pairCount >= pairCap;
     }
 
     /** docs/api/ride-lifecycle.md section 8 - driver-only; starts the rider's dispute window. */
@@ -326,28 +357,43 @@ public class RideLifecycleService {
         rideFlags.save(flag);
     }
 
+    /**
+     * docs/api/ride-lifecycle.md section 13c - the early-end fare policy table, by progress:
+     *
+     * <ul>
+     * <li>No real progress (fails {@link #isGenuinelyEarly}): treated like a cancellation, not a ride
+     *     fare - the normal cancellation fee, waived only per {@code waiveNoProgressFee} (driver-
+     *     initiated always; rider-initiated only when safety-tagged and under the shared cap).
+     * <li>Genuine progress, including having effectively reached the destination: {@code
+     *     min(computed, estimatedFare)} - the distance/time-based recompute, but NEVER more than the
+     *     original estimate. {@code actualDistanceM}/{@code actualDurationS} come from the DRIVER's
+     *     own reported {@code location_history}, which is a real input a compromised or colluding
+     *     driver's device could inflate (the same already-accepted residual risk from
+     *     docs/api/matching.md section 3) - this cap is the mitigation for pricing specifically: even
+     *     a fully spoofed, inflated "actual" distance can only ever bring the fare UP TO the estimate,
+     *     never past it.
+     * </ul>
+     *
+     * <p>Normal (non-early) completion is unaffected: always the full {@code estimatedFare}.
+     */
     private void completeRideInternal(
-            Booking booking, Driver driver, boolean early, ActorType actor, UUID actorId, String reason) {
+            Booking booking, Driver driver, boolean early, ActorType actor, UUID actorId, String reason,
+            boolean waiveNoProgressFee) {
         Ride ride = rides.findByBookingId(booking.getId()).orElseThrow(ResourceNotFoundException::new);
         Instant completedAt = Instant.now();
         int actualDistanceM = sumLocationHistoryDistanceMeters(ride.getId());
         int actualDurationS = ride.getStartedAt() == null ? 0
                 : (int) Duration.between(ride.getStartedAt(), completedAt).getSeconds();
 
-        // Security review finding, CRITICAL: ending a ride the instant it starts left
-        // actualDistanceM/actualDurationS near zero, which FareCalculator floors to the pricing
-        // rule's bare minimum fare - a free way to pay far less than the agreed estimate for any
-        // trip, with zero cost or risk. Below this threshold, an early end isn't "genuinely early
-        // enough to deserve a smaller fare" - it's charged the full estimate, same as a normal
-        // completion; the distance-based recompute only applies once real progress has actually
-        // happened. This doesn't address a driver spoofing slow GPS for the WHOLE trip - that's the
-        // same already-accepted device-location-trust residual risk from docs/api/matching.md
-        // section 3, not a new gap introduced here.
         long finalFare;
-        if (early && isGenuinelyEarly(actualDistanceM, actualDurationS)) {
+        if (early) {
             PricingRule rule = pricingRules.findById(booking.getPricingRuleId()).orElseThrow(ResourceNotFoundException::new);
-            FareResult fare = fareCalculator.calculate(rule, actualDistanceM, actualDurationS);
-            finalFare = fare.totalFare();
+            if (isGenuinelyEarly(actualDistanceM, actualDurationS)) {
+                FareResult fare = fareCalculator.calculate(rule, actualDistanceM, actualDurationS);
+                finalFare = Math.min(fare.totalFare(), booking.getEstimatedFare());
+            } else {
+                finalFare = waiveNoProgressFee ? 0L : rule.getCancellationFee();
+            }
         } else {
             finalFare = booking.getEstimatedFare();
         }
