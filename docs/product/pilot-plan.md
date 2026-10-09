@@ -1,7 +1,8 @@
 # Closed pilot — minimum-cut plan
 
-Status: design draft, no code yet. Design-first per instruction; stop for approval before any further
-work driven by this plan.
+Status: **approved 2026-10-09** (all 4 open questions below answered). Supersedes the open-question
+framing in §9 - kept in the doc as a record of what was asked and decided, not as live questions
+anymore.
 
 Supersedes one line of `docs/product/requirements.md` §4.1's MVP list - that list includes "SOS button"
 as must-ship for the first paid pilot. Per the decision already recorded in
@@ -37,6 +38,23 @@ Everything already built and CI-green on `develop`:
   all: no API call, no logging of when it's pressed, no platform liability framing of an automated or
   assisted dial. It just opens the phone's own dialer pre-filled, the same as if the rider had dialled
   it herself. Placed visibly during an active ride (same screen the trip-share action lives on).
+- **Real SMS/OTP provider, OTP only** (decided 2026-10-09 - this was an open question, now resolved):
+  `MockSmsService` is dev/test-only by construction (`SmsStartupGuard` enforces this can never run in
+  staging/prod), and a closed pilot still needs real OTP delivery - unlike SOS, there's no "supervise
+  around it" substitute for login itself. Trip-sharing is unaffected (it already avoids any SMS
+  dependency via the OS share sheet). Provider options to document before pilot start as an
+  operational prerequisite - not a backend code change beyond swapping the `SmsService`
+  implementation, since the provider abstraction already exists:
+    - **MSG91**, **Twilio Verify**, or an India-specific aggregator such as **Gupshup**/**Kaleyra** -
+      any of these work; the real constraint is regulatory, not technical (next bullet).
+    - **TRAI DLT registration is the actual blocker, not provider choice**: any transactional/OTP SMS
+      sent to an Indian number requires the sender's entity, header (sender ID), and message template
+      to be pre-registered on the DLT (Distributed Ledger Technology) platform the telecom operators
+      run (via each provider's DLT portal, e.g. the Airtel/Jio/Vodafone shared DLT registries). This is
+      a multi-day process requiring a registered business entity, GST details, and template
+      pre-approval matching the exact OTP message text - it cannot be done the week before launch.
+      **Action item, owner: founder** - start DLT registration as soon as a provider is chosen,
+      independent of any further backend work.
 
 ## 3. Explicitly deferred past the pilot (Launch gates)
 
@@ -49,13 +67,6 @@ deferral concrete rather than abstract:
   (`PaymentMethodUnavailableException`). The pilot is **cash-only** by design, not by an undiscovered
   gap. Matches D2's default (cash + one online provider) partially - the online half is simply not
   built yet, deliberately sequenced after the pilot.
-- **Real SMS/OTP provider** - `MockSmsService` is dev/test-only by construction
-  (`SmsStartupGuard` enforces this can never run in staging/prod). For a closed pilot with a small,
-  **known** cohort the ops team onboards by hand, this needs resolving before pilot start regardless -
-  unlike SOS, there's no "supervise around it" substitute for OTP login itself. **Open question**:
-  is a minimal real SMS provider integration in scope for THIS plan, or is it being tracked as its own
-  separate piece of work? Flagging rather than assuming - this plan's scope is the SOS/trip-share/
-  Call-112 decision specifically, not a full re-scope of every pilot dependency.
 
 ## 4. Client requirements (mobile apps)
 
@@ -65,10 +76,23 @@ New, on top of everything Phase 4-6.5 already specified:
   (`DRIVER_ACCEPTED` through `RIDE_STARTED`, same lifecycle window trip-sharing is relevant for).
 - **Trip-share action** - triggers `POST /api/v1/bookings/{id}/trip-shares`, then hands the resulting
   link to the OS share sheet (`Intent.ACTION_SEND` / `UIActivityViewController`) rather than the app
-  picking a channel itself. A "manage active shares" affordance (list + revoke) is implied by the
-  backend already supporting revoke and a cap of 3 active links per ride, but isn't explicitly speced
-  here - **open question**: in scope for this pilot, or is "create one link, let it expire" good enough
-  for a first cohort?
+  picking a channel itself.
+- **"Manage active shares" screen, minimal** (decided 2026-10-09 - in scope, not deferred): a plain list
+  of the current ride's active trip-share links (created-at, expires-at) with a revoke action per link.
+  No link metadata beyond that - no recipient name/channel (the backend never captures who a link was
+  shared with, by design: the OS share sheet hand-off means the app genuinely doesn't know).
+  Auto-revoke all of a ride's active links when the ride ends.
+  **Two small backend additions this needs, neither built yet** (flagging now since they weren't in
+  the original trip-share spec; no code written for either):
+    1. `GET /api/v1/bookings/{id}/trip-shares` (rider-only, same ownership check as create/revoke) -
+       there is currently a create and a revoke endpoint but no list, so the UI has nothing to render
+       the screen from today.
+    2. An `onRideCompleted`-style hook that revokes every still-active share for a ride the moment it
+       completes, rather than relying on the client to be open and call revoke itself at that moment
+       (unreliable - the rider may have backgrounded the app). The backend's post-ride-grace-then-404
+       behavior already makes a stale, un-revoked link harmless from a security standpoint, so this is
+       a UX honesty fix ("this is now off" shown promptly) layered on top of an already-safe default,
+       not a security requirement in itself.
 
 ## 5. Website scope addition
 
@@ -86,9 +110,14 @@ it:
 - No login, no account creation, no app-install prompt gating the view itself (that would defeat the
   point of a shareable safety link) - at most a non-blocking "get the app" banner.
 - Auto-refreshes the location (polling the lookup endpoint, respecting its own `Cache-Control: no-store`)
-  at a reasonable interval - **open question**: polling cadence, proposing every 10-15s matching the
-  driver's own ~5s location-report cadence closely enough to feel live without hammering the per-token
-  rate limit (10 requests/60s - a 10s poll interval uses 6 of that budget, leaving headroom).
+  **every ~8s, with backoff when the page/tab is hidden** (decided 2026-10-09, resolving the earlier
+  10-15s proposal). 8s uses roughly 7 of the 10-requests/60s per-token rate limit budget, leaving
+  headroom for a page reload or a brief foreground/background flap. "Backoff when hidden" means: stop
+  polling entirely on the Page Visibility API's `hidden` state (phone locked, tab backgrounded) rather
+  than continuing to burn the rate-limit budget on a view nobody's looking at, and resume at the normal
+  8s cadence immediately on becoming visible again (not a gradual ramp - the window for "stale on
+  return" should be as short as the first request's round trip, not a multi-step backoff curve working
+  its way back down).
 - Shows a clear, distinct message once the link has expired/been revoked/the ride ended - the backend's
   identical-error-for-everything design is correct for the API (no information leakage), but the
   page's OWN copy can and should still say something human ("this link is no longer active") rather than
@@ -105,23 +134,50 @@ it:
   service layer isn't built yet - SOS is deferred) for anything that happens during the pilot, so there's
   a real record to evaluate "was deferring SOS the right call" against before scaling past this cohort.
 
-## 7. Exit criteria — when the pilot can graduate past this scope
+**Cohort, duration and oversight (decided 2026-10-09)**:
+- **5-10 drivers, 30-50 known riders**, one area (the "one city" framing in §1 is actually one area
+  within a city - small enough that every participant is personally known to the ops team, not just
+  city-wide known).
+- **2-4 weeks** running duration.
+- **Daytime operating hours only** - narrows the "ops team reachable" requirement above to specific
+  hours rather than 24/7, and is itself part of the SOS-deferral risk tradeoff (no rides running during
+  the hours an incident would be hardest to respond to without automated SOS).
+- **Founder personally monitoring the admin console** for the duration - this is the actual
+  operational substitute for SOS at this scale, not just "ops team reachable by phone" in the abstract;
+  see the admin-web design doc for what that monitoring screen set looks like.
+- **Lawyer to confirm closed-pilot legality and insurance** before pilot start - a hard precondition,
+  not a nice-to-have: running paid rides with real money, even in a small known cohort, has regulatory
+  and liability exposure (local transport/aggregator licensing, driver/vehicle insurance adequacy for
+  commercial passenger transport) that needs sign-off independent of anything this document can
+  resolve. **Action item, owner: founder**, same urgency as the DLT registration above - both are
+  external, lead-time-bound prerequisites, not backend work.
 
-Tied directly to `docs/development/roadmap.md`'s Launch gates table:
+## 7. Preconditions before pilot start (owner: founder, both lead-time-bound)
+
+1. DLT registration completed for the chosen SMS provider (§2) - cannot be compressed into the week
+   before launch.
+2. Lawyer confirmation of closed-pilot legality and insurance adequacy (§6).
+
+## 8. Exit criteria — when the pilot can graduate past this scope
+
+Tied directly to `docs/development/roadmap.md`'s Launch gates table (the real SMS provider from §2 is
+a pilot **precondition**, already satisfied by the time the pilot runs, not listed again here):
 1. SOS built and live.
-2. Real SMS/OTP provider configured.
-3. Real payment provider / `ONLINE` method live (or a deliberate decision to stay cash-only longer).
-4. The pilot's own operational log (§6) reviewed with no unresolved safety gaps the deferred features
+2. Real payment provider / `ONLINE` method live (or a deliberate decision to stay cash-only longer).
+3. The pilot's own operational log (§6) reviewed with no unresolved safety gaps the deferred features
    would have caught.
 
-## 8. Open questions — stop here for your decision
+## 9. Decisions record (was: open questions — all four answered 2026-10-09)
 
-1. Real SMS provider integration - in this plan's scope, or tracked separately? (§3)
-2. "Manage active trip-shares" client UI - in scope for the pilot, or defer to "create and let it
-   expire"? (§4)
-3. Public tracking page polling cadence - proposing 10-15s (§5), confirm or adjust.
-4. Pilot cohort size/duration and launch city - this plan assumes Srinagar (A1's working assumption)
-   and says nothing about numbers; is that decided elsewhere already, or does this plan need to state
-   a concrete size/duration to be useful as an actual plan rather than a scope list?
+1. Real SMS provider integration - **in scope**, OTP only; provider options and DLT registration
+   documented in §2.
+2. "Manage active trip-shares" client UI - **in scope**, minimal (list + revoke, auto-revoke at ride
+   end); see §4 for the two small backend additions it needs.
+3. Public tracking page polling cadence - **~8s with backoff when hidden** (§5), not the originally
+   proposed 10-15s.
+4. Pilot cohort size/duration/oversight - **5-10 drivers, 30-50 known riders, one area, 2-4 weeks,
+   daytime hours only, founder monitoring the admin console, lawyer sign-off required before start**
+   (§6).
 
-Stop here for approval before any further work driven by this plan.
+Client build order for the pilot (OpenAPI contract → admin web → driver Android → customer Android →
+public tracking page; iOS after) is tracked in `docs/development/roadmap.md`, not restated here.
