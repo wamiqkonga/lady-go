@@ -82,24 +82,39 @@ jobs:
           retention-days: 30
 
   # SAST via Semgrep's local CLI (not the `semgrep-action`/`semgrep ci` GitHub integration, which talks
-  # to Semgrep's own cloud service and would need yet another API token) - runs fully offline against
-  # public community rulesets, no account or secret needed. Results go to a build artifact, not
-  # GitHub's code-scanning tab - that upload path is the same GHAS wall that blocks CodeQL below, so
-  # this deliberately never calls `github/codeql-action/upload-sarif` or equivalent. continue-on-error
-  # until a first run's findings have actually been triaged (same reasoning as the OWASP job's
-  # CVSS threshold starting permissive) - tighten once there's a baseline.
+  # to Semgrep's own cloud service and would need yet another API token) - no account or secret needed.
+  # Results go to a build artifact, not GitHub's code-scanning tab - that upload path is the same GHAS
+  # wall that blocks CodeQL below, so this deliberately never calls
+  # `github/codeql-action/upload-sarif` or equivalent. continue-on-error until a first run's findings
+  # have actually been triaged (same reasoning as the OWASP job's CVSS threshold starting permissive) -
+  # tighten once there's a baseline.
+  #
+  # Security review findings on the first version of this job:
+  # - `pip install semgrep` with no version pin let CI silently pick up a new, unreviewed Semgrep
+  #   release on every run (supply-chain risk - an unpinned CLI tool is as much a dependency as
+  #   anything in pom.xml/package.json). Pinned below.
+  # - `--config auto` is NOT a local/offline ruleset choice (an earlier version of this comment claimed
+  #   it was, incorrectly) - it calls out to Semgrep's registry AND sends repo metadata (language mix,
+  #   rough size) to pick which rulesets to auto-apply, which is both an "untrusted remote config
+  #   fetched at runtime" and a "telemetry to a third party" concern for a private repo. Replaced with
+  #   `p/ci`, a fixed, named, Semgrep-maintained registry pack - still fetched over the network (there's
+  #   no vendoring rules locally in this pass), but no dynamic auto-detection phone-home, and
+  #   `SEMGREP_SEND_METRICS=off` explicitly disables Semgrep's own anonymous usage-metrics ping that
+  #   would otherwise fire on every scan regardless of which config is used.
   sast:
     runs-on: ubuntu-latest
     continue-on-error: true
+    env:
+      SEMGREP_SEND_METRICS: "off"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install Semgrep
-        run: pip install semgrep
+        run: pip install semgrep==1.180.0
       - name: Semgrep scan
-        run: semgrep scan --config auto --json --output semgrep-results.json --error
+        run: semgrep scan --config p/ci --json --output semgrep-results.json --error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
