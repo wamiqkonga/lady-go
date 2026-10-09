@@ -46,24 +46,36 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
-      - name: Skip notice (no NVD_API_KEY secret configured)
-        if: ${{ !secrets.NVD_API_KEY }}
-        run: echo "::notice::Skipping OWASP Dependency-Check - no NVD_API_KEY repo secret configured. See this job's definition in .github/workflows/security.yml for how to get one."
+      # The `secrets` context isn't available in `if:` conditions at all (only in env/with/run) - so
+      # the key's presence is captured here as a step output first, which `if:` CAN read.
+      - name: Check for NVD API key
+        id: check-key
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ -n "$NVD_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping OWASP Dependency-Check - no NVD_API_KEY repo secret configured. See this job's definition in .github/workflows/security.yml for how to get one."
+          fi
       - uses: actions/setup-java@v4
-        if: ${{ secrets.NVD_API_KEY }}
+        if: steps.check-key.outputs.present == 'true'
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
       - name: OWASP Dependency-Check
-        if: ${{ secrets.NVD_API_KEY }}
+        if: steps.check-key.outputs.present == 'true'
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: >
           mvn -B org.owasp:dependency-check-maven:13.0.0:check
-          -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+          -DnvdApiKey="$NVD_API_KEY"
           -DfailBuildOnCVSS=9
           -Dformats=HTML,JSON
       - uses: actions/upload-artifact@v4
-        if: ${{ secrets.NVD_API_KEY && always() }}
+        if: steps.check-key.outputs.present == 'true' && always()
         with:
           name: owasp-dependency-check-report
           path: backend/target/dependency-check-report.*
