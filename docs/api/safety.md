@@ -135,10 +135,18 @@ response. A missing header is rejected with the identical generic error as every
   DB-side indexed exact-match lookup.
 - **Expiry**: two layers. `trip_share.default_ttl.hours` (12) is a creation-time safety ceiling,
   independent of when the ride actually ends (a share created early, right after booking, shouldn't
-  expire just because the ride itself hasn't started yet). Once the underlying `Ride` reaches
-  `COMPLETED`/`CANCELLED`, `trip_share.post_ride_grace.minutes` (30) governs the real cutoff instead -
-  computed at lookup time by joining to the `rides` table, not written back onto `trip_shares` at ride
-  completion (keeps ride-lifecycle code from needing to know trip-sharing exists at all).
+  expire just because the ride itself hasn't started yet). Once the trip is over,
+  `trip_share.post_ride_grace.minutes` (30) governs the real cutoff instead - computed at lookup time
+  by joining to the `bookings`/`rides` tables, not written back onto `trip_shares` at ride completion
+  (keeps ride-lifecycle code from needing to know trip-sharing exists at all). **Security review
+  finding, CRITICAL**: "trip is over" is keyed off the **booking's** status (not in
+  `{DRIVER_ACCEPTED, DRIVER_ARRIVING, DRIVER_ARRIVED, RIDE_STARTED}`), not the `Ride` row's own
+  `status` column - nothing in this codebase ever sets `Ride.status` to `CANCELLED` (every real cancel
+  path only moves `BookingStatus`), so a ride-status-only check never caught a cancelled booking at
+  all, leaking the driver's ongoing, continuously-updated live location (by then quite possibly serving
+  a completely different rider) for up to the full 12h ceiling instead of ~30 minutes. Once over, the
+  location shown is the ride's own frozen `endLocation` (null if the trip never properly started, e.g.
+  an early cancellation), never the driver's current position again.
 - **Revocable**: `revoked_at` set by the creator (the rider) at any time; the public endpoint checks
   `revoked_at IS NULL` and both expiry layers above, failing the exact same generic way for all of them.
 - **Active-link cap**: `trip_share.max_active_per_ride` (3) - counts non-revoked, non-expired shares

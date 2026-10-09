@@ -7,8 +7,13 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.EnumSet;
 import java.util.HexFormat;
+import java.util.Set;
 import java.util.UUID;
+import com.ladygo.bookings.domain.Booking;
+import com.ladygo.bookings.domain.BookingStatus;
+import com.ladygo.bookings.repository.BookingRepository;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.config.ConfigurationService;
@@ -17,7 +22,6 @@ import com.ladygo.customers.repository.CustomerRepository;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.drivers.repository.DriverRepository;
 import com.ladygo.rides.domain.Ride;
-import com.ladygo.rides.domain.RideStatus;
 import com.ladygo.rides.domain.TripShare;
 import com.ladygo.rides.repository.RideRepository;
 import com.ladygo.rides.repository.TripShareRepository;
@@ -47,8 +51,16 @@ public class TripShareService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final int TOKEN_BYTES = 32; // 256 bits.
 
+    /** Security review finding, CRITICAL: the trip is only "live" (safe to show the driver's ongoing
+     *  current position for) while the booking is in one of these statuses - see the detailed comment
+     *  in {@link #resolve} for why checking {@code Ride.status} alone is not enough. */
+    private static final Set<BookingStatus> ACTIVE_BOOKING_STATUSES = EnumSet.of(
+            BookingStatus.DRIVER_ACCEPTED, BookingStatus.DRIVER_ARRIVING,
+            BookingStatus.DRIVER_ARRIVED, BookingStatus.RIDE_STARTED);
+
     private final TripShareRepository tripShares;
     private final RideRepository rides;
+    private final BookingRepository bookings;
     private final CustomerRepository customers;
     private final DriverRepository drivers;
     private final UserRepository users;
@@ -57,11 +69,12 @@ public class TripShareService {
     private final RateLimiter rateLimiter;
 
     public TripShareService(
-            TripShareRepository tripShares, RideRepository rides, CustomerRepository customers,
-            DriverRepository drivers, UserRepository users, VehicleRepository vehicles,
-            ConfigurationService config, RateLimiter rateLimiter) {
+            TripShareRepository tripShares, RideRepository rides, BookingRepository bookings,
+            CustomerRepository customers, DriverRepository drivers, UserRepository users,
+            VehicleRepository vehicles, ConfigurationService config, RateLimiter rateLimiter) {
         this.tripShares = tripShares;
         this.rides = rides;
+        this.bookings = bookings;
         this.customers = customers;
         this.drivers = drivers;
         this.users = users;
@@ -75,6 +88,10 @@ public class TripShareService {
      *  since {@code trip_shares.ride_id} is what the schema actually keys on. */
     @Transactional
     public TripShareCreatedResponse create(UUID customerUserId, UUID bookingId) {
+        // Security review finding, LOW: the active-link cap alone doesn't bound CALL FREQUENCY - a
+        // rider could loop create-then-revoke indefinitely, generating unbounded trip_shares rows at
+        // no cost to anyone but their own storage/compute. Doesn't leak anything, but cheap to close.
+        enforceCreateRateLimit(customerUserId);
         Customer customer = customers.findByUserId(customerUserId).orElseThrow(ResourceNotFoundException::new);
         Ride ride = rides.findByBookingId(bookingId)
                 .filter(r -> r.getCustomerId().equals(customer.getId()))
@@ -144,10 +161,27 @@ public class TripShareService {
         }
 
         Ride ride = rides.findById(share.getRideId()).orElseThrow(ResourceNotFoundException::new);
-        if ((ride.getStatus() == RideStatus.COMPLETED || ride.getStatus() == RideStatus.CANCELLED)) {
-            Instant anchor = ride.getCompletedAt() != null ? ride.getCompletedAt() : share.getCreatedAt();
+        Booking booking = bookings.findById(ride.getBookingId()).orElseThrow(ResourceNotFoundException::new);
+
+        // Security review finding, CRITICAL: the trip is only "live" while the BOOKING is in one of
+        // these statuses. Checking ride.getStatus() alone (an earlier version of this method did) is
+        // not enough - nothing in this codebase ever sets Ride.status to CANCELLED, so a booking
+        // cancelled after DRIVER_ACCEPTED (reachable right up to RIDE_STARTED) leaves the ride row
+        // stuck at ASSIGNED forever, and that earlier check would have kept treating it as "still
+        // active" indefinitely (bounded only by the 12h creation ceiling). Once the trip is over -
+        // completed OR cancelled - this must NEVER read driver.getCurrentLocation() again: that field
+        // is the driver's single, continuously-updated position across every ride they ever take, so
+        // a stale-but-still-within-grace share link would otherwise keep showing whoever holds it the
+        // driver's live position on a COMPLETELY DIFFERENT, unrelated rider's ride - exactly the kind
+        // of privacy exposure this grace period must not create. Once over, the only location ever
+        // shown is the ride's own frozen endLocation (null if the trip never properly started, e.g. an
+        // early cancellation - the response DTO allows a null location for that case rather than ever
+        // falling back to the driver's current position).
+        boolean stillLive = ACTIVE_BOOKING_STATUSES.contains(booking.getStatus());
+        if (!stillLive) {
+            Instant endedAt = ride.getCompletedAt() != null ? ride.getCompletedAt() : booking.getUpdatedAt();
             Duration grace = config.getMinutes("trip_share.post_ride_grace.minutes", Duration.ofMinutes(30));
-            if (now.isAfter(anchor.plus(grace))) {
+            if (now.isAfter(endedAt.plus(grace))) {
                 throw new ResourceNotFoundException();
             }
         }
@@ -155,7 +189,8 @@ public class TripShareService {
         Driver driver = drivers.findById(ride.getDriverId()).orElseThrow(ResourceNotFoundException::new);
         User driverUser = users.findById(driver.getUserId()).orElse(null);
         Vehicle vehicle = vehicles.findByDriverId(driver.getId()).stream().findFirst().orElse(null);
-        Point location = driver.getCurrentLocation();
+        Point location = stillLive ? driver.getCurrentLocation() : ride.getEndLocation();
+        Instant locationAt = stillLive ? driver.getCurrentLocationAt() : ride.getCompletedAt();
 
         return new TripShareLookupResponse(
                 firstNameOf(driverUser != null ? driverUser.getName() : null),
@@ -165,7 +200,15 @@ public class TripShareService {
                 vehicle != null ? vehicle.getRegistrationNumber() : null,
                 location != null ? location.getY() : null,
                 location != null ? location.getX() : null,
-                driver.getCurrentLocationAt());
+                locationAt);
+    }
+
+    private void enforceCreateRateLimit(UUID customerUserId) {
+        int maxAttempts = config.getInt("trip_share.create.rate.max.attempts", 10);
+        Duration window = config.getMinutes("trip_share.create.rate.window.minutes", Duration.ofMinutes(10));
+        if (!rateLimiter.tryConsume("trip_share_create:" + customerUserId, maxAttempts, window)) {
+            throw new RateLimitExceededException();
+        }
     }
 
     private void enforceLookupRateLimits(String rawToken, String clientIp) {

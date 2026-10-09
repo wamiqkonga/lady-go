@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ladygo.bookings.domain.Booking;
 import com.ladygo.bookings.domain.BookingStatus;
+import com.ladygo.common.domain.ActorType;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.customers.domain.Customer;
@@ -191,6 +192,11 @@ class TripShareServiceTest extends PersistenceTestSupport {
         // completion + grace period should cut this off.
         assertThat(created.expiresAt()).isAfter(Instant.now().plus(1, ChronoUnit.HOURS));
 
+        // Realistic production state: a real completion (RideLifecycleService.completeRideInternal)
+        // always moves BOTH the Ride row AND the Booking together - the grace logic now keys off
+        // booking.getStatus() (security review fix), so the test's setup must match that reality.
+        booking.setStatus(BookingStatus.PAYMENT_PENDING);
+        bookings.saveAndFlush(booking);
         Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
         ride.setStatus(RideStatus.COMPLETED);
         ride.setCompletedAt(Instant.now().minus(1, ChronoUnit.HOURS)); // completed well past the 30-min grace.
@@ -209,12 +215,73 @@ class TripShareServiceTest extends PersistenceTestSupport {
         Booking booking = acceptedBooking(customer, city, driver);
         TripShareCreatedResponse created = service.create(customer.getUserId(), booking.getId());
 
+        booking.setStatus(BookingStatus.PAYMENT_PENDING);
+        bookings.saveAndFlush(booking);
         Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
         ride.setStatus(RideStatus.COMPLETED);
         ride.setCompletedAt(Instant.now().minus(5, ChronoUnit.MINUTES)); // well within the 30-min grace.
         rides.saveAndFlush(ride);
 
         assertThat(service.resolve(created.token(), "203.0.113.5")).isNotNull();
+    }
+
+    /** Security review finding, CRITICAL: nothing in this codebase ever sets Ride.status to
+     *  CANCELLED - every real cancel path (BookingService.cancel and its eligibility/safety-concern
+     *  variants) only ever moves BookingStatus to CANCELLED, leaving the Ride row stuck at
+     *  ASSIGNED/STARTED forever. The grace-period check used to key off ride.getStatus() alone, which
+     *  meant a cancelled booking's trip-share link never entered the "trip is over" branch at all and
+     *  kept resolving - leaking the driver's ONGOING, continuously-updated current location (now
+     *  likely serving a completely different, unrelated rider) for up to the full 12h creation-time
+     *  ceiling instead of the intended ~30-minute grace window. Fixed by keying off the booking's own
+     *  status instead, which IS reliably set to CANCELLED by every real cancel path. */
+    @Test
+    void aCancelledBookingsStaleShareStopsLeakingTheDriversLiveLocationPastTheGraceWindow() {
+        City city = city();
+        Customer customer = newCustomer();
+        Driver driver = driverWithVehicle(city, "Asha Verma");
+        Booking booking = acceptedBooking(customer, city, driver);
+        TripShareCreatedResponse created = service.create(customer.getUserId(), booking.getId());
+        // bookings has a BEFORE UPDATE trigger (trg_bookings_updated_at) that force-sets updated_at =
+        // now() on every write, so a raw-SQL backdate of it is silently overwritten - shrinking the
+        // grace window to zero instead makes "cancelled a moment ago" already past grace, deterministically.
+        jdbc.update("UPDATE configuration SET value = '0' WHERE key = 'trip_share.post_ride_grace.minutes'");
+
+        // What every real cancel path in BookingService actually produces: BookingStatus -> CANCELLED,
+        // Ride.status left untouched at ASSIGNED (never CANCELLED - confirmed by reading every cancel
+        // method in BookingService; none of them touch the Ride row at all).
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setCancelledBy(ActorType.CUSTOMER);
+        bookings.saveAndFlush(booking);
+
+        assertThatThrownBy(() -> service.resolve(created.token(), "203.0.113.5"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    /** The other half: still within the grace window after cancellation, it must still work - the
+     *  fix must not be so aggressive that it breaks the "just cancelled, briefly still shareable" case. */
+    @Test
+    void aCancelledBookingsShareStillWorksWithinTheGraceWindow() {
+        City city = city();
+        Customer customer = newCustomer();
+        Driver driver = driverWithVehicle(city, "Asha Verma");
+        Booking booking = acceptedBooking(customer, city, driver);
+        TripShareCreatedResponse created = service.create(customer.getUserId(), booking.getId());
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setCancelledBy(ActorType.CUSTOMER);
+        bookings.saveAndFlush(booking);
+        flushAndClear();
+        jdbc.update("UPDATE bookings SET updated_at = ? WHERE id = ?",
+                Timestamp.from(Instant.now().minus(5, ChronoUnit.MINUTES)), booking.getId());
+        flushAndClear();
+
+        // Within the grace window, the only location available is the ride's own frozen endLocation,
+        // which was never set for a ride that never completed - so this still resolves but with a
+        // null location, never falling back to the driver's current (now possibly unrelated) position.
+        TripShareLookupResponse response = service.resolve(created.token(), "203.0.113.5");
+        assertThat(response).isNotNull();
+        assertThat(response.latitude()).isNull();
+        assertThat(response.longitude()).isNull();
     }
 
     @Test
@@ -271,6 +338,10 @@ class TripShareServiceTest extends PersistenceTestSupport {
         Driver driver = driverWithVehicle(city, "Asha Verma");
         Booking booking = acceptedBooking(customer, city, driver);
         String sameIp = "203.0.113.42";
+        // This test's own loop creates 31 shares to generate enough distinct tokens - loosen the
+        // CREATE rate limit (unrelated to the per-IP LOOKUP limit this test actually exercises) so it
+        // doesn't mask the behavior under test.
+        jdbc.update("UPDATE configuration SET value = '100' WHERE key = 'trip_share.create.rate.max.attempts'");
 
         for (int i = 0; i < 30; i++) {
             TripShareCreatedResponse created = service.create(customer.getUserId(), booking.getId());
