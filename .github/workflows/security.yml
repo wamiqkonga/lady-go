@@ -81,6 +81,32 @@ jobs:
           path: backend/target/dependency-check-report.*
           retention-days: 30
 
+  # SAST via Semgrep's local CLI (not the `semgrep-action`/`semgrep ci` GitHub integration, which talks
+  # to Semgrep's own cloud service and would need yet another API token) - runs fully offline against
+  # public community rulesets, no account or secret needed. Results go to a build artifact, not
+  # GitHub's code-scanning tab - that upload path is the same GHAS wall that blocks CodeQL below, so
+  # this deliberately never calls `github/codeql-action/upload-sarif` or equivalent. continue-on-error
+  # until a first run's findings have actually been triaged (same reasoning as the OWASP job's
+  # CVSS threshold starting permissive) - tighten once there's a baseline.
+  sast:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Semgrep
+        run: pip install semgrep
+      - name: Semgrep scan
+        run: semgrep scan --config auto --json --output semgrep-results.json --error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-results
+          path: semgrep-results.json
+          retention-days: 30
+
   # Disabled: this repo is private, owned by a personal (not Organization) account, on the Free plan.
   # CodeQL/code scanning on a private repo requires a GitHub Code Security (Advanced Security) license,
   # which personal accounts cannot purchase at all - only Organizations on GitHub Team/Enterprise can

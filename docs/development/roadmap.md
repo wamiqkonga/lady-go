@@ -73,6 +73,21 @@ Two Phase 3 findings were accepted as tradeoffs for now, not fixed immediately �
 | Refresh-token grace window | Before the mobile apps reach real users (Phase 11 Testing hardening at the latest, ideally before any Phase 13 beta build) | A bounded ~10s grace window so a dropped-connection retry of an already-rotated refresh token isn't treated as theft, provided the successor token is still unused. |
 | Admin login lockout hardening | Before production (Phase 12 Deployment at the latest) | Replace the hard per-(email, IP) lockout with progressive delay, failure alerting, and a `SUPER_ADMIN` unlock path. |
 
+## Launch gates
+
+Distinguishes what's needed for a **closed pilot** (small, known user set, operationally supervised)
+from what's a **hard gate before any public launch**. Added because SOS is being deferred past the
+pilot (decided below) and that decision needs a concrete, written trigger — the same reasoning as the
+"Security backlog" table above, applied to product/safety gaps rather than just security ones.
+
+| Item | Required for | Why |
+|---|---|---|
+| SOS (docs/api/safety.md) | **Public launch** — not the pilot | Deferred past the closed pilot: a small, known rider/driver set with direct operational supervision (see the pilot plan) is an acceptable substitute for automated SOS at that scale, but is not an acceptable substitute once the platform has riders/drivers the ops team doesn't already know personally. Trip sharing + a one-tap "Call 112" button (native dialer, no platform involvement) ship in the pilot as the interim safety affordance — see docs/api/safety.md's status line. |
+| Real SMS/OTP provider (D3) | Public launch | `MockSmsService` is dev/test-only by construction (`SmsStartupGuard`); a pilot with a small, known user set the ops team can reach another way survives this gap, public launch cannot. |
+| Real payment provider / `ONLINE` payment method (D2, D8) | Public launch | Currently rejected outright at booking creation (`PaymentMethodUnavailableException`) — the pilot is cash-only by design (see the pilot plan), not as a limitation discovered late. |
+| Background-verification process actually run on every driver (D5/D10) | Both — already a hard gate even for the pilot | Not a launch-scale question; a women-only safety platform cannot pilot with unverified drivers under any framing. |
+| `docs/security/auth-design.md` §15 backlog (table above) | Public launch, both items | Already tracked there with the same phase triggers; listed here only so "launch gates" is the one place that answers "are we ready yet." |
+
 ## Risk register
 See `docs/product/requirements.md` section 7.
 

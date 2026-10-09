@@ -1,7 +1,16 @@
 # Safety: SOS + trip sharing — design (Phase 7.5)
 
-Status: design draft, no code yet. Per `docs/development/roadmap.md`'s decided reordering, this is the
-phase immediately after ride lifecycle (6.5), still ahead of Payments (8).
+Status, updated per decision: **trip sharing and a one-tap "Call 112" button are in scope for the
+closed pilot; SOS (§1–§3, §7's SOS-specific parts) is deferred past the pilot, gated as a hard
+requirement before any public launch** (`docs/development/roadmap.md`'s new "Launch gates" section is
+the tracked trigger for this, same shape as the existing security-backlog table there). "Call 112" is
+a plain native-dialer button in the client apps - no backend involvement, no platform liability framing
+of an auto-dial; it's listed here only because the client requirement belongs next to the rest of this
+doc's safety-affordance decisions, not because it needs any API. Trip sharing's implementation is
+tracked in a dedicated follow-up; this document remains its design of record. Per
+`docs/development/roadmap.md`'s decided reordering, this was the phase immediately after ride lifecycle
+(6.5), still ahead of Payments (8) - the SOS deferral doesn't change that ordering, only SOS's own
+scope within it.
 
 ## 0. What already exists — this is an API/service design on top of existing schema, not a new one
 
