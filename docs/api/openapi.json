@@ -1,6 +1,14 @@
 {
   "components": {
     "schemas": {
+      "AdminAccessTokenResponse": {
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AdminAuditLogResponse": {
         "properties": {
           "action": {
@@ -381,6 +389,27 @@
             "type": "string"
           },
           "requestId": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ApiResponseAdminAccessTokenResponse": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminAccessTokenResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "message": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
             "type": "string"
           }
         },
@@ -3517,6 +3546,44 @@
         ]
       }
     },
+    "/api/v1/auth/admin/logout": {
+      "post": {
+        "operationId": "logout_1",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "ladygo_admin_rt",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "ladygo_admin_csrf",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-auth-controller"
+        ]
+      }
+    },
     "/api/v1/auth/admin/mfa/enroll": {
       "post": {
         "operationId": "startMfaEnrollment",
@@ -3586,6 +3653,44 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "admin-auth-controller"
+        ]
+      }
+    },
+    "/api/v1/auth/admin/refresh": {
+      "post": {
+        "operationId": "refresh_1",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "ladygo_admin_rt",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "ladygo_admin_csrf",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminAccessTokenResponse"
                 }
               }
             },
