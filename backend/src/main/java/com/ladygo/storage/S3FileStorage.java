@@ -3,14 +3,20 @@ package com.ladygo.storage;
 import java.io.InputStream;
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
@@ -71,6 +77,35 @@ public class S3FileStorage implements FileStorage {
     public void delete(String key) {
         try {
             client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        } catch (S3Exception ex) {
+            throw new FileStorageException(ex);
+        }
+    }
+
+    /** A bucket-level lifecycle rule expiring the same prefixes is the primary, infrastructure-native
+     *  backstop in prod (docs/development/ci-secrets.md's sibling ops doc should record the exact
+     *  rule once the bucket is provisioned); this sweep exists so the backstop doesn't depend on that
+     *  having been configured correctly, and so local/dev behaves identically to prod. */
+    @Override
+    public List<String> listKeysOlderThan(String prefix, Instant cutoff) {
+        List<String> keys = new ArrayList<>();
+        try {
+            String continuationToken = null;
+            do {
+                ListObjectsV2Request.Builder requestBuilder =
+                        ListObjectsV2Request.builder().bucket(bucket).prefix(prefix);
+                if (continuationToken != null) {
+                    requestBuilder.continuationToken(continuationToken);
+                }
+                ListObjectsV2Response response = client.listObjectsV2(requestBuilder.build());
+                for (S3Object object : response.contents()) {
+                    if (object.lastModified().isBefore(cutoff)) {
+                        keys.add(object.key());
+                    }
+                }
+                continuationToken = response.isTruncated() ? response.nextContinuationToken() : null;
+            } while (continuationToken != null);
+            return keys;
         } catch (S3Exception ex) {
             throw new FileStorageException(ex);
         }

@@ -21,7 +21,9 @@ import com.ladygo.rides.domain.RideFlagType;
 import com.ladygo.rides.repository.RideFlagRepository;
 import com.ladygo.rides.repository.RideRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,7 +57,7 @@ public class AdminRideOversightService {
             BookingStatus status, UUID driverId, UUID customerId, Instant createdAfter, Instant createdBefore,
             Pageable pageable) {
         Specification<Booking> spec = bookingSpecification(status, driverId, customerId, createdAfter, createdBefore);
-        Page<Booking> page = bookings.findAll(spec, pageable);
+        Page<Booking> page = bookings.findAll(spec, defaultSortNewestFirst(pageable));
         return PageResponse.of(page.map(this::toSummary));
     }
 
@@ -75,8 +77,17 @@ public class AdminRideOversightService {
 
     public PageResponse<AdminRideFlagResponse> listFlags(RideFlagType type, Boolean reviewed, Pageable pageable) {
         Specification<RideFlag> spec = flagSpecification(type, reviewed);
-        Page<RideFlag> page = rideFlags.findAll(spec, pageable);
+        Page<RideFlag> page = rideFlags.findAll(spec, defaultSortNewestFirst(pageable));
         return PageResponse.of(page.map(AdminRideOversightService::toFlagResponse));
+    }
+
+    /** An unsorted query has no guaranteed row order (CI caught this as a flaky test on the audit-log
+     *  endpoint; the same gap existed here) - default to newest-first when the caller didn't ask for
+     *  a specific sort. */
+    private static Pageable defaultSortNewestFirst(Pageable pageable) {
+        return PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(),
+                pageable.getSortOr(Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
     @Transactional

@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -75,6 +77,32 @@ public class LocalFileStorage implements FileStorage {
     @Override
     public byte[] download(String key) {
         return read(key);
+    }
+
+    @Override
+    public List<String> listKeysOlderThan(String prefix, Instant cutoff) {
+        Path dir = resolve(prefix);
+        if (!Files.isDirectory(dir)) {
+            return List.of();
+        }
+        try (Stream<Path> files = Files.walk(dir)) {
+            return files
+                    .filter(Files::isRegularFile)
+                    .filter(path -> !path.getFileName().toString().endsWith(".contenttype"))
+                    .filter(path -> isOlderThan(path, cutoff))
+                    .map(path -> root.relativize(path).toString().replace('\\', '/'))
+                    .toList();
+        } catch (IOException ex) {
+            throw new FileStorageException(ex);
+        }
+    }
+
+    private boolean isOlderThan(Path path, Instant cutoff) {
+        try {
+            return Files.getLastModifiedTime(path).toInstant().isBefore(cutoff);
+        } catch (IOException ex) {
+            return false;
+        }
     }
 
     boolean isSignatureValid(String key, long expiryEpochSeconds, String signature) {

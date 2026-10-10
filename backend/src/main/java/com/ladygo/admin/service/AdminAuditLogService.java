@@ -10,7 +10,9 @@ import com.ladygo.admin.web.dto.AdminAuditLogResponse;
 import com.ladygo.common.api.PageResponse;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +30,12 @@ public class AdminAuditLogService {
             UUID actorId, String action, String targetType, String targetId,
             Instant createdAfter, Instant createdBefore, Pageable pageable) {
         Specification<AuditLog> spec = specification(actorId, action, targetType, targetId, createdAfter, createdBefore);
-        Page<AuditLog> page = auditLogs.findAll(spec, pageable);
+        // An unsorted query has no guaranteed row order (CI caught this as a flaky test) - default to
+        // newest-first, the only sensible reading order for a log, when the caller didn't ask for one.
+        Pageable sorted = PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(),
+                pageable.getSortOr(Sort.by(Sort.Direction.DESC, "createdAt")));
+        Page<AuditLog> page = auditLogs.findAll(spec, sorted);
         return PageResponse.of(page.map(AdminAuditLogService::toResponse));
     }
 

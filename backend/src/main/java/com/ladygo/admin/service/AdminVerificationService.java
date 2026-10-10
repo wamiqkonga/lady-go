@@ -41,6 +41,7 @@ import com.ladygo.verification.repository.EligibilityReportRepository;
 import com.ladygo.verification.service.SelfDeclarationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,12 +68,13 @@ public class AdminVerificationService {
     private final ConfigurationService config;
     private final FileStorage fileStorage;
     private final UserRepository users;
+    private final TaskScheduler taskScheduler;
 
     public AdminVerificationService(
             DriverDocumentRepository documents, EligibilityReportRepository reports,
             AuditLogRepository auditLogs, DriverReverificationService reverificationService,
             DriverRepository drivers, VehicleRepository vehicles, SelfDeclarationService selfDeclarations,
-            ConfigurationService config, FileStorage fileStorage, UserRepository users) {
+            ConfigurationService config, FileStorage fileStorage, UserRepository users, TaskScheduler taskScheduler) {
         this.documents = documents;
         this.reports = reports;
         this.auditLogs = auditLogs;
@@ -83,6 +85,7 @@ public class AdminVerificationService {
         this.config = config;
         this.fileStorage = fileStorage;
         this.users = users;
+        this.taskScheduler = taskScheduler;
     }
 
     /**
@@ -114,7 +117,17 @@ public class AdminVerificationService {
         fileStorage.upload(derivativeKey, ImageWatermarker.asStream(watermarked), watermarked.length, "image/png");
 
         int ttlSeconds = config.getInt("verification.document.view_url.ttl.seconds", 60);
-        return fileStorage.presignedDownloadUrl(derivativeKey, Duration.ofSeconds(ttlSeconds));
+        URI url = fileStorage.presignedDownloadUrl(derivativeKey, Duration.ofSeconds(ttlSeconds));
+
+        // Security-review finding: a watermarked derivative still carries the same sensitive PII as
+        // the original (a face, a licence number) and was never recorded anywhere RetentionPurgeJob
+        // looks, so it would otherwise accumulate in storage forever with no purge path at all. The
+        // presigned URL is useless after its own TTL anyway, so delete the derivative shortly past
+        // that point rather than giving it an unbounded lifetime.
+        taskScheduler.schedule(
+                () -> fileStorage.delete(derivativeKey), Instant.now().plusSeconds(ttlSeconds + 5));
+
+        return url;
     }
 
     public PageResponse<DriverDocumentAdminResponse> listPendingDocuments(Pageable pageable) {

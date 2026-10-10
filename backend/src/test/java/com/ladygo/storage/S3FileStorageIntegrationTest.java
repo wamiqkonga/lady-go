@@ -10,6 +10,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.localstack.LocalStackContainer;
@@ -104,5 +105,19 @@ class S3FileStorageIntegrationTest {
                 HttpRequest.newBuilder(url).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
 
         assertThat(response.headers().firstValue("cache-control")).hasValue("no-store");
+    }
+
+    /** S3 objects carry their own real LastModified, so - unlike the local-storage test - there's no
+     *  need to fake file mtimes; a future cutoff makes a just-uploaded object count as "older", a past
+     *  cutoff excludes it, which is enough to prove the filtering logic without flaky real-time waits. */
+    @Test
+    void listKeysOlderThanFiltersByLastModified() {
+        storage.upload("driver-document-derivatives/k5",
+                new ByteArrayInputStream("x".getBytes(StandardCharsets.UTF_8)), 1, "image/png");
+
+        assertThat(storage.listKeysOlderThan("driver-document-derivatives/", Instant.now().plusSeconds(60)))
+                .contains("driver-document-derivatives/k5");
+        assertThat(storage.listKeysOlderThan("driver-document-derivatives/", Instant.now().minusSeconds(60)))
+                .doesNotContain("driver-document-derivatives/k5");
     }
 }

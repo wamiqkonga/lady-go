@@ -50,6 +50,10 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
         return configEntries.findByConfigKeyAndScopeAndCityIdIsNull(SEEDED_KEY, ConfigScope.GLOBAL).orElseThrow();
     }
 
+    private ConfigEntry seededEntry(String key) {
+        return configEntries.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL).orElseThrow();
+    }
+
     @Test
     void anAdminCanListConfig() throws Exception {
         UUID adminUserId = newUser(UserRole.ADMIN).getId();
@@ -109,6 +113,56 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("not-a-number"))))
                 .andExpect(status().isBadRequest());
+    }
+
+    /** The actual security-review finding: the old validator used {@code Long.parseLong}, so a value
+     *  between Integer.MAX_VALUE and Long.MAX_VALUE would have passed it, then thrown at read time -
+     *  the next time {@code ConfigurationService.getInt} (Integer.parseInt) read this key in
+     *  production. Narrowing the validator to Integer.parseInt closes that gap. */
+    @Test
+    void anIntegerValueThatFitsLongButOverflowsIntIsRejected() throws Exception {
+        ConfigEntry entry = seededEntry();
+        UUID superAdminId = newUser(UserRole.SUPER_ADMIN).getId();
+        String tooWideForInt = String.valueOf(Integer.MAX_VALUE + 1L);
+
+        mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
+                        .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest(tooWideForInt))))
+                .andExpect(status().isBadRequest());
+
+        assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue()).isEqualTo("5000");
+    }
+
+    /** A value far outside the pickup-radius gate's sane bound would effectively disable the
+     *  proximity gate (docs/api/ride-lifecycle.md's safety-review finding on this exact key) - the
+     *  bare type check alone (does it parse as an integer?) would have let this through. */
+    @Test
+    void anOutOfRangeValueForASafetyRelevantKeyIsRejected() throws Exception {
+        ConfigEntry entry = seededEntry("ride.gate.pickup_radius.m");
+        UUID superAdminId = newUser(UserRole.SUPER_ADMIN).getId();
+
+        mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
+                        .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("999999"))))
+                .andExpect(status().isBadRequest());
+
+        assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue()).isEqualTo("200");
+    }
+
+    @Test
+    void aValueWithinTheSafetyBoundIsAccepted() throws Exception {
+        ConfigEntry entry = seededEntry("ride.pin.max.attempts");
+        UUID superAdminId = newUser(UserRole.SUPER_ADMIN).getId();
+
+        mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
+                        .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("10"))))
+                .andExpect(status().isOk());
+
+        assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue()).isEqualTo("10");
     }
 
     @Test

@@ -7,7 +7,11 @@ import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.attribute.FileTime;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -63,6 +67,28 @@ class LocalFileStorageTest {
 
         assertThat(storage.isSignatureValid("a-different-key", Long.parseLong(params.get("exp")), params.get("sig")))
                 .isFalse();
+    }
+
+    /** The backstop sweep for an orphaned throwaway derivative (docs/product/admin-web-design.md
+     *  section 2's security fix) - must find a file older than the cutoff and leave a newer one alone. */
+    @Test
+    void listKeysOlderThanFindsOnlyFilesPastTheCutoff(@TempDir java.nio.file.Path dir) throws Exception {
+        LocalFileStorage storage = newStorage(dir);
+        storage.upload("driver-document-derivatives/old", new ByteArrayInputStream("x".getBytes(StandardCharsets.UTF_8)), 1, "image/png");
+        storage.upload("driver-document-derivatives/new", new ByteArrayInputStream("x".getBytes(StandardCharsets.UTF_8)), 1, "image/png");
+        Files.setLastModifiedTime(
+                dir.resolve("driver-document-derivatives/old"), FileTime.from(Instant.now().minus(Duration.ofDays(2))));
+
+        List<String> old = storage.listKeysOlderThan("driver-document-derivatives/", Instant.now().minus(Duration.ofDays(1)));
+
+        assertThat(old).containsExactly("driver-document-derivatives/old");
+    }
+
+    @Test
+    void listKeysOlderThanOnAMissingPrefixReturnsEmpty(@TempDir java.nio.file.Path dir) {
+        LocalFileStorage storage = newStorage(dir);
+
+        assertThat(storage.listKeysOlderThan("nothing-here/", Instant.now())).isEmpty();
     }
 
     @Test

@@ -20,9 +20,58 @@ import org.springframework.transaction.annotation.Transactional;
  * (open question 3, decided: acceptable cut for a single-founder-admin pilot - full audit trail of
  * old-&gt;new value substitutes for a rollback-by-version UI). SUPER_ADMIN-only on the write, per
  * instruction - read is open to any admin (ADMIN/SUPER_ADMIN), enforced at the controller.
+ *
+ * <p>Security-review finding (validator/consumer differential): the INTEGER check used to accept
+ * anything {@code Long.parseLong} would take, but {@link com.ladygo.config.ConfigurationService#getInt}
+ * - the actual reader for most of these keys - parses with {@code Integer.parseInt}. A value between
+ * {@code Integer.MAX_VALUE} and {@code Long.MAX_VALUE} would pass this validator and then throw at
+ * read time, in production, the next time that key was read. Narrowed to {@code Integer.parseInt} -
+ * every consumer (including the ones that go on to build a {@code Duration} from a wider {@code long})
+ * can represent anything that fits in an {@code int}, so this is the exact intersection of every actual
+ * caller's real parser, not a new, independently-chosen rule.
  */
 @Service
 public class AdminConfigService {
+
+    /** Safety-relevant keys only (location speed/age/rate, PIN attempts, cancel caps, radius, TTLs) -
+     *  not an attempt to bound every config key, which would just be arbitrary line-drawing for keys
+     *  with no safety story. A value outside these bounds cannot be saved even by SUPER_ADMIN; there is
+     *  no bypass, because the risk (disabling a protection, or breaking a consumer) is the same
+     *  regardless of who sets it. */
+    private static final Map<String, long[]> INTEGER_BOUNDS = Map.ofEntries(
+            Map.entry("driver.location.max_speed.kmh", new long[] {20, 300}),
+            Map.entry("driver.location.max_age.seconds", new long[] {5, 300}),
+            Map.entry("driver.location.max_future_skew.seconds", new long[] {1, 60}),
+            Map.entry("ride.gate.max_location_age.seconds", new long[] {5, 300}),
+            Map.entry("driver.location.rate.max.attempts", new long[] {1, 1000}),
+            Map.entry("driver.location.rate.window.seconds", new long[] {1, 3600}),
+            Map.entry("ride.pin.max.attempts", new long[] {1, 20}),
+            Map.entry("ride.pin.driver.max.attempts", new long[] {1, 20}),
+            Map.entry("ride.pin.lockout.window.minutes", new long[] {1, 1440}),
+            Map.entry("ride.pin.driver.window.minutes", new long[] {1, 1440}),
+            Map.entry("driver.eligibility_cancel.pair_cap.max", new long[] {1, 100}),
+            Map.entry("driver.eligibility_cancel.weekly_cap.max", new long[] {1, 100}),
+            Map.entry("rider.safety_cancel.pair_cap.max", new long[] {1, 100}),
+            Map.entry("rider.safety_cancel.weekly_cap.max", new long[] {1, 100}),
+            Map.entry("driver.search.radius.m", new long[] {100, 50_000}),
+            Map.entry("ride.gate.pickup_radius.m", new long[] {10, 5_000}),
+            Map.entry("ride.max.distance.m", new long[] {1_000, 200_000}),
+            Map.entry("booking.pickup.approximate.radius.m", new long[] {10, 5_000}),
+            Map.entry("ride.gate.max_accuracy_credit.m", new long[] {0, 1_000}),
+            Map.entry("trip_share.default_ttl.hours", new long[] {1, 168}),
+            Map.entry("trip_share.post_ride_grace.minutes", new long[] {0, 1440}),
+            Map.entry("trip_share.max_active_per_ride", new long[] {1, 20}),
+            Map.entry("verification.document.view_url.ttl.seconds", new long[] {10, 600}),
+            Map.entry("verification.rider_selfie.view_url.ttl.seconds", new long[] {10, 600}),
+            Map.entry("access.token.ttl.minutes", new long[] {1, 60}),
+            Map.entry("admin.access.token.ttl.minutes", new long[] {1, 60}),
+            Map.entry("refresh.token.ttl.days", new long[] {1, 90}),
+            Map.entry("otp.expiry.seconds", new long[] {30, 900}),
+            Map.entry("otp.max.attempts", new long[] {1, 20}),
+            Map.entry("admin.login.max.attempts", new long[] {1, 20}));
+
+    private static final Map<String, BigDecimal[]> DECIMAL_BOUNDS = Map.of(
+            "booking.fare.change.tolerance.pct", new BigDecimal[] {BigDecimal.ZERO, new BigDecimal("100")});
 
     private final ConfigEntryRepository entries;
     private final AuditLogRepository auditLogs;
@@ -39,7 +88,7 @@ public class AdminConfigService {
     @Transactional
     public AdminConfigEntryResponse update(UUID id, String newValue, UUID adminUserId, String adminRole, String ip) {
         ConfigEntry entry = entries.findById(id).orElseThrow(ResourceNotFoundException::new);
-        validateAgainstType(entry.getValueType(), newValue);
+        validate(entry.getConfigKey(), entry.getValueType(), newValue);
 
         String oldValue = entry.getConfigValue();
         entry.setConfigValue(newValue);
@@ -62,12 +111,13 @@ public class AdminConfigService {
     /** No switch-on-enum - ArchUnit bans {@code ordinal()} as a status/security-check foundation, and
      *  javac desugars an enum switch into exactly that (see {@code ArchitectureTest}). Plain
      *  {@code ==} comparisons instead, same as every other enum-dispatch in this codebase. */
-    private static void validateAgainstType(ConfigValueType type, String value) {
+    private static void validate(String key, ConfigValueType type, String value) {
         try {
             if (type == ConfigValueType.INTEGER) {
-                Long.parseLong(value);
+                long parsed = Integer.parseInt(value);
+                checkIntegerBounds(key, parsed);
             } else if (type == ConfigValueType.DECIMAL) {
-                new BigDecimal(value);
+                checkDecimalBounds(key, new BigDecimal(value));
             } else if (type == ConfigValueType.BOOLEAN
                     && !value.equalsIgnoreCase("true") && !value.equalsIgnoreCase("false")) {
                 throw new ValidationException("Value must be 'true' or 'false' for a BOOLEAN config entry.");
@@ -75,6 +125,22 @@ public class AdminConfigService {
             // STRING and JSON: no further validation - JSON structure isn't enforced here.
         } catch (NumberFormatException ex) {
             throw new ValidationException("Value is not a valid " + type + " for this config entry.");
+        }
+    }
+
+    private static void checkIntegerBounds(String key, long value) {
+        long[] bounds = INTEGER_BOUNDS.get(key);
+        if (bounds != null && (value < bounds[0] || value > bounds[1])) {
+            throw new ValidationException(
+                    "Value for " + key + " must be between " + bounds[0] + " and " + bounds[1] + ".");
+        }
+    }
+
+    private static void checkDecimalBounds(String key, BigDecimal value) {
+        BigDecimal[] bounds = DECIMAL_BOUNDS.get(key);
+        if (bounds != null && (value.compareTo(bounds[0]) < 0 || value.compareTo(bounds[1]) > 0)) {
+            throw new ValidationException(
+                    "Value for " + key + " must be between " + bounds[0] + " and " + bounds[1] + ".");
         }
     }
 
