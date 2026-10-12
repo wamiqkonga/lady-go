@@ -88,6 +88,7 @@ pilot (decided below) and that decision needs a concrete, written trigger — th
 | Real payment provider / `ONLINE` payment method (D2, D8) | Public launch | Currently rejected outright at booking creation (`PaymentMethodUnavailableException`) — the pilot is cash-only by design (see the pilot plan), not as a limitation discovered late. |
 | Background-verification process actually run on every driver (D5/D10) | Both — already a hard gate even for the pilot | Not a launch-scale question; a women-only safety platform cannot pilot with unverified drivers under any framing. |
 | `docs/security/auth-design.md` §15 backlog (table above) | Public launch, both items | Already tracked there with the same phase triggers; listed here only so "launch gates" is the one place that answers "are we ready yet." |
+| Admin-web production CSP header, specifically `frame-ancestors` (`docs/security/admin-web-csp.md`) | Pilot or public launch, whichever first exposes admin web outside a developer's own machine | The dev-server header and the build-time `<meta>` tag ship automatically with the code, but `frame-ancestors` cannot be expressed in a `<meta>` tag at all (CSP spec) - it only works as a real HTTP header, which has to be configured at whatever reverse proxy/CDN actually serves the built static files. Nothing in this repo can set it for a static host, so it is a deploy-time step, not a code gate. |
 
 ## Risk register
 See `docs/product/requirements.md` section 7.

@@ -245,6 +245,39 @@ class AdminAuthControllerIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    /** The {@code Referer} allow-list is the guard's third layer, validated only when the header is
+     *  present - this isolates it from the Origin check above by sending a VALID Origin and CSRF
+     *  header, differing only in Referer. */
+    @Test
+    void refreshWithAMismatchedRefererIsRejectedEvenWithAValidOriginAndCsrfHeader() throws Exception {
+        String[] creds = newEnrolledAdminAndLogin();
+        MvcResult loginResult = login(creds[0], creds[1], creds[2], creds[3]);
+        Cookie refreshCookie = loginResult.getResponse().getCookie(AdminAuthCookies.REFRESH_TOKEN);
+        Cookie csrfCookie = loginResult.getResponse().getCookie(AdminAuthCookies.CSRF_TOKEN);
+
+        mockMvc.perform(post("/api/v1/auth/admin/refresh")
+                        .header("Origin", ALLOWED_ORIGIN)
+                        .header("Referer", "https://attacker.example/evil")
+                        .header(AdminAuthCookies.CSRF_HEADER, csrfCookie.getValue())
+                        .cookie(refreshCookie, csrfCookie))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void refreshWithAMatchingRefererAlongsideAValidOriginSucceeds() throws Exception {
+        String[] creds = newEnrolledAdminAndLogin();
+        MvcResult loginResult = login(creds[0], creds[1], creds[2], creds[3]);
+        Cookie refreshCookie = loginResult.getResponse().getCookie(AdminAuthCookies.REFRESH_TOKEN);
+        Cookie csrfCookie = loginResult.getResponse().getCookie(AdminAuthCookies.CSRF_TOKEN);
+
+        mockMvc.perform(post("/api/v1/auth/admin/refresh")
+                        .header("Origin", ALLOWED_ORIGIN)
+                        .header("Referer", ALLOWED_ORIGIN + "/dashboard")
+                        .header(AdminAuthCookies.CSRF_HEADER, csrfCookie.getValue())
+                        .cookie(refreshCookie, csrfCookie))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void logoutClearsBothCookiesAndRevokesTheRefreshToken() throws Exception {
         String[] creds = newEnrolledAdminAndLogin();

@@ -56,7 +56,13 @@ public class SecurityConfig {
             HttpSecurity http, JsonSecurityErrorHandler errorHandler, JwtAuthenticationFilter jwtFilter)
             throws Exception {
         http
-                // Stateless token API (no cookies/sessions), so CSRF protection is not applicable.
+                // Spring's own CsrfFilter is for session-cookie-authenticated apps; the great majority
+                // of this API is stateless Bearer-token auth, immune to CSRF by construction (a
+                // cross-site request cannot forge an Authorization header), so that filter is disabled
+                // here. The two admin-web endpoints that DO rely on an ambient cookie
+                // (AdminAuthCookies.REFRESH_TOKEN, for /auth/admin/refresh and /auth/admin/logout) are
+                // instead protected by the purpose-built AdminCsrfGuard (double-submit token + Origin/
+                // Referer allow-list) called explicitly from AdminAuthController - not by this filter.
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
