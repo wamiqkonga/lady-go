@@ -21,6 +21,10 @@ const reviewBody = {
         id: 'doc-2', driverId: 'driver-123', type: 'INSURANCE', status: 'APPROVED', expiresAt: '2020-01-01',
         createdAt: '2026-01-01T00:00:00Z',
       },
+      {
+        id: 'doc-3', driverId: 'driver-123', type: 'VEHICLE_PHOTO', status: 'REJECTED',
+        reviewNote: '<img src=x onerror=alert(1)>blurry', createdAt: '2026-01-01T00:00:00Z',
+      },
     ],
     readyForApproval: false,
     missingRequirements: ['LICENSE not yet approved'],
@@ -54,6 +58,11 @@ describe('DriverReview', () => {
     expect(screen.getByText(/Asha Verma/)).toBeInTheDocument()
     expect(screen.getByText(/\*{6}4321/)).toBeInTheDocument()
     expect(screen.getByText(/expires 2020-01-01 \(expired\)/)).toBeInTheDocument()
+
+    // A rejection note is rendered as plain text, never interpreted as markup - React escapes text
+    // children by construction, so this proves no dangerouslySetInnerHTML (or similar) crept in.
+    expect(screen.getByText(/<img src=x onerror=alert\(1\)>blurry/)).toBeInTheDocument()
+    expect(document.querySelector('.review-note img')).toBeNull()
   })
 
   it('fetches a watermarked derivative URL and renders it only after "View" is clicked', async () => {
@@ -66,7 +75,7 @@ describe('DriverReview', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     renderReview()
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'View' })).toHaveLength(2))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'View' })).toHaveLength(3))
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getAllByRole('button', { name: 'View' })[0])

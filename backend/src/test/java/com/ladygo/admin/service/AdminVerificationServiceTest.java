@@ -162,6 +162,21 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         assertThat(auditLogs.findAll()).anySatisfy(entry -> assertThat(entry.getAction()).isEqualTo("DRIVER_DOCUMENT_REJECTED"));
     }
 
+    /** The reviewer's own note (why a document was rejected) must come back on the DTO so it's
+     *  actually visible to another admin reading the review page later - it was being written to the
+     *  database and then never read back anywhere. */
+    @Test
+    void theRejectionNoteIsReturnedOnTheDocumentResponse() {
+        Driver driver = newDriver(newCity());
+        DriverDocument document = pendingDocument(driver, DocumentType.LICENSE);
+
+        var rejected = service.rejectDocument(document.getId(), newAdminUserId(), "ADMIN", "blurry photo", "127.0.0.1");
+
+        assertThat(rejected.reviewNote()).isEqualTo("blurry photo");
+        var review = service.getDriverReview(driver.getId());
+        assertThat(review.documents()).anySatisfy(d -> assertThat(d.reviewNote()).isEqualTo("blurry photo"));
+    }
+
     @Test
     void resolvingAReportWritesAnAuditLogEntry() {
         City city = newCity();

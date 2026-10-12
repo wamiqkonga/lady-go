@@ -1757,6 +1757,7 @@ export interface components {
             id?: string;
             /** @enum {string} */
             reason?: "INITIAL" | "RANDOM_REVERIFICATION" | "REPORTED";
+            reviewNote?: string;
             /** @enum {string} */
             status?: "PENDING" | "APPROVED" | "REJECTED";
             /** @enum {string} */

@@ -9,5 +9,6 @@ import com.ladygo.drivers.domain.VerificationReason;
 
 public record DriverDocumentAdminResponse(
         UUID id, UUID driverId, String driverName, String driverPhoneMasked, DocumentType type,
-        DocumentStatus status, VerificationReason reason, LocalDate expiresAt, Instant createdAt) {
+        DocumentStatus status, VerificationReason reason, String reviewNote, LocalDate expiresAt,
+        Instant createdAt) {
 }

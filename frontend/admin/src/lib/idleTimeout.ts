@@ -5,7 +5,9 @@
  * only "idle timeout" as a requirement) - flagging it as a default worth confirming, same as the
  * other security-relevant defaults, rather than deciding it silently.
  */
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000
+// Overridable only for the Playwright E2E suite (frontend/admin/e2e), which cannot wait 15 real
+// minutes - never set in a normal dev/build env (.env.example has no entry for it on purpose).
+const IDLE_TIMEOUT_MS = Number(import.meta.env.VITE_E2E_IDLE_TIMEOUT_MS) || 15 * 60 * 1000
 const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'] as const
 
 export function startIdleTimeout(onIdle: () => void): () => void {

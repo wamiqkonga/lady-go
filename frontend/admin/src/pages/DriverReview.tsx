@@ -79,6 +79,11 @@ function DocumentRowView({ doc, onReviewed }: { doc: DocumentRow; onReviewed: ()
           <span className={expired ? 'badge-expired' : 'muted'}> · expires {doc.expiresAt}{expired ? ' (expired)' : ''}</span>
         )}
       </div>
+      {doc.reviewNote && (
+        // React escapes text children by construction - this is never dangerouslySetInnerHTML, so a
+        // reviewer's note containing markup (even hostile markup) renders as literal text, never runs.
+        <p className="muted review-note">Note: {doc.reviewNote}</p>
+      )}
       {doc.id && <DocumentViewer documentId={doc.id} />}
       {doc.status === 'PENDING' && (
         <div className="row-actions">

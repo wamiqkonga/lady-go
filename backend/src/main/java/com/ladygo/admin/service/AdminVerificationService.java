@@ -388,8 +388,8 @@ public class AdminVerificationService {
         String name = contact == null ? null : contact.name();
         String phoneMasked = contact == null ? null : contact.phoneMasked();
         return new DriverDocumentAdminResponse(document.getId(), document.getDriverId(), name, phoneMasked,
-                document.getType(), document.getStatus(), document.getReason(), document.getExpiresAt(),
-                document.getCreatedAt());
+                document.getType(), document.getStatus(), document.getReason(), document.getReviewNote(),
+                document.getExpiresAt(), document.getCreatedAt());
     }
 
     private static EligibilityReportAdminResponse toReportResponse(EligibilityReport report) {

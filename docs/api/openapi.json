@@ -1435,6 +1435,9 @@
             "enum" : [ "INITIAL", "RANDOM_REVERIFICATION", "REPORTED" ],
             "type" : "string"
           },
+          "reviewNote" : {
+            "type" : "string"
+          },
           "status" : {
             "enum" : [ "PENDING", "APPROVED", "REJECTED" ],
             "type" : "string"
