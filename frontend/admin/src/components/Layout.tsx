@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { useSession } from '../lib/sessionContext'
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -13,6 +14,7 @@ const nav = [
 ]
 
 export default function Layout() {
+  const { signOut } = useSession()
   return (
     <div className="admin-shell">
       <aside className="sidebar">
@@ -24,12 +26,11 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        <button type="button" className="sign-out" onClick={signOut}>
+          Sign out
+        </button>
       </aside>
       <div className="main">
-        <div className="banner" role="status">
-          Not signed in. Authentication and role checks are enforced by the backend and arrive in
-          Phase 3; this screen shows no real data.
-        </div>
         <main className="content">
           <Outlet />
         </main>
