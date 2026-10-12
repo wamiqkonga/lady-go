@@ -10,6 +10,10 @@ google-services.json
 GoogleService-Info.plist
 application-local.yml
 
+# scripts/dev-up.sh runtime state (pidfiles, logs, a generated throwaway seed image) - never secrets
+# themselves, which dev-up.sh only ever prints to the terminal, but still not repo content.
+.dev-stack/
+
 # OS / IDE
 .DS_Store
 .idea/
@@ -27,6 +31,7 @@ backend/build/
 node_modules/
 frontend/**/dist/
 frontend/**/coverage/
+frontend/admin/src/lib/api-types.fresh.ts
 
 # Android
 mobile/android-*/build/
