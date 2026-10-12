@@ -7,6 +7,8 @@ import com.ladygo.drivers.domain.DriverVerificationStatus;
 /** Everything an admin needs to decide on a driver, in one view (docs/api/driver-onboarding.md section 3). */
 public record DriverReviewSummaryResponse(
         UUID driverId,
+        String driverName,
+        String driverPhoneMasked,
         DriverVerificationStatus verificationStatus,
         boolean declarationAccepted,
         VehicleAdminResponse vehicle,

@@ -5,10 +5,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import com.ladygo.admin.domain.AuditLog;
 import com.ladygo.admin.repository.AuditLogRepository;
 import com.ladygo.admin.web.dto.DriverDocumentAdminResponse;
@@ -132,7 +136,9 @@ public class AdminVerificationService {
 
     public PageResponse<DriverDocumentAdminResponse> listPendingDocuments(Pageable pageable) {
         Page<DriverDocument> page = documents.findByStatusOrderByCreatedAtAsc(DocumentStatus.PENDING, pageable);
-        return PageResponse.of(page.map(AdminVerificationService::toDocumentResponse));
+        Map<UUID, DriverContact> contacts = driverContacts(
+                page.getContent().stream().map(DriverDocument::getDriverId).collect(Collectors.toSet()));
+        return PageResponse.of(page.map(d -> toDocumentResponse(d, contacts.get(d.getDriverId()))));
     }
 
     @Transactional
@@ -149,7 +155,7 @@ public class AdminVerificationService {
             reverificationService.clearOnApprovedSelfie(saved.getDriverId());
         }
         audit(adminUserId, adminRole, "DRIVER_DOCUMENT_APPROVED", "driver_documents", documentId, ip);
-        return toDocumentResponse(saved);
+        return toDocumentResponse(saved, driverContact(saved.getDriverId()));
     }
 
     @Transactional
@@ -166,7 +172,7 @@ public class AdminVerificationService {
         DriverDocument saved = documents.save(document);
 
         audit(adminUserId, adminRole, "DRIVER_DOCUMENT_REJECTED", "driver_documents", documentId, ip);
-        return toDocumentResponse(saved);
+        return toDocumentResponse(saved, driverContact(saved.getDriverId()));
     }
 
     public PageResponse<EligibilityReportAdminResponse> listOpenReports(Pageable pageable) {
@@ -206,19 +212,21 @@ public class AdminVerificationService {
         Vehicle vehicle = vehicles.findByDriverId(driverId).stream().findFirst().orElse(null);
         boolean declarationAccepted = selfDeclarations.hasAcceptedCurrentVersion(SubjectType.DRIVER, driverId);
 
+        DriverContact contact = driverContact(driverId);
         List<DriverDocumentAdminResponse> latestPerType = requiredTypes().stream()
                 .map(type -> documents.findFirstByDriverIdAndTypeOrderByCreatedAtDesc(driverId, type))
                 .filter(java.util.Optional::isPresent)
                 .map(java.util.Optional::get)
-                .map(AdminVerificationService::toDocumentResponse)
+                .map(d -> toDocumentResponse(d, contact))
                 .toList();
 
         List<String> missing = missingRequirements(driverId, vehicle, declarationAccepted);
         VehicleAdminResponse vehicleResponse = vehicle == null ? null : new VehicleAdminResponse(
                 vehicle.getId(), vehicle.getRegistrationNumber(), vehicle.getVehicleType(), vehicle.getVerificationStatus());
 
-        return new DriverReviewSummaryResponse(driverId, driver.getVerificationStatus(), declarationAccepted,
-                vehicleResponse, latestPerType, missing.isEmpty(), missing);
+        return new DriverReviewSummaryResponse(driverId, contact.name(), contact.phoneMasked(),
+                driver.getVerificationStatus(), declarationAccepted, vehicleResponse, latestPerType,
+                missing.isEmpty(), missing);
     }
 
     @Transactional
@@ -334,9 +342,54 @@ public class AdminVerificationService {
         auditLogs.save(entry);
     }
 
-    private static DriverDocumentAdminResponse toDocumentResponse(DriverDocument document) {
-        return new DriverDocumentAdminResponse(document.getId(), document.getDriverId(), document.getType(),
-                document.getStatus(), document.getReason(), document.getCreatedAt());
+    /** Batched driver-id -> (name, masked phone) lookup for a page of documents, avoiding one extra
+     *  round trip per row. */
+    private Map<UUID, DriverContact> driverContacts(Collection<UUID> driverIds) {
+        if (driverIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Driver> foundDrivers = drivers.findAllById(driverIds);
+        Map<UUID, UUID> driverIdToUserId = foundDrivers.stream()
+                .collect(Collectors.toMap(Driver::getId, Driver::getUserId));
+        Set<UUID> userIds = Set.copyOf(driverIdToUserId.values());
+        Map<UUID, User> usersById = users.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        Map<UUID, DriverContact> result = new HashMap<>();
+        for (UUID driverId : driverIds) {
+            User user = usersById.get(driverIdToUserId.get(driverId));
+            result.put(driverId, user == null
+                    ? new DriverContact(null, null)
+                    : new DriverContact(user.getName(), maskPhone(user.getPhone())));
+        }
+        return result;
+    }
+
+    private DriverContact driverContact(UUID driverId) {
+        return driverContacts(Set.of(driverId)).getOrDefault(driverId, new DriverContact(null, null));
+    }
+
+    /** Admins need enough of a phone number to tell drivers apart in a list, never the full number
+     *  (docs/product/admin-web-design.md security defaults - PII minimisation for a review-only UI). */
+    private static String maskPhone(String phone) {
+        if (phone == null || phone.isBlank()) {
+            return null;
+        }
+        if (phone.length() <= 4) {
+            return "*".repeat(phone.length());
+        }
+        return "*".repeat(phone.length() - 4) + phone.substring(phone.length() - 4);
+    }
+
+    private record DriverContact(String name, String phoneMasked) {
+    }
+
+    private static DriverDocumentAdminResponse toDocumentResponse(DriverDocument document, DriverContact contact) {
+        String name = contact == null ? null : contact.name();
+        String phoneMasked = contact == null ? null : contact.phoneMasked();
+        return new DriverDocumentAdminResponse(document.getId(), document.getDriverId(), name, phoneMasked,
+                document.getType(), document.getStatus(), document.getReason(), document.getExpiresAt(),
+                document.getCreatedAt());
     }
 
     private static EligibilityReportAdminResponse toReportResponse(EligibilityReport report) {

@@ -69,10 +69,15 @@ function DocumentRowView({ doc, onReviewed }: { doc: DocumentRow; onReviewed: ()
     }
   }
 
+  const expired = Boolean(doc.expiresAt) && new Date(doc.expiresAt!) < new Date()
+
   return (
     <li className="document-row">
       <div>
         <strong>{doc.type}</strong> <span className="muted">({doc.status})</span>
+        {doc.expiresAt && (
+          <span className={expired ? 'badge-expired' : 'muted'}> · expires {doc.expiresAt}{expired ? ' (expired)' : ''}</span>
+        )}
       </div>
       {doc.id && <DocumentViewer documentId={doc.id} />}
       {doc.status === 'PENDING' && (
@@ -155,7 +160,8 @@ export default function DriverReview() {
     <section>
       <h1>Driver review</h1>
       <p className="muted">
-        Driver {review.driverId} · {review.verificationStatus}
+        {review.driverName ?? review.driverId} {review.driverPhoneMasked ? `· ${review.driverPhoneMasked}` : ''} ·{' '}
+        {review.verificationStatus}
       </p>
 
       {review.vehicle && (

@@ -38,6 +38,33 @@ describe('DriverDocumentQueue', () => {
     expect(screen.getByRole('link', { name: /driver-1/ })).toHaveAttribute('href', '/driver-verification/driver-123')
   })
 
+  it('shows the driver name, masked phone, and flags an expired document', async () => {
+    mockFetch({
+      success: true,
+      data: {
+        content: [{
+          id: 'doc-1', driverId: 'driver-123', driverName: 'Asha Verma', driverPhoneMasked: '******4321',
+          type: 'INSURANCE', status: 'APPROVED', expiresAt: '2020-01-01', createdAt: '2026-01-01T00:00:00Z',
+        }],
+        page: 0,
+        size: 50,
+        totalElements: 1,
+        totalPages: 1,
+      },
+      error: null,
+    })
+
+    render(
+      <MemoryRouter>
+        <DriverDocumentQueue />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Asha Verma')).toBeInTheDocument())
+    expect(screen.getByText('******4321')).toBeInTheDocument()
+    expect(screen.getByText('expired')).toBeInTheDocument()
+  })
+
   it('shows an empty state when nothing is pending', async () => {
     mockFetch({ success: true, data: { content: [], page: 0, size: 50, totalElements: 0, totalPages: 0 }, error: null })
 

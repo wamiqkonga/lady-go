@@ -1749,6 +1749,10 @@ export interface components {
             createdAt?: string;
             /** Format: uuid */
             driverId?: string;
+            driverName?: string;
+            driverPhoneMasked?: string;
+            /** Format: date */
+            expiresAt?: string;
             /** Format: uuid */
             id?: string;
             /** @enum {string} */
@@ -1801,6 +1805,8 @@ export interface components {
             documents?: components["schemas"]["DriverDocumentAdminResponse"][];
             /** Format: uuid */
             driverId?: string;
+            driverName?: string;
+            driverPhoneMasked?: string;
             missingRequirements?: string[];
             readyForApproval?: boolean;
             vehicle?: components["schemas"]["VehicleAdminResponse"];

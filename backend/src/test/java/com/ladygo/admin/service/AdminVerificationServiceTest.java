@@ -97,6 +97,22 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         assertThat(page.content()).extracting("driverId").contains(driver.getId());
     }
 
+    /** The review queue previously only showed a raw driver id - no name or phone, so a reviewer
+     *  couldn't tell two pending drivers apart without opening each one. */
+    @Test
+    void listPendingDocumentsIncludesTheDriversNameAndAMaskedPhone() {
+        Driver driver = newDriver(newCity());
+        pendingDocument(driver, DocumentType.LICENSE);
+        String rawPhone = users.findById(driver.getUserId()).orElseThrow().getPhone();
+
+        var page = service.listPendingDocuments(PageRequest.of(0, 10));
+
+        var row = page.content().stream().filter(d -> d.driverId().equals(driver.getId())).findFirst().orElseThrow();
+        assertThat(row.driverName()).isEqualTo("Test DRIVER");
+        assertThat(row.driverPhoneMasked()).endsWith(rawPhone.substring(rawPhone.length() - 4));
+        assertThat(row.driverPhoneMasked()).doesNotContain(rawPhone.substring(0, rawPhone.length() - 4));
+    }
+
     @Test
     void approvingADocumentWritesAnAuditLogEntry() {
         Driver driver = newDriver(newCity());
@@ -306,9 +322,27 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         assertThat(review.missingRequirements()).anySatisfy(
                 m -> assertThat(m).contains("INSURANCE").contains("expired"));
 
+        // The expiry itself must be visible on the document row, not just buried in the missing-
+        // requirements string - the admin screen renders a per-document "expired" badge off this field.
+        var insuranceRow = review.documents().stream()
+                .filter(d -> d.type() == DocumentType.INSURANCE).findFirst().orElseThrow();
+        assertThat(insuranceRow.expiresAt()).isEqualTo(LocalDate.now().minusDays(1));
+
         assertThatThrownBy(() -> service.approveDriver(driver.getId(), adminId, "ADMIN", "127.0.0.1"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("expired");
+    }
+
+    @Test
+    void getDriverReviewIncludesTheDriversNameAndAMaskedPhone() {
+        Driver driver = newDriver(newCity());
+        String rawPhone = users.findById(driver.getUserId()).orElseThrow().getPhone();
+
+        var review = service.getDriverReview(driver.getId());
+
+        assertThat(review.driverName()).isEqualTo("Test DRIVER");
+        assertThat(review.driverPhoneMasked()).endsWith(rawPhone.substring(rawPhone.length() - 4));
+        assertThat(review.driverPhoneMasked()).doesNotContain(rawPhone.substring(0, rawPhone.length() - 4));
     }
 
     /** Records what was actually in force at approval time, since the config flag can be toggled

@@ -46,6 +46,8 @@ body { margin: 0; }
 .document-list { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
 .document-row { border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
 .document-preview { max-width: 320px; display: block; margin-top: 0.5rem; border-radius: 8px; }
+.badge-expired { color: #b3261e; font-weight: 600; }
+@media (prefers-color-scheme: dark) { .badge-expired { color: #ffb4a9; } }
 [role='alert'] { color: #b3261e; }
 @media (prefers-color-scheme: dark) { [role='alert'] { color: #ffb4a9; } }
 @media (max-width: 760px) {
