@@ -32,6 +32,9 @@ node_modules/
 frontend/**/dist/
 frontend/**/coverage/
 frontend/admin/src/lib/api-types.fresh.ts
+frontend/admin/playwright-report/
+frontend/admin/test-results/
+frontend/admin/e2e/.auth/
 
 # Android
 mobile/android-*/build/

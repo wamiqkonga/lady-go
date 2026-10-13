@@ -25,6 +25,16 @@ export function getAccessToken(): string | null {
   return accessToken
 }
 
+// E2E-only hook (VITE_E2E_EXPOSE_SESSION, never set in .env.example or any normal dev/build config -
+// see docs/development/admin-web-manual-test.md's E2E section) so the Playwright suite can issue a
+// directly-authenticated fetch for an endpoint with no UI yet (admin config), to prove the ADMIN-vs-
+// SUPER_ADMIN role gate from inside a real logged-in browser session rather than via a raw backend
+// curl call. Never exposes anything web-storage based - only this in-memory value, through a global
+// that plain application code never reads.
+if (import.meta.env.VITE_E2E_EXPOSE_SESSION) {
+  ;(window as unknown as { __ladygoAccessToken?: () => string | null }).__ladygoAccessToken = getAccessToken
+}
+
 export function onSessionChange(listener: (token: string | null) => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
@@ -91,19 +101,38 @@ export async function login(email: string, password: string, totpCode?: string):
   }
 }
 
+let bootstrapInFlight: Promise<boolean> | null = null
+
 /** Silent session restore on app load - the refresh cookie may still be valid even though the
  *  in-memory access token is gone (a reload always clears memory). Failure here just means "not
- *  logged in", not an error worth surfacing. */
+ *  logged in", not an error worth surfacing.
+ *
+ *  Coalesces concurrent callers onto one in-flight request. React StrictMode (dev only) double-
+ *  invokes mount effects, so SessionProvider's effect calling this on every mount fires it twice in
+ *  quick succession; the refresh token rotates on every use (RefreshTokenService.rotate), so without
+ *  this, the second call would present a cookie the first call already rotated out from under it,
+ *  get rejected, and overwrite the access token the first call just successfully set - silently
+ *  signing a just-restored session back out. Without coalescing this is a real race in any build,
+ *  not just dev (StrictMode only changes how often it's hit); two genuinely concurrent callers -
+ *  e.g. two tabs restoring at once - would hit the same rotation collision. */
 export async function bootstrapSession(): Promise<boolean> {
-  try {
-    const data = await postJson<{ accessToken: string }>('/api/v1/auth/admin/refresh', undefined, true)
-    setAccessToken(data.accessToken)
-    scheduleProactiveRefresh()
-    return true
-  } catch {
-    setAccessToken(null)
-    return false
+  if (bootstrapInFlight) {
+    return bootstrapInFlight
   }
+  bootstrapInFlight = (async () => {
+    try {
+      const data = await postJson<{ accessToken: string }>('/api/v1/auth/admin/refresh', undefined, true)
+      setAccessToken(data.accessToken)
+      scheduleProactiveRefresh()
+      return true
+    } catch {
+      setAccessToken(null)
+      return false
+    } finally {
+      bootstrapInFlight = null
+    }
+  })()
+  return bootstrapInFlight
 }
 
 export async function logout(): Promise<void> {

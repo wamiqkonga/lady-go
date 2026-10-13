@@ -1,0 +1,139 @@
+name: Admin web E2E
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ["backend/**", "frontend/admin/**", "scripts/ci/**", ".github/workflows/admin-web-e2e.yml"]
+  pull_request:
+    paths: ["backend/**", "frontend/admin/**", "scripts/ci/**", ".github/workflows/admin-web-e2e.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: ladygo
+          POSTGRES_USER: ladygo
+          POSTGRES_PASSWORD: ci_throwaway_password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ladygo -d ladygo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: ladygo
+      PGPASSWORD: ci_throwaway_password
+      PGDATABASE: ladygo
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ladygo
+      SPRING_DATASOURCE_USERNAME: ladygo
+      SPRING_DATASOURCE_PASSWORD: ci_throwaway_password
+      LADYGO_CORS_ALLOWED_ORIGINS: http://localhost:5174
+      LADYGO_BOOTSTRAP_ADMIN_EMAIL: e2e.super.admin@ladygo.test
+      LADYGO_BOOTSTRAP_ADMIN_PHONE: "+919900011122"
+      ADMIN_WEB_E2E_API_BASE_URL: http://localhost:8080
+      ADMIN_WEB_E2E_BASE_URL: http://localhost:5174
+      BACKEND_LOG: ${{ github.workspace }}/backend.log
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/admin/package-lock.json
+
+      - name: Generate throwaway secrets for this run only
+        run: |
+          {
+            echo "LADYGO_JWT_SECRET=$(openssl rand -base64 48)"
+            echo "LADYGO_OTP_HASH_SECRET=$(openssl rand -base64 48)"
+            echo "LADYGO_MFA_ENC_KEY=$(openssl rand -base64 24 | cut -c1-32)"
+            echo "LADYGO_RIDE_PIN_SECRET=$(openssl rand -base64 48)"
+            echo "LADYGO_LOCAL_STORAGE_SECRET=$(openssl rand -base64 48)"
+            echo "LADYGO_BOOTSTRAP_ADMIN_PASSWORD=$(openssl rand -base64 18)"
+          } >> "$GITHUB_ENV"
+
+      - name: Build the backend
+        working-directory: backend
+        run: mvn -q -B -DskipTests package
+
+      - name: Start the backend (dev profile)
+        working-directory: backend
+        run: |
+          nohup java -jar target/*.jar > "$BACKEND_LOG" 2>&1 &
+          echo $! > "$RUNNER_TEMP/backend.pid"
+          for _ in $(seq 1 120); do
+            grep -q "Started LadyGoApplication" "$BACKEND_LOG" && exit 0
+            grep -q "APPLICATION FAILED TO START" "$BACKEND_LOG" && { cat "$BACKEND_LOG"; exit 1; }
+            sleep 1
+          done
+          echo "Backend did not start within 120s"; cat "$BACKEND_LOG"; exit 1
+
+      - name: Seed SUPER_ADMIN, ADMIN, and two drivers
+        run: scripts/ci/e2e-seed.sh
+
+      - name: Install admin-web dependencies
+        working-directory: frontend/admin
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend/admin
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the admin web (dev server)
+        working-directory: frontend/admin
+        env:
+          VITE_API_BASE_URL: http://localhost:8080
+          VITE_E2E_IDLE_TIMEOUT_MS: "45000"
+          VITE_E2E_EXPOSE_SESSION: "true"
+        run: |
+          nohup npm run dev > "$RUNNER_TEMP/admin-web.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/admin-web.pid"
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:5174/ >/dev/null && exit 0
+            sleep 1
+          done
+          echo "admin web did not start within 60s"; cat "$RUNNER_TEMP/admin-web.log"; exit 1
+
+      - name: Run Playwright E2E suite
+        working-directory: frontend/admin
+        run: npx playwright test
+
+      - name: Upload Playwright report (traces, screenshots)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/admin/playwright-report/
+          retention-days: 14
+
+      - name: Upload backend/admin-web logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-logs
+          path: |
+            ${{ github.workspace }}/backend.log
+            ${{ runner.temp }}/admin-web.log
+          retention-days: 14
+
+      - name: Stop background services
+        if: always()
+        run: |
+          [ -f "$RUNNER_TEMP/admin-web.pid" ] && kill "$(cat "$RUNNER_TEMP/admin-web.pid")" 2>/dev/null || true
+          [ -f "$RUNNER_TEMP/backend.pid" ] && kill "$(cat "$RUNNER_TEMP/backend.pid")" 2>/dev/null || true
