@@ -1,16 +1,13 @@
 import { expect, type Page } from '@playwright/test'
-import { freshTotpCodeForLogin } from './env.js'
+import { currentTotpCode, type Credentials } from './env.js'
 
-export async function loginAs(
-  page: Page,
-  creds: { email: string; password: string; totpSecret: string },
-): Promise<void> {
+export async function loginAs(page: Page, creds: Credentials): Promise<void> {
   await page.goto('/login')
   await page.getByLabel('Email').fill(creds.email)
   await page.getByLabel('Password').fill(creds.password)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByLabel('Authenticator code')).toBeVisible()
-  await page.getByLabel('Authenticator code').fill(await freshTotpCodeForLogin(creds.totpSecret))
+  await page.getByLabel('Authenticator code').fill(currentTotpCode(creds.totpSecret))
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
 }

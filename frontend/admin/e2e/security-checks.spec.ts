@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { currentTotpCode, freshTotpCodeForLogin, readE2eEnv } from './env.js'
+import { currentTotpCode, readE2eEnv } from './env.js'
 import { loginAs } from './helpers.js'
 
 const env = readE2eEnv()
@@ -8,13 +8,14 @@ test.describe('negative security checks', () => {
   test.skip(!env, 'ADMIN_WEB_E2E_* env vars not set - see scripts/ci/e2e-seed.sh and the CI workflow')
 
   test('a wrong MFA code is rejected', async ({ page }) => {
+    const creds = env!.superAdmins.WRONGCODE
     await page.goto('/login')
-    await page.getByLabel('Email').fill(env!.superAdmin.email)
-    await page.getByLabel('Password').fill(env!.superAdmin.password)
+    await page.getByLabel('Email').fill(creds.email)
+    await page.getByLabel('Password').fill(creds.password)
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page.getByLabel('Authenticator code')).toBeVisible()
 
-    const realCode = currentTotpCode(env!.superAdmin.totpSecret)
+    const realCode = currentTotpCode(creds.totpSecret)
     const wrongCode = String((Number(realCode) + 1) % 1_000_000).padStart(6, '0')
     await page.getByLabel('Authenticator code').fill(wrongCode)
     await page.getByRole('button', { name: 'Sign in' }).click()
@@ -24,11 +25,12 @@ test.describe('negative security checks', () => {
   })
 
   test('a replayed MFA code is rejected on the second use', async ({ page, context }) => {
-    const code = await freshTotpCodeForLogin(env!.superAdmin.totpSecret)
+    const creds = env!.superAdmins.REPLAY
+    const code = currentTotpCode(creds.totpSecret)
 
     await page.goto('/login')
-    await page.getByLabel('Email').fill(env!.superAdmin.email)
-    await page.getByLabel('Password').fill(env!.superAdmin.password)
+    await page.getByLabel('Email').fill(creds.email)
+    await page.getByLabel('Password').fill(creds.password)
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.getByLabel('Authenticator code').fill(code)
     await page.getByRole('button', { name: 'Sign in' }).click()
@@ -38,8 +40,8 @@ test.describe('negative security checks', () => {
     // code must fail - TOTP replay rejection (AdminAuthService.updateMfaLastUsedStepIfNewer).
     const secondPage = await context.newPage()
     await secondPage.goto('/login')
-    await secondPage.getByLabel('Email').fill(env!.superAdmin.email)
-    await secondPage.getByLabel('Password').fill(env!.superAdmin.password)
+    await secondPage.getByLabel('Email').fill(creds.email)
+    await secondPage.getByLabel('Password').fill(creds.password)
     await secondPage.getByRole('button', { name: 'Sign in' }).click()
     await secondPage.getByLabel('Authenticator code').fill(code)
     await secondPage.getByRole('button', { name: 'Sign in' }).click()
@@ -49,7 +51,7 @@ test.describe('negative security checks', () => {
   })
 
   test('a document view URL expires and stops working', async ({ page, request }) => {
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.DOCEXPIRY)
     await page.goto(`/driver-verification/${env!.secondaryDriverId}`)
 
     const firstView = page.locator('li.document-row').first().getByRole('button', { name: 'View' })
@@ -67,7 +69,7 @@ test.describe('negative security checks', () => {
   })
 
   test('tampering with the driver id in the URL shows an error, not another driver\'s data', async ({ page }) => {
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.TAMPER)
     await page.goto(`/driver-verification/${env!.unknownDriverId}`)
 
     await expect(page.getByRole('alert')).toBeVisible()
@@ -78,7 +80,7 @@ test.describe('negative security checks', () => {
     page,
     context,
   }) => {
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.COOKIES)
     const cookies = await context.cookies()
     const refreshCookie = cookies.find((c) => c.name === 'ladygo_admin_rt')
     const csrfCookie = cookies.find((c) => c.name === 'ladygo_admin_csrf')
@@ -94,7 +96,7 @@ test.describe('negative security checks', () => {
   })
 
   test('no access or refresh token ever reaches localStorage or sessionStorage', async ({ page }) => {
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.NOSTORAGE)
     const storageDump = await page.evaluate(() => ({
       local: { ...localStorage },
       session: { ...sessionStorage },
@@ -106,7 +108,7 @@ test.describe('negative security checks', () => {
   })
 
   test('markup in a rejection reason renders as literal text, never as markup', async ({ page }) => {
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.MARKUP)
     await page.goto(`/driver-verification/${env!.secondaryDriverId}`)
 
     const pendingRow = page
@@ -151,7 +153,7 @@ test.describe('negative security checks', () => {
     expect(adminAttempt.status).toBe(403)
 
     await page.context().clearCookies()
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.ROLECHECK)
     const superAdminStatus = await page.evaluate(
       async ({ apiBaseUrl, entryId }: { apiBaseUrl: string; entryId: string }) => {
         const token = (window as unknown as { __ladygoAccessToken: () => string | null }).__ladygoAccessToken()

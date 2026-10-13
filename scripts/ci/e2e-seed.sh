@@ -4,17 +4,31 @@
 # calling this). Mirrors scripts/dev-up.sh's seeding logic but:
 #   - runs against a Postgres the workflow's `services:` block started (no Docker container of its
 #     own to manage), reached via the standard PG* env vars `psql` already understands.
-#   - also creates a second, plain-ADMIN staff account (dev-up.sh only ever bootstraps SUPER_ADMIN,
-#     the one role AdminBootstrapRunner can create) via pgcrypto's bcrypt, since there is no admin-
-#     creates-admin API endpoint and this is the only non-UI way to get one.
-#   - seeds TWO drivers, not one: ADMIN_WEB_E2E_DRIVER_ID is fully mutated (approved) by the happy-
-#     path spec, so the negative-checks spec gets its own, ADMIN_WEB_E2E_SECONDARY_DRIVER_ID, whose
-#     documents it never finishes approving - this is a test-isolation concern, not a security one.
+#   - creates every staff account (SUPER_ADMIN and ADMIN alike) directly via SQL + pgcrypto's bcrypt,
+#     not through AdminBootstrapRunner (which only ever creates one, the very first SUPER_ADMIN) or
+#     any admin-creates-admin API endpoint (there isn't one) - uniform for all of them, see "ONE
+#     TOTP-ENROLLED ACCOUNT PER REAL LOGIN" below for why there are this many.
+#   - seeds TWO drivers, not one: the primary driver is fully mutated (approved) by the happy-path
+#     spec, so the negative-checks spec gets its own secondary driver, whose documents it never
+#     finishes approving - this is a test-isolation concern, not a security one.
 #   - writes results as `NAME=value` lines to $GITHUB_ENV (masking secrets with ::add-mask:: first)
 #     rather than printing to a human's terminal - this runs on an ephemeral CI runner destroyed at
 #     job end, generating fresh random throwaway credentials every run, which is a different
 #     situation from scripts/dev-up.sh's rule (never write a developer's own long-lived secrets to a
 #     file) that this script does not violate.
+#
+# ONE TOTP-ENROLLED ACCOUNT PER REAL LOGIN (root-cause fix, not a workaround):
+# the suite used to share one SUPER_ADMIN account across every test and paper over TOTP's 30-second
+# replay window with a flat minimum-gap wait between logins. That still missed a real collision: MFA
+# *enrolment* (confirmMfaEnrollment) accepts a code and records its step via the same
+# updateMfaLastUsedStepIfNewer the login path uses, so the seed step's own enrolment-confirm call for
+# an account could land in the same 30s step as that account's first test login moments later -
+# correctly rejected by the backend as a replay, since from the server's point of view it is one.
+# Giving every real login its own dedicated, independently-enrolled account removes the shared TOTP
+# state entirely - there is no step for two logins to collide on, because no two real logins ever use
+# the same secret. The one deliberate exception is the replay test itself, which WANTS its own two
+# logins to collide (that's what it's testing) and gets its own account so nothing else interferes
+# with it.
 set -euo pipefail
 
 BASE="${ADMIN_WEB_E2E_API_BASE_URL:?set by the workflow}"
@@ -42,13 +56,28 @@ print(f"{code:06d}")
 PYEOF
 }
 
-enrol_mfa() {
-  local email="$1" password="$2"
-  local login1 enrolment_token secret confirm_code
+psql -v ON_ERROR_STOP=1 -q -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
+PHONE_COUNTER=0
+
+# Creates one staff account with the given role, logs in, enrols MFA, confirms it, and prints the
+# TOTP secret on stdout (the only thing the caller needs back - email/password are already known to
+# the caller since it chose them).
+create_and_enrol_account() {
+  local email="$1" password="$2" role="$3"
+  PHONE_COUNTER=$((PHONE_COUNTER + 1))
+  local phone
+  phone=$(printf '+9199%08d' "$PHONE_COUNTER")
+
+  psql -v ON_ERROR_STOP=1 -q <<SQL
+INSERT INTO users (email, phone, role, password_hash, must_change_password, mfa_enabled, status)
+VALUES ('$email', '$phone', '$role', crypt('$password', gen_salt('bf')), false, false, 'ACTIVE');
+SQL
+
+  local login1 enrolment_token secret confirm_code enroll
   login1=$(curl -sf -X POST "$BASE/api/v1/auth/admin/login" -H 'Content-Type: application/json' \
     -d "{\"email\":\"$email\",\"password\":\"$password\"}")
   enrolment_token=$(echo "$login1" | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['enrolmentToken'])")
-  local enroll
   enroll=$(curl -sf -X POST "$BASE/api/v1/auth/admin/mfa/enroll" -H "Authorization: Bearer $enrolment_token")
   secret=$(echo "$enroll" | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['secret'])")
   confirm_code=$(totp_code "$secret")
@@ -58,30 +87,30 @@ enrol_mfa() {
   echo "$secret"
 }
 
-echo "== SUPER_ADMIN: changing bootstrap password, then enrolling MFA =="
-SUPER_ADMIN_EMAIL="${LADYGO_BOOTSTRAP_ADMIN_EMAIL:?}"
-BOOTSTRAP_PASSWORD="${LADYGO_BOOTSTRAP_ADMIN_PASSWORD:?}"
-SUPER_ADMIN_PASSWORD=$(openssl rand -base64 18)
+echo "== Seeding one dedicated, independently-enrolled SUPER_ADMIN account per real test login =="
+# Keys match e2e/env.ts's SUPER_ADMIN_KEYS exactly - one per test that performs a real login, so no
+# two real logins anywhere in the suite ever share a TOTP secret (see the header comment above).
+SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK)
+for KEY in "${SUPER_ADMIN_KEYS[@]}"; do
+  EMAIL="e2e.super.$(echo "$KEY" | tr '[:upper:]' '[:lower:]')@ladygo.test"
+  PASSWORD=$(openssl rand -base64 18)
+  SECRET=$(create_and_enrol_account "$EMAIL" "$PASSWORD" "SUPER_ADMIN")
+  mask "$PASSWORD"
+  mask "$SECRET"
+  emit "ADMIN_WEB_E2E_SUPER_${KEY}_EMAIL" "$EMAIL"
+  emit "ADMIN_WEB_E2E_SUPER_${KEY}_PASSWORD" "$PASSWORD"
+  emit "ADMIN_WEB_E2E_SUPER_${KEY}_TOTP_SECRET" "$SECRET"
+done
 
-login1=$(curl -sf -X POST "$BASE/api/v1/auth/admin/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"$SUPER_ADMIN_EMAIL\",\"password\":\"$BOOTSTRAP_PASSWORD\"}")
-enrolment_token=$(echo "$login1" | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['enrolmentToken'])")
-curl -sf -X POST "$BASE/api/v1/auth/admin/password/change" \
-  -H "Authorization: Bearer $enrolment_token" -H 'Content-Type: application/json' \
-  -d "{\"currentPassword\":\"$BOOTSTRAP_PASSWORD\",\"newPassword\":\"$SUPER_ADMIN_PASSWORD\"}" >/dev/null
-
-SUPER_ADMIN_TOTP_SECRET=$(enrol_mfa "$SUPER_ADMIN_EMAIL" "$SUPER_ADMIN_PASSWORD")
-
-echo "== ADMIN (plain role, for the ADMIN-vs-SUPER_ADMIN check): creating directly via SQL =="
-ADMIN_EMAIL="e2e.admin@ladygo.test"
+echo "== Seeding a dedicated plain-ADMIN account for the ADMIN-vs-SUPER_ADMIN check =="
+ADMIN_EMAIL="e2e.admin.rolecheck@ladygo.test"
 ADMIN_PASSWORD=$(openssl rand -base64 18)
-ADMIN_PHONE="+919900033344"
-psql -v ON_ERROR_STOP=1 -q <<SQL
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-INSERT INTO users (email, phone, role, password_hash, must_change_password, mfa_enabled, status)
-VALUES ('$ADMIN_EMAIL', '$ADMIN_PHONE', 'ADMIN', crypt('$ADMIN_PASSWORD', gen_salt('bf')), false, false, 'ACTIVE');
-SQL
-ADMIN_TOTP_SECRET=$(enrol_mfa "$ADMIN_EMAIL" "$ADMIN_PASSWORD")
+ADMIN_TOTP_SECRET=$(create_and_enrol_account "$ADMIN_EMAIL" "$ADMIN_PASSWORD" "ADMIN")
+mask "$ADMIN_PASSWORD"
+mask "$ADMIN_TOTP_SECRET"
+emit ADMIN_WEB_E2E_ADMIN_EMAIL "$ADMIN_EMAIL"
+emit ADMIN_WEB_E2E_ADMIN_PASSWORD "$ADMIN_PASSWORD"
+emit ADMIN_WEB_E2E_ADMIN_TOTP_SECRET "$ADMIN_TOTP_SECRET"
 
 echo "== Shortening the document-view URL TTL for the expiry check =="
 psql -v ON_ERROR_STOP=1 -q -c \
@@ -90,13 +119,13 @@ psql -v ON_ERROR_STOP=1 -q -c \
 echo "== Raising the admin login rate limit for this suite =="
 # admin.login.max.attempts (default 5 per 15-minute window) is IP-scoped and, by design, never
 # released on failure (AdminAuthService.releaseLoginRateLimit's own comment explains why) - every
-# Playwright test in this suite originates from the same real IP, and between the two deliberate
-# wrong/replayed-MFA-code tests and ~6 successful logins, the suite comfortably exceeds 5 attempts.
-# This is a test-isolation accommodation, not a weakening of anything under test: the rate limiter
-# itself already has dedicated backend coverage (AdminAuthServiceIntegrationTest) that exercises the
-# real default.
+# Playwright test in this suite originates from the same real IP, and 14 accounts' worth of
+# enrolment logins plus every test's own login easily exceeds 5 attempts from that one IP. This is a
+# test-isolation accommodation, not a weakening of anything under test: the rate limiter itself
+# already has dedicated backend coverage (AdminAuthServiceIntegrationTest) that exercises the real
+# default.
 psql -v ON_ERROR_STOP=1 -q -c \
-  "UPDATE configuration SET value = '100' WHERE key = 'admin.login.max.attempts';"
+  "UPDATE configuration SET value = '200' WHERE key = 'admin.login.max.attempts';"
 
 echo "== Seeding one city =="
 psql -v ON_ERROR_STOP=1 -q -c "
@@ -159,22 +188,11 @@ seed_driver() {
 }
 
 echo "== Seeding the primary driver (mutated to APPROVED by the happy-path spec) =="
-DRIVER_ID=$(seed_driver "+919900022233" "JK01AB1234")
+DRIVER_ID=$(seed_driver "+919900077001" "JK01AB1234")
 echo "== Seeding the secondary driver (left PENDING for the negative-checks spec) =="
-SECONDARY_DRIVER_ID=$(seed_driver "+919900022255" "JK01CD5678")
-
-mask "$SUPER_ADMIN_PASSWORD"
-mask "$SUPER_ADMIN_TOTP_SECRET"
-mask "$ADMIN_PASSWORD"
-mask "$ADMIN_TOTP_SECRET"
+SECONDARY_DRIVER_ID=$(seed_driver "+919900077002" "JK01CD5678")
 
 emit ADMIN_WEB_E2E_API_BASE_URL "$BASE"
-emit ADMIN_WEB_E2E_SUPER_ADMIN_EMAIL "$SUPER_ADMIN_EMAIL"
-emit ADMIN_WEB_E2E_SUPER_ADMIN_PASSWORD "$SUPER_ADMIN_PASSWORD"
-emit ADMIN_WEB_E2E_SUPER_ADMIN_TOTP_SECRET "$SUPER_ADMIN_TOTP_SECRET"
-emit ADMIN_WEB_E2E_ADMIN_EMAIL "$ADMIN_EMAIL"
-emit ADMIN_WEB_E2E_ADMIN_PASSWORD "$ADMIN_PASSWORD"
-emit ADMIN_WEB_E2E_ADMIN_TOTP_SECRET "$ADMIN_TOTP_SECRET"
 emit ADMIN_WEB_E2E_DRIVER_ID "$DRIVER_ID"
 emit ADMIN_WEB_E2E_SECONDARY_DRIVER_ID "$SECONDARY_DRIVER_ID"
 

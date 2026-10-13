@@ -12,14 +12,16 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e',
-  // Several tests do a real login, and env.ts's freshTotpCodeForLogin enforces a 35s minimum gap
-  // between two real logins for the same account (TOTP replay avoidance) - the default 30s test
-  // timeout could get consumed entirely by that wait alone, aborting before the test's own
-  // assertions ever run.
-  timeout: 100_000,
+  // The idle-timeout test waits out a genuine 45s client-side timer (VITE_E2E_IDLE_TIMEOUT_MS) on
+  // top of its own setup - the default 30s would cut that off mid-wait.
+  timeout: 60_000,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // 0, unconditionally: every real login in this suite now uses its own dedicated, independently-
+  // enrolled account (see e2e/env.ts and scripts/ci/e2e-seed.sh), which removes the TOTP-replay
+  // collision a shared account could hit - there is no longer a known flake class for a retry to
+  // paper over, so a retry succeeding would misleadingly hide a real regression instead.
+  retries: 0,
   workers: 1,
   reporter: process.env.CI ? [['html', { outputFolder: 'playwright-report' }], ['github']] : 'list',
   use: {

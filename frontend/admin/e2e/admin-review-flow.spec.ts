@@ -8,12 +8,12 @@ test.describe('driver review flow', () => {
   test.skip(!env, 'ADMIN_WEB_E2E_* env vars not set - see scripts/ci/e2e-seed.sh and the CI workflow')
 
   test('logs in with MFA and reaches the dashboard', async ({ page }) => {
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.LOGIN)
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
   })
 
   test('the review queue lists the seeded driver pending documents', async ({ page }) => {
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.QUEUE)
     await page.getByRole('link', { name: 'Verification' }).click()
     // Every row for this driver's several documents links to the same driver id - any one of them
     // proves the queue lists it.
@@ -29,8 +29,8 @@ test.describe('driver review flow', () => {
     // behaviour (status flips, note renders as literal text) is covered separately by security-
     // checks.spec.ts's "markup in a rejection reason" test, against the secondary driver, which this
     // test never touches.
-    test.setTimeout(120_000)
-    await loginAs(page, env!.superAdmin)
+    test.setTimeout(60_000)
+    await loginAs(page, env!.superAdmins.REVIEW)
     await openDriverReview(page, env!.driverId)
 
     await expect(page.getByText('JK01AB1234')).toBeVisible()
@@ -63,8 +63,8 @@ test.describe('driver review flow', () => {
   })
 
   test('idle timeout signs the admin out automatically', async ({ page }) => {
-    test.setTimeout(140_000)
-    await loginAs(page, env!.superAdmin)
+    test.setTimeout(100_000)
+    await loginAs(page, env!.superAdmins.IDLE)
     // idleTimeout.ts's 15-minute default is overridden short for this whole suite (VITE_E2E_IDLE_
     // TIMEOUT_MS, set by the CI workflow) - a real 15-minute wait is not viable in CI. Set generously
     // above the other tests' own normal action-to-action gaps (network round trips to a real backend)
@@ -73,7 +73,7 @@ test.describe('driver review flow', () => {
   })
 
   test('sign out clears the session and blocks returning to a protected page', async ({ page }) => {
-    await loginAs(page, env!.superAdmin)
+    await loginAs(page, env!.superAdmins.SIGNOUT)
     await page.getByRole('button', { name: 'Sign out' }).click()
     await expect(page).toHaveURL(/\/login$/)
 
