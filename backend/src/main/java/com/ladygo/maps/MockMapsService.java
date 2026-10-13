@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Dev/test-only deterministic stand-in - no network call, same profile-gating pattern as
- * {@code MockSmsService} (docs/security/auth-design.md section 9). Straight-line distance plus an
+ * {@code LoggingSmsSender} (docs/security/auth-design.md section 9). Straight-line distance plus an
  * assumed average speed stands in for real road routing, which is good enough for deterministic
  * fare-calculation tests without needing real road data.
  */

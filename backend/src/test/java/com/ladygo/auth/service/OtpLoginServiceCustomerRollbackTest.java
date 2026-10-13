@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 
 import com.ladygo.auth.domain.OtpPurpose;
-import com.ladygo.auth.sms.MockSmsService;
+import com.ladygo.notifications.sms.LoggingSmsSender;
 import com.ladygo.customers.repository.CustomerRepository;
 import com.ladygo.testsupport.IntegrationTest;
 import com.ladygo.users.domain.UserRole;
@@ -42,7 +42,7 @@ class OtpLoginServiceCustomerRollbackTest {
     void customerRowCreationFailureRollsBackTheNewUserToo() {
         String phone = nextPhone();
         otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.CUSTOMER);
-        String code = MockSmsService.lastCodeFor(phone);
+        String code = LoggingSmsSender.lastCodeFor(phone);
 
         doThrow(new RuntimeException("simulated customer insert failure")).when(customers).save(any());
 

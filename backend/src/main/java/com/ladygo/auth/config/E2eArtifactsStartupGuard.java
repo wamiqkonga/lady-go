@@ -10,7 +10,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
- * Same defence-in-depth shape as {@code SmsStartupGuard}/{@code DevOnlyFlagsStartupGuard} (docs/
+ * Same defence-in-depth shape as {@code SmsSenderStartupGuard}/{@code DevOnlyFlagsStartupGuard} (docs/
  * security/auth-design.md section 9), for two things {@code scripts/ci/e2e-seed.sh} deliberately
  * leaves behind in whatever database it ran against: an admin login rate limit raised far above any
  * reasonable production value, and throwaway staff accounts. Both are safe in the CI job's own

@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import com.ladygo.auth.sms.MockSmsService;
+import com.ladygo.notifications.sms.LoggingSmsSender;
 import com.ladygo.bookings.service.RidePinService;
 import com.ladygo.locations.domain.City;
 import com.ladygo.pricing.domain.PricingRule;
@@ -127,7 +127,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"phone\":\"" + phone + "\",\"purpose\":\"LOGIN\",\"intendedRole\":\"" + role + "\"}"))
                 .andExpect(status().isOk());
-        String code = MockSmsService.lastCodeFor(phone);
+        String code = LoggingSmsSender.lastCodeFor(phone);
         String response = mockMvc.perform(post("/api/v1/auth/otp/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"phone\":\"" + phone + "\",\"code\":\"" + code

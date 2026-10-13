@@ -8,7 +8,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
- * Same defence-in-depth shape as {@code SmsStartupGuard} (docs/security/auth-design.md section 9),
+ * Same defence-in-depth shape as {@code SmsSenderStartupGuard} (docs/security/auth-design.md section 9),
  * for two dev/test-only convenience flags introduced in docs/api/ride-lifecycle.md section 13b: a
  * driver location update may skip the (otherwise mandatory) GPS accuracy field, and a reserved
  * Phase-8 payment-stub flag must never mark a payment succeeded for real. Turns a future

@@ -3,14 +3,17 @@ package com.ladygo.auth.service;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import com.ladygo.auth.domain.OtpPurpose;
 import com.ladygo.auth.domain.OtpRequest;
 import com.ladygo.auth.repository.OtpRequestRepository;
-import com.ladygo.auth.sms.SmsService;
 import com.ladygo.config.ConfigurationService;
+import com.ladygo.notifications.sms.SmsSender;
 import com.ladygo.security.crypto.OtpHasher;
 import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.security.ratelimit.RateLimiter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,11 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class OtpService {
 
+    private static final Logger log = LoggerFactory.getLogger(OtpService.class);
     private static final int CODE_DIGITS = 6;
 
     private final OtpRequestRepository otpRequests;
     private final OtpHasher otpHasher;
-    private final SmsService smsService;
+    private final SmsSender smsSender;
     private final RateLimiter rateLimiter;
     private final ConfigurationService config;
     private final SecureRandom random = new SecureRandom();
@@ -34,18 +38,27 @@ public class OtpService {
     public OtpService(
             OtpRequestRepository otpRequests,
             OtpHasher otpHasher,
-            SmsService smsService,
+            SmsSender smsSender,
             RateLimiter rateLimiter,
             ConfigurationService config) {
         this.otpRequests = otpRequests;
         this.otpHasher = otpHasher;
-        this.smsService = smsService;
+        this.smsSender = smsSender;
         this.rateLimiter = rateLimiter;
         this.config = config;
     }
 
+    /** Overload for callers with no client IP available (e.g. tests, internal callers) - the per-IP
+     *  send cap below is simply skipped, every other check still applies. */
     @Transactional
     public void requestOtp(String phone, OtpPurpose purpose) {
+        requestOtp(phone, purpose, null);
+    }
+
+    /** {@code ip}: the caller's resolved client IP (see {@code ClientIpResolver}), for the per-IP send
+     *  cap below - never trust a raw unresolved header here. */
+    @Transactional
+    public void requestOtp(String phone, OtpPurpose purpose, String ip) {
         String bucket = "otp_request:" + phone + ":" + purpose;
         int maxPerHour = config.getInt("otp.resend.max.per.hour", 5);
         if (!rateLimiter.tryConsume(bucket, maxPerHour, Duration.ofHours(1))) {
@@ -55,6 +68,7 @@ public class OtpService {
         if (!rateLimiter.tryConsume(bucket + ":cooldown", 1, cooldown)) {
             throw new RateLimitExceededException();
         }
+        checkSendCaps(phone, ip);
 
         Instant now = Instant.now();
         otpRequests.invalidateUnconsumed(phone, purpose.name(), now);
@@ -68,7 +82,35 @@ public class OtpService {
         entity.setExpiresAt(now.plus(expiry));
         otpRequests.save(entity);
 
-        smsService.sendOtp(phone, code, expiry);
+        smsSender.send(phone, "otp_code", Map.of(
+                "code", code, "validForMinutes", String.valueOf(Math.max(expiry.toMinutes(), 1))));
+    }
+
+    /** Separate from the per-phone/purpose resend limiter above, which bounds how often ONE number can
+     *  ask for a code at all - these three bound actual SMS *send volume* (and therefore cost): per
+     *  number, per IP, and a daily global cap across every number, each independently configurable
+     *  (docs/development/sms-provider-setup.md). Checked after the resend limiter (cheaper, more
+     *  specific checks first) but before the code is generated/saved, so a capped request never wastes
+     *  a DB write or a code slot it won't get to use. */
+    private void checkSendCaps(String phone, String ip) {
+        int maxPerNumber = config.getInt("sms.send.max_per_number.daily", 20);
+        if (!rateLimiter.tryConsume("sms_send:number:" + phone, maxPerNumber, Duration.ofDays(1))) {
+            throw new RateLimitExceededException();
+        }
+        if (ip != null && !ip.isBlank()) {
+            int maxPerIp = config.getInt("sms.send.max_per_ip.daily", 50);
+            if (!rateLimiter.tryConsume("sms_send:ip:" + ip, maxPerIp, Duration.ofDays(1))) {
+                throw new RateLimitExceededException();
+            }
+        }
+        int maxGlobal = config.getInt("sms.send.max_global.daily", 5000);
+        if (!rateLimiter.tryConsume("sms_send:global", maxGlobal, Duration.ofDays(1))) {
+            // No external alerting system exists yet (docs/development/sms-provider-setup.md) - this
+            // ERROR-level, grep-able line is the interim signal ops needs to notice a real outage/abuse
+            // scenario, same convention as every other operational log line in this codebase.
+            log.error("operation=sms_global_daily_cap_exceeded result=blocked alert=true max={}", maxGlobal);
+            throw new RateLimitExceededException();
+        }
     }
 
     /** Throws {@link OtpVerificationException} on any failure; never reveals which case applied. */

@@ -72,6 +72,27 @@ ladygo:
       directory: ${LADYGO_LOCAL_STORAGE_DIR:./target/local-storage}
       secret: ${LADYGO_LOCAL_STORAGE_SECRET:dev-only-insecure-local-storage-secret-CHANGE-ME-01234}
       base-url: ${LADYGO_LOCAL_STORAGE_BASE_URL:http://localhost:8080}
+  sms:
+    # HttpSmsSender isn't even wired as a bean in dev/test (LoggingSmsSender is - see its @Profile),
+    # so these blank defaults are never actually used there; staging/prod override every one with no
+    # default (application-staging.yml/application-prod.yml), so a missing LADYGO_SMS_* env var fails
+    # startup via Spring's own property resolution, and SmsSenderStartupGuard double-checks it.
+    http:
+      base-url: ${LADYGO_SMS_BASE_URL:}
+      auth-header-name: ${LADYGO_SMS_AUTH_HEADER_NAME:Authorization}
+      auth-header-value: ${LADYGO_SMS_AUTH_HEADER_VALUE:}
+      sender-id: ${LADYGO_SMS_SENDER_ID:}
+      dlt-template-id: ${LADYGO_SMS_DLT_TEMPLATE_ID:}
+      dlt-entity-id: ${LADYGO_SMS_DLT_ENTITY_ID:}
+      body-template: ${LADYGO_SMS_BODY_TEMPLATE:}
+      response-message-id-field: ${LADYGO_SMS_RESPONSE_MESSAGE_ID_FIELD:messageId}
+      response-error-code-field: ${LADYGO_SMS_RESPONSE_ERROR_CODE_FIELD:errorCode}
+      connect-timeout-ms: ${LADYGO_SMS_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${LADYGO_SMS_READ_TIMEOUT_MS:5000}
+      max-retries: ${LADYGO_SMS_MAX_RETRIES:2}
+      retry-base-delay-ms: ${LADYGO_SMS_RETRY_BASE_DELAY_MS:500}
+      circuit-breaker-failure-threshold: ${LADYGO_SMS_CIRCUIT_BREAKER_FAILURE_THRESHOLD:5}
+      circuit-breaker-cooldown-ms: ${LADYGO_SMS_CIRCUIT_BREAKER_COOLDOWN_MS:30000}
   security:
     # CIDR ranges of proxies/load balancers allowed to set X-Forwarded-For. Empty: nothing trusted by
     # default; set via LADYGO_SECURITY_TRUSTEDPROXIES_0, _1, ... or a profile-specific override when deployed

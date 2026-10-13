@@ -68,7 +68,10 @@ public class AdminConfigService {
             Map.entry("refresh.token.ttl.days", new long[] {1, 90}),
             Map.entry("otp.expiry.seconds", new long[] {30, 900}),
             Map.entry("otp.max.attempts", new long[] {1, 20}),
-            Map.entry("admin.login.max.attempts", new long[] {1, 20}));
+            Map.entry("admin.login.max.attempts", new long[] {1, 20}),
+            Map.entry("sms.send.max_per_number.daily", new long[] {1, 1_000}),
+            Map.entry("sms.send.max_per_ip.daily", new long[] {1, 5_000}),
+            Map.entry("sms.send.max_global.daily", new long[] {1, 1_000_000}));
 
     private static final Map<String, BigDecimal[]> DECIMAL_BOUNDS = Map.of(
             "booking.fare.change.tolerance.pct", new BigDecimal[] {BigDecimal.ZERO, new BigDecimal("100")});

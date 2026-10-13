@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 /**
  * Dev/test-only {@link FileStorage} - local filesystem, "presigned URL" is a short-lived HMAC-signed
  * path served by {@link LocalFileStorageController} (docs/api/driver-onboarding.md section 1), not a
- * real cloud mechanism. Same profile-gating pattern as {@code MockSmsService}/{@code MockMapsService}.
+ * real cloud mechanism. Same profile-gating pattern as {@code LoggingSmsSender}/{@code MockMapsService}.
  */
 @Component
 @Profile({"dev", "test"})

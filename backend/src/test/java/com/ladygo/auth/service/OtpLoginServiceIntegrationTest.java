@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.ladygo.auth.domain.OtpPurpose;
 import com.ladygo.auth.domain.OtpRequest;
 import com.ladygo.auth.repository.OtpRequestRepository;
-import com.ladygo.auth.sms.MockSmsService;
+import com.ladygo.notifications.sms.LoggingSmsSender;
 import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.customers.repository.CustomerRepository;
@@ -66,7 +66,7 @@ class OtpLoginServiceIntegrationTest {
     void phoneVerifyDoesNotIssueTokens() {
         String phone = nextPhone();
         otpLoginService.requestOtp(phone, OtpPurpose.PHONE_VERIFY, UserRole.CUSTOMER);
-        String code = MockSmsService.lastCodeFor(phone);
+        String code = LoggingSmsSender.lastCodeFor(phone);
 
         Optional<TokenPair> result = otpLoginService.verifyOtp(
                 phone, code, OtpPurpose.PHONE_VERIFY, UserRole.CUSTOMER, "device-1");
@@ -78,7 +78,7 @@ class OtpLoginServiceIntegrationTest {
     void loginIssuesTokensAndCreatesTheUserOnFirstSignIn() {
         String phone = nextPhone();
         otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER);
-        String code = MockSmsService.lastCodeFor(phone);
+        String code = LoggingSmsSender.lastCodeFor(phone);
 
         Optional<TokenPair> result = otpLoginService.verifyOtp(
                 phone, code, OtpPurpose.LOGIN, UserRole.DRIVER, "device-1");
@@ -92,7 +92,7 @@ class OtpLoginServiceIntegrationTest {
     void firstCustomerSignInAlsoCreatesTheCustomerRow() {
         String phone = nextPhone();
         otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.CUSTOMER);
-        String code = MockSmsService.lastCodeFor(phone);
+        String code = LoggingSmsSender.lastCodeFor(phone);
 
         otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.CUSTOMER, "device-1");
 
@@ -104,7 +104,7 @@ class OtpLoginServiceIntegrationTest {
     void firstDriverSignInDoesNotCreateACustomerRow() {
         String phone = nextPhone();
         otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER);
-        String code = MockSmsService.lastCodeFor(phone);
+        String code = LoggingSmsSender.lastCodeFor(phone);
 
         otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.DRIVER, "device-1");
 
@@ -117,7 +117,7 @@ class OtpLoginServiceIntegrationTest {
         String phone = nextPhone();
         // First sign-up as a DRIVER.
         otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER);
-        String firstCode = MockSmsService.lastCodeFor(phone);
+        String firstCode = LoggingSmsSender.lastCodeFor(phone);
         otpLoginService.verifyOtp(phone, firstCode, OtpPurpose.LOGIN, UserRole.DRIVER, "device-1");
 
         // Now the same phone tries to log in as a CUSTOMER (seeded directly: a real second requestOtp

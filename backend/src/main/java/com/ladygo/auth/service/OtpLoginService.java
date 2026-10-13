@@ -49,6 +49,13 @@ public class OtpLoginService {
         otpService.requestOtp(phone, purpose);
     }
 
+    /** The real entry point from {@code AuthController}, with the caller's resolved client IP for the
+     *  per-IP SMS send cap (see {@code OtpService#requestOtp(String, OtpPurpose, String)}). */
+    public void requestOtp(String phone, OtpPurpose purpose, UserRole intendedRole, String ip) {
+        requireCustomerOrDriver(intendedRole);
+        otpService.requestOtp(phone, purpose, ip);
+    }
+
     /**
      * Returns tokens for {@code LOGIN}; empty for {@code PHONE_VERIFY} (nothing to issue, the phone is
      * just marked verified). Throws {@link com.ladygo.auth.service.OtpVerificationException} on any
