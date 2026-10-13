@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { readE2eEnv } from './env.js'
+import { readE2eEnvOrThrowInCi } from './env.js'
 import { loginAs, openDriverReview } from './helpers.js'
 
-const env = readE2eEnv()
+const env = readE2eEnvOrThrowInCi()
 
 test.describe('driver review flow', () => {
   test.skip(!env, 'ADMIN_WEB_E2E_* env vars not set - see scripts/ci/e2e-seed.sh and the CI workflow')

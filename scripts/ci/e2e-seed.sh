@@ -58,32 +58,58 @@ PYEOF
 
 psql -v ON_ERROR_STOP=1 -q -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
 
-PHONE_COUNTER=0
+echo "== Raising the admin login rate limit before seeding any accounts =="
+# admin.login.max.attempts (default 5 per 15-minute window) is IP-scoped and, by design, never
+# released on failure (AdminAuthService.releaseLoginRateLimit's own comment explains why) - MUST
+# happen BEFORE the account-seeding loop below, not after: seeding itself calls /login once per
+# account (to get an enrolment token), all from this one CI runner's IP, and that IP bucket is never
+# released even on a successful enrolment login (only the email-scoped bucket is) - with the default
+# limit of 5, account #6 in the loop would already be rate-limited before a single test ever runs.
+# This is a test-isolation accommodation, not a weakening of anything under test: the rate limiter
+# itself already has dedicated backend coverage (AdminAuthServiceIntegrationTest) that exercises the
+# real default.
+psql -v ON_ERROR_STOP=1 -q -c \
+  "UPDATE configuration SET value = '200' WHERE key = 'admin.login.max.attempts';"
 
-# Creates one staff account with the given role, logs in, enrols MFA, confirms it, and prints the
-# TOTP secret on stdout (the only thing the caller needs back - email/password are already known to
-# the caller since it chose them).
+# Creates one staff account with the given role and phone, logs in, enrols MFA, confirms it, and
+# prints the TOTP secret on stdout (the only thing the caller needs back - email/password/phone are
+# already known to the caller since it chose them). `phone` is an explicit parameter, not a shared
+# counter incremented in here - this function is always invoked as `X=$(create_and_enrol_account ...)`,
+# a command substitution, which bash runs in a SUBSHELL; any variable this function modified would be
+# a copy, discarded the moment the subshell exits, invisible to the next call. A real bug this exact
+# mistake caused here once: every account got the SAME phone number, every INSERT after the first
+# failed on the unique constraint, and - because the failure was inside a command substitution nested
+# in this function - `set -e` at the top of this script did not reliably propagate out and abort the
+# run, so the script carried on and ultimately "succeeded" having created exactly one working account.
+# Every step below that can fail is followed by an explicit `|| { ...; exit 1; }` for the same reason:
+# do not rely on implicit set -e propagation through a command substitution to catch a real failure.
 create_and_enrol_account() {
-  local email="$1" password="$2" role="$3"
-  PHONE_COUNTER=$((PHONE_COUNTER + 1))
-  local phone
-  phone=$(printf '+9199%08d' "$PHONE_COUNTER")
+  local email="$1" password="$2" role="$3" phone="$4"
 
-  psql -v ON_ERROR_STOP=1 -q <<SQL
+  psql -v ON_ERROR_STOP=1 -q <<SQL || { echo "Failed to insert $email ($phone)" >&2; exit 1; }
 INSERT INTO users (email, phone, role, password_hash, must_change_password, mfa_enabled, status)
 VALUES ('$email', '$phone', '$role', crypt('$password', gen_salt('bf')), false, false, 'ACTIVE');
 SQL
 
   local login1 enrolment_token secret confirm_code enroll
   login1=$(curl -sf -X POST "$BASE/api/v1/auth/admin/login" -H 'Content-Type: application/json' \
-    -d "{\"email\":\"$email\",\"password\":\"$password\"}")
-  enrolment_token=$(echo "$login1" | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['enrolmentToken'])")
-  enroll=$(curl -sf -X POST "$BASE/api/v1/auth/admin/mfa/enroll" -H "Authorization: Bearer $enrolment_token")
-  secret=$(echo "$enroll" | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['secret'])")
+    -d "{\"email\":\"$email\",\"password\":\"$password\"}") \
+    || { echo "Login failed for $email" >&2; exit 1; }
+  enrolment_token=$(echo "$login1" | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['enrolmentToken'])") \
+    || { echo "No enrolmentToken in login response for $email: $login1" >&2; exit 1; }
+  enroll=$(curl -sf -X POST "$BASE/api/v1/auth/admin/mfa/enroll" -H "Authorization: Bearer $enrolment_token") \
+    || { echo "mfa/enroll failed for $email" >&2; exit 1; }
+  secret=$(echo "$enroll" | python3 -c "import json,sys;print(json.load(sys.stdin)['data']['secret'])") \
+    || { echo "No secret in mfa/enroll response for $email: $enroll" >&2; exit 1; }
   confirm_code=$(totp_code "$secret")
   curl -sf -X POST "$BASE/api/v1/auth/admin/mfa/enroll/confirm" \
     -H "Authorization: Bearer $enrolment_token" -H 'Content-Type: application/json' \
-    -d "{\"code\":\"$confirm_code\"}" >/dev/null
+    -d "{\"code\":\"$confirm_code\"}" >/dev/null \
+    || { echo "mfa/enroll/confirm failed for $email" >&2; exit 1; }
+  if [[ -z "$secret" ]]; then
+    echo "Empty TOTP secret for $email - refusing to continue silently." >&2
+    exit 1
+  fi
   echo "$secret"
 }
 
@@ -91,10 +117,16 @@ echo "== Seeding one dedicated, independently-enrolled SUPER_ADMIN account per r
 # Keys match e2e/env.ts's SUPER_ADMIN_KEYS exactly - one per test that performs a real login, so no
 # two real logins anywhere in the suite ever share a TOTP secret (see the header comment above).
 SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK)
-for KEY in "${SUPER_ADMIN_KEYS[@]}"; do
+for i in "${!SUPER_ADMIN_KEYS[@]}"; do
+  KEY="${SUPER_ADMIN_KEYS[$i]}"
   EMAIL="e2e.super.$(echo "$KEY" | tr '[:upper:]' '[:lower:]')@ladygo.test"
   PASSWORD=$(openssl rand -base64 18)
-  SECRET=$(create_and_enrol_account "$EMAIL" "$PASSWORD" "SUPER_ADMIN")
+  PHONE=$(printf '+9199%08d' "$((i + 1))")
+  SECRET=$(create_and_enrol_account "$EMAIL" "$PASSWORD" "SUPER_ADMIN" "$PHONE")
+  if [[ -z "$SECRET" ]]; then
+    echo "Seeding $KEY produced an empty TOTP secret - aborting rather than emitting a broken credential." >&2
+    exit 1
+  fi
   mask "$PASSWORD"
   mask "$SECRET"
   emit "ADMIN_WEB_E2E_SUPER_${KEY}_EMAIL" "$EMAIL"
@@ -105,9 +137,33 @@ done
 echo "== Seeding a dedicated plain-ADMIN account for the ADMIN-vs-SUPER_ADMIN check =="
 ADMIN_EMAIL="e2e.admin.rolecheck@ladygo.test"
 ADMIN_PASSWORD=$(openssl rand -base64 18)
-ADMIN_TOTP_SECRET=$(create_and_enrol_account "$ADMIN_EMAIL" "$ADMIN_PASSWORD" "ADMIN")
+ADMIN_PHONE=$(printf '+9199%08d' "$((${#SUPER_ADMIN_KEYS[@]} + 1))")
+ADMIN_TOTP_SECRET=$(create_and_enrol_account "$ADMIN_EMAIL" "$ADMIN_PASSWORD" "ADMIN" "$ADMIN_PHONE")
+if [[ -z "$ADMIN_TOTP_SECRET" ]]; then
+  echo "Seeding the ADMIN role-check account produced an empty TOTP secret - aborting." >&2
+  exit 1
+fi
 mask "$ADMIN_PASSWORD"
 mask "$ADMIN_TOTP_SECRET"
+
+echo "== Waiting for a fresh TOTP window before any test can log in =="
+# Per-account isolation (above) removes collisions BETWEEN accounts, but not within one: each
+# account's own MFA enrolment-confirm call just now consumed a TOTP step the same way a login does
+# (confirmMfaEnrollment uses the same updateMfaLastUsedStepIfNewer login() does) - if that account's
+# one real test login happens to run in the SAME 30s step as its own enrolment moments ago, the
+# backend correctly rejects it as a replay. A single bounded wait here, paid once for the whole seed
+# step rather than once per login, guarantees every account's enrolment step is strictly in the past
+# by the time ANY test's login can run - there is no longer a step for an account to collide with
+# itself on either. Worst case ~30s, typically much less; the driver-seeding work below adds further
+# buffer on top for free.
+python3 -c "
+import time
+step_seconds = 30
+now = time.time()
+remaining = step_seconds - (now % step_seconds)
+time.sleep(remaining + 1)
+"
+
 emit ADMIN_WEB_E2E_ADMIN_EMAIL "$ADMIN_EMAIL"
 emit ADMIN_WEB_E2E_ADMIN_PASSWORD "$ADMIN_PASSWORD"
 emit ADMIN_WEB_E2E_ADMIN_TOTP_SECRET "$ADMIN_TOTP_SECRET"
@@ -115,17 +171,6 @@ emit ADMIN_WEB_E2E_ADMIN_TOTP_SECRET "$ADMIN_TOTP_SECRET"
 echo "== Shortening the document-view URL TTL for the expiry check =="
 psql -v ON_ERROR_STOP=1 -q -c \
   "UPDATE configuration SET value = '3' WHERE key = 'verification.document.view_url.ttl.seconds';"
-
-echo "== Raising the admin login rate limit for this suite =="
-# admin.login.max.attempts (default 5 per 15-minute window) is IP-scoped and, by design, never
-# released on failure (AdminAuthService.releaseLoginRateLimit's own comment explains why) - every
-# Playwright test in this suite originates from the same real IP, and 14 accounts' worth of
-# enrolment logins plus every test's own login easily exceeds 5 attempts from that one IP. This is a
-# test-isolation accommodation, not a weakening of anything under test: the rate limiter itself
-# already has dedicated backend coverage (AdminAuthServiceIntegrationTest) that exercises the real
-# default.
-psql -v ON_ERROR_STOP=1 -q -c \
-  "UPDATE configuration SET value = '200' WHERE key = 'admin.login.max.attempts';"
 
 echo "== Seeding one city =="
 psql -v ON_ERROR_STOP=1 -q -c "

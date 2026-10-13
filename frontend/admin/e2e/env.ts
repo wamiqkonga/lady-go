@@ -96,6 +96,31 @@ export function readE2eEnv(): E2eEnv | null {
   }
 }
 
+/**
+ * Same as readE2eEnv(), except in CI (process.env.CI is set by every CI runner, including GitHub
+ * Actions) a missing/empty required var throws instead of returning null. Every spec file uses this,
+ * not readE2eEnv() directly - test.skip(!env, ...) on a null env makes the whole suite report as
+ * "13 skipped" with an overall PASSING exit code, which is exactly how a real seed-step bug (see
+ * scripts/ci/e2e-seed.sh's header comment for the one that actually happened) went unnoticed as a
+ * false green for two separate CI runs before being caught by manually reading the job's test-count
+ * summary rather than trusting its pass/fail status. Locally, with no CI env var set, a missing
+ * credential still degrades to a graceful skip (so `npx playwright test` without the full seed setup
+ * doesn't fail confusingly) - only CI is held to "every required credential must be present, or the
+ * run is a hard failure, never a quiet skip."
+ */
+export function readE2eEnvOrThrowInCi(): E2eEnv | null {
+  const env = readE2eEnv()
+  if (env) return env
+  if (!process.env.CI) return null
+
+  const allRequired = [...REQUIRED_BASE, ...SUPER_ADMIN_KEYS.flatMap(requiredVarsForKey)]
+  const missing = allRequired.filter((key) => !process.env[key])
+  throw new Error(
+    `ADMIN_WEB_E2E_* env vars missing in CI (seed step must have failed without the job itself ` +
+      `failing - see scripts/ci/e2e-seed.sh): ${missing.join(', ')}`,
+  )
+}
+
 /** otplib v13's defaults (SHA-1, 6 digits, 30s period) match TotpService on the backend. Safe to call
  *  directly with no waiting or gap-tracking - every real login in this suite uses its own dedicated
  *  account (see SUPER_ADMIN_KEYS above), so no two real logins ever share a secret and there is no
