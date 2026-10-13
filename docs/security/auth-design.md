@@ -126,6 +126,13 @@ Buckets: OTP resend (per phone+purpose), admin login (per email **and** per IP โ
 
 ## 9. SMS provider abstraction + mock
 
+**Superseded by `docs/development/sms-provider-setup.md`.** This section is the original Phase 3 design
+(kept for history); the actual interface that shipped is `SmsSender` (`send(toE164, templateKey,
+variables)`, not `SmsService.sendOtp`), with `LoggingSmsSender` replacing `MockSmsService` and
+`SmsSenderStartupGuard` replacing the one-off startup check described below. The generic HTTP adapter,
+retry/circuit-breaker reliability, and per-number/per-IP/global send caps described in the new doc did
+not exist when this section was written.
+
 Per `docs/architecture/backend-architecture.md` ยง7 (`NotificationChannel` SPI family):
 
 ```java
