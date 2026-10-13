@@ -23,7 +23,20 @@ public final class AdminAuthCookies {
     static final String CSRF_TOKEN = "ladygo_admin_csrf";
     /** Public - {@code SecurityConfig}'s CORS allow-list (a different package) needs the exact name. */
     public static final String CSRF_HEADER = "X-CSRF-Token";
-    private static final String COOKIE_PATH = "/api/v1/auth/admin";
+    /** HttpOnly refresh cookie only - narrowly scoped since it's never read by JS, only ever attached
+     *  by the browser to requests whose own target path matches (unaffected by which admin-web page
+     *  the request originates from). */
+    private static final String REFRESH_COOKIE_PATH = "/api/v1/auth/admin";
+    /** The CSRF cookie MUST be "/" - a cookie's Path attribute also gates whether {@code document.
+     *  cookie} can see it at all, matched against the CURRENT PAGE's path, not the request's. Admin-
+     *  web's own pages (/dashboard, /driver-verification/..., ...) never live under /api/v1/auth/
+     *  admin, so scoping this cookie the same as the refresh cookie (an earlier version of this file
+     *  did) made it permanently invisible to admin-web's own JS from any real page - readCsrfCookie()
+     *  in auth.ts would always return null outside the brief window right after the page that issued
+     *  the Set-Cookie itself, breaking the silent session-restore on every reload (a real bug this
+     *  exact mistake caused, only visible via a real browser - MockMvc-based backend tests construct
+     *  the cookie+header directly and never exercise document.cookie's path matching at all). */
+    private static final String CSRF_COOKIE_PATH = "/";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private AdminAuthCookies() {
@@ -40,7 +53,7 @@ public final class AdminAuthCookies {
                 .httpOnly(true)
                 .secure(true)
                 .sameSite("Strict")
-                .path(COOKIE_PATH)
+                .path(REFRESH_COOKIE_PATH)
                 .maxAge(maxAge)
                 .build();
     }
@@ -50,18 +63,18 @@ public final class AdminAuthCookies {
                 .httpOnly(false)
                 .secure(true)
                 .sameSite("Strict")
-                .path(COOKIE_PATH)
+                .path(CSRF_COOKIE_PATH)
                 .maxAge(maxAge)
                 .build();
     }
 
     static ResponseCookie clearedRefreshTokenCookie() {
         return ResponseCookie.from(REFRESH_TOKEN, "").httpOnly(true).secure(true)
-                .sameSite("Strict").path(COOKIE_PATH).maxAge(Duration.ZERO).build();
+                .sameSite("Strict").path(REFRESH_COOKIE_PATH).maxAge(Duration.ZERO).build();
     }
 
     static ResponseCookie clearedCsrfTokenCookie() {
         return ResponseCookie.from(CSRF_TOKEN, "").httpOnly(false).secure(true)
-                .sameSite("Strict").path(COOKIE_PATH).maxAge(Duration.ZERO).build();
+                .sameSite("Strict").path(CSRF_COOKIE_PATH).maxAge(Duration.ZERO).build();
     }
 }

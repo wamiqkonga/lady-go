@@ -164,6 +164,15 @@ class AdminAuthControllerIntegrationTest {
         assertThat(refreshCookie.getSecure()).isTrue();
         assertThat(csrfCookie).isNotNull();
         assertThat(csrfCookie.isHttpOnly()).isFalse();
+        // A real bug this exact assertion would have caught: a cookie's Path attribute gates whether
+        // document.cookie can see it at all from a given page, matched against the PAGE's path, not
+        // just the request path - admin-web's own pages (/dashboard, /driver-verification/...) never
+        // live under /api/v1/auth/admin, so scoping the JS-readable CSRF cookie that narrowly (the
+        // refresh cookie's own correct scope) made it permanently invisible to admin-web's own JS
+        // from any real page, breaking silent session restore on every reload. Only a real browser
+        // (not MockMvc, which attaches cookies/headers directly) can exercise this.
+        assertThat(csrfCookie.getPath()).isEqualTo("/");
+        assertThat(refreshCookie.getPath()).isEqualTo("/api/v1/auth/admin");
     }
 
     @Test
