@@ -183,3 +183,38 @@ more than one admin user.
    or should it be its own nav item after all?
 
 Stop here for approval before any code.
+
+## 9. Screens 3-5 — decisions actually built (resolves §8's open questions 1-3)
+
+Built directly off the explicit instruction that superseded the open questions above, rather than
+waiting on them further:
+
+- **Open question 1, resolved yes**: `RideFlag` gained `adminReviewedAt`/`adminReviewedBy` (already
+  existed) plus a new `adminReviewNote` column (`V26`). Review now *requires* a non-blank note
+  (`AdminRideFlagReviewRequest`), stored and written into the same `AuditLog` row
+  (`RIDE_FLAG_REVIEWED`) - an unreviewed-vs-reviewed flags list was not enough on its own; the
+  instruction asks for *why* a flag was closed, not just that it was.
+- **Open question 2, unchanged**: ride detail stays read-only. It now additionally surfaces masked
+  customer/driver contacts (`AdminPersonRefResponse` - name + last-4-digits phone, same masking
+  convention as the existing driver-document screen), `cashConfirmedAt`/`cashDisputedAt`, and the
+  `BookingEvent` timeline (`AdminBookingEventResponse`). Pickup address is included by routing through
+  `BookingVisibilityPolicy.isVisible(ADMIN, status, PICKUP_ADDRESS_EXACT)` rather than hardcoding it -
+  that policy currently grants `ADMIN` every field in every status, so the visible behaviour is
+  unchanged, but a future tightening of the policy now automatically reaches this screen instead of
+  needing a second, separately-maintained "admin sees everything" rule here. Rider live location and
+  trip-share tokens are never read onto any admin DTO - there is no field for them to flow through.
+- **Open question 3, resolved yes**: config stays immediate-overwrite with no versioning. Added:
+  `minValue`/`maxValue` on `AdminConfigEntryResponse`, sourced from `AdminConfigService`'s existing
+  `INTEGER_BOUNDS`/`DECIMAL_BOUNDS` tables (not a new, separately-maintained bound - the same bound the
+  write path already enforces), and a required `reason` on every write, audited alongside old/new
+  value. SUPER_ADMIN-only write was already true; the frontend additionally removes the edit control
+  entirely for a plain ADMIN (cosmetic only - `@PreAuthorize("hasRole('SUPER_ADMIN')")` on the
+  controller remains the actual enforcement).
+- **§7's "no role-based UI hiding is needed for the pilot" is superseded** for these three screens
+  specifically: config write is now ADMIN-vs-SUPER_ADMIN-visible, so the frontend hides what a role
+  cannot do. This does not change screens 1-2 (still single-role pilot auth as written).
+- **Audit-log screen (§5)**: backend was already complete and unaffected by this round of changes.
+  Confirmed by re-reading every `AuditLog`/`BookingEvent` `metadata` write site in the codebase
+  end-to-end: none ever puts a secret, token, OTP, or full phone number into a `metadata` map (fee/
+  currency, config old/new value + reason, flag type + note, boolean flags only) - the "never render
+  one of those" requirement holds structurally, not just because the viewer renders text-only.
