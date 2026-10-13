@@ -35,5 +35,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      - name: Check production CSP has no unsafe-inline/unsafe-eval/third-party sources
+        if: matrix.app == 'admin'
+        run: npm run csp:check
       - name: Dependency audit
         run: npm audit --audit-level=high

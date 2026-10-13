@@ -12,6 +12,7 @@
     "typecheck": "tsc -b",
     "openapi:generate": "openapi-typescript ../../docs/api/openapi.json -o src/lib/api-types.ts",
     "openapi:check": "node scripts/check-openapi-types.mjs",
+    "csp:check": "node scripts/check-production-csp.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {
