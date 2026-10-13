@@ -258,9 +258,8 @@ echo "== Seeding a completed cash ride with one open flag (ride/flag oversight s
 # complete, cash-confirm) belongs to rides/service's own test suite, not this seed step.
 RIDE_CUSTOMER_PHONE="+919900077003"
 psql -v ON_ERROR_STOP=1 -q -c "
-INSERT INTO users (email, phone, role, password_hash, must_change_password, mfa_enabled, status)
-VALUES ('e2e.ride.customer@ladygo.test', '$RIDE_CUSTOMER_PHONE', 'CUSTOMER',
-  crypt('$(openssl rand -base64 18)', gen_salt('bf')), false, false, 'ACTIVE');
+INSERT INTO users (email, phone, role, mfa_enabled, status)
+VALUES ('e2e.ride.customer@ladygo.test', '$RIDE_CUSTOMER_PHONE', 'CUSTOMER', false, 'ACTIVE');
 INSERT INTO customers (user_id, default_city_id)
 SELECT id, '$CITY_ID' FROM users WHERE phone = '$RIDE_CUSTOMER_PHONE';
 " || { echo "Failed to seed the ride-oversight fixture customer" >&2; exit 1; }
