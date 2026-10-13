@@ -13,6 +13,8 @@ public record AdminRideFlagResponse(
         UUID rideId,
         UUID customerId,
         UUID driverId,
+        AdminPersonRefResponse customer,
+        AdminPersonRefResponse driver,
         RideFlagType type,
         ActorType raisedBy,
         Integer distanceFromExpectedM,
@@ -21,5 +23,6 @@ public record AdminRideFlagResponse(
         Instant riderRespondedAt,
         UUID adminReviewedBy,
         Instant adminReviewedAt,
+        String adminReviewNote,
         Instant createdAt) {
 }

@@ -4,15 +4,15 @@
  */
 
 export interface paths {
-    "/api/v1/admin/audit-logs": {
+    "/api/v1/drivers/me/vehicle": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["list_1"];
-        put?: never;
+        get: operations["getVehicle"];
+        put: operations["upsertVehicle"];
         post?: never;
         delete?: never;
         options?: never;
@@ -20,17 +20,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/config": {
+    "/api/v1/drivers/me/availability": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
-        put?: never;
+        get?: never;
+        put: operations["setAvailability"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getProfile"];
+        put: operations["updateProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/me/saved-locations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateSavedLocation"];
+        post?: never;
+        delete: operations["deleteSavedLocation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/me/emergency-contacts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateEmergencyContact"];
+        post?: never;
+        delete: operations["deleteEmergencyContact"];
         options?: never;
         head?: never;
         patch?: never;
@@ -52,23 +100,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/driver-documents": {
+    "/api/v1/drivers/me": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["listPendingDocuments"];
+        get: operations["getProfile_1"];
         put?: never;
-        post?: never;
+        post: operations["bootstrapProfile"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/driver-documents/{id}/approve": {
+    "/api/v1/drivers/me/selfie": {
         parameters: {
             query?: never;
             header?: never;
@@ -77,14 +125,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approveDocument"];
+        post: operations["uploadSelfie"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/driver-documents/{id}/reject": {
+    "/api/v1/drivers/me/rides/{id}/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -93,30 +141,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["rejectDocument"];
+        post: operations["start"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/driver-documents/{id}/view": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["viewDocument"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/drivers/{id}/approve": {
+    "/api/v1/drivers/me/rides/{id}/end-early": {
         parameters: {
             query?: never;
             header?: never;
@@ -125,14 +157,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approveDriver"];
+        post: operations["endEarly"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/drivers/{id}/reject": {
+    "/api/v1/drivers/me/rides/{id}/confirm-cash-collected": {
         parameters: {
             query?: never;
             header?: never;
@@ -141,30 +173,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["rejectDriver"];
+        post: operations["confirmCashCollected"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/drivers/{id}/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getDriverReview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/drivers/{id}/trigger-reverification": {
+    "/api/v1/drivers/me/rides/{id}/complete": {
         parameters: {
             query?: never;
             header?: never;
@@ -173,30 +189,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["triggerRandomReverification"];
+        post: operations["complete"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/eligibility-reports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listOpenReports"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/eligibility-reports/{id}/resolve": {
+    "/api/v1/drivers/me/rides/{id}/arriving": {
         parameters: {
             query?: never;
             header?: never;
@@ -205,30 +205,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["resolveReport"];
+        post: operations["arriving"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/ride-flags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listFlags"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/ride-flags/{id}/review": {
+    "/api/v1/drivers/me/rides/{id}/arrived": {
         parameters: {
             query?: never;
             header?: never;
@@ -237,46 +221,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["reviewFlag"];
+        post: operations["arrived"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/rides": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listRides"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/rides/{bookingId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getRide"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/users/{id}/mfa/reset": {
+    "/api/v1/drivers/me/offers/{id}/reject": {
         parameters: {
             query?: never;
             header?: never;
@@ -285,14 +237,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["resetMfa"];
+        post: operations["reject"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/vehicles/{id}/approve": {
+    "/api/v1/drivers/me/offers/{id}/accept": {
         parameters: {
             query?: never;
             header?: never;
@@ -301,14 +253,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["approveVehicle"];
+        post: operations["accept"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/vehicles/{id}/reject": {
+    "/api/v1/drivers/me/location": {
         parameters: {
             query?: never;
             header?: never;
@@ -317,14 +269,30 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["rejectVehicle"];
+        post: operations["updateLocation"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/admin/login": {
+    "/api/v1/drivers/me/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listDocuments"];
+        put?: never;
+        post: operations["uploadDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/me/declaration": {
         parameters: {
             query?: never;
             header?: never;
@@ -333,14 +301,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["login"];
+        post: operations["acceptDeclaration"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/admin/logout": {
+    "/api/v1/drivers/me/bookings/{id}/cancel-eligibility-concern": {
         parameters: {
             query?: never;
             header?: never;
@@ -349,14 +317,30 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["logout_1"];
+        post: operations["cancelForEligibilityConcern"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/admin/mfa/enroll": {
+    "/api/v1/customers/me/saved-locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listSavedLocations"];
+        put?: never;
+        post: operations["createSavedLocation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/me/ride-selfies": {
         parameters: {
             query?: never;
             header?: never;
@@ -365,14 +349,30 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["startMfaEnrollment"];
+        post: operations["captureRideSelfie"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/admin/mfa/enroll/confirm": {
+    "/api/v1/customers/me/emergency-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listEmergencyContacts"];
+        put?: never;
+        post: operations["createEmergencyContact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/me/declaration": {
         parameters: {
             query?: never;
             header?: never;
@@ -381,103 +381,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirmMfaEnrollment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/admin/password/change": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["changePassword"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/admin/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["refresh_1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["logout"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/otp/request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["requestOtp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/otp/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["verifyOtp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["refresh"];
+        post: operations["acceptDeclaration_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -500,7 +404,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/estimate": {
+    "/api/v1/bookings/{id}/trip-shares": {
         parameters: {
             query?: never;
             header?: never;
@@ -509,23 +413,119 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["estimate"];
+        post: operations["createTripShare"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}": {
+    "/api/v1/bookings/{id}/ride-flags/{flagId}/respond": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["get_1"];
+        get?: never;
         put?: never;
-        post?: never;
+        post: operations["respondToFlag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/estimate-destination-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["estimateDestinationChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/end-early": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["endEarly_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/eligibility-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reportEligibilityConcern"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/dispute-cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["disputeCash"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/confirm-arrival": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmArrival"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/change-destination": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changeDestination"];
         delete?: never;
         options?: never;
         head?: never;
@@ -564,7 +564,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/change-destination": {
+    "/api/v1/bookings/estimate": {
         parameters: {
             query?: never;
             header?: never;
@@ -573,14 +573,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["changeDestination"];
+        post: operations["estimate"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/confirm-arrival": {
+    "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
             header?: never;
@@ -589,14 +589,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirmArrival"];
+        post: operations["refresh"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/dispute-cash": {
+    "/api/v1/auth/otp/verify": {
         parameters: {
             query?: never;
             header?: never;
@@ -605,14 +605,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["disputeCash"];
+        post: operations["verifyOtp"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/eligibility-report": {
+    "/api/v1/auth/otp/request": {
         parameters: {
             query?: never;
             header?: never;
@@ -621,14 +621,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["reportEligibilityConcern"];
+        post: operations["requestOtp"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/end-early": {
+    "/api/v1/auth/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -637,14 +637,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["endEarly_1"];
+        post: operations["logout"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/estimate-destination-change": {
+    "/api/v1/auth/admin/refresh": {
         parameters: {
             query?: never;
             header?: never;
@@ -653,14 +653,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["estimateDestinationChange"];
+        post: operations["refresh_1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/ride-flags/{flagId}/respond": {
+    "/api/v1/auth/admin/password/change": {
         parameters: {
             query?: never;
             header?: never;
@@ -669,14 +669,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["respondToFlag"];
+        post: operations["changePassword"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/trip-shares": {
+    "/api/v1/auth/admin/mfa/enroll": {
         parameters: {
             query?: never;
             header?: never;
@@ -685,14 +685,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["createTripShare"];
+        post: operations["startMfaEnrollment"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/bookings/{id}/trip-shares/{shareId}": {
+    "/api/v1/auth/admin/mfa/enroll/confirm": {
         parameters: {
             query?: never;
             header?: never;
@@ -701,30 +701,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
-        delete: operations["revokeTripShare"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/customers/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getProfile"];
-        put: operations["updateProfile"];
-        post?: never;
+        post: operations["confirmMfaEnrollment"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/customers/me/declaration": {
+    "/api/v1/auth/admin/logout": {
         parameters: {
             query?: never;
             header?: never;
@@ -733,46 +717,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["acceptDeclaration_1"];
+        post: operations["logout_1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/customers/me/emergency-contacts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listEmergencyContacts"];
-        put?: never;
-        post: operations["createEmergencyContact"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/customers/me/emergency-contacts/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["updateEmergencyContact"];
-        post?: never;
-        delete: operations["deleteEmergencyContact"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/customers/me/ride-selfies": {
+    "/api/v1/auth/admin/login": {
         parameters: {
             query?: never;
             header?: never;
@@ -781,110 +733,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["captureRideSelfie"];
+        post: operations["login"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/customers/me/rides": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["rideHistory"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/customers/me/saved-locations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listSavedLocations"];
-        put?: never;
-        post: operations["createSavedLocation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/customers/me/saved-locations/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["updateSavedLocation"];
-        post?: never;
-        delete: operations["deleteSavedLocation"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getProfile_1"];
-        put?: never;
-        post: operations["bootstrapProfile"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me/availability": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["setAvailability"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me/bookings/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me/bookings/{id}/cancel-eligibility-concern": {
+    "/api/v1/admin/vehicles/{id}/reject": {
         parameters: {
             query?: never;
             header?: never;
@@ -893,30 +749,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["cancelForEligibilityConcern"];
+        post: operations["rejectVehicle"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/bookings/{id}/rider-selfie": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["riderSelfie"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me/declaration": {
+    "/api/v1/admin/vehicles/{id}/approve": {
         parameters: {
             query?: never;
             header?: never;
@@ -925,30 +765,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["acceptDeclaration"];
+        post: operations["approveVehicle"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/documents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listDocuments"];
-        put?: never;
-        post: operations["uploadDocument"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me/location": {
+    "/api/v1/admin/users/{id}/mfa/reset": {
         parameters: {
             query?: never;
             header?: never;
@@ -957,30 +781,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["updateLocation"];
+        post: operations["resetMfa"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/offers/current": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["currentOffer"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me/offers/{id}/accept": {
+    "/api/v1/admin/ride-flags/{id}/review": {
         parameters: {
             query?: never;
             header?: never;
@@ -989,14 +797,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["accept"];
+        post: operations["reviewFlag"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/offers/{id}/reject": {
+    "/api/v1/admin/eligibility-reports/{id}/resolve": {
         parameters: {
             query?: never;
             header?: never;
@@ -1005,14 +813,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["reject"];
+        post: operations["resolveReport"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/rides/{id}/arrived": {
+    "/api/v1/admin/drivers/{id}/trigger-reverification": {
         parameters: {
             query?: never;
             header?: never;
@@ -1021,14 +829,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["arrived"];
+        post: operations["triggerRandomReverification"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/rides/{id}/arriving": {
+    "/api/v1/admin/drivers/{id}/reject": {
         parameters: {
             query?: never;
             header?: never;
@@ -1037,14 +845,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["arriving"];
+        post: operations["rejectDriver"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/rides/{id}/complete": {
+    "/api/v1/admin/drivers/{id}/approve": {
         parameters: {
             query?: never;
             header?: never;
@@ -1053,14 +861,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["complete"];
+        post: operations["approveDriver"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/rides/{id}/confirm-cash-collected": {
+    "/api/v1/admin/driver-documents/{id}/reject": {
         parameters: {
             query?: never;
             header?: never;
@@ -1069,14 +877,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["confirmCashCollected"];
+        post: operations["rejectDocument"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/rides/{id}/end-early": {
+    "/api/v1/admin/driver-documents/{id}/approve": {
         parameters: {
             query?: never;
             header?: never;
@@ -1085,69 +893,21 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["endEarly"];
+        post: operations["approveDocument"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/rides/{id}/start": {
+    "/internal/files": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        post: operations["start"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me/selfie": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["uploadSelfie"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/drivers/me/vehicle": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getVehicle"];
-        put: operations["upsertVehicle"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/system/ping": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ping"];
+        get: operations["serve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1172,17 +932,257 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/internal/files": {
+    "/api/v1/system/ping": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["serve"];
+        get: operations["ping"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/me/offers/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["currentOffer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/me/bookings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/me/bookings/{id}/rider-selfie": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["riderSelfie"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/me/rides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["rideHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/rides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listRides"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/rides/{bookingId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getRide"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ride-flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/eligibility-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listOpenReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDriverReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/driver-documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPendingDocuments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/driver-documents/{id}/view": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["viewDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/trip-shares/{shareId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeTripShare"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1192,627 +1192,249 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        AdminAccessTokenResponse: {
-            accessToken?: string;
-        };
-        AdminAuditLogResponse: {
-            action?: string;
-            /** Format: uuid */
-            actorId?: string;
-            actorRole?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: uuid */
-            id?: string;
-            ip?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            targetId?: string;
-            targetType?: string;
-        };
-        AdminConfigEntryResponse: {
-            /** Format: uuid */
-            cityId?: string;
-            configKey?: string;
-            configValue?: string;
-            description?: string;
-            /** Format: uuid */
-            id?: string;
+        VehicleRequest: {
+            registrationNumber: string;
             /** @enum {string} */
-            scope?: "GLOBAL" | "CITY";
-            /** Format: date-time */
-            updatedAt?: string;
-            /** Format: uuid */
-            updatedBy?: string;
-            /** @enum {string} */
-            valueType?: "STRING" | "INTEGER" | "DECIMAL" | "BOOLEAN" | "JSON";
-        };
-        AdminConfigUpdateRequest: {
-            value: string;
-        };
-        AdminLoginRequest: {
-            deviceId?: string;
-            /** Format: email */
-            email: string;
-            password: string;
-            totpCode?: string;
-        };
-        AdminPasswordChangeRequest: {
-            currentPassword: string;
-            newPassword: string;
-        };
-        AdminRideDetailResponse: {
-            /** Format: uuid */
-            bookingId?: string;
-            /** @enum {string} */
-            bookingStatus?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
-            cancelReason?: string;
-            /** @enum {string} */
-            cancelledBy?: "CUSTOMER" | "DRIVER" | "ADMIN" | "SYSTEM";
-            /** Format: date-time */
-            completedAt?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: uuid */
-            customerId?: string;
-            /** Format: uuid */
-            driverId?: string;
-            /** Format: int64 */
-            estimatedFare?: number;
-            /** Format: int64 */
-            finalFare?: number;
-            flags?: components["schemas"]["AdminRideFlagResponse"][];
-            /** @enum {string} */
-            paymentMethod?: "CASH" | "ONLINE";
-            /** Format: uuid */
-            rideId?: string;
-            /** @enum {string} */
-            rideStatus?: "ASSIGNED" | "STARTED" | "COMPLETED" | "CANCELLED";
-            /** Format: date-time */
-            startedAt?: string;
-        };
-        AdminRideFlagResponse: {
-            /** Format: date-time */
-            adminReviewedAt?: string;
-            /** Format: uuid */
-            adminReviewedBy?: string;
-            /** Format: uuid */
-            bookingId?: string;
-            capExceeded?: boolean;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: uuid */
-            customerId?: string;
+            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            make?: string;
+            model?: string;
+            color?: string;
             /** Format: int32 */
-            distanceFromExpectedM?: number;
-            /** Format: uuid */
-            driverId?: string;
-            /** Format: uuid */
-            id?: string;
-            /** @enum {string} */
-            raisedBy?: "CUSTOMER" | "DRIVER" | "ADMIN" | "SYSTEM";
-            /** Format: uuid */
-            rideId?: string;
-            /** Format: date-time */
-            riderRespondedAt?: string;
-            /** @enum {string} */
-            riderResponse?: "ACKNOWLEDGED" | "DISPUTED";
-            /** @enum {string} */
-            type?: "EARLY_END" | "COMPLETION_FAR_FROM_DESTINATION" | "PIN_LOCKOUT" | "CASH_DISPUTE" | "RIDER_SAFETY_CANCEL" | "RIDER_CONFIRMED_ARRIVAL";
-        };
-        AdminRideSummaryResponse: {
-            /** Format: uuid */
-            bookingId?: string;
-            /** @enum {string} */
-            bookingStatus?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: uuid */
-            customerId?: string;
-            /** Format: uuid */
-            driverId?: string;
-            /** Format: int64 */
-            estimatedFare?: number;
-            /** Format: int64 */
-            finalFare?: number;
-            /** Format: int64 */
-            openFlagCount?: number;
-            /** Format: uuid */
-            rideId?: string;
-            /** @enum {string} */
-            rideStatus?: "ASSIGNED" | "STARTED" | "COMPLETED" | "CANCELLED";
+            manufactureYear?: number;
         };
         ApiError: {
             code?: string;
-            details?: components["schemas"]["FieldViolation"][];
             message?: string;
+            details?: components["schemas"]["FieldViolation"][];
             requestId?: string;
         };
-        ApiResponseAdminAccessTokenResponse: {
-            data?: components["schemas"]["AdminAccessTokenResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseAdminConfigEntryResponse: {
-            data?: components["schemas"]["AdminConfigEntryResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseAdminRideDetailResponse: {
-            data?: components["schemas"]["AdminRideDetailResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseAdminRideFlagResponse: {
-            data?: components["schemas"]["AdminRideFlagResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseBookingDetailResponse: {
-            data?: components["schemas"]["BookingDetailResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseCustomerProfileResponse: {
-            data?: components["schemas"]["CustomerProfileResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseDeclarationResponse: {
-            data?: components["schemas"]["DeclarationResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseDriverAvailabilityResponse: {
-            data?: components["schemas"]["DriverAvailabilityResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseDriverDocumentAdminResponse: {
-            data?: components["schemas"]["DriverDocumentAdminResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseDriverDocumentResponse: {
-            data?: components["schemas"]["DriverDocumentResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseDriverProfileResponse: {
-            data?: components["schemas"]["DriverProfileResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseDriverReviewSummaryResponse: {
-            data?: components["schemas"]["DriverReviewSummaryResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseEligibilityReportAdminResponse: {
-            data?: components["schemas"]["EligibilityReportAdminResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseEligibilityReportResponse: {
-            data?: components["schemas"]["EligibilityReportResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseEmergencyContactResponse: {
-            data?: components["schemas"]["EmergencyContactResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseFareEstimateResponse: {
-            data?: components["schemas"]["FareEstimateResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseListAdminConfigEntryResponse: {
-            data?: components["schemas"]["AdminConfigEntryResponse"][];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseListDriverDocumentResponse: {
-            data?: components["schemas"]["DriverDocumentResponse"][];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseListEmergencyContactResponse: {
-            data?: components["schemas"]["EmergencyContactResponse"][];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseListSavedLocationResponse: {
-            data?: components["schemas"]["SavedLocationResponse"][];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseMapStringString: {
-            data?: {
-                [key: string]: string;
-            };
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseMessageResponse: {
-            data?: components["schemas"]["MessageResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseMfaEnrollResponse: {
-            data?: components["schemas"]["MfaEnrollResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseObject: {
-            data?: unknown;
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseOfferResponse: {
-            data?: components["schemas"]["OfferResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponsePageResponseAdminAuditLogResponse: {
-            data?: components["schemas"]["PageResponseAdminAuditLogResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponsePageResponseAdminRideFlagResponse: {
-            data?: components["schemas"]["PageResponseAdminRideFlagResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponsePageResponseAdminRideSummaryResponse: {
-            data?: components["schemas"]["PageResponseAdminRideSummaryResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponsePageResponseBookingDetailResponse: {
-            data?: components["schemas"]["PageResponseBookingDetailResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponsePageResponseDriverDocumentAdminResponse: {
-            data?: components["schemas"]["PageResponseDriverDocumentAdminResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponsePageResponseEligibilityReportAdminResponse: {
-            data?: components["schemas"]["PageResponseEligibilityReportAdminResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseRideSelfieResponse: {
-            data?: components["schemas"]["RideSelfieResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseSavedLocationResponse: {
-            data?: components["schemas"]["SavedLocationResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseTokenResponse: {
-            data?: components["schemas"]["TokenResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseTripShareCreatedResponse: {
-            data?: components["schemas"]["TripShareCreatedResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseTripShareLookupResponse: {
-            data?: components["schemas"]["TripShareLookupResponse"];
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        ApiResponseURI: {
-            /** Format: uri */
-            data?: string;
-            error?: components["schemas"]["ApiError"];
-            message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
-        };
         ApiResponseVehicleResponse: {
+            success?: boolean;
             data?: components["schemas"]["VehicleResponse"];
-            error?: components["schemas"]["ApiError"];
             message?: string;
-            success?: boolean;
+            error?: components["schemas"]["ApiError"];
             /** Format: date-time */
             timestamp?: string;
         };
-        ApiResponseVoid: {
-            data?: unknown;
-            error?: components["schemas"]["ApiError"];
+        FieldViolation: {
+            field?: string;
             message?: string;
-            success?: boolean;
-            /** Format: date-time */
-            timestamp?: string;
         };
-        BookingDetailResponse: {
-            /** Format: date-time */
-            createdAt?: string;
-            currency?: string;
-            destinationAddress?: string;
-            driver?: components["schemas"]["DriverSummaryResponse"];
-            /** Format: int64 */
-            estimatedFare?: number;
-            /** Format: int64 */
-            finalFare?: number;
+        VehicleResponse: {
             /** Format: uuid */
             id?: string;
-            /** @enum {string} */
-            paymentMethod?: "CASH" | "ONLINE";
-            pickupAddress?: string;
-            ridePin?: string;
-            /** Format: date-time */
-            scheduledAt?: string;
-            /** @enum {string} */
-            status?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            registrationNumber?: string;
             /** @enum {string} */
             vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
-        };
-        BookingRequest: {
-            destinationAddress: string;
-            /** Format: double */
-            destinationLatitude: number;
-            /** Format: double */
-            destinationLongitude: number;
-            /** Format: int64 */
-            expectedFare: number;
+            make?: string;
+            model?: string;
+            color?: string;
+            /** Format: int32 */
+            manufactureYear?: number;
             /** @enum {string} */
-            paymentMethod: "CASH" | "ONLINE";
-            pickupAddress: string;
-            /** Format: double */
-            pickupLatitude: number;
-            /** Format: double */
-            pickupLongitude: number;
-            /** Format: uuid */
-            rideSelfieId: string;
-            /** Format: date-time */
-            scheduledAt?: string;
-            /** @enum {string} */
-            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
-        };
-        CancelBookingRequest: {
-            reason: string;
-        };
-        CustomerProfileResponse: {
-            /** Format: uuid */
-            defaultCityId?: string;
-            email?: string;
-            /** Format: uuid */
-            id?: string;
-            name?: string;
-            phone?: string;
-            /** Format: date-time */
-            phoneVerifiedAt?: string;
-            preferences?: {
-                [key: string]: unknown;
-            };
-            profilePhotoKey?: string;
-        };
-        DeclarationAcceptRequest: {
-            declarationVersion: string;
-        };
-        DeclarationResponse: {
-            /** Format: date-time */
-            acceptedAt?: string;
-            declarationVersion?: string;
-        };
-        DestinationChangeEstimateRequest: {
-            /** Format: double */
-            destinationLatitude: number;
-            /** Format: double */
-            destinationLongitude: number;
-        };
-        DestinationChangeRequest: {
-            destinationAddress: string;
-            /** Format: double */
-            destinationLatitude: number;
-            /** Format: double */
-            destinationLongitude: number;
-            /** Format: int64 */
-            expectedFare: number;
-        };
-        DisputeCashRequest: {
-            reason: string;
-        };
-        DocumentReviewRequest: {
-            note?: string;
+            verificationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
         };
         DriverAvailabilityRequest: {
             /** @enum {string} */
             status: "OFFLINE" | "ONLINE" | "BUSY" | "ON_RIDE" | "SUSPENDED";
         };
+        ApiResponseDriverAvailabilityResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverAvailabilityResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
         DriverAvailabilityResponse: {
             /** @enum {string} */
             status?: "OFFLINE" | "ONLINE" | "BUSY" | "ON_RIDE" | "SUSPENDED";
         };
-        DriverDocumentAdminResponse: {
-            /** Format: date-time */
-            createdAt?: string;
+        UpdateProfileRequest: {
+            name: string;
+            /** Format: email */
+            email?: string;
             /** Format: uuid */
-            driverId?: string;
-            driverName?: string;
-            driverPhoneMasked?: string;
-            /** Format: date */
-            expiresAt?: string;
+            defaultCityId?: string;
+        };
+        ApiResponseCustomerProfileResponse: {
+            success?: boolean;
+            data?: components["schemas"]["CustomerProfileResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        CustomerProfileResponse: {
             /** Format: uuid */
             id?: string;
-            /** @enum {string} */
-            reason?: "INITIAL" | "RANDOM_REVERIFICATION" | "REPORTED";
-            reviewNote?: string;
-            /** @enum {string} */
-            status?: "PENDING" | "APPROVED" | "REJECTED";
-            /** @enum {string} */
-            type?: "GOVERNMENT_ID" | "LICENSE" | "VEHICLE_REGISTRATION" | "VEHICLE_PHOTO" | "INSURANCE" | "FITNESS_CERTIFICATE" | "POLLUTION_CERTIFICATE" | "POLICE_VERIFICATION" | "PERMIT" | "PHOTO" | "SELFIE" | "OTHER";
-        };
-        DriverDocumentResponse: {
+            phone?: string;
             /** Format: date-time */
-            createdAt?: string;
+            phoneVerifiedAt?: string;
+            name?: string;
+            email?: string;
+            profilePhotoKey?: string;
             /** Format: uuid */
-            id?: string;
-            reviewNote?: string;
-            /** Format: date-time */
-            reviewedAt?: string;
-            /** @enum {string} */
-            status?: "PENDING" | "APPROVED" | "REJECTED";
-            /** @enum {string} */
-            type?: "GOVERNMENT_ID" | "LICENSE" | "VEHICLE_REGISTRATION" | "VEHICLE_PHOTO" | "INSURANCE" | "FITNESS_CERTIFICATE" | "POLLUTION_CERTIFICATE" | "POLICE_VERIFICATION" | "PERMIT" | "PHOTO" | "SELFIE" | "OTHER";
+            defaultCityId?: string;
+            preferences?: {
+                [key: string]: unknown;
+            };
         };
-        DriverLocationRequest: {
-            /**
-             * Format: double
-             * @description Device-reported GPS accuracy in metres. Required outside the dev profile.
-             */
-            accuracyMeters: number;
+        SavedLocationRequest: {
+            label: string;
+            address: string;
             /** Format: double */
             latitude: number;
             /** Format: double */
             longitude: number;
+        };
+        ApiResponseSavedLocationResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SavedLocationResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
             /** Format: date-time */
-            recordedAt: string;
+            timestamp?: string;
+        };
+        SavedLocationResponse: {
+            /** Format: uuid */
+            id?: string;
+            label?: string;
+            address?: string;
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        EmergencyContactRequest: {
+            name: string;
+            phone: string;
+            relationship?: string;
+        };
+        ApiResponseEmergencyContactResponse: {
+            success?: boolean;
+            data?: components["schemas"]["EmergencyContactResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        EmergencyContactResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            phone?: string;
+            relationship?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        AdminConfigUpdateRequest: {
+            value: string;
+            reason: string;
+        };
+        AdminConfigEntryResponse: {
+            /** Format: uuid */
+            id?: string;
+            configKey?: string;
+            configValue?: string;
+            /** @enum {string} */
+            valueType?: "STRING" | "INTEGER" | "DECIMAL" | "BOOLEAN" | "JSON";
+            /** @enum {string} */
+            scope?: "GLOBAL" | "CITY";
+            /** Format: uuid */
+            cityId?: string;
+            description?: string;
+            minValue?: string;
+            maxValue?: string;
+            /** Format: uuid */
+            updatedBy?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ApiResponseAdminConfigEntryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminConfigEntryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
         DriverProfileRequest: {
             /** Format: uuid */
             cityId: string;
         };
+        ApiResponseDriverProfileResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverProfileResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
         DriverProfileResponse: {
             /** Format: uuid */
-            cityId?: string;
-            /** Format: uuid */
             id?: string;
+            /** Format: uuid */
+            cityId?: string;
             /** @enum {string} */
             verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
         };
-        DriverReviewSummaryResponse: {
-            declarationAccepted?: boolean;
-            documents?: components["schemas"]["DriverDocumentAdminResponse"][];
+        ApiResponseDriverDocumentResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverDocumentResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverDocumentResponse: {
             /** Format: uuid */
-            driverId?: string;
-            driverName?: string;
-            driverPhoneMasked?: string;
-            missingRequirements?: string[];
-            readyForApproval?: boolean;
-            vehicle?: components["schemas"]["VehicleAdminResponse"];
+            id?: string;
             /** @enum {string} */
-            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            type?: "GOVERNMENT_ID" | "LICENSE" | "VEHICLE_REGISTRATION" | "VEHICLE_PHOTO" | "INSURANCE" | "FITNESS_CERTIFICATE" | "POLLUTION_CERTIFICATE" | "POLICE_VERIFICATION" | "PERMIT" | "PHOTO" | "SELFIE" | "OTHER";
+            /** @enum {string} */
+            status?: "PENDING" | "APPROVED" | "REJECTED";
+            reviewNote?: string;
+            /** Format: date-time */
+            reviewedAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        StartRideRequest: {
+            pin: string;
+        };
+        ApiResponseBookingDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["BookingDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        BookingDetailResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** @enum {string} */
+            status?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            pickupAddress?: string;
+            destinationAddress?: string;
+            /** @enum {string} */
+            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
+            /** @enum {string} */
+            paymentMethod?: "CASH" | "ONLINE";
+            /** Format: int64 */
+            estimatedFare?: number;
+            /** Format: int64 */
+            finalFare?: number;
+            currency?: string;
+            ridePin?: string;
+            driver?: components["schemas"]["DriverSummaryResponse"];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            scheduledAt?: string;
         };
         DriverSummaryResponse: {
             /** Format: uuid */
@@ -1820,61 +1442,126 @@ export interface components {
             name?: string;
             profilePhotoKey?: string;
             ratingAvg?: number;
-            vehicleColor?: string;
             vehicleMake?: string;
             vehicleModel?: string;
+            vehicleColor?: string;
             vehicleRegistration?: string;
-        };
-        EligibilityReportAdminResponse: {
-            autoCreated?: boolean;
-            /** Format: uuid */
-            bookingId?: string;
-            capExceeded?: boolean;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: uuid */
-            id?: string;
-            reason?: string;
-            /** Format: uuid */
-            reporterId?: string;
-            /** @enum {string} */
-            status?: "OPEN" | "REVIEWED" | "DISMISSED" | "ACTIONED";
-            /** Format: uuid */
-            subjectId?: string;
-            /** @enum {string} */
-            subjectType?: "CUSTOMER" | "DRIVER";
-        };
-        EligibilityReportRequest: {
-            reason: string;
-        };
-        EligibilityReportResolveRequest: {
-            note?: string;
-            /** @enum {string} */
-            status: "OPEN" | "REVIEWED" | "DISMISSED" | "ACTIONED";
-        };
-        EligibilityReportResponse: {
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: uuid */
-            id?: string;
-        };
-        EmergencyContactRequest: {
-            name: string;
-            phone: string;
-            relationship?: string;
-        };
-        EmergencyContactResponse: {
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: uuid */
-            id?: string;
-            name?: string;
-            phone?: string;
-            relationship?: string;
         };
         EndRideEarlyRequest: {
             reason: string;
             safetyConcern?: boolean;
+        };
+        OfferRejectRequest: {
+            reason?: string;
+        };
+        ApiResponseVoid: {
+            success?: boolean;
+            data?: unknown;
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverLocationRequest: {
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+            /** Format: date-time */
+            recordedAt: string;
+            /**
+             * Format: double
+             * @description Device-reported GPS accuracy in metres. Required outside the dev profile.
+             */
+            accuracyMeters: number;
+        };
+        DeclarationAcceptRequest: {
+            declarationVersion: string;
+        };
+        ApiResponseDeclarationResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DeclarationResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DeclarationResponse: {
+            declarationVersion?: string;
+            /** Format: date-time */
+            acceptedAt?: string;
+        };
+        CancelBookingRequest: {
+            reason: string;
+        };
+        ApiResponseRideSelfieResponse: {
+            success?: boolean;
+            data?: components["schemas"]["RideSelfieResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        RideSelfieResponse: {
+            /** Format: uuid */
+            rideSelfieId?: string;
+            /** Format: date-time */
+            capturedAt?: string;
+        };
+        BookingRequest: {
+            /** Format: double */
+            pickupLatitude: number;
+            /** Format: double */
+            pickupLongitude: number;
+            pickupAddress: string;
+            /** Format: double */
+            destinationLatitude: number;
+            /** Format: double */
+            destinationLongitude: number;
+            destinationAddress: string;
+            /** @enum {string} */
+            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            /** @enum {string} */
+            paymentMethod: "CASH" | "ONLINE";
+            /** Format: date-time */
+            scheduledAt?: string;
+            /** Format: int64 */
+            expectedFare: number;
+            /** Format: uuid */
+            rideSelfieId: string;
+        };
+        ApiResponseTripShareCreatedResponse: {
+            success?: boolean;
+            data?: components["schemas"]["TripShareCreatedResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        TripShareCreatedResponse: {
+            /** Format: uuid */
+            id?: string;
+            token?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        RideFlagRespondRequest: {
+            /** @enum {string} */
+            action: "ACKNOWLEDGED" | "DISPUTED";
+        };
+        DestinationChangeEstimateRequest: {
+            /** Format: double */
+            destinationLatitude: number;
+            /** Format: double */
+            destinationLongitude: number;
+        };
+        ApiResponseFareEstimateResponse: {
+            success?: boolean;
+            data?: components["schemas"]["FareEstimateResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
         FareBreakdown: {
             /** Format: int64 */
@@ -1882,127 +1569,365 @@ export interface components {
             /** Format: int64 */
             distanceFare?: number;
             /** Format: int64 */
-            serviceFee?: number;
-            /** Format: int64 */
             timeFare?: number;
-        };
-        FareEstimateRequest: {
-            /** Format: double */
-            destinationLatitude: number;
-            /** Format: double */
-            destinationLongitude: number;
-            /** Format: double */
-            pickupLatitude: number;
-            /** Format: double */
-            pickupLongitude: number;
-            /** @enum {string} */
-            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            /** Format: int64 */
+            serviceFee?: number;
         };
         FareEstimateResponse: {
-            approximate?: boolean;
-            breakdown?: components["schemas"]["FareBreakdown"];
             /** Format: uuid */
             cityId?: string;
+            /** @enum {string} */
+            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
             currency?: string;
             /** Format: int32 */
             distanceMeters?: number;
             /** Format: int32 */
             durationSeconds?: number;
+            approximate?: boolean;
             /** Format: int64 */
             estimatedFare?: number;
+            breakdown?: components["schemas"]["FareBreakdown"];
             /** Format: uuid */
             pricingRuleId?: string;
-            /** @enum {string} */
-            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
         };
-        FieldViolation: {
-            field?: string;
+        EligibilityReportRequest: {
+            reason: string;
+        };
+        ApiResponseEligibilityReportResponse: {
+            success?: boolean;
+            data?: components["schemas"]["EligibilityReportResponse"];
             message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
-        LogoutRequest: {
-            logoutAll?: boolean;
+        EligibilityReportResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        DisputeCashRequest: {
+            reason: string;
+        };
+        DestinationChangeRequest: {
+            /** Format: double */
+            destinationLatitude: number;
+            /** Format: double */
+            destinationLongitude: number;
+            destinationAddress: string;
+            /** Format: int64 */
+            expectedFare: number;
+        };
+        FareEstimateRequest: {
+            /** Format: double */
+            pickupLatitude: number;
+            /** Format: double */
+            pickupLongitude: number;
+            /** Format: double */
+            destinationLatitude: number;
+            /** Format: double */
+            destinationLongitude: number;
+            /** @enum {string} */
+            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+        };
+        RefreshRequest: {
             refreshToken: string;
+        };
+        ApiResponseTokenResponse: {
+            success?: boolean;
+            data?: components["schemas"]["TokenResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        TokenResponse: {
+            accessToken?: string;
+            refreshToken?: string;
+        };
+        OtpVerifyRequest: {
+            phone: string;
+            code: string;
+            /** @enum {string} */
+            purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA";
+            /** @enum {string} */
+            intendedRole: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
+            deviceId?: string;
+        };
+        ApiResponseObject: {
+            success?: boolean;
+            data?: unknown;
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        OtpRequestRequest: {
+            phone: string;
+            /** @enum {string} */
+            purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA";
+            /** @enum {string} */
+            intendedRole: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
+        };
+        ApiResponseMessageResponse: {
+            success?: boolean;
+            data?: components["schemas"]["MessageResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
         MessageResponse: {
             message?: string;
         };
+        LogoutRequest: {
+            refreshToken: string;
+            logoutAll?: boolean;
+        };
+        AdminAccessTokenResponse: {
+            accessToken?: string;
+        };
+        ApiResponseAdminAccessTokenResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminAccessTokenResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        AdminPasswordChangeRequest: {
+            currentPassword: string;
+            newPassword: string;
+        };
+        ApiResponseMfaEnrollResponse: {
+            success?: boolean;
+            data?: components["schemas"]["MfaEnrollResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        MfaEnrollResponse: {
+            secret?: string;
+            provisioningUri?: string;
+        };
         MfaEnrollConfirmRequest: {
             code: string;
         };
-        MfaEnrollResponse: {
-            provisioningUri?: string;
-            secret?: string;
+        AdminLoginRequest: {
+            /** Format: email */
+            email: string;
+            password: string;
+            totpCode?: string;
+            deviceId?: string;
         };
-        OfferRejectRequest: {
+        DocumentReviewRequest: {
+            note?: string;
+        };
+        AdminRideFlagReviewRequest: {
+            note: string;
+        };
+        AdminPersonRefResponse: {
+            name?: string;
+            phoneMasked?: string;
+        };
+        AdminRideFlagResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            bookingId?: string;
+            /** Format: uuid */
+            rideId?: string;
+            /** Format: uuid */
+            customerId?: string;
+            /** Format: uuid */
+            driverId?: string;
+            customer?: components["schemas"]["AdminPersonRefResponse"];
+            driver?: components["schemas"]["AdminPersonRefResponse"];
+            /** @enum {string} */
+            type?: "EARLY_END" | "COMPLETION_FAR_FROM_DESTINATION" | "PIN_LOCKOUT" | "CASH_DISPUTE" | "RIDER_SAFETY_CANCEL" | "RIDER_CONFIRMED_ARRIVAL";
+            /** @enum {string} */
+            raisedBy?: "CUSTOMER" | "DRIVER" | "ADMIN" | "SYSTEM";
+            /** Format: int32 */
+            distanceFromExpectedM?: number;
+            capExceeded?: boolean;
+            /** @enum {string} */
+            riderResponse?: "ACKNOWLEDGED" | "DISPUTED";
+            /** Format: date-time */
+            riderRespondedAt?: string;
+            /** Format: uuid */
+            adminReviewedBy?: string;
+            /** Format: date-time */
+            adminReviewedAt?: string;
+            adminReviewNote?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ApiResponseAdminRideFlagResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminRideFlagResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        EligibilityReportResolveRequest: {
+            /** @enum {string} */
+            status: "OPEN" | "REVIEWED" | "DISMISSED" | "ACTIONED";
+            note?: string;
+        };
+        ApiResponseEligibilityReportAdminResponse: {
+            success?: boolean;
+            data?: components["schemas"]["EligibilityReportAdminResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        EligibilityReportAdminResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            bookingId?: string;
+            /** Format: uuid */
+            reporterId?: string;
+            /** @enum {string} */
+            subjectType?: "CUSTOMER" | "DRIVER";
+            /** Format: uuid */
+            subjectId?: string;
             reason?: string;
+            autoCreated?: boolean;
+            capExceeded?: boolean;
+            /** @enum {string} */
+            status?: "OPEN" | "REVIEWED" | "DISMISSED" | "ACTIONED";
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ApiResponseDriverDocumentAdminResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverDocumentAdminResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverDocumentAdminResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            driverId?: string;
+            driverName?: string;
+            driverPhoneMasked?: string;
+            /** @enum {string} */
+            type?: "GOVERNMENT_ID" | "LICENSE" | "VEHICLE_REGISTRATION" | "VEHICLE_PHOTO" | "INSURANCE" | "FITNESS_CERTIFICATE" | "POLLUTION_CERTIFICATE" | "POLICE_VERIFICATION" | "PERMIT" | "PHOTO" | "SELFIE" | "OTHER";
+            /** @enum {string} */
+            status?: "PENDING" | "APPROVED" | "REJECTED";
+            /** @enum {string} */
+            reason?: "INITIAL" | "RANDOM_REVERIFICATION" | "REPORTED";
+            reviewNote?: string;
+            /** Format: date */
+            expiresAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ApiResponseTripShareLookupResponse: {
+            success?: boolean;
+            data?: components["schemas"]["TripShareLookupResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        TripShareLookupResponse: {
+            driverFirstName?: string;
+            vehicleMake?: string;
+            vehicleModel?: string;
+            vehicleColor?: string;
+            vehicleRegistration?: string;
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+            /** Format: date-time */
+            locationAt?: string;
+        };
+        ApiResponseMapStringString: {
+            success?: boolean;
+            data?: {
+                [key: string]: string;
+            };
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        ApiResponseOfferResponse: {
+            success?: boolean;
+            data?: components["schemas"]["OfferResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
         OfferResponse: {
+            /** Format: uuid */
+            offerId?: string;
+            /** Format: uuid */
+            bookingId?: string;
+            /** @enum {string} */
+            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
             /** Format: double */
             approximatePickupLatitude?: number;
             /** Format: double */
             approximatePickupLongitude?: number;
-            /** Format: uuid */
-            bookingId?: string;
+            /** Format: int64 */
+            estimatedFare?: number;
             currency?: string;
             /** Format: int32 */
             distanceMeters?: number;
-            /** Format: int64 */
-            estimatedFare?: number;
             /** Format: date-time */
             expiresAt?: string;
-            /** Format: uuid */
-            offerId?: string;
-            /** @enum {string} */
-            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
         };
-        OtpRequestRequest: {
-            /** @enum {string} */
-            intendedRole: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
-            phone: string;
-            /** @enum {string} */
-            purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA";
+        ApiResponseListDriverDocumentResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverDocumentResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
-        OtpVerifyRequest: {
-            code: string;
-            deviceId?: string;
-            /** @enum {string} */
-            intendedRole: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
-            phone: string;
-            /** @enum {string} */
-            purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA";
+        ApiResponseURI: {
+            success?: boolean;
+            /** Format: uri */
+            data?: string;
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
-        PageResponseAdminAuditLogResponse: {
-            content?: components["schemas"]["AdminAuditLogResponse"][];
+        ApiResponseListSavedLocationResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SavedLocationResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        Pageable: {
             /** Format: int32 */
             page?: number;
             /** Format: int32 */
             size?: number;
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
+            sort?: string[];
         };
-        PageResponseAdminRideFlagResponse: {
-            content?: components["schemas"]["AdminRideFlagResponse"][];
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
-        };
-        PageResponseAdminRideSummaryResponse: {
-            content?: components["schemas"]["AdminRideSummaryResponse"][];
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
+        ApiResponsePageResponseBookingDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseBookingDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
         PageResponseBookingDetailResponse: {
             content?: components["schemas"]["BookingDetailResponse"][];
@@ -2015,8 +1940,48 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
-        PageResponseDriverDocumentAdminResponse: {
-            content?: components["schemas"]["DriverDocumentAdminResponse"][];
+        ApiResponseListEmergencyContactResponse: {
+            success?: boolean;
+            data?: components["schemas"]["EmergencyContactResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        AdminRideSummaryResponse: {
+            /** Format: uuid */
+            bookingId?: string;
+            /** Format: uuid */
+            rideId?: string;
+            /** Format: uuid */
+            customerId?: string;
+            /** Format: uuid */
+            driverId?: string;
+            customer?: components["schemas"]["AdminPersonRefResponse"];
+            driver?: components["schemas"]["AdminPersonRefResponse"];
+            /** @enum {string} */
+            bookingStatus?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            /** @enum {string} */
+            rideStatus?: "ASSIGNED" | "STARTED" | "COMPLETED" | "CANCELLED";
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            estimatedFare?: number;
+            /** Format: int64 */
+            finalFare?: number;
+            /** Format: int64 */
+            openFlagCount?: number;
+        };
+        ApiResponsePageResponseAdminRideSummaryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseAdminRideSummaryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseAdminRideSummaryResponse: {
+            content?: components["schemas"]["AdminRideSummaryResponse"][];
             /** Format: int32 */
             page?: number;
             /** Format: int32 */
@@ -2025,6 +1990,95 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        AdminBookingEventResponse: {
+            /** @enum {string} */
+            fromStatus?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            /** @enum {string} */
+            toStatus?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            /** @enum {string} */
+            actorType?: "CUSTOMER" | "DRIVER" | "ADMIN" | "SYSTEM";
+            /** Format: uuid */
+            actorId?: string;
+            reason?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        AdminRideDetailResponse: {
+            /** Format: uuid */
+            bookingId?: string;
+            /** Format: uuid */
+            customerId?: string;
+            /** Format: uuid */
+            driverId?: string;
+            customer?: components["schemas"]["AdminPersonRefResponse"];
+            driver?: components["schemas"]["AdminPersonRefResponse"];
+            /** @enum {string} */
+            bookingStatus?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            /** @enum {string} */
+            paymentMethod?: "CASH" | "ONLINE";
+            pickupAddress?: string;
+            cancelReason?: string;
+            /** @enum {string} */
+            cancelledBy?: "CUSTOMER" | "DRIVER" | "ADMIN" | "SYSTEM";
+            /** Format: date-time */
+            cashConfirmedAt?: string;
+            /** Format: date-time */
+            cashDisputedAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            estimatedFare?: number;
+            /** Format: int64 */
+            finalFare?: number;
+            /** Format: uuid */
+            rideId?: string;
+            /** @enum {string} */
+            rideStatus?: "ASSIGNED" | "STARTED" | "COMPLETED" | "CANCELLED";
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            flags?: components["schemas"]["AdminRideFlagResponse"][];
+            timeline?: components["schemas"]["AdminBookingEventResponse"][];
+        };
+        ApiResponseAdminRideDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminRideDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        ApiResponsePageResponseAdminRideFlagResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseAdminRideFlagResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseAdminRideFlagResponse: {
+            content?: components["schemas"]["AdminRideFlagResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        ApiResponsePageResponseEligibilityReportAdminResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseEligibilityReportAdminResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
         PageResponseEligibilityReportAdminResponse: {
             content?: components["schemas"]["EligibilityReportAdminResponse"][];
@@ -2037,79 +2091,26 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
-        Pageable: {
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-            sort?: string[];
+        ApiResponseDriverReviewSummaryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverReviewSummaryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
-        RefreshRequest: {
-            refreshToken: string;
-        };
-        RideFlagRespondRequest: {
+        DriverReviewSummaryResponse: {
+            /** Format: uuid */
+            driverId?: string;
+            driverName?: string;
+            driverPhoneMasked?: string;
             /** @enum {string} */
-            action: "ACKNOWLEDGED" | "DISPUTED";
-        };
-        RideSelfieResponse: {
-            /** Format: date-time */
-            capturedAt?: string;
-            /** Format: uuid */
-            rideSelfieId?: string;
-        };
-        SavedLocationRequest: {
-            address: string;
-            label: string;
-            /** Format: double */
-            latitude: number;
-            /** Format: double */
-            longitude: number;
-        };
-        SavedLocationResponse: {
-            address?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: uuid */
-            id?: string;
-            label?: string;
-            /** Format: double */
-            latitude?: number;
-            /** Format: double */
-            longitude?: number;
-        };
-        StartRideRequest: {
-            pin: string;
-        };
-        TokenResponse: {
-            accessToken?: string;
-            refreshToken?: string;
-        };
-        TripShareCreatedResponse: {
-            /** Format: date-time */
-            expiresAt?: string;
-            /** Format: uuid */
-            id?: string;
-            token?: string;
-        };
-        TripShareLookupResponse: {
-            driverFirstName?: string;
-            /** Format: double */
-            latitude?: number;
-            /** Format: date-time */
-            locationAt?: string;
-            /** Format: double */
-            longitude?: number;
-            vehicleColor?: string;
-            vehicleMake?: string;
-            vehicleModel?: string;
-            vehicleRegistration?: string;
-        };
-        UpdateProfileRequest: {
-            /** Format: uuid */
-            defaultCityId?: string;
-            /** Format: email */
-            email?: string;
-            name: string;
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            declarationAccepted?: boolean;
+            vehicle?: components["schemas"]["VehicleAdminResponse"];
+            documents?: components["schemas"]["DriverDocumentAdminResponse"][];
+            readyForApproval?: boolean;
+            missingRequirements?: string[];
         };
         VehicleAdminResponse: {
             /** Format: uuid */
@@ -2120,29 +2121,67 @@ export interface components {
             /** @enum {string} */
             verificationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
         };
-        VehicleRequest: {
-            color?: string;
-            make?: string;
-            /** Format: int32 */
-            manufactureYear?: number;
-            model?: string;
-            registrationNumber: string;
-            /** @enum {string} */
-            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+        ApiResponsePageResponseDriverDocumentAdminResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseDriverDocumentAdminResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
-        VehicleResponse: {
-            color?: string;
+        PageResponseDriverDocumentAdminResponse: {
+            content?: components["schemas"]["DriverDocumentAdminResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        ApiResponseListAdminConfigEntryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminConfigEntryResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        AdminAuditLogResponse: {
             /** Format: uuid */
             id?: string;
-            make?: string;
+            /** Format: uuid */
+            actorId?: string;
+            actorRole?: string;
+            action?: string;
+            targetType?: string;
+            targetId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+            ip?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ApiResponsePageResponseAdminAuditLogResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseAdminAuditLogResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseAdminAuditLogResponse: {
+            content?: components["schemas"]["AdminAuditLogResponse"][];
             /** Format: int32 */
-            manufactureYear?: number;
-            model?: string;
-            registrationNumber?: string;
-            /** @enum {string} */
-            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
-            /** @enum {string} */
-            verificationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
         };
     };
     responses: never;
@@ -2153,35 +2192,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_1: {
-        parameters: {
-            query: {
-                actorId?: string;
-                action?: string;
-                targetType?: string;
-                targetId?: string;
-                createdAfter?: string;
-                createdBefore?: string;
-                pageable: components["schemas"]["Pageable"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponsePageResponseAdminAuditLogResponse"];
-                };
-            };
-        };
-    };
-    list: {
+    getVehicle: {
         parameters: {
             query?: never;
             header?: never;
@@ -2196,7 +2207,195 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseListAdminConfigEntryResponse"];
+                    "*/*": components["schemas"]["ApiResponseVehicleResponse"];
+                };
+            };
+        };
+    };
+    upsertVehicle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VehicleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVehicleResponse"];
+                };
+            };
+        };
+    };
+    setAvailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverAvailabilityRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverAvailabilityResponse"];
+                };
+            };
+        };
+    };
+    getProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseCustomerProfileResponse"];
+                };
+            };
+        };
+    };
+    updateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseCustomerProfileResponse"];
+                };
+            };
+        };
+    };
+    updateSavedLocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedLocationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSavedLocationResponse"];
+                };
+            };
+        };
+    };
+    deleteSavedLocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    updateEmergencyContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyContactRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseEmergencyContactResponse"];
+                };
+            };
+        };
+    };
+    deleteEmergencyContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };
@@ -2227,11 +2426,9 @@ export interface operations {
             };
         };
     };
-    listPendingDocuments: {
+    getProfile_1: {
         parameters: {
-            query: {
-                pageable: components["schemas"]["Pageable"];
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -2244,12 +2441,203 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponsePageResponseDriverDocumentAdminResponse"];
+                    "*/*": components["schemas"]["ApiResponseDriverProfileResponse"];
                 };
             };
         };
     };
-    approveDocument: {
+    bootstrapProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverProfileResponse"];
+                };
+            };
+        };
+    };
+    uploadSelfie: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverDocumentResponse"];
+                };
+            };
+        };
+    };
+    start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartRideRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    endEarly: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndRideEarlyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    confirmCashCollected: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    arriving: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    arrived: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    reject: {
         parameters: {
             query?: never;
             header?: never;
@@ -2260,7 +2648,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["DocumentReviewRequest"];
+                "application/json": components["schemas"]["OfferRejectRequest"];
             };
         };
         responses: {
@@ -2270,93 +2658,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseDriverDocumentAdminResponse"];
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };
     };
-    rejectDocument: {
+    accept: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 id: string;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    updateLocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DocumentReviewRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseDriverDocumentAdminResponse"];
-                };
-            };
-        };
-    };
-    viewDocument: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseURI"];
-                };
-            };
-        };
-    };
-    approveDriver: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    rejectDriver: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DocumentReviewRequest"];
+                "application/json": components["schemas"]["DriverLocationRequest"];
             };
         };
         responses: {
@@ -2371,13 +2709,11 @@ export interface operations {
             };
         };
     };
-    getDriverReview: {
+    listDocuments: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -2388,43 +2724,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseDriverReviewSummaryResponse"];
+                    "*/*": components["schemas"]["ApiResponseListDriverDocumentResponse"];
                 };
             };
         };
     };
-    triggerRandomReverification: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    listOpenReports: {
+    uploadDocument: {
         parameters: {
             query: {
-                pageable: components["schemas"]["Pageable"];
+                type: "GOVERNMENT_ID" | "LICENSE" | "VEHICLE_REGISTRATION" | "VEHICLE_PHOTO" | "INSURANCE" | "FITNESS_CERTIFICATE" | "POLLUTION_CERTIFICATE" | "POLICE_VERIFICATION" | "PERMIT" | "PHOTO" | "SELFIE" | "OTHER";
             };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -2432,12 +2753,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponsePageResponseEligibilityReportAdminResponse"];
+                    "*/*": components["schemas"]["ApiResponseDriverDocumentResponse"];
                 };
             };
         };
     };
-    resolveReport: {
+    acceptDeclaration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclarationAcceptRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDeclarationResponse"];
+                };
+            };
+        };
+    };
+    cancelForEligibilityConcern: {
         parameters: {
             query?: never;
             header?: never;
@@ -2448,7 +2793,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EligibilityReportResolveRequest"];
+                "application/json": components["schemas"]["CancelBookingRequest"];
             };
         };
         responses: {
@@ -2458,18 +2803,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseEligibilityReportAdminResponse"];
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
                 };
             };
         };
     };
-    listFlags: {
+    listSavedLocations: {
         parameters: {
-            query: {
-                type?: "EARLY_END" | "COMPLETION_FAR_FROM_DESTINATION" | "PIN_LOCKOUT" | "CASH_DISPUTE" | "RIDER_SAFETY_CANCEL" | "RIDER_CONFIRMED_ARRIVAL";
-                reviewed?: boolean;
-                pageable: components["schemas"]["Pageable"];
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -2482,153 +2823,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponsePageResponseAdminRideFlagResponse"];
+                    "*/*": components["schemas"]["ApiResponseListSavedLocationResponse"];
                 };
             };
         };
     };
-    reviewFlag: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseAdminRideFlagResponse"];
-                };
-            };
-        };
-    };
-    listRides: {
-        parameters: {
-            query: {
-                status?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
-                driverId?: string;
-                customerId?: string;
-                createdAfter?: string;
-                createdBefore?: string;
-                pageable: components["schemas"]["Pageable"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponsePageResponseAdminRideSummaryResponse"];
-                };
-            };
-        };
-    };
-    getRide: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                bookingId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseAdminRideDetailResponse"];
-                };
-            };
-        };
-    };
-    resetMfa: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    approveVehicle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    rejectVehicle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DocumentReviewRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    login: {
+    createSavedLocation: {
         parameters: {
             query?: never;
             header?: never;
@@ -2637,7 +2837,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminLoginRequest"];
+                "application/json": components["schemas"]["SavedLocationRequest"];
             };
         };
         responses: {
@@ -2647,20 +2847,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseObject"];
+                    "*/*": components["schemas"]["ApiResponseSavedLocationResponse"];
                 };
             };
         };
     };
-    logout_1: {
+    captureRideSelfie: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: {
-                ladygo_admin_rt?: string;
-                ladygo_admin_csrf?: string;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: binary */
+                    file: string;
+                };
             };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRideSelfieResponse"];
+                };
+            };
+        };
+    };
+    listEmergencyContacts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -2670,32 +2894,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
+                    "*/*": components["schemas"]["ApiResponseListEmergencyContactResponse"];
                 };
             };
         };
     };
-    startMfaEnrollment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseMfaEnrollResponse"];
-                };
-            };
-        };
-    };
-    confirmMfaEnrollment: {
+    createEmergencyContact: {
         parameters: {
             query?: never;
             header?: never;
@@ -2704,7 +2908,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MfaEnrollConfirmRequest"];
+                "application/json": components["schemas"]["EmergencyContactRequest"];
             };
         };
         responses: {
@@ -2714,12 +2918,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
+                    "*/*": components["schemas"]["ApiResponseEmergencyContactResponse"];
                 };
             };
         };
     };
-    changePassword: {
+    acceptDeclaration_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2728,7 +2932,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminPasswordChangeRequest"];
+                "application/json": components["schemas"]["DeclarationAcceptRequest"];
             };
         };
         responses: {
@@ -2738,126 +2942,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    refresh_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: {
-                ladygo_admin_rt?: string;
-                ladygo_admin_csrf?: string;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseAdminAccessTokenResponse"];
-                };
-            };
-        };
-    };
-    logout: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LogoutRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    requestOtp: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OtpRequestRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseMessageResponse"];
-                };
-            };
-        };
-    };
-    verifyOtp: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OtpVerifyRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseObject"];
-                };
-            };
-        };
-    };
-    refresh: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseTokenResponse"];
+                    "*/*": components["schemas"]["ApiResponseDeclarationResponse"];
                 };
             };
         };
@@ -2910,16 +2995,67 @@ export interface operations {
             };
         };
     };
-    estimate: {
+    createTripShare: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseTripShareCreatedResponse"];
+                };
+            };
+        };
+    };
+    respondToFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                flagId: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FareEstimateRequest"];
+                "application/json": components["schemas"]["RideFlagRespondRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    estimateDestinationChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DestinationChangeEstimateRequest"];
             };
         };
         responses: {
@@ -2934,7 +3070,85 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    endEarly_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndRideEarlyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    reportEligibilityConcern: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EligibilityReportRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseEligibilityReportResponse"];
+                };
+            };
+        };
+    };
+    disputeCash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisputeCashRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    confirmArrival: {
         parameters: {
             query?: never;
             header?: never;
@@ -2944,6 +3158,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    changeDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DestinationChangeRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -3008,144 +3248,16 @@ export interface operations {
             };
         };
     };
-    changeDestination: {
+    estimate: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DestinationChangeRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    confirmArrival: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    disputeCash: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DisputeCashRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    reportEligibilityConcern: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EligibilityReportRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseEligibilityReportResponse"];
-                };
-            };
-        };
-    };
-    endEarly_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EndRideEarlyRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    estimateDestinationChange: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DestinationChangeEstimateRequest"];
+                "application/json": components["schemas"]["FareEstimateRequest"];
             };
         };
         responses: {
@@ -3160,19 +3272,88 @@ export interface operations {
             };
         };
     };
-    respondToFlag: {
+    refresh: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-                flagId: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RideFlagRespondRequest"];
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseTokenResponse"];
+                };
+            };
+        };
+    };
+    verifyOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseObject"];
+                };
+            };
+        };
+    };
+    requestOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMessageResponse"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogoutRequest"];
             };
         };
         responses: {
@@ -3187,13 +3368,58 @@ export interface operations {
             };
         };
     };
-    createTripShare: {
+    refresh_1: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
+            path?: never;
+            cookie?: {
+                ladygo_admin_rt?: string;
+                ladygo_admin_csrf?: string;
             };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminAccessTokenResponse"];
+                };
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    startMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -3204,20 +3430,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseTripShareCreatedResponse"];
+                    "*/*": components["schemas"]["ApiResponseMfaEnrollResponse"];
                 };
             };
         };
     };
-    revokeTripShare: {
+    confirmMfaEnrollment: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                id: string;
-                shareId: string;
-            };
+            path?: never;
             cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaEnrollConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    logout_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                ladygo_admin_rt?: string;
+                ladygo_admin_csrf?: string;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3232,27 +3482,7 @@ export interface operations {
             };
         };
     };
-    getProfile: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseCustomerProfileResponse"];
-                };
-            };
-        };
-    };
-    updateProfile: {
+    login: {
         parameters: {
             query?: never;
             header?: never;
@@ -3261,7 +3491,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateProfileRequest"];
+                "application/json": components["schemas"]["AdminLoginRequest"];
             };
         };
         responses: {
@@ -3271,80 +3501,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseCustomerProfileResponse"];
+                    "*/*": components["schemas"]["ApiResponseObject"];
                 };
             };
         };
     };
-    acceptDeclaration_1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeclarationAcceptRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseDeclarationResponse"];
-                };
-            };
-        };
-    };
-    listEmergencyContacts: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseListEmergencyContactResponse"];
-                };
-            };
-        };
-    };
-    createEmergencyContact: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EmergencyContactRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseEmergencyContactResponse"];
-                };
-            };
-        };
-    };
-    updateEmergencyContact: {
+    rejectVehicle: {
         parameters: {
             query?: never;
             header?: never;
@@ -3355,7 +3517,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EmergencyContactRequest"];
+                "application/json": components["schemas"]["DocumentReviewRequest"];
             };
         };
         responses: {
@@ -3365,12 +3527,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseEmergencyContactResponse"];
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };
     };
-    deleteEmergencyContact: {
+    approveVehicle: {
         parameters: {
             query?: never;
             header?: never;
@@ -3392,19 +3554,188 @@ export interface operations {
             };
         };
     };
-    captureRideSelfie: {
+    resetMfa: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    reviewFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRideFlagReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminRideFlagResponse"];
+                };
+            };
+        };
+    };
+    resolveReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EligibilityReportResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseEligibilityReportAdminResponse"];
+                };
+            };
+        };
+    };
+    triggerRandomReverification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    rejectDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    approveDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    rejectDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverDocumentAdminResponse"];
+                };
+            };
+        };
+    };
+    approveDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
             cookie?: never;
         };
         requestBody?: {
             content: {
-                "application/json": {
-                    /** Format: binary */
-                    file: string;
-                };
+                "application/json": components["schemas"]["DocumentReviewRequest"];
             };
         };
         responses: {
@@ -3414,15 +3745,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseRideSelfieResponse"];
+                    "*/*": components["schemas"]["ApiResponseDriverDocumentAdminResponse"];
                 };
             };
         };
     };
-    rideHistory: {
+    serve: {
         parameters: {
             query: {
-                pageable: components["schemas"]["Pageable"];
+                key: string;
+                exp: number;
+                sig: string;
             };
             header?: never;
             path?: never;
@@ -3436,15 +3769,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponsePageResponseBookingDetailResponse"];
+                    "*/*": string;
                 };
             };
         };
     };
-    listSavedLocations: {
+    lookup: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Trip-Share-Token"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -3456,84 +3791,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseListSavedLocationResponse"];
+                    "*/*": components["schemas"]["ApiResponseTripShareLookupResponse"];
                 };
             };
         };
     };
-    createSavedLocation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SavedLocationRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseSavedLocationResponse"];
-                };
-            };
-        };
-    };
-    updateSavedLocation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SavedLocationRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseSavedLocationResponse"];
-                };
-            };
-        };
-    };
-    deleteSavedLocation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    getProfile_1: {
+    ping: {
         parameters: {
             query?: never;
             header?: never;
@@ -3548,23 +3811,19 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseDriverProfileResponse"];
+                    "*/*": components["schemas"]["ApiResponseMapStringString"];
                 };
             };
         };
     };
-    bootstrapProfile: {
+    currentOffer: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DriverProfileRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -3572,31 +3831,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseDriverProfileResponse"];
-                };
-            };
-        };
-    };
-    setAvailability: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DriverAvailabilityRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseDriverAvailabilityResponse"];
+                    "*/*": components["schemas"]["ApiResponseOfferResponse"];
                 };
             };
         };
@@ -3611,32 +3846,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    cancelForEligibilityConcern: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CancelBookingRequest"];
-            };
-        };
         responses: {
             /** @description OK */
             200: {
@@ -3671,18 +3880,16 @@ export interface operations {
             };
         };
     };
-    acceptDeclaration: {
+    rideHistory: {
         parameters: {
-            query?: never;
+            query: {
+                pageable: components["schemas"]["Pageable"];
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeclarationAcceptRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -3690,12 +3897,196 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseDeclarationResponse"];
+                    "*/*": components["schemas"]["ApiResponsePageResponseBookingDetailResponse"];
                 };
             };
         };
     };
-    listDocuments: {
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    listRides: {
+        parameters: {
+            query: {
+                status?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+                driverId?: string;
+                customerId?: string;
+                createdAfter?: string;
+                createdBefore?: string;
+                hasOpenFlags?: boolean;
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseAdminRideSummaryResponse"];
+                };
+            };
+        };
+    };
+    getRide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminRideDetailResponse"];
+                };
+            };
+        };
+    };
+    listFlags: {
+        parameters: {
+            query: {
+                type?: "EARLY_END" | "COMPLETION_FAR_FROM_DESTINATION" | "PIN_LOCKOUT" | "CASH_DISPUTE" | "RIDER_SAFETY_CANCEL" | "RIDER_CONFIRMED_ARRIVAL";
+                reviewed?: boolean;
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseAdminRideFlagResponse"];
+                };
+            };
+        };
+    };
+    listOpenReports: {
+        parameters: {
+            query: {
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseEligibilityReportAdminResponse"];
+                };
+            };
+        };
+    };
+    getDriverReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverReviewSummaryResponse"];
+                };
+            };
+        };
+    };
+    listPendingDocuments: {
+        parameters: {
+            query: {
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseDriverDocumentAdminResponse"];
+                };
+            };
+        };
+    };
+    viewDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseURI"];
+                };
+            };
+        };
+    };
+    list: {
         parameters: {
             query?: never;
             header?: never;
@@ -3710,28 +4101,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseListDriverDocumentResponse"];
+                    "*/*": components["schemas"]["ApiResponseListAdminConfigEntryResponse"];
                 };
             };
         };
     };
-    uploadDocument: {
+    list_1: {
         parameters: {
             query: {
-                type: "GOVERNMENT_ID" | "LICENSE" | "VEHICLE_REGISTRATION" | "VEHICLE_PHOTO" | "INSURANCE" | "FITNESS_CERTIFICATE" | "POLLUTION_CERTIFICATE" | "POLICE_VERIFICATION" | "PERMIT" | "PHOTO" | "SELFIE" | "OTHER";
+                actorId?: string;
+                action?: string;
+                targetType?: string;
+                targetId?: string;
+                createdAfter?: string;
+                createdBefore?: string;
+                pageable: components["schemas"]["Pageable"];
             };
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    /** Format: binary */
-                    file: string;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -3739,23 +4129,22 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["ApiResponseDriverDocumentResponse"];
+                    "*/*": components["schemas"]["ApiResponsePageResponseAdminAuditLogResponse"];
                 };
             };
         };
     };
-    updateLocation: {
+    revokeTripShare: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: string;
+                shareId: string;
+            };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DriverLocationRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -3764,351 +4153,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    currentOffer: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseOfferResponse"];
-                };
-            };
-        };
-    };
-    accept: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    reject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["OfferRejectRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    arrived: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    arriving: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    complete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    confirmCashCollected: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    endEarly: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EndRideEarlyRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    start: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StartRideRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
-                };
-            };
-        };
-    };
-    uploadSelfie: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": {
-                    /** Format: binary */
-                    file: string;
-                };
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseDriverDocumentResponse"];
-                };
-            };
-        };
-    };
-    getVehicle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVehicleResponse"];
-                };
-            };
-        };
-    };
-    upsertVehicle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["VehicleRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVehicleResponse"];
-                };
-            };
-        };
-    };
-    ping: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseMapStringString"];
-                };
-            };
-        };
-    };
-    lookup: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Trip-Share-Token"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseTripShareLookupResponse"];
-                };
-            };
-        };
-    };
-    serve: {
-        parameters: {
-            query: {
-                key: string;
-                exp: number;
-                sig: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": string;
                 };
             };
         };

@@ -10,9 +10,8 @@ package com.ladygo.bookings.service;
 public enum BookingViewerRole {
     CUSTOMER,
     DRIVER,
-    /** No admin booking-review endpoint exists yet (docs/api/driver-onboarding.md section 3 - admin
-     *  scope today is driver-documents-and-eligibility-reports only). Defined now, ahead of use, so a
-     *  future admin support/review tool has an explicit rule to call rather than reusing CUSTOMER's or
-     *  DRIVER's by accident. */
+    /** Used by AdminRideOversightService's ride-detail endpoint (docs/product/admin-web-design.md
+     *  section 4 update) to decide whether to include the exact pickup address, rather than that
+     *  endpoint inlining its own unconditional "admins always see everything" rule. */
     ADMIN
 }

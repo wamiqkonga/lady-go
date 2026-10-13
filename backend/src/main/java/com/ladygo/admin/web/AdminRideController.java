@@ -5,6 +5,7 @@ import java.util.UUID;
 import com.ladygo.admin.service.AdminRideOversightService;
 import com.ladygo.admin.web.dto.AdminRideDetailResponse;
 import com.ladygo.admin.web.dto.AdminRideFlagResponse;
+import com.ladygo.admin.web.dto.AdminRideFlagReviewRequest;
 import com.ladygo.admin.web.dto.AdminRideSummaryResponse;
 import com.ladygo.bookings.domain.BookingStatus;
 import com.ladygo.common.api.ApiResponse;
@@ -13,12 +14,14 @@ import com.ladygo.rides.domain.RideFlagType;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.security.net.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,8 +50,10 @@ public class AdminRideController {
             @RequestParam(required = false) UUID customerId,
             @RequestParam(required = false) Instant createdAfter,
             @RequestParam(required = false) Instant createdBefore,
+            @RequestParam(required = false) Boolean hasOpenFlags,
             Pageable pageable) {
-        return ApiResponse.ok(service.listRides(status, driverId, customerId, createdAfter, createdBefore, pageable));
+        return ApiResponse.ok(service.listRides(
+                status, driverId, customerId, createdAfter, createdBefore, hasOpenFlags, pageable));
     }
 
     @GetMapping("/rides/{bookingId}")
@@ -66,8 +71,9 @@ public class AdminRideController {
 
     @PostMapping("/ride-flags/{id}/review")
     public ApiResponse<AdminRideFlagResponse> reviewFlag(
-            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id, HttpServletRequest httpRequest) {
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @Valid @RequestBody AdminRideFlagReviewRequest request, HttpServletRequest httpRequest) {
         return ApiResponse.ok(service.reviewFlag(
-                id, principal.userId(), principal.role().name(), clientIpResolver.resolve(httpRequest)));
+                id, principal.userId(), principal.role().name(), request.note(), clientIpResolver.resolve(httpRequest)));
     }
 }

@@ -11,6 +11,8 @@ public record AdminRideSummaryResponse(
         UUID rideId,
         UUID customerId,
         UUID driverId,
+        AdminPersonRefResponse customer,
+        AdminPersonRefResponse driver,
         BookingStatus bookingStatus,
         RideStatus rideStatus,
         Instant createdAt,

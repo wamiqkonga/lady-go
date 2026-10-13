@@ -86,7 +86,11 @@ public class AdminConfigService {
     }
 
     @Transactional
-    public AdminConfigEntryResponse update(UUID id, String newValue, UUID adminUserId, String adminRole, String ip) {
+    public AdminConfigEntryResponse update(
+            UUID id, String newValue, String reason, UUID adminUserId, String adminRole, String ip) {
+        if (reason == null || reason.isBlank()) {
+            throw new ValidationException("A reason is required to change a config value.");
+        }
         ConfigEntry entry = entries.findById(id).orElseThrow(ResourceNotFoundException::new);
         validate(entry.getConfigKey(), entry.getValueType(), newValue);
 
@@ -102,7 +106,8 @@ public class AdminConfigService {
         log.setTargetType("configuration");
         log.setTargetId(saved.getId().toString());
         log.setIp(ip);
-        log.setMetadata(Map.of("key", saved.getConfigKey(), "oldValue", oldValue, "newValue", newValue));
+        log.setMetadata(Map.of(
+                "key", saved.getConfigKey(), "oldValue", oldValue, "newValue", newValue, "reason", reason));
         auditLogs.save(log);
 
         return toResponse(saved);
@@ -145,8 +150,15 @@ public class AdminConfigService {
     }
 
     private static AdminConfigEntryResponse toResponse(ConfigEntry entry) {
+        long[] intBounds = INTEGER_BOUNDS.get(entry.getConfigKey());
+        BigDecimal[] decimalBounds = DECIMAL_BOUNDS.get(entry.getConfigKey());
+        String minValue = intBounds != null ? String.valueOf(intBounds[0])
+                : decimalBounds != null ? decimalBounds[0].toPlainString() : null;
+        String maxValue = intBounds != null ? String.valueOf(intBounds[1])
+                : decimalBounds != null ? decimalBounds[1].toPlainString() : null;
         return new AdminConfigEntryResponse(
                 entry.getId(), entry.getConfigKey(), entry.getConfigValue(), entry.getValueType(), entry.getScope(),
-                entry.getCityId(), entry.getDescription(), entry.getUpdatedBy(), entry.getUpdatedAt());
+                entry.getCityId(), entry.getDescription(), minValue, maxValue, entry.getUpdatedBy(),
+                entry.getUpdatedAt());
     }
 }

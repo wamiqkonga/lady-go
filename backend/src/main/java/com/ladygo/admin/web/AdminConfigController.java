@@ -49,7 +49,7 @@ public class AdminConfigController {
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
             @Valid @RequestBody AdminConfigUpdateRequest request, HttpServletRequest httpRequest) {
         return ApiResponse.ok(service.update(
-                id, request.value(), principal.userId(), principal.role().name(),
+                id, request.value(), request.reason(), principal.userId(), principal.role().name(),
                 clientIpResolver.resolve(httpRequest)));
     }
 }

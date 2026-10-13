@@ -64,6 +64,19 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
                 .andExpect(jsonPath("$.data[?(@.configKey == '" + SEEDED_KEY + "')]").exists());
     }
 
+    /** docs/product/admin-web-design.md section 6: the list screen shows the server-enforced bound
+     *  next to a safety-relevant key's value, and null (not a guessed value) for a key with none. */
+    @Test
+    void listedConfigEntriesExposeServerEnforcedBounds() throws Exception {
+        UUID adminUserId = newUser(UserRole.ADMIN).getId();
+
+        mockMvc.perform(get("/api/v1/admin/config")
+                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.configKey == '" + SEEDED_KEY + "')].minValue").value("100"))
+                .andExpect(jsonPath("$.data[?(@.configKey == '" + SEEDED_KEY + "')].maxValue").value("50000"));
+    }
+
     @Test
     void aSuperAdminCanUpdateAConfigValueAndItIsAudited() throws Exception {
         ConfigEntry entry = seededEntry();
@@ -72,7 +85,7 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
                         .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("6000"))))
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("6000", "test reason"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.configValue").value("6000"));
 
@@ -96,7 +109,7 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
                         .header("Authorization", "Bearer " + tokenFor(adminId, UserRole.ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("6000"))))
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("6000", "test reason"))))
                 .andExpect(status().isForbidden());
 
         assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue())
@@ -111,7 +124,7 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
                         .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("not-a-number"))))
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("not-a-number", "test reason"))))
                 .andExpect(status().isBadRequest());
     }
 
@@ -128,7 +141,7 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
                         .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest(tooWideForInt))))
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest(tooWideForInt, "test reason"))))
                 .andExpect(status().isBadRequest());
 
         assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue()).isEqualTo("5000");
@@ -145,7 +158,7 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
                         .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("999999"))))
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("999999", "test reason"))))
                 .andExpect(status().isBadRequest());
 
         assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue()).isEqualTo("200");
@@ -159,7 +172,7 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
                         .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("10"))))
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("10", "test reason"))))
                 .andExpect(status().isOk());
 
         assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue()).isEqualTo("10");
@@ -176,7 +189,7 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
                         .header("Authorization", "Bearer " + tokenFor(driver.getUserId(), UserRole.DRIVER))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("6000"))))
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("6000", "test reason"))))
                 .andExpect(status().isForbidden());
     }
 }

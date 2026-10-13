@@ -22,6 +22,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -102,6 +103,54 @@ class AdminRideControllerIntegrationTest extends PersistenceTestSupport {
                 .andExpect(jsonPath("$.data.flags[0].type").value("RIDER_SAFETY_CANCEL"));
     }
 
+    /** docs/product/admin-web-design.md section 4 update: masked phones, never a full number, and
+     *  pickup gated through BookingVisibilityPolicy rather than dumped unconditionally - currently
+     *  that policy grants ADMIN the exact address in every status (BookingVisibilityPolicy.ADMIN row),
+     *  so this asserts it IS present; if that policy is ever tightened, this test turns into a signal
+     *  that the admin screen's own behaviour just changed too, which is the point of going through the
+     *  policy instead of a separately-maintained "admins see everything" rule here. */
+    @Test
+    void rideDetailIncludesMaskedContactsCashStateAndPickupPerPolicy() throws Exception {
+        City city = newCity();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.RIDE_STARTED, driver.getId());
+        UUID adminUserId = newUser(UserRole.ADMIN).getId();
+
+        String customerPhone = users.findById(customer.getUserId()).orElseThrow().getPhone();
+        String driverPhone = users.findById(driver.getUserId()).orElseThrow().getPhone();
+
+        mockMvc.perform(get("/api/v1/admin/rides/" + booking.getId())
+                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.customer.phoneMasked").value(org.hamcrest.Matchers.endsWith(
+                        customerPhone.substring(customerPhone.length() - 4))))
+                .andExpect(jsonPath("$.data.customer.phoneMasked").value(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString(customerPhone.substring(0, customerPhone.length() - 4)))))
+                .andExpect(jsonPath("$.data.driver.phoneMasked").value(org.hamcrest.Matchers.endsWith(
+                        driverPhone.substring(driverPhone.length() - 4))))
+                .andExpect(jsonPath("$.data.pickupAddress").exists())
+                .andExpect(jsonPath("$.data.timeline").isArray());
+    }
+
+    @Test
+    void listRidesCanBeFilteredByOpenFlagState() throws Exception {
+        City city = newCity();
+        Customer customer = newCustomer();
+        Driver driverWithFlag = newDriver(city);
+        Driver driverWithoutFlag = newDriver(city);
+        Booking flaggedBooking = newBooking(customer, city, BookingStatus.RIDE_STARTED, driverWithFlag.getId());
+        newFlag(flaggedBooking, driverWithFlag);
+        newBooking(customer, city, BookingStatus.RIDE_STARTED, driverWithoutFlag.getId());
+        UUID adminUserId = newUser(UserRole.ADMIN).getId();
+
+        mockMvc.perform(get("/api/v1/admin/rides").param("hasOpenFlags", "true")
+                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].bookingId").value(flaggedBooking.getId().toString()));
+    }
+
     @Test
     void getRideDetailForAnUnknownBookingIs404() throws Exception {
         UUID adminUserId = newUser(UserRole.ADMIN).getId();
@@ -126,9 +175,12 @@ class AdminRideControllerIntegrationTest extends PersistenceTestSupport {
                 .andExpect(jsonPath("$.data.content[0].id").value(flag.getId().toString()));
 
         mockMvc.perform(post("/api/v1/admin/ride-flags/" + flag.getId() + "/review")
-                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN)))
+                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"looks fine, no action needed\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.adminReviewedBy").value(adminUserId.toString()));
+                .andExpect(jsonPath("$.data.adminReviewedBy").value(adminUserId.toString()))
+                .andExpect(jsonPath("$.data.adminReviewNote").value("looks fine, no action needed"));
 
         RideFlag reloaded = rideFlags.findById(flag.getId()).orElseThrow();
         org.assertj.core.api.Assertions.assertThat(reloaded.getAdminReviewedAt()).isNotNull();
@@ -146,11 +198,33 @@ class AdminRideControllerIntegrationTest extends PersistenceTestSupport {
         UUID adminUserId = newUser(UserRole.ADMIN).getId();
 
         mockMvc.perform(post("/api/v1/admin/ride-flags/" + flag.getId() + "/review")
-                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN)))
+                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"first review\"}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/v1/admin/ride-flags/" + flag.getId() + "/review")
-                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN)))
+                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"second review attempt\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    /** The note is required, not just the endpoint itself - an empty/blank note must be rejected the
+     *  same way a missing one is, matching the document-rejection note's own validation. */
+    @Test
+    void reviewingAFlagWithoutANoteIsRejected() throws Exception {
+        City city = newCity();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.RIDE_STARTED, driver.getId());
+        RideFlag flag = newFlag(booking, driver);
+        UUID adminUserId = newUser(UserRole.ADMIN).getId();
+
+        mockMvc.perform(post("/api/v1/admin/ride-flags/" + flag.getId() + "/review")
+                        .header("Authorization", "Bearer " + tokenFor(adminUserId, UserRole.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"\"}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -163,7 +237,9 @@ class AdminRideControllerIntegrationTest extends PersistenceTestSupport {
         RideFlag flag = newFlag(booking, driver);
 
         mockMvc.perform(post("/api/v1/admin/ride-flags/" + flag.getId() + "/review")
-                        .header("Authorization", "Bearer " + tokenFor(driver.getUserId(), UserRole.DRIVER)))
+                        .header("Authorization", "Bearer " + tokenFor(driver.getUserId(), UserRole.DRIVER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"n/a\"}"))
                 .andExpect(status().isForbidden());
     }
 }

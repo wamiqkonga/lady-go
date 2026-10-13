@@ -69,4 +69,9 @@ public class RideFlag extends AuditedEntity {
 
     @Column(name = "admin_reviewed_at")
     private Instant adminReviewedAt;
+
+    /** Required by AdminRideOversightService.reviewFlag - nullable at the column level only for rows
+     *  reviewed before this field existed. */
+    @Column(name = "admin_review_note", columnDefinition = "text")
+    private String adminReviewNote;
 }
