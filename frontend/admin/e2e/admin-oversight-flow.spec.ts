@@ -25,7 +25,9 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
     await expect(page.getByText('12 MG Road, Srinagar')).toBeVisible()
     await expect(page.getByText(/Cash confirmed/)).toBeVisible()
     await expect(page.getByText('RIDER_SAFETY_CANCEL')).toBeVisible()
-    await expect(page.getByText('ride_completed')).toBeVisible()
+    // getByText is case-insensitive, so this also matches the Timeline row's own "To" column
+    // (RIDE_COMPLETED) - .first() is fine, this is just confirming the row itself is there.
+    await expect(page.getByText('ride_completed').first()).toBeVisible()
 
     // Never a full, unmasked phone number anywhere on the detail page.
     const bodyText = await page.locator('body').innerText()
