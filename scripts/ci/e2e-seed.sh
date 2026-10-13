@@ -269,11 +269,11 @@ RIDE_CUSTOMER_ID=$(psql -t -A -c \
 FLAGGED_BOOKING_ID=$(psql -t -A -c "
 INSERT INTO bookings (customer_id, driver_id, city_id, vehicle_type, pickup_location, pickup_address,
   destination_location, destination_address, estimated_fare, final_fare, currency, payment_method,
-  status, cash_confirmed_at)
+  status, cash_confirmed_at, idempotency_key)
 VALUES ('$RIDE_CUSTOMER_ID', '$DRIVER_ID', '$CITY_ID', 'CAB',
   ST_GeogFromText('SRID=4326;POINT(74.8 34.1)'), '12 MG Road, Srinagar',
   ST_GeogFromText('SRID=4326;POINT(74.9 34.2)'), '45 Lal Chowk, Srinagar',
-  25000, 25000, 'INR', 'CASH', 'COMPLETED', now())
+  25000, 25000, 'INR', 'CASH', 'COMPLETED', now(), gen_random_uuid())
 RETURNING id;") || { echo "Failed to seed the fixture booking" >&2; exit 1; }
 
 FLAGGED_RIDE_ID=$(psql -t -A -c "
