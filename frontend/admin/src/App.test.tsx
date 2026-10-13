@@ -53,13 +53,22 @@ describe('admin routes, signed out', () => {
 })
 
 describe('admin routes, signed in', () => {
+  /** The refresh call needs its own shape (an access token); every other GET a new screen makes on
+   *  mount (rides/flags/config/audit-logs lists) just needs *some* 2xx envelope so the screen clears
+   *  its "Loading…" state - an empty array satisfies both the plain-list and the paginated-list
+   *  shapes ([].content is undefined, which every page already treats as "no rows"). */
   function mockAuthenticatedBootstrap() {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ success: true, data: { accessToken: 'test-token' }, error: null }),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        const data = url.includes('/auth/admin/refresh') ? { accessToken: 'test-token' } : []
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: true, data, error: null }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        )
       }),
     )
   }
@@ -79,10 +88,10 @@ describe('admin routes, signed in', () => {
 
   it.each([
     ['/live-map', 'Live map'],
-    ['/rides', 'Rides'],
+    ['/rides', 'Ride & flag oversight'],
     ['/drivers', 'Drivers'],
     ['/customers', 'Customers'],
-    ['/pricing', 'Pricing and configuration'],
+    ['/pricing', 'Pricing & configuration'],
     ['/safety', 'Safety incidents'],
     ['/audit-logs', 'Audit log'],
   ])('renders %s', async (path, heading) => {

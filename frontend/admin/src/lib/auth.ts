@@ -25,6 +25,23 @@ export function getAccessToken(): string | null {
   return accessToken
 }
 
+/** Decodes the `role` claim out of the access token for display/UI-hiding only - this is never
+ *  verified (no signature check, nor should there be one here), so it must never gate anything the
+ *  backend doesn't independently enforce with its own `@PreAuthorize`. Returns null if there's no
+ *  token or the claim is missing/malformed - callers should treat that as "don't show the
+ *  elevated-role UI", not as an error. */
+export function getRole(): string | null {
+  if (!accessToken) return null
+  try {
+    const payload = accessToken.split('.')[1]
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+    const claims = JSON.parse(json) as { role?: string }
+    return claims.role ?? null
+  } catch {
+    return null
+  }
+}
+
 // E2E-only hook (VITE_E2E_EXPOSE_SESSION, never set in .env.example or any normal dev/build config -
 // see docs/development/admin-web-manual-test.md's E2E section) so the Playwright suite can issue a
 // directly-authenticated fetch for an endpoint with no UI yet (admin config), to prove the ADMIN-vs-

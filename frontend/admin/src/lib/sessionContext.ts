@@ -4,6 +4,8 @@ import { getAccessToken } from './auth'
 export type SessionState = {
   /** null = not yet known (still bootstrapping); undefined would be ambiguous with "logged out". */
   signedIn: boolean | null
+  /** Display/UI-hiding only - see getRole()'s own doc comment. Null while signedIn isn't true yet. */
+  role: string | null
   signOut: () => Promise<void>
 }
 
