@@ -266,7 +266,7 @@ SELECT id, '$CITY_ID' FROM users WHERE phone = '$RIDE_CUSTOMER_PHONE';
 RIDE_CUSTOMER_ID=$(psql -t -A -c \
   "SELECT id FROM customers WHERE user_id = (SELECT id FROM users WHERE phone = '$RIDE_CUSTOMER_PHONE');")
 
-FLAGGED_BOOKING_ID=$(psql -t -A -c "
+FLAGGED_BOOKING_ID=$(psql -t -A -q -c "
 INSERT INTO bookings (customer_id, driver_id, city_id, vehicle_type, pickup_location, pickup_address,
   destination_location, destination_address, estimated_fare, final_fare, currency, payment_method,
   status, cash_confirmed_at, idempotency_key)
@@ -276,7 +276,7 @@ VALUES ('$RIDE_CUSTOMER_ID', '$DRIVER_ID', '$CITY_ID', 'CAB',
   25000, 25000, 'INR', 'CASH', 'COMPLETED', now(), gen_random_uuid())
 RETURNING id;") || { echo "Failed to seed the fixture booking" >&2; exit 1; }
 
-FLAGGED_RIDE_ID=$(psql -t -A -c "
+FLAGGED_RIDE_ID=$(psql -t -A -q -c "
 INSERT INTO rides (booking_id, driver_id, customer_id, status, started_at, completed_at)
 VALUES ('$FLAGGED_BOOKING_ID', '$DRIVER_ID', '$RIDE_CUSTOMER_ID', 'COMPLETED',
   now() - interval '20 minutes', now())
@@ -287,7 +287,7 @@ INSERT INTO booking_events (booking_id, from_status, to_status, actor_type, reas
 VALUES ('$FLAGGED_BOOKING_ID', 'RIDE_STARTED', 'RIDE_COMPLETED', 'DRIVER', 'ride_completed');
 " || { echo "Failed to seed the fixture booking event" >&2; exit 1; }
 
-FLAG_ID=$(psql -t -A -c "
+FLAG_ID=$(psql -t -A -q -c "
 INSERT INTO ride_flags (ride_id, booking_id, customer_id, driver_id, type, raised_by)
 VALUES ('$FLAGGED_RIDE_ID', '$FLAGGED_BOOKING_ID', '$RIDE_CUSTOMER_ID', '$DRIVER_ID',
   'RIDER_SAFETY_CANCEL', 'CUSTOMER')
