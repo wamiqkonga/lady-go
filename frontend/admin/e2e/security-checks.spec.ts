@@ -146,7 +146,7 @@ test.describe('negative security checks', () => {
       const response = await fetch(`${apiBaseUrl}/api/v1/admin/config/${entry.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...auth },
-        body: JSON.stringify({ value: '500' }),
+        body: JSON.stringify({ value: '500', reason: 'e2e role check' }),
       })
       return { status: response.status, entryId: entry.id as string }
     }, env!.apiBaseUrl)
@@ -160,7 +160,7 @@ test.describe('negative security checks', () => {
         const response = await fetch(`${apiBaseUrl}/api/v1/admin/config/${entryId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ value: '500' }),
+          body: JSON.stringify({ value: '500', reason: 'e2e role check' }),
         })
         return response.status
       },

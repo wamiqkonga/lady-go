@@ -116,7 +116,7 @@ SQL
 echo "== Seeding one dedicated, independently-enrolled SUPER_ADMIN account per real test login =="
 # Keys match e2e/env.ts's SUPER_ADMIN_KEYS exactly - one per test that performs a real login, so no
 # two real logins anywhere in the suite ever share a TOTP secret (see the header comment above).
-SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK)
+SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK RIDES FLAGS AUDITLOG CONFIGEDIT)
 for i in "${!SUPER_ADMIN_KEYS[@]}"; do
   KEY="${SUPER_ADMIN_KEYS[$i]}"
   EMAIL="e2e.super.$(echo "$KEY" | tr '[:upper:]' '[:lower:]')@ladygo.test"
@@ -146,6 +146,18 @@ fi
 mask "$ADMIN_PASSWORD"
 mask "$ADMIN_TOTP_SECRET"
 
+echo "== Seeding a second, independent plain-ADMIN account (config screen's UI read-only check) =="
+ADMIN2_EMAIL="e2e.admin.rolecheck2@ladygo.test"
+ADMIN2_PASSWORD=$(openssl rand -base64 18)
+ADMIN2_PHONE=$(printf '+9199%08d' "$((${#SUPER_ADMIN_KEYS[@]} + 2))")
+ADMIN2_TOTP_SECRET=$(create_and_enrol_account "$ADMIN2_EMAIL" "$ADMIN2_PASSWORD" "ADMIN" "$ADMIN2_PHONE")
+if [[ -z "$ADMIN2_TOTP_SECRET" ]]; then
+  echo "Seeding the second ADMIN role-check account produced an empty TOTP secret - aborting." >&2
+  exit 1
+fi
+mask "$ADMIN2_PASSWORD"
+mask "$ADMIN2_TOTP_SECRET"
+
 echo "== Waiting for a fresh TOTP window before any test can log in =="
 # Per-account isolation (above) removes collisions BETWEEN accounts, but not within one: each
 # account's own MFA enrolment-confirm call just now consumed a TOTP step the same way a login does
@@ -167,6 +179,9 @@ time.sleep(remaining + 1)
 emit ADMIN_WEB_E2E_ADMIN_EMAIL "$ADMIN_EMAIL"
 emit ADMIN_WEB_E2E_ADMIN_PASSWORD "$ADMIN_PASSWORD"
 emit ADMIN_WEB_E2E_ADMIN_TOTP_SECRET "$ADMIN_TOTP_SECRET"
+emit ADMIN_WEB_E2E_ADMIN2_EMAIL "$ADMIN2_EMAIL"
+emit ADMIN_WEB_E2E_ADMIN2_PASSWORD "$ADMIN2_PASSWORD"
+emit ADMIN_WEB_E2E_ADMIN2_TOTP_SECRET "$ADMIN2_TOTP_SECRET"
 
 echo "== Shortening the document-view URL TTL for the expiry check =="
 psql -v ON_ERROR_STOP=1 -q -c \
@@ -237,8 +252,57 @@ DRIVER_ID=$(seed_driver "+919900077001" "JK01AB1234")
 echo "== Seeding the secondary driver (left PENDING for the negative-checks spec) =="
 SECONDARY_DRIVER_ID=$(seed_driver "+919900077002" "JK01CD5678")
 
+echo "== Seeding a completed cash ride with one open flag (ride/flag oversight screens) =="
+# Direct SQL, not the real matching/ride-lifecycle APIs - this is fixture data for screens that only
+# read and review it; driving it through the full lifecycle (offer, accept, arrive, PIN-start,
+# complete, cash-confirm) belongs to rides/service's own test suite, not this seed step.
+RIDE_CUSTOMER_PHONE="+919900077003"
+psql -v ON_ERROR_STOP=1 -q -c "
+INSERT INTO users (email, phone, role, password_hash, must_change_password, mfa_enabled, status)
+VALUES ('e2e.ride.customer@ladygo.test', '$RIDE_CUSTOMER_PHONE', 'CUSTOMER',
+  crypt('$(openssl rand -base64 18)', gen_salt('bf')), false, false, 'ACTIVE');
+INSERT INTO customers (user_id, default_city_id)
+SELECT id, '$CITY_ID' FROM users WHERE phone = '$RIDE_CUSTOMER_PHONE';
+" || { echo "Failed to seed the ride-oversight fixture customer" >&2; exit 1; }
+RIDE_CUSTOMER_ID=$(psql -t -A -c \
+  "SELECT id FROM customers WHERE user_id = (SELECT id FROM users WHERE phone = '$RIDE_CUSTOMER_PHONE');")
+
+FLAGGED_BOOKING_ID=$(psql -t -A -c "
+INSERT INTO bookings (customer_id, driver_id, city_id, vehicle_type, pickup_location, pickup_address,
+  destination_location, destination_address, estimated_fare, final_fare, currency, payment_method,
+  status, cash_confirmed_at)
+VALUES ('$RIDE_CUSTOMER_ID', '$DRIVER_ID', '$CITY_ID', 'CAB',
+  ST_GeogFromText('SRID=4326;POINT(74.8 34.1)'), '12 MG Road, Srinagar',
+  ST_GeogFromText('SRID=4326;POINT(74.9 34.2)'), '45 Lal Chowk, Srinagar',
+  25000, 25000, 'INR', 'CASH', 'COMPLETED', now())
+RETURNING id;") || { echo "Failed to seed the fixture booking" >&2; exit 1; }
+
+FLAGGED_RIDE_ID=$(psql -t -A -c "
+INSERT INTO rides (booking_id, driver_id, customer_id, status, started_at, completed_at)
+VALUES ('$FLAGGED_BOOKING_ID', '$DRIVER_ID', '$RIDE_CUSTOMER_ID', 'COMPLETED',
+  now() - interval '20 minutes', now())
+RETURNING id;") || { echo "Failed to seed the fixture ride" >&2; exit 1; }
+
+psql -v ON_ERROR_STOP=1 -q -c "
+INSERT INTO booking_events (booking_id, from_status, to_status, actor_type, reason)
+VALUES ('$FLAGGED_BOOKING_ID', 'RIDE_STARTED', 'RIDE_COMPLETED', 'DRIVER', 'ride_completed');
+" || { echo "Failed to seed the fixture booking event" >&2; exit 1; }
+
+FLAG_ID=$(psql -t -A -c "
+INSERT INTO ride_flags (ride_id, booking_id, customer_id, driver_id, type, raised_by)
+VALUES ('$FLAGGED_RIDE_ID', '$FLAGGED_BOOKING_ID', '$RIDE_CUSTOMER_ID', '$DRIVER_ID',
+  'RIDER_SAFETY_CANCEL', 'CUSTOMER')
+RETURNING id;") || { echo "Failed to seed the fixture ride flag" >&2; exit 1; }
+
+if [[ -z "$FLAGGED_BOOKING_ID" || -z "$FLAG_ID" ]]; then
+  echo "Ride/flag fixture seeding produced an empty id - refusing to continue silently." >&2
+  exit 1
+fi
+
 emit ADMIN_WEB_E2E_API_BASE_URL "$BASE"
 emit ADMIN_WEB_E2E_DRIVER_ID "$DRIVER_ID"
 emit ADMIN_WEB_E2E_SECONDARY_DRIVER_ID "$SECONDARY_DRIVER_ID"
+emit ADMIN_WEB_E2E_FLAGGED_BOOKING_ID "$FLAGGED_BOOKING_ID"
+emit ADMIN_WEB_E2E_FLAG_ID "$FLAG_ID"
 
-echo "Seed complete. Driver $DRIVER_ID (primary), $SECONDARY_DRIVER_ID (secondary)."
+echo "Seed complete. Driver $DRIVER_ID (primary), $SECONDARY_DRIVER_ID (secondary), flagged booking $FLAGGED_BOOKING_ID."

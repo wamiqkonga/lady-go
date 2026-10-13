@@ -25,6 +25,10 @@ const SUPER_ADMIN_KEYS = [
   'NOSTORAGE',
   'MARKUP',
   'ROLECHECK',
+  'RIDES',
+  'FLAGS',
+  'AUDITLOG',
+  'CONFIGEDIT',
 ] as const
 
 type SuperAdminKey = (typeof SUPER_ADMIN_KEYS)[number]
@@ -38,12 +42,22 @@ export interface E2eEnv {
   /** superAdmins.LOGIN, superAdmins.QUEUE, etc. - one dedicated account per test, never shared. */
   superAdmins: Record<SuperAdminKey, Credentials>
   admin: Credentials
+  /** A second, independent plain-ADMIN account - security-checks.spec.ts's raw-fetch role check
+   *  already uses `admin` above, so the UI-based read-only check in admin-oversight-flow.spec.ts gets
+   *  its own account rather than sharing a login across two spec files. */
+  admin2: Credentials
   /** Mutated to completion (approved) by admin-review-flow.spec.ts - never read by security-checks. */
   driverId: string
   /** Left untouched by admin-review-flow.spec.ts, so security-checks.spec.ts's document-view/expiry/
    *  rejection-note tests have pending documents to work with regardless of file execution order. */
   secondaryDriverId: string
   unknownDriverId: string
+  /** A COMPLETED cash booking with one open (unreviewed) RIDER_SAFETY_CANCEL flag, seeded directly via
+   *  SQL (scripts/ci/e2e-seed.sh) rather than driven through the real matching/ride-lifecycle APIs -
+   *  proportionate for fixture data the oversight screens just need to read/review, not for exercising
+   *  the lifecycle itself (that's rides/service's own test suite's job). */
+  flaggedBookingId: string
+  flagId: string
 }
 
 const REQUIRED_BASE = [
@@ -51,8 +65,13 @@ const REQUIRED_BASE = [
   'ADMIN_WEB_E2E_ADMIN_EMAIL',
   'ADMIN_WEB_E2E_ADMIN_PASSWORD',
   'ADMIN_WEB_E2E_ADMIN_TOTP_SECRET',
+  'ADMIN_WEB_E2E_ADMIN2_EMAIL',
+  'ADMIN_WEB_E2E_ADMIN2_PASSWORD',
+  'ADMIN_WEB_E2E_ADMIN2_TOTP_SECRET',
   'ADMIN_WEB_E2E_DRIVER_ID',
   'ADMIN_WEB_E2E_SECONDARY_DRIVER_ID',
+  'ADMIN_WEB_E2E_FLAGGED_BOOKING_ID',
+  'ADMIN_WEB_E2E_FLAG_ID',
 ] as const
 
 function requiredVarsForKey(key: SuperAdminKey): string[] {
@@ -88,11 +107,18 @@ export function readE2eEnv(): E2eEnv | null {
       password: process.env.ADMIN_WEB_E2E_ADMIN_PASSWORD!,
       totpSecret: process.env.ADMIN_WEB_E2E_ADMIN_TOTP_SECRET!,
     },
+    admin2: {
+      email: process.env.ADMIN_WEB_E2E_ADMIN2_EMAIL!,
+      password: process.env.ADMIN_WEB_E2E_ADMIN2_PASSWORD!,
+      totpSecret: process.env.ADMIN_WEB_E2E_ADMIN2_TOTP_SECRET!,
+    },
     driverId: process.env.ADMIN_WEB_E2E_DRIVER_ID!,
     secondaryDriverId: process.env.ADMIN_WEB_E2E_SECONDARY_DRIVER_ID!,
     // A syntactically valid but never-seeded UUID - "other-driver ID tampering" (manually editing the
     // URL to an id you don't otherwise have) needs a value guaranteed absent from the database.
     unknownDriverId: '00000000-0000-0000-0000-000000000000',
+    flaggedBookingId: process.env.ADMIN_WEB_E2E_FLAGGED_BOOKING_ID!,
+    flagId: process.env.ADMIN_WEB_E2E_FLAG_ID!,
   }
 }
 
