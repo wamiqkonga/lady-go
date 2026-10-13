@@ -65,7 +65,9 @@ public final class BookingVisibilityPolicy {
         if (role == BookingViewerRole.DRIVER) {
             return driverFields(status);
         }
-        return EnumSet.allOf(BookingField.class); // ADMIN - no caller exists yet, see BookingViewerRole.
+        // ADMIN: every field, in every status - AdminRideOversightService.getRideDetail is the real
+        // caller (see BookingViewerRole's own javadoc on this constant for why).
+        return EnumSet.allOf(BookingField.class);
     }
 
     public static boolean isVisible(BookingViewerRole role, BookingStatus status, BookingField field) {
