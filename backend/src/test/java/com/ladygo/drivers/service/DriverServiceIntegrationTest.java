@@ -165,6 +165,37 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
                 .isInstanceOf(ValidationException.class);
     }
 
+    /** Security review finding: document_number is varchar(100) (V28), but nothing checked that
+     *  server-side before the fix - an over-length value reached fileStorage.upload (the file already
+     *  written) before failing on the column's own length constraint with an unhandled 500, leaving
+     *  an orphaned file no retention job could see (the DB row never committed). Fixed by validating
+     *  before the upload ever starts - this proves it fails fast with no document persisted, not just
+     *  that it eventually fails. */
+    @Test
+    void uploadDocumentRejectsANumberLongerThanTheColumnLimit() {
+        City city = newCity();
+        UUID userId = newDriverUserId(city);
+        String tooLong = "X".repeat(101);
+
+        assertThatThrownBy(() -> service.uploadDocument(
+                userId, DocumentType.LICENSE, jpegFile(), tooLong, null))
+                .isInstanceOf(ValidationException.class);
+
+        assertThat(service.listDocuments(userId)).isEmpty();
+    }
+
+    @Test
+    void uploadDocumentAcceptsANumberAtExactlyTheColumnLimit() {
+        City city = newCity();
+        UUID userId = newDriverUserId(city);
+        String exactly100 = "X".repeat(100);
+
+        DriverDocumentResponse uploaded = service.uploadDocument(
+                userId, DocumentType.LICENSE, jpegFile(), exactly100, null);
+
+        assertThat(uploaded.documentNumber()).isEqualTo(exactly100);
+    }
+
     @Test
     void upsertVehicleThenGetReturnsIt() {
         City city = newCity();

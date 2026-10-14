@@ -1845,6 +1845,7 @@ export interface components {
             status?: "PENDING" | "APPROVED" | "REJECTED";
             /** @enum {string} */
             reason?: "INITIAL" | "RANDOM_REVERIFICATION" | "REPORTED";
+            documentNumber?: string;
             reviewNote?: string;
             /** Format: date */
             expiresAt?: string;

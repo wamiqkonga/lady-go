@@ -4834,6 +4834,9 @@
               "REPORTED"
             ]
           },
+          "documentNumber": {
+            "type": "string"
+          },
           "reviewNote": {
             "type": "string"
           },

@@ -88,11 +88,21 @@ public class DriverService {
         return toProfileResponse(resolveDriver(userId));
     }
 
+    private static final int MAX_DOCUMENT_NUMBER_LENGTH = 100;
+
     @Transactional
     public DriverDocumentResponse uploadDocument(
             UUID userId, DocumentType type, MultipartFile file, String number, LocalDate expiresAt) {
         if (expiresAt != null && expiresAt.isBefore(LocalDate.now())) {
             throw new ValidationException("expiresAt cannot be in the past - this document has already expired.");
+        }
+        // Security review finding: document_number is varchar(100) (V28) but nothing checked that
+        // server-side before this - an over-length value reached fileStorage.upload (an 8 MiB file
+        // already written) before failing on the column's own length constraint with an unhandled
+        // DataIntegrityViolationException (500, and an orphaned file no retention job could see,
+        // since the DB row never committed). Checked here, before the upload ever starts.
+        if (number != null && number.length() > MAX_DOCUMENT_NUMBER_LENGTH) {
+            throw new ValidationException("number must be at most " + MAX_DOCUMENT_NUMBER_LENGTH + " characters.");
         }
         Driver driver = resolveDriver(userId);
         markPendingReviewIfNotSubmitted(driver);
