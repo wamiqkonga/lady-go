@@ -2,9 +2,11 @@ package com.ladygo.auth.service;
 
 import java.time.Instant;
 import java.util.Optional;
+import com.ladygo.auth.challenge.ChallengeVerifier;
 import com.ladygo.auth.domain.OtpPurpose;
 import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ValidationException;
+import com.ladygo.config.ConfigurationService;
 import com.ladygo.customers.domain.Customer;
 import com.ladygo.customers.repository.CustomerRepository;
 import com.ladygo.users.domain.User;
@@ -30,18 +32,24 @@ public class OtpLoginService {
     private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
     private final AccessTokenIssuer accessTokenIssuer;
+    private final ChallengeVerifier challengeVerifier;
+    private final ConfigurationService config;
 
     public OtpLoginService(
             UserRepository users,
             CustomerRepository customers,
             OtpService otpService,
             RefreshTokenService refreshTokenService,
-            AccessTokenIssuer accessTokenIssuer) {
+            AccessTokenIssuer accessTokenIssuer,
+            ChallengeVerifier challengeVerifier,
+            ConfigurationService config) {
         this.users = users;
         this.customers = customers;
         this.otpService = otpService;
         this.refreshTokenService = refreshTokenService;
         this.accessTokenIssuer = accessTokenIssuer;
+        this.challengeVerifier = challengeVerifier;
+        this.config = config;
     }
 
     public void requestOtp(String phone, OtpPurpose purpose, UserRole intendedRole) {
@@ -50,9 +58,15 @@ public class OtpLoginService {
     }
 
     /** The real entry point from {@code AuthController}, with the caller's resolved client IP for the
-     *  per-IP SMS send cap (see {@code OtpService#requestOtp(String, OtpPurpose, String)}). */
-    public void requestOtp(String phone, OtpPurpose purpose, UserRole intendedRole, String ip) {
+     *  per-IP SMS send cap (see {@code OtpService#requestOtp(String, OtpPurpose, String)}) and the bot
+     *  challenge token - checked before anything else (including rate limits) when
+     *  {@code otp.challenge.enabled} is on, so a failed challenge never spends a legitimate caller's
+     *  rate-limit budget. Default off everywhere; see {@link ChallengeVerifier}. */
+    public void requestOtp(String phone, OtpPurpose purpose, UserRole intendedRole, String ip, String challengeToken) {
         requireCustomerOrDriver(intendedRole);
+        if (config.getBoolean("otp.challenge.enabled", false) && !challengeVerifier.verify(challengeToken)) {
+            throw new ValidationException("Challenge verification failed.");
+        }
         otpService.requestOtp(phone, purpose, ip);
     }
 

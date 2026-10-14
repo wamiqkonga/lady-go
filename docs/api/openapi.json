@@ -757,6 +757,23 @@
                 "OTHER"
               ]
             }
+          },
+          {
+            "name": "number",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "expiresAt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           }
         ],
         "requestBody": {
@@ -792,6 +809,24 @@
       }
     },
     "/api/v1/drivers/me/declaration": {
+      "get": {
+        "tags": [
+          "driver-controller"
+        ],
+        "operationId": "getDeclarationStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDeclarationStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "driver-controller"
@@ -3493,6 +3528,13 @@
               "REJECTED"
             ]
           },
+          "documentNumber": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date"
+          },
           "reviewNote": {
             "type": "string"
           },
@@ -4303,6 +4345,9 @@
               "SUPER_ADMIN",
               "SUPPORT"
             ]
+          },
+          "challengeToken": {
+            "type": "string"
           }
         },
         "required": [
@@ -4944,6 +4989,48 @@
             "$ref": "#/components/schemas/ApiError"
           },
           "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseDeclarationStatusResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DeclarationStatusResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeclarationStatusResponse": {
+        "type": "object",
+        "properties": {
+          "currentVersion": {
+            "type": "string"
+          },
+          "currentText": {
+            "type": "string"
+          },
+          "accepted": {
+            "type": "boolean"
+          },
+          "acceptedVersion": {
+            "type": "string"
+          },
+          "acceptedAt": {
             "type": "string",
             "format": "date-time"
           }

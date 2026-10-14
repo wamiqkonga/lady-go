@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 @IntegrationTest
@@ -38,6 +39,8 @@ class OtpLoginServiceIntegrationTest {
     private OtpHasher otpHasher;
     @Autowired
     private UserRepository users;
+    @Autowired
+    private JdbcTemplate jdbc;
     @Autowired
     private CustomerRepository customers;
 
@@ -161,5 +164,27 @@ class OtpLoginServiceIntegrationTest {
 
         assertThatThrownBy(() -> otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.DRIVER, "d1"))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void otpRequestIgnoresTheChallengeHookWhenDisabled() {
+        // Default off - a blank/missing challengeToken must not block anything.
+        otpLoginService.requestOtp(nextPhone(), OtpPurpose.LOGIN, UserRole.CUSTOMER, "203.0.113.1", null);
+    }
+
+    @Test
+    void otpRequestIsBlockedWhenTheChallengeIsEnabledAndTheTokenIsMissing() {
+        jdbc.update("UPDATE configuration SET value = 'true' WHERE key = 'otp.challenge.enabled'");
+
+        assertThatThrownBy(() -> otpLoginService.requestOtp(
+                nextPhone(), OtpPurpose.LOGIN, UserRole.CUSTOMER, "203.0.113.1", null))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void otpRequestSucceedsWhenTheChallengeIsEnabledAndATokenIsPresent() {
+        jdbc.update("UPDATE configuration SET value = 'true' WHERE key = 'otp.challenge.enabled'");
+
+        otpLoginService.requestOtp(nextPhone(), OtpPurpose.LOGIN, UserRole.CUSTOMER, "203.0.113.1", "some-token");
     }
 }

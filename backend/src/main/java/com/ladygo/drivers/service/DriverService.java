@@ -1,6 +1,7 @@
 package com.ladygo.drivers.service;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +30,7 @@ import com.ladygo.vehicles.repository.VehicleRepository;
 import com.ladygo.verification.domain.SubjectType;
 import com.ladygo.verification.service.SelfDeclarationService;
 import com.ladygo.verification.web.dto.DeclarationResponse;
+import com.ladygo.verification.web.dto.DeclarationStatusResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,10 +89,14 @@ public class DriverService {
     }
 
     @Transactional
-    public DriverDocumentResponse uploadDocument(UUID userId, DocumentType type, MultipartFile file) {
+    public DriverDocumentResponse uploadDocument(
+            UUID userId, DocumentType type, MultipartFile file, String number, LocalDate expiresAt) {
+        if (expiresAt != null && expiresAt.isBefore(LocalDate.now())) {
+            throw new ValidationException("expiresAt cannot be in the past - this document has already expired.");
+        }
         Driver driver = resolveDriver(userId);
         markPendingReviewIfNotSubmitted(driver);
-        DriverDocument saved = storeDocument(driver.getId(), type, file, VerificationReason.INITIAL);
+        DriverDocument saved = storeDocument(driver.getId(), type, file, VerificationReason.INITIAL, number, expiresAt);
         return toDocumentResponse(saved);
     }
 
@@ -116,7 +122,7 @@ public class DriverService {
         } else {
             reason = VerificationReason.INITIAL;
         }
-        DriverDocument saved = storeDocument(driver.getId(), DocumentType.SELFIE, file, reason);
+        DriverDocument saved = storeDocument(driver.getId(), DocumentType.SELFIE, file, reason, null, null);
         return toDocumentResponse(saved);
     }
 
@@ -125,6 +131,11 @@ public class DriverService {
         Driver driver = resolveDriver(userId);
         markPendingReviewIfNotSubmitted(driver);
         return selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), declarationVersion);
+    }
+
+    public DeclarationStatusResponse getDeclarationStatus(UUID userId) {
+        Driver driver = resolveDriver(userId);
+        return selfDeclarations.currentStatus(SubjectType.DRIVER, driver.getId());
     }
 
     @Transactional
@@ -164,7 +175,9 @@ public class DriverService {
         return toVehicleResponse(vehicle);
     }
 
-    private DriverDocument storeDocument(UUID driverId, DocumentType type, MultipartFile file, VerificationReason reason) {
+    private DriverDocument storeDocument(
+            UUID driverId, DocumentType type, MultipartFile file, VerificationReason reason,
+            String number, LocalDate expiresAt) {
         long maxSize = config.getInt("verification.upload.max_size.bytes", 8_388_608);
         UploadValidator.validateImage(file, maxSize);
 
@@ -180,6 +193,8 @@ public class DriverService {
         document.setType(type);
         document.setStorageKey(key);
         document.setReason(reason);
+        document.setDocumentNumber(number);
+        document.setExpiresAt(expiresAt);
         return documents.saveAndFlush(document);
     }
 
@@ -201,6 +216,7 @@ public class DriverService {
 
     private static DriverDocumentResponse toDocumentResponse(DriverDocument document) {
         return new DriverDocumentResponse(document.getId(), document.getType(), document.getStatus(),
+                document.getDocumentNumber(), document.getExpiresAt(),
                 document.getReviewNote(), document.getReviewedAt(), document.getCreatedAt());
     }
 

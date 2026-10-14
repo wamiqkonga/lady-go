@@ -47,6 +47,11 @@ public class DriverDocument extends AuditedEntity {
     @Column(name = "expires_at")
     private LocalDate expiresAt;
 
+    /** e.g. a licence number - optional, applies to a handful of document types (docs/api/
+     *  driver-onboarding.md section 0); nullable for every type that has none. */
+    @Column(name = "document_number", length = 100)
+    private String documentNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "reason", length = 30, nullable = false)
     private VerificationReason reason = VerificationReason.INITIAL;

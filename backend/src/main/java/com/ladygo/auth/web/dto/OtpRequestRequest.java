@@ -8,5 +8,8 @@ import jakarta.validation.constraints.Pattern;
 public record OtpRequestRequest(
         @NotNull @Pattern(regexp = "^\\+[1-9][0-9]{7,14}$") String phone,
         @NotNull OtpPurpose purpose,
-        @NotNull UserRole intendedRole) {
+        @NotNull UserRole intendedRole,
+        /** Only checked when {@code otp.challenge.enabled} is on (default off) - see
+         *  {@code com.ladygo.auth.challenge.ChallengeVerifier}. */
+        String challengeToken) {
 }

@@ -58,7 +58,7 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         City city = newCity();
         UUID userId = newDriverUserId(city);
 
-        DriverDocumentResponse uploaded = service.uploadDocument(userId, DocumentType.LICENSE, jpegFile());
+        DriverDocumentResponse uploaded = service.uploadDocument(userId, DocumentType.LICENSE, jpegFile(), null, null);
 
         assertThat(service.listDocuments(userId)).extracting(DriverDocumentResponse::id).contains(uploaded.id());
     }
@@ -69,7 +69,7 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         UUID userId = newDriverUserId(city);
         MockMultipartFile pdf = new MockMultipartFile("file", "doc.pdf", "application/pdf", "x".getBytes());
 
-        assertThatThrownBy(() -> service.uploadDocument(userId, DocumentType.LICENSE, pdf))
+        assertThatThrownBy(() -> service.uploadDocument(userId, DocumentType.LICENSE, pdf, null, null))
                 .isInstanceOf(ValidationException.class);
     }
 
@@ -104,6 +104,65 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         var response = service.acceptDeclaration(userId, "v1");
 
         assertThat(response.declarationVersion()).isEqualTo("v1");
+    }
+
+    /** The actual gap this closes: previously nothing exposed the current version's text at all, so a
+     *  client had no way to show the driver what they're agreeing to before accepting it. */
+    @Test
+    void declarationStatusShowsTheCurrentTextBeforeAcceptance() {
+        City city = newCity();
+        UUID userId = newDriverUserId(city);
+
+        var status = service.getDeclarationStatus(userId);
+
+        assertThat(status.currentVersion()).isEqualTo("v1");
+        assertThat(status.currentText()).isNotBlank();
+        assertThat(status.accepted()).isFalse();
+        assertThat(status.acceptedAt()).isNull();
+    }
+
+    @Test
+    void declarationStatusReflectsAcceptance() {
+        City city = newCity();
+        UUID userId = newDriverUserId(city);
+        service.acceptDeclaration(userId, "v1");
+
+        var status = service.getDeclarationStatus(userId);
+
+        assertThat(status.accepted()).isTrue();
+        assertThat(status.acceptedVersion()).isEqualTo("v1");
+        assertThat(status.acceptedAt()).isNotNull();
+    }
+
+    /** The approved design calls for "licence (photo + number + expiry)" and "insurance photo +
+     *  expiry" (docs/api/driver-onboarding.md section 0) - previously there was no way to submit
+     *  either value at all, even though expiresAt already existed as a column nothing ever set. */
+    @Test
+    void uploadDocumentStoresNumberAndExpiry() {
+        City city = newCity();
+        UUID userId = newDriverUserId(city);
+        var expiry = java.time.LocalDate.now().plusYears(1);
+
+        DriverDocumentResponse uploaded = service.uploadDocument(
+                userId, DocumentType.LICENSE, jpegFile(), "DL-1234-5678", expiry);
+
+        assertThat(uploaded.documentNumber()).isEqualTo("DL-1234-5678");
+        assertThat(uploaded.expiresAt()).isEqualTo(expiry);
+        DriverDocumentResponse listed = service.listDocuments(userId).stream()
+                .filter(d -> d.id().equals(uploaded.id())).findFirst().orElseThrow();
+        assertThat(listed.documentNumber()).isEqualTo("DL-1234-5678");
+        assertThat(listed.expiresAt()).isEqualTo(expiry);
+    }
+
+    @Test
+    void uploadDocumentRejectsAnAlreadyExpiredDate() {
+        City city = newCity();
+        UUID userId = newDriverUserId(city);
+        var yesterday = java.time.LocalDate.now().minusDays(1);
+
+        assertThatThrownBy(() -> service.uploadDocument(
+                userId, DocumentType.INSURANCE, jpegFile(), null, yesterday))
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test

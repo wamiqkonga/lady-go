@@ -299,7 +299,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["getDeclarationStatus"];
         put?: never;
         post: operations["acceptDeclaration"];
         delete?: never;
@@ -1396,6 +1396,9 @@ export interface components {
             type?: "GOVERNMENT_ID" | "LICENSE" | "VEHICLE_REGISTRATION" | "VEHICLE_PHOTO" | "INSURANCE" | "FITNESS_CERTIFICATE" | "POLLUTION_CERTIFICATE" | "POLICE_VERIFICATION" | "PERMIT" | "PHOTO" | "SELFIE" | "OTHER";
             /** @enum {string} */
             status?: "PENDING" | "APPROVED" | "REJECTED";
+            documentNumber?: string;
+            /** Format: date */
+            expiresAt?: string;
             reviewNote?: string;
             /** Format: date-time */
             reviewedAt?: string;
@@ -1669,6 +1672,7 @@ export interface components {
             purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA";
             /** @enum {string} */
             intendedRole: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
+            challengeToken?: string;
         };
         ApiResponseMessageResponse: {
             success?: boolean;
@@ -1896,6 +1900,22 @@ export interface components {
             error?: components["schemas"]["ApiError"];
             /** Format: date-time */
             timestamp?: string;
+        };
+        ApiResponseDeclarationStatusResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DeclarationStatusResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DeclarationStatusResponse: {
+            currentVersion?: string;
+            currentText?: string;
+            accepted?: boolean;
+            acceptedVersion?: string;
+            /** Format: date-time */
+            acceptedAt?: string;
         };
         ApiResponseURI: {
             success?: boolean;
@@ -2733,6 +2753,8 @@ export interface operations {
         parameters: {
             query: {
                 type: "GOVERNMENT_ID" | "LICENSE" | "VEHICLE_REGISTRATION" | "VEHICLE_PHOTO" | "INSURANCE" | "FITNESS_CERTIFICATE" | "POLLUTION_CERTIFICATE" | "POLICE_VERIFICATION" | "PERMIT" | "PHOTO" | "SELFIE" | "OTHER";
+                number?: string;
+                expiresAt?: string;
             };
             header?: never;
             path?: never;
@@ -2754,6 +2776,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseDriverDocumentResponse"];
+                };
+            };
+        };
+    };
+    getDeclarationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDeclarationStatusResponse"];
                 };
             };
         };

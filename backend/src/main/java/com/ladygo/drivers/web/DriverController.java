@@ -1,5 +1,6 @@
 package com.ladygo.drivers.web;
 
+import java.time.LocalDate;
 import java.util.List;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.drivers.domain.DocumentType;
@@ -17,6 +18,7 @@ import com.ladygo.drivers.web.dto.VehicleResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.verification.web.dto.DeclarationAcceptRequest;
 import com.ladygo.verification.web.dto.DeclarationResponse;
+import com.ladygo.verification.web.dto.DeclarationStatusResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -75,8 +77,10 @@ public class DriverController {
     @PostMapping("/documents")
     public ApiResponse<DriverDocumentResponse> uploadDocument(
             @AuthenticationPrincipal AuthPrincipal principal,
-            @RequestParam DocumentType type, @RequestPart MultipartFile file) {
-        return ApiResponse.ok(driverService.uploadDocument(principal.userId(), type, file));
+            @RequestParam DocumentType type, @RequestPart MultipartFile file,
+            @RequestParam(required = false) String number,
+            @RequestParam(required = false) LocalDate expiresAt) {
+        return ApiResponse.ok(driverService.uploadDocument(principal.userId(), type, file, number, expiresAt));
     }
 
     @GetMapping("/documents")
@@ -94,6 +98,12 @@ public class DriverController {
     public ApiResponse<DeclarationResponse> acceptDeclaration(
             @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DeclarationAcceptRequest request) {
         return ApiResponse.ok(driverService.acceptDeclaration(principal.userId(), request.declarationVersion()));
+    }
+
+    @GetMapping("/declaration")
+    public ApiResponse<DeclarationStatusResponse> getDeclarationStatus(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(driverService.getDeclarationStatus(principal.userId()));
     }
 
     @PutMapping("/vehicle")

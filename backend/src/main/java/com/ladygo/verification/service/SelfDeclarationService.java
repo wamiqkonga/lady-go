@@ -10,6 +10,7 @@ import com.ladygo.verification.domain.SubjectType;
 import com.ladygo.verification.repository.DeclarationVersionRepository;
 import com.ladygo.verification.repository.SelfDeclarationRepository;
 import com.ladygo.verification.web.dto.DeclarationResponse;
+import com.ladygo.verification.web.dto.DeclarationStatusResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +54,19 @@ public class SelfDeclarationService {
         return declarations
                 .findBySubjectTypeAndSubjectIdAndDeclarationVersion(subjectType, subjectId, current.getVersion())
                 .isPresent();
+    }
+
+    /** The current version's text (so a client can actually show it before asking for acceptance) plus
+     *  whether this subject has already accepted it - previously nothing exposed either. */
+    public DeclarationStatusResponse currentStatus(SubjectType subjectType, UUID subjectId) {
+        DeclarationVersion current = currentVersion();
+        SelfDeclaration existing = declarations
+                .findBySubjectTypeAndSubjectIdAndDeclarationVersion(subjectType, subjectId, current.getVersion())
+                .orElse(null);
+        return new DeclarationStatusResponse(
+                current.getVersion(), current.getText(), existing != null,
+                existing != null ? existing.getDeclarationVersion() : null,
+                existing != null ? existing.getAcceptedAt() : null);
     }
 
     private DeclarationVersion currentVersion() {
