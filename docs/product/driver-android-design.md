@@ -54,10 +54,11 @@ Login (phone → OTP) ──► Onboarding status gate ──► Home
   routes to a read-only status screen (profile/vehicle/documents/declaration, mirroring
   `docs/product/driver-registration-web.md`'s dashboard) with a link/QR to the driver-registration
   website for actually completing or fixing onboarding - **this app does not reimplement document
-  upload, camera capture, or the self-declaration flow**; that's the website's job (open question in §6:
-  confirm this split rather than duplicating upload UI in two places).
-- **Home**: online/offline toggle (`PUT /drivers/me/availability`), map (driver's own position only -
-  no live customer-facing tracking to consume), today's basic stats. Toggling ONLINE starts the
+  upload, camera capture, or the self-declaration flow**; that's the website's job (decided in §6: that
+  split is confirmed, not duplicated here).
+- **Home**: online/offline toggle (`PUT /drivers/me/availability`), today's basic stats - **no in-app
+  map** (decided in §6: navigation is a hand-off to Google Maps via intent, so this screen has no map
+  surface to render at all). Toggling ONLINE starts the
   foreground location service (§2); toggling OFFLINE stops it and calls the endpoint with
   `status: OFFLINE` first (server-authoritative order: stop sending location only after the server has
   accepted OFFLINE, not before, so a late in-flight location update while nominally "offline" doesn't
@@ -81,7 +82,8 @@ Login (phone → OTP) ──► Onboarding status gate ──► Home
   Countdown is `expiresAt - serverNow` (§2's clock-skew handling), not a client-started timer - an offer
   that expires mid-tap is handled by treating the accept call's own failure as authoritative (§3).
 - **Active ride**, one screen per `BookingStatus`, not six separate screens with duplicated chrome -
-  shared scaffold (map, status bar, participant info) with status-specific content:
+  shared scaffold (status bar, participant info - **no in-app map**, per §6's navigation decision; a
+  "Navigate" button hands off to Google Maps via intent instead) with status-specific content:
   - `DRIVER_ACCEPTED`/`DRIVER_ARRIVING` → "to pickup" (exact address now visible, from
     `GET /drivers/me/bookings/{id}` - pickup becomes exact only after acceptance, per
     `docs/api/matching.md` §3/§6) + a **"Confirm arrival"** action → `POST .../rides/{id}/arriving` then
@@ -167,17 +169,21 @@ design-blocking one). Design requirements, all server-confirmed in §0/`realtime
 
 ### 2.3 Foreground service + location
 
-- A `ForegroundService` (type `location`, per Android 14+'s mandatory foreground-service-type
-  declaration) starts when the driver goes ONLINE and stops only on an explicit OFFLINE toggle - **not**
-  on a ride reaching a terminal status, since (confirmed in §1) the server auto-reverts `BUSY→ONLINE`
-  on completion and the driver is still meant to be receiving offers at that point; the service keeps
-  running straight through `ONLINE→BUSY→ONLINE` for consecutive rides.
-- Permission flow: request `ACCESS_FINE_LOCATION` first; if the driver wants to go ONLINE,
-  `ACCESS_BACKGROUND_LOCATION` is also required (Android 10+, requested as a *second*, separate system
-  dialog after foreground location is already granted, per Play's own policy on background location
-  requests) - the toggle itself is disabled with an explanatory state (not a silent no-op) until both
-  are granted. Denial doesn't crash the flow; it routes to a settings-deep-link screen explaining why
-  background location is required to receive ride offers.
+- **Decided (§6): the service runs only while the app is visible** - no `ACCESS_BACKGROUND_LOCATION`
+  request, no background-location permission dialog at all for the pilot. A `ForegroundService` (type
+  `location`, per Android 14+'s mandatory foreground-service-type declaration) starts when the driver
+  goes ONLINE *and* the app is in the foreground/visible lifecycle state, and stops whenever either
+  condition stops holding - the app leaving visibility, or an explicit OFFLINE toggle - whichever comes
+  first. The ONLINE/OFFLINE preference itself is retained (not reset) across visibility changes, so the
+  service resumes automatically the moment the app becomes visible again while still toggled ONLINE.
+  Practical consequence: a driver who backgrounds the app while ONLINE stops sharing location (and so
+  stops being dispatchable) until they bring the app back to the foreground - an explicit, accepted
+  trade-off for the pilot to avoid Play's background-location review/disclosure burden, not an oversight.
+  In-app messaging ("keep Lady Go open to receive rides") is a slice 2 product/UX item, not covered here.
+- Permission flow: `ACCESS_FINE_LOCATION` only (no background-location permission exists in this design).
+  The ONLINE toggle is disabled with an explanatory state (not a silent no-op) until it's granted.
+  Denial doesn't crash the flow; it routes to a settings-deep-link screen explaining why fine location is
+  required to go online.
 - **Throttle: exactly matches the server's 1-per-2s limit** - the service's own location-update interval
   is 2s while ONLINE/ON_RIDE (not faster; sending faster just wastes battery hitting a 429 the server
   already rate-limits). `FusedLocationProviderClient` with `PRIORITY_HIGH_ACCURACY`, `setMinUpdateIntervalMillis`
@@ -271,9 +277,9 @@ Rules, all enforced by never trusting a locally-optimistic transition as final:
   `proguard-rules.pro` needs real keep-rules once Retrofit/the generated client/Hilt are added (reflection-
   based libraries routinely need them) - a build-time check, not a design decision: the release build
   must actually run on a real device/emulator before shipping, not just compile.
-- **Certificate pinning**: **open question, listed in §6, not decided here** - real tradeoff (pin
-  rotation operational risk vs. MITM protection on networks a driver's phone might be on) that's a
-  product/security-posture call, not an engineering default to assume either way.
+- **Certificate pinning**: **decided (§6) - no pinning for the pilot**, revisit with backup pins before
+  public launch. Pin-rotation operational risk outweighs MITM protection at pilot scale for now; this is
+  a time-boxed decision, not a permanent one.
 - **Call 112**: `Intent(Intent.ACTION_DIAL, Uri.parse("tel:112"))` (`ACTION_DIAL`, not `ACTION_CALL` -
   opens the dialer pre-filled rather than silently placing the call, so the driver has a final
   confirmation tap and the app never needs `CALL_PHONE` permission at all). No backend involvement,
@@ -317,35 +323,26 @@ Rules, all enforced by never trusting a locally-optimistic transition as final:
   runner, and a seed script reusing this session's `scripts/ci/*-seed.sh` pattern) - scoped as future
   work, not part of this design-only pass.
 
-## 6. Open questions
+## 6. Decisions
 
-1. **In-app map vs. hand-off to Google Maps/Waze via intent for turn-by-turn navigation** (to pickup and
-   to destination). Hand-off is far less work and drivers already know their preferred nav app; in-app
-   keeps the driver inside Lady Go's own UI (status bar, ride actions) without an app-switch. Leaning
-   hand-off for this pass given it's by far the lower-effort, lower-risk option, but this is a real
-   product call, not an engineering default.
-2. **`minSdk`**: the skeleton already sets 26 (matches `docs/development/roadmap.md` D15's stated
-   default, Android API 26+) - confirming that stands, or should it be raised/lowered for the actual
-   pilot's driver device population (older/cheaper Android phones are common in exactly this market)?
-3. **Distribution for the pilot**: Play Store (internal testing track) vs. direct APK sideload. Direct
-   APK is faster to iterate during a short pilot and avoids Play's review/policy surface entirely, but
-   means no auto-update and drivers have to be walked through "install from unknown sources." Play
-   internal testing gets auto-update and a familiar install flow but adds review turnaround to every
-   build.
-4. **Urdu/Kashmiri localisation**: `docs/development/roadmap.md` D13 already decided "English first,
-   localisation-ready strings" - confirming that still holds for the actual pilot cohort (i.e. English
-   is genuinely sufficient for the drivers being recruited), or does the pilot itself need at least Urdu
-   on day one? `supportsRtl="true"` is already set either way, so RTL isn't the blocker - it's purely
-   whether translated strings are in scope for this pass or a fast-follow.
-5. **Map provider billing**: `docs/api/maps-service.md` already settled Google Maps Platform for the
-   *backend's* server-side geocoding/routing (ADR-011) - does the driver app's own in-app map rendering
-   (if open question 1 lands on in-app rather than hand-off) use the same Google Maps Platform account/
-   billing, and is a *separate*, more tightly-scoped (map-display-only, no Places/Geocoding/Routes
-   quota) Android Maps SDK key already anticipated the way the existing architecture doc notes the
-   mobile map-display key is intentionally different from the backend's server-side key?
-6. **Onboarding split confirmation**: §1 assumes this app routes an incomplete/rejected driver to a
-   read-only status screen and the driver-registration *website* (previous task) remains the only place
-   document upload/selfie/declaration actually happens, rather than rebuilding that whole flow natively
-   a second time. Confirming that's the intended split, not an assumption to quietly build around.
-7. **Certificate pinning** (§4): pin or not for this pass - real security-posture tradeoff, not decided
-   here.
+Recorded 2026-10-14, in response to the open questions above. These are now settled for the pilot and
+supersede the corresponding bullets elsewhere in this doc (§1, §2.3, §4 updated in place to match).
+
+1. **Navigation**: hand-off to Google Maps via `Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=<lat>,<lng>"))`
+   (falls back to a generic geo: URI if Maps isn't installed). No in-app map, and therefore **no Maps
+   SDK/display key needed at all** - the map-provider-billing question is moot, not just deferred.
+2. **`minSdk` 26** confirmed as-is (already the skeleton default, matches roadmap D15).
+3. **Distribution**: Play Store internal testing track as primary, direct APK sideload kept as a fallback
+   (e.g. a reviewer-turnaround blocker right before a pilot date). Both need to work, not just one.
+4. **Localisation**: English first for the pilot; all user-facing strings externalised to `strings.xml`
+   from the start (no hardcoded text) so Urdu is a resource-file addition later, not a refactor. Urdu
+   itself is explicitly deferred to a later slice, not this one.
+5. **Onboarding split confirmed**: this app shows a read-only status screen only; the driver-registration
+   website remains the sole place onboarding actions (upload, selfie, declaration) happen. Not rebuilt
+   natively here.
+6. **Certificate pinning**: none for the pilot; revisit with backup pins before public launch. See §4.
+7. **Location foreground service permission model**: the service runs only while the app is visible, so
+   only `ACCESS_FINE_LOCATION` is requested - no `ACCESS_BACKGROUND_LOCATION`, no Play background-location
+   review/disclosure burden for the pilot. Trade-off: a driver who backgrounds the app while ONLINE stops
+   being dispatchable until it's foregrounded again. See §2.3 for the full consequence and the deferred
+   in-app-messaging follow-up.
