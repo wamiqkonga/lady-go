@@ -45,5 +45,9 @@ jobs:
       - name: detekt
         if: matrix.app == 'android-driver'
         run: gradle --no-daemon :app:detekt
-      - name: Lint, unit tests, debug build
-        run: gradle --no-daemon :app:lintDebug :app:testDebugUnitTest :app:assembleDebug
+      - name: Lint, unit tests, debug and release build
+        # assembleRelease is included deliberately, not just assembleDebug - a prior release build
+        # broke (R8/minify-only failures that a debug build never exercises) and shipped past CI
+        # undetected until a manual release build was tried later. Running it here every time is
+        # what would have caught that at the PR, not after.
+        run: gradle --no-daemon :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
