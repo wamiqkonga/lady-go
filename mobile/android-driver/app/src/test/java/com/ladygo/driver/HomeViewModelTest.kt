@@ -1,20 +1,47 @@
 package com.ladygo.driver
 
+import com.ladygo.driver.auth.AuthRepository
+import com.ladygo.driver.testing.MainDispatcherRule
 import com.ladygo.driver.ui.HomeViewModel
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 class HomeViewModelTest {
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
+    private val authRepository = mockk<AuthRepository>()
+
     @Test
     fun exposesConfiguredApiBaseUrl() {
-        val vm = HomeViewModel(apiBaseUrl = "https://api.test.example")
-        assertEquals("https://api.test.example", vm.uiState.value.apiBaseUrl)
+        val vm = HomeViewModel(authRepository)
+        assertEquals(BuildConfig.API_BASE_URL, vm.uiState.value.apiBaseUrl)
     }
 
     @Test
     fun skeletonNoteIsPresent() {
-        val vm = HomeViewModel(apiBaseUrl = "http://localhost")
-        assertTrue(vm.uiState.value.phaseNote.isNotBlank())
+        val vm = HomeViewModel(authRepository)
+        assertTrue(
+            vm.uiState.value.phaseNote
+                .isNotBlank(),
+        )
     }
+
+    @Test
+    fun onLogoutRevokesTheSession() =
+        runTest {
+            coEvery { authRepository.logout() } returns Unit
+            val vm = HomeViewModel(authRepository)
+
+            vm.onLogout()
+            testScheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { authRepository.logout() }
+        }
 }
