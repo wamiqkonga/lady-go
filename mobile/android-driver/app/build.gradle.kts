@@ -274,7 +274,13 @@ dependencies {
     implementation(libs.moshi)
     implementation(libs.moshi.kotlin)
     implementation(libs.okhttp)
-    debugImplementation(libs.okhttp.logging.interceptor)
+    // Must be a normal `implementation`, not `debugImplementation`: the generated
+    // infrastructure/ApiClient.kt and NetworkModule.kt both reference HttpLoggingInterceptor from
+    // the shared main source set, which also compiles for release - debugImplementation here made
+    // compileReleaseKotlin fail outright (confirmed by actually running it) even though the
+    // interceptor is only ever *constructed* behind `if (BuildConfig.DEBUG)` at runtime. That
+    // runtime check, not classpath absence, is what keeps it out of a release build's behaviour.
+    implementation(libs.okhttp.logging.interceptor)
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.androidx.security.crypto)
