@@ -169,35 +169,86 @@ design-blocking one). Design requirements, all server-confirmed in §0/`realtime
 
 ### 2.3 Foreground service + location
 
-- **Decided (§6): the service runs only while the app is visible** - no `ACCESS_BACKGROUND_LOCATION`
-  request, no background-location permission dialog at all for the pilot. A `ForegroundService` (type
-  `location`, per Android 14+'s mandatory foreground-service-type declaration) starts when the driver
-  goes ONLINE *and* the app is in the foreground/visible lifecycle state, and stops whenever either
-  condition stops holding - the app leaving visibility, or an explicit OFFLINE toggle - whichever comes
-  first. The ONLINE/OFFLINE preference itself is retained (not reset) across visibility changes, so the
-  service resumes automatically the moment the app becomes visible again while still toggled ONLINE.
-  Practical consequence: a driver who backgrounds the app while ONLINE stops sharing location (and so
-  stops being dispatchable) until they bring the app back to the foreground - an explicit, accepted
-  trade-off for the pilot to avoid Play's background-location review/disclosure burden, not an oversight.
-  In-app messaging ("keep Lady Go open to receive rides") is a slice 2 product/UX item, not covered here.
-- Permission flow: `ACCESS_FINE_LOCATION` only (no background-location permission exists in this design).
-  The ONLINE toggle is disabled with an explanatory state (not a silent no-op) until it's granted.
-  Denial doesn't crash the flow; it routes to a settings-deep-link screen explaining why fine location is
-  required to go online.
+> **Correction to slice 1 (2026-10-14), verified against Android's own documented behaviour, not
+> re-guessed**: slice 1 stated that backgrounding the app while ONLINE stops location sharing (and
+> so dispatchability) until the app is foregrounded again. **That is wrong and has been corrected
+> below.** A location-typed foreground service, once legitimately started, keeps receiving location
+> updates after the hosting activity is backgrounded - the permission model doesn't change. The real
+> limitation was always something else (Doze/OEM process killers), documented accurately below.
+
+- **The foreground-service exemption, and why slice 1's claim was wrong**: Android's background-
+  location restriction (the reason `ACCESS_BACKGROUND_LOCATION` exists at all, since Android 10/API
+  29) applies to an app that wants location access while it has *no* visible activity and *no*
+  running foreground service. A `location`-typed foreground service's own ongoing notification is
+  Android's documented signal that the app is doing a user-visible task right now, and that alone
+  satisfies the "foreground" condition for location access - **with only `ACCESS_FINE_LOCATION`**,
+  not `ACCESS_BACKGROUND_LOCATION`, and this has not changed across Android 10 through 14 (confirmed
+  against current Android developer documentation for this exact scenario, not inferred). So: once
+  the service is started and has called `startForeground()`, it keeps getting
+  `FusedLocationProviderClient` updates whether the driver's activity is visible, backgrounded, or
+  the task is swiped away entirely - as long as the *process* is still alive. Slice 1's claim that
+  backgrounding stops location sharing was an unverified guess, not a researched fact, and is
+  withdrawn.
+- **The real, documented limitation**: Doze mode and - far more often in practice - aggressive
+  non-stock OEM battery managers (Samsung, Xiaomi/MIUI, OnePlus/OxygenOS, and others) can still kill
+  the app's *process* outright regardless of the foreground-service exemption, which is a
+  widely-documented Android ecosystem reliability gap, not a permission-scope problem. No permission
+  grant fixes a killed process. This is why the design already plans a one-time battery-optimisation
+  guidance screen (user education, not a code fix) and `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (helps
+  against stock-Android Doze deferral; has no effect on OEM-specific killers). **FCM-based wake-up is
+  required before public launch** - not to resume a killed foreground service (nothing resumes that
+  without the driver reopening the app), but because a killed process also means missed ride offers
+  with no fallback, and that gap has no workaround short of push. Tracked as a launch gate, same as
+  `docs/development/roadmap.md`'s existing SOS/safety gate.
+- **Per-Android-version specifics that affect this slice**:
+  - **Android 10 (API 29)**: introduces `ACCESS_BACKGROUND_LOCATION` itself; the foreground-service
+    exemption above is what makes requesting it unnecessary for this app.
+  - **Android 13 (API 33)**: `POST_NOTIFICATIONS` becomes a runtime permission. If denied, the
+    foreground service still starts and still receives location updates - only the persistent
+    notification itself fails to display. Requested separately from fine location (§1's permission
+    flow), with its own rationale text; denial degrades notification visibility, not location
+    sharing, and must not block going online.
+  - **Android 14 (API 34)**: foreground-service types became mandatory to declare (already planned)
+    *and* each type now requires a matching install-time permission - `location` requires
+    `android.permission.FOREGROUND_SERVICE_LOCATION` declared in the manifest. This is normal/
+    auto-granted (no runtime prompt), but a missing manifest declaration blocks the service from
+    starting at all on API 34+, so it is a hard manifest requirement, not optional hardening.
+- **Decided (§6): no `ACCESS_BACKGROUND_LOCATION` request** - this still holds, but not for the
+  reason originally given. It was never needed for the foreground-service-while-backgrounded case
+  (see above); it would only matter if this app wanted location access with *no* foreground service
+  running at all, which it never does. A `ForegroundService` (type `location`, with the Android 14+
+  manifest permission above) starts when the driver goes ONLINE, **started only from a visible
+  activity** (Android 12+ restricts starting a foreground service from a non-visible context -
+  this part of slice 1 was correct and is unchanged), and stops only on an explicit OFFLINE toggle,
+  logout, or forced logout - **not** on the app losing visibility, since that no longer breaks
+  anything. It keeps running straight through `ONLINE→BUSY→ONLINE` for consecutive rides and through
+  ordinary backgrounding, per the correction above.
+- Permission flow: `ACCESS_FINE_LOCATION` requested first; `POST_NOTIFICATIONS` requested separately
+  (Android 13+, rationale: "We use notifications to alert you to new ride requests."). The ONLINE
+  toggle is disabled with an explanatory state (not a silent no-op) until fine location is granted;
+  a denied `POST_NOTIFICATIONS` does not block it (see above). Fine-location denial doesn't crash the
+  flow; it routes to a settings-deep-link screen explaining why fine location is required to go
+  online, with this exact rationale text: "Lady Go uses your location while you are online to match
+  you with nearby riders and to share your live position with your rider during a trip. Location
+  sharing stops when you go offline."
 - **Throttle: exactly matches the server's 1-per-2s limit** - the service's own location-update interval
   is 2s while ONLINE/ON_RIDE (not faster; sending faster just wastes battery hitting a 429 the server
   already rate-limits). `FusedLocationProviderClient` with `PRIORITY_HIGH_ACCURACY`, `setMinUpdateIntervalMillis`
   aligned to the same 2s. A locally-queued single "pending" update (not a full offline queue - Room was
-  explicitly declined above) is retried on the next tick if a send fails, so a brief network blip doesn't
-  need its own retry/backoff machinery beyond "try again next cycle."
+  explicitly declined above) is retried on the next tick if a send fails; a stale queued fix is dropped
+  rather than sent late, and a 429/network error backs off rather than hammering the endpoint.
 - Doze/battery: request `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` only while genuinely ONLINE (never
-  pre-emptively at install/login) with a clear explanation, since the foreground service + its own
-  persistent notification already exempts the critical path from most Doze restrictions - this is a
-  belt-and-suspenders ask for devices/OEMs with aggressive non-stock battery management, not a hard
-  requirement for correctness.
+  pre-emptively at install/login), shown once as a dedicated guidance screen explaining why - this is a
+  belt-and-suspenders ask for devices/OEMs with aggressive non-stock battery management (the real risk
+  documented above), not a hard requirement for correctness on stock Android.
 - Accuracy: `DriverLocationRequest` requires `accuracyMeters` (non-null outside the dev profile) - a
   fix with no accuracy reading (rare, but possible transiently) is simply not sent that cycle rather
   than sent with a fabricated value.
+- Reconciliation: on every app resume (and after recovering from a send failure run of backoff), the
+  service/ViewModel re-fetches `GET /drivers/me` (availability) and the active booking if any - if the
+  server says `OFFLINE` (driver was set offline server-side, e.g. suspended) or a status that implies
+  the local ONLINE toggle is stale, the local toggle and the foreground service both snap to match the
+  server, never the reverse. `BUSY` is treated the same as `ONLINE` for the toggle display (§1).
 
 ## 3. State machine - server is the only source of truth
 
@@ -341,8 +392,10 @@ supersede the corresponding bullets elsewhere in this doc (§1, §2.3, §4 updat
    website remains the sole place onboarding actions (upload, selfie, declaration) happen. Not rebuilt
    natively here.
 6. **Certificate pinning**: none for the pilot; revisit with backup pins before public launch. See §4.
-7. **Location foreground service permission model**: the service runs only while the app is visible, so
-   only `ACCESS_FINE_LOCATION` is requested - no `ACCESS_BACKGROUND_LOCATION`, no Play background-location
-   review/disclosure burden for the pilot. Trade-off: a driver who backgrounds the app while ONLINE stops
-   being dispatchable until it's foregrounded again. See §2.3 for the full consequence and the deferred
-   in-app-messaging follow-up.
+7. **Location foreground service permission model**: only `ACCESS_FINE_LOCATION` is requested - no
+   `ACCESS_BACKGROUND_LOCATION`, no Play background-location review/disclosure burden for the pilot.
+   **Corrected in slice 2a (§2.3)**: this was never a dispatchability trade-off - a location-typed
+   foreground service keeps receiving updates after the app is backgrounded regardless of this choice,
+   per Android's own documented foreground-service exemption. The real limitation is Doze/OEM process
+   killers, which no permission grant fixes; FCM-based wake-up is a launch gate for that reason, not
+   for this one.
