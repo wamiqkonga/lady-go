@@ -73,6 +73,17 @@ android {
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            // Robolectric reaches into JDK-internal classes (FileDescriptor, SharedSecrets) that
+            // JDK 17+'s module system hides from the unnamed module by default - confirmed by a real
+            // failure here ("cannot access class jdk.internal.access.SharedSecrets") without these.
+            it.jvmArgs(
+                "--add-opens=java.base/java.lang=ALL-UNNAMED",
+                "--add-opens=java.base/java.util=ALL-UNNAMED",
+                "--add-opens=java.base/java.io=ALL-UNNAMED",
+                "--add-opens=java.base/jdk.internal.access=ALL-UNNAMED",
+            )
+        }
     }
     lint {
         checkReleaseBuilds = true

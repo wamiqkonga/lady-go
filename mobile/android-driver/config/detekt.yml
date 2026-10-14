@@ -4,6 +4,12 @@
 style:
   MagicNumber:
     active: false
+  MaxLineLength:
+    # Default 120 wraps badly for one-line mockk stub setups in tests (`coEvery { x } returns
+    # Response.success(SomeResponse(data = Thing(...)))`) - wrapping those hurts readability more
+    # than the extra width does, so this matches ktlint's own effectively-unenforced line length
+    # for non-breakable call chains rather than fighting it.
+    maxLineLength: 150
   ReturnCount:
     # Early-return validation/branching (reject malformed input, map a 404 to a distinct state,
     # give up on a failed network call) is this codebase's deliberate style throughout - see
