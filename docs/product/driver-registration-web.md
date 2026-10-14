@@ -60,6 +60,10 @@ Checked against the *approved* Phase 5 design (`docs/api/driver-onboarding.md` Â
    missing is a pluggable, config-driven challenge step. **Fix**: `ChallengeVerifier` SPI (mirrors the
    `SmsSender` pattern from the prior task - no vendor chosen), `NoOpChallengeVerifier` default
    (disabled), wired into `OtpLoginService.requestOtp` ahead of the existing limits when enabled.
+4. **No way to discover which cities exist at all.** `POST /drivers/me` requires a `cityId`, and
+   `CityRepository.findByActiveTrue()` already existed, but nothing exposed it to any client. **Fix**:
+   `GET /api/v1/cities` (authenticated CUSTOMER/DRIVER, not public) - the minimal list a city picker
+   needs, nothing more.
 
 No other gaps found - vehicle, selfie, document listing, and the overall status fields all already
 exist with the right shape.
