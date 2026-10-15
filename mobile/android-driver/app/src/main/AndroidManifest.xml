@@ -2,6 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 12+ requires ACCESS_COARSE_LOCATION declared alongside ACCESS_FINE_LOCATION even
+         though this app only ever requests/relies on FINE - the OS lets the user grant approximate-
+         only at the system dialog regardless, and the app treats that the same as denied (§2.3:
+         fine location is required to go online). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14+ (API 34) requires a type-matching permission alongside foregroundServiceType -
+         install-time/auto-granted, but its absence blocks the service from starting at all on 34+. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Android 13+ (API 33) runtime permission for the service's persistent notification. Denial
+         does not stop the service or its location updates - only the notification itself (§2.3). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".LadyGoDriverApplication"
@@ -19,5 +32,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".location.LocationForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
     </application>
 </manifest>

@@ -24,7 +24,9 @@ complexity:
   LongParameterList:
     # A UiState + one callback per user action is this app's whole architecture (unidirectional
     # state, per the design doc) - bundling those into a params object would be ceremony, not
-    # clarity, for a Composable that just renders a state and wires up its actions.
+    # clarity, for a Composable that just renders a state and wires up its actions. (A case that
+    # genuinely grew unwieldy - HomeContent's two permission-dialog param groups - was refactored
+    # into BatteryGuidanceDialogState/FineLocationDeniedDialogState instead of raising this again.)
     functionThreshold: 8
 
 naming:

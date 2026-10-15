@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestResult
+import org.gradle.kotlin.dsl.KotlinClosure2
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
@@ -82,6 +85,24 @@ android {
                 "--add-opens=java.base/java.util=ALL-UNNAMED",
                 "--add-opens=java.base/java.io=ALL-UNNAMED",
                 "--add-opens=java.base/jdk.internal.access=ALL-UNNAMED",
+            )
+            // Gradle's default console test logger only prints anything for a FAILED suite - a
+            // green CI run gives no test count at all in the log, which is exactly the thing
+            // "report real CI counts, not just the conclusion" needs. This prints one summary line
+            // per run regardless of outcome.
+            it.testLogging {
+                events("passed", "skipped", "failed")
+            }
+            it.afterSuite(
+                KotlinClosure2<TestDescriptor, TestResult, Unit>({ descriptor, result ->
+                    if (descriptor.parent == null) {
+                        println(
+                            "Test result: ${result.resultType} - " +
+                                "${result.testCount} tests, ${result.successfulTestCount} passed, " +
+                                "${result.failedTestCount} failed, ${result.skippedTestCount} skipped",
+                        )
+                    }
+                }),
             )
         }
     }
@@ -284,12 +305,15 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.androidx.security.crypto)
+    implementation(libs.play.services.location)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.android.compiler)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)

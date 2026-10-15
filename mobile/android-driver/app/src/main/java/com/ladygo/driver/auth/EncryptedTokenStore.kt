@@ -14,13 +14,20 @@ class EncryptedTokenStore
     constructor(
         @ApplicationContext context: Context,
     ) : TokenStore {
-        private val masterKey =
+        // Lazy, not an eager property initializer: constructing this class (which Hilt does for
+        // every injection site in the authenticated-request graph) must not itself touch the
+        // Android Keystore - only an actual token read/write should. Confirmed by a real failure
+        // this caused: Robolectric has no AndroidKeyStore provider, so building this object eagerly
+        // crashed (KeyStoreException/NoSuchAlgorithmException) for a Hilt-injected service
+        // (LocationForegroundService) whose test never even calls getAccessToken()/setTokens().
+        private val masterKey by lazy {
             MasterKey
                 .Builder(context)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
+        }
 
-        private val prefs: SharedPreferences =
+        private val prefs: SharedPreferences by lazy {
             EncryptedSharedPreferences.create(
                 context,
                 PREFS_FILE_NAME,
@@ -28,6 +35,7 @@ class EncryptedTokenStore
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
             )
+        }
 
         @Synchronized
         override fun getAccessToken(): String? = prefs.getString(KEY_ACCESS_TOKEN, null)

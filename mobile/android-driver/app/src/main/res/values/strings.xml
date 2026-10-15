@@ -2,4 +2,11 @@
     <string name="app_name">Lady Go Driver</string>
     <string name="home_title">Lady Go Driver</string>
     <string name="home_subtitle">Drive with Lady Go.</string>
+
+    <string name="location_sharing_notification_channel_name">Location sharing</string>
+    <string name="location_sharing_notification_title">Lady Go Driver</string>
+    <string name="location_sharing_notification_text">Sharing your location while you\'re online.</string>
+
+    <string name="fine_location_rationale">Lady Go uses your location while you are online to match you with nearby riders and to share your live position with your rider during a trip. Location sharing stops when you go offline.</string>
+    <string name="notification_permission_rationale">We use notifications to alert you to new ride requests.</string>
 </resources>
