@@ -19,11 +19,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -42,9 +41,16 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     val context = LocalContext.current
 
-    var showBatteryGuidanceDialog by remember { mutableStateOf(false) }
-    var showFineLocationDeniedExplainer by remember { mutableStateOf(false) }
-    var notificationPermissionAsked by remember { mutableStateOf(false) }
+    // rememberSaveable, not remember: a config change (rotation) mid-go-online-flow must not reset
+    // these and risk re-showing a dialog or re-requesting a permission the driver already answered
+    // this session (security review finding).
+    var showBatteryGuidanceDialog by rememberSaveable { mutableStateOf(false) }
+    var showFineLocationDeniedExplainer by rememberSaveable { mutableStateOf(false) }
+    var notificationPermissionAsked by rememberSaveable { mutableStateOf(false) }
+    // Covers the brief window between tapping "Go online" and a system permission dialog actually
+    // painting, where the button would otherwise still be tappable (security review finding: a
+    // rapid double-tap in that window could launch the permission request twice).
+    var isGoOnlineFlowBusy by rememberSaveable { mutableStateOf(false) }
 
     fun hasFineLocationPermission() =
         ContextCompat.checkSelfPermission(
@@ -60,7 +66,10 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val notificationPermissionLauncher =
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission(),
-        ) { _ -> viewModel.onToggleAvailability() }
+        ) { _ ->
+            isGoOnlineFlowBusy = false
+            viewModel.onToggleAvailability()
+        }
 
     fun advanceAssumingFineLocationGranted(hasShownBatteryGuidance: Boolean = state.hasShownBatteryGuidance) {
         advanceGoOnlineFlow(
@@ -68,12 +77,18 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
             hasShownBatteryGuidance = hasShownBatteryGuidance,
             notificationPermissionAsked = notificationPermissionAsked,
             hasNotificationPermission = hasNotificationPermission(),
-            onShowBatteryGuidance = { showBatteryGuidanceDialog = true },
+            onShowBatteryGuidance = {
+                isGoOnlineFlowBusy = false
+                showBatteryGuidanceDialog = true
+            },
             onRequestNotificationPermission = {
                 notificationPermissionAsked = true
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             },
-            onProceed = viewModel::onToggleAvailability,
+            onProceed = {
+                isGoOnlineFlowBusy = false
+                viewModel.onToggleAvailability()
+            },
         )
     }
 
@@ -81,10 +96,16 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
         rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission(),
         ) { granted ->
-            if (granted) advanceAssumingFineLocationGranted() else showFineLocationDeniedExplainer = true
+            if (granted) {
+                advanceAssumingFineLocationGranted()
+            } else {
+                isGoOnlineFlowBusy = false
+                showFineLocationDeniedExplainer = true
+            }
         }
 
     fun onGoOnlineClicked() {
+        isGoOnlineFlowBusy = true
         if (!hasFineLocationPermission()) {
             fineLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             return
@@ -92,6 +113,14 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
         advanceAssumingFineLocationGranted()
     }
 
+    // Security review finding: a DisposableEffect(Unit) stopping the service unconditionally on
+    // every composition teardown used to also fire on a plain screen rotation (Compose state is not
+    // retained across Activity recreation, but the Hilt-scoped ViewModel's `availability` is) -
+    // stop+immediate-restart churn, a notification flicker, a brief location gap, and the
+    // throttle/backoff gate resetting on every rotation while online. `state.availability` already
+    // flips to OFFLINE as part of the same state update onLogout performs, before Home ever leaves
+    // composition, so this one effect reacting to that value is both necessary and sufficient -
+    // no separate "leaving composition" safety net needed.
     LaunchedEffect(state.availability) {
         if (state.availability == Availability.ONLINE) {
             LocationForegroundService.start(context)
@@ -99,14 +128,13 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
             LocationForegroundService.stop(context)
         }
     }
-    DisposableEffect(Unit) {
-        onDispose { LocationForegroundService.stop(context) }
-    }
 
     HomeContent(
         state = state,
         onToggleAvailability = {
-            if (state.availability == Availability.OFFLINE) onGoOnlineClicked() else viewModel.onToggleAvailability()
+            if (!isGoOnlineFlowBusy) {
+                if (state.availability == Availability.OFFLINE) onGoOnlineClicked() else viewModel.onToggleAvailability()
+            }
         },
         onLogout = viewModel::onLogout,
         onDismissMessages = viewModel::onDismissMessages,
@@ -119,7 +147,13 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                     advanceAssumingFineLocationGranted(hasShownBatteryGuidance = true)
                 },
                 onOpenSettings = {
-                    context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    // Some OEM ROMs remove/rename this screen entirely (security review finding -
+                    // confirmed ActivityNotFoundException is a real risk here, unlike the core-AOSP
+                    // app-details-settings intent below) - this is purely optional guidance, so a
+                    // missing target silently does nothing rather than crashing the app.
+                    runCatching {
+                        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    }
                 },
             ),
         fineLocationDeniedDialog =

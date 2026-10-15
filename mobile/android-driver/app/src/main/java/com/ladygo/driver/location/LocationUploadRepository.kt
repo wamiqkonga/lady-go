@@ -54,16 +54,23 @@ class LocationUploadRepository
             if (response.isSuccessful) return LocationSendOutcome.Sent
 
             val error = parseErrorBody(response)
-            if (error?.message == DRIVER_OFFLINE_MESSAGE) {
+            if (error?.message?.contains(DRIVER_OFFLINE_MARKER) == true) {
                 return LocationSendOutcome.DriverSetOffline
             }
             return LocationSendOutcome.Failed(error?.message ?: "Location update failed (status ${response.code()}).")
         }
 
         private companion object {
-            // Exact literal from DriverLocationService.updateLocation - matched precisely, not as a
-            // prefix/substring, so a future unrelated wording change on the server fails this match
-            // loudly (LocationSendOutcome.Failed, same as any other rejection) instead of silently.
-            const val DRIVER_OFFLINE_MESSAGE = "Driver is OFFLINE."
+            // DriverLocationService.updateLocation's rejection message is "Driver is OFFLINE." -
+            // matched as a substring rather than exact equality, so a minor wording change
+            // (punctuation, a trailing detail) on the server doesn't silently break this. Security
+            // review finding: the error code alone isn't specific enough to use instead - every
+            // validation failure on this endpoint (rate limit aside) shares the same generic
+            // VALIDATION_FAILED code (confirmed from ValidationException's own source), so the
+            // message is the only sufficiently specific signal available without a backend change.
+            // No other rejection on this endpoint ("accuracyMeters is required", "Location update is
+            // out of order", "...implies an impossible speed") contains this word, so the substring
+            // match stays safely specific.
+            const val DRIVER_OFFLINE_MARKER = "OFFLINE"
         }
     }

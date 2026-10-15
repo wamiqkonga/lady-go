@@ -57,6 +57,19 @@ class LocationUploadRepositoryTest {
             assertTrue(outcome is LocationSendOutcome.DriverSetOffline)
         }
 
+    /** Security review finding: matched as a substring, not exact equality, so a minor server-side
+     *  wording change around the same rejection doesn't silently stop being recognised. */
+    @Test
+    fun recognisesTheRejectionEvenWithSlightlyDifferentWordingAroundIt() =
+        runTest {
+            coEvery { driverApi.updateLocation(any()) } returns
+                errorResponse("""{"error":{"code":"VALIDATION_FAILED","message":"Driver is OFFLINE - cannot accept location updates."}}""")
+
+            val outcome = repository.send(12.9, 77.6, 8.0, now)
+
+            assertTrue(outcome is LocationSendOutcome.DriverSetOffline)
+        }
+
     /** Any OTHER validation failure on this same endpoint (rate limit, impossible speed, missing
      *  accuracy) carries the identical error code - only the exact message distinguishes the
      *  offline case, so a different message must NOT be misread as it. */
