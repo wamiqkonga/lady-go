@@ -1,0 +1,7 @@
+root = true
+
+[*.{kt,kts}]
+# Compose functions are PascalCase by convention (a Composable is a type-like constructor, not a
+# verb) - ktlint ships this exact property so the standard function-naming rule doesn't flag every
+# screen function.
+ktlint_function_naming_ignore_when_annotated_with = Composable

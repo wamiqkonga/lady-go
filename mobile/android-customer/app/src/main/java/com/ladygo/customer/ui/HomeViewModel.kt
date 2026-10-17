@@ -1,20 +1,24 @@
 package com.ladygo.customer.ui
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.ladygo.customer.BuildConfig
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.ladygo.customer.auth.AuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-data class HomeUiState(
-    val apiBaseUrl: String,
-    val phaseNote: String = "Skeleton build. Features arrive in later development phases.",
-)
+/** Placeholder home until the booking flow (next slice) lands; for now it only proves the session
+ *  works end to end and offers log out. */
+@HiltViewModel
+class HomeViewModel
+    @Inject
+    constructor(
+        private val authRepository: AuthRepository,
+    ) : ViewModel() {
+        val apiBaseUrl: String = BuildConfig.API_BASE_URL
 
-/** Placeholder MVVM view model. Real screens (auth, booking, ...) follow the roadmap. */
-class HomeViewModel @JvmOverloads constructor(
-    apiBaseUrl: String = BuildConfig.API_BASE_URL,
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(HomeUiState(apiBaseUrl = apiBaseUrl))
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-}
+        fun onLogout() {
+            viewModelScope.launch { authRepository.logout() }
+        }
+    }

@@ -11,6 +11,9 @@ private val LightColors = lightColorScheme(primary = Color(0xFF7A2E8E))
 private val DarkColors = darkColorScheme(primary = Color(0xFFD58BE6))
 
 @Composable
-fun LadyGoTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun LadyGoTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(colorScheme = if (darkTheme) DarkColors else LightColors, content = content)
 }

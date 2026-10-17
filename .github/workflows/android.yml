@@ -37,13 +37,10 @@ jobs:
         with:
           gradle-version: "8.14.3"
       - name: Check generated API client is up to date
-        if: matrix.app == 'android-driver'
         run: gradle --no-daemon :app:checkOpenApiClientDrift
       - name: ktlint
-        if: matrix.app == 'android-driver'
         run: gradle --no-daemon :app:ktlintCheck
       - name: detekt
-        if: matrix.app == 'android-driver'
         run: gradle --no-daemon :app:detekt
       - name: Lint, unit tests, debug and release build
         # assembleRelease is included deliberately, not just assembleDebug - a prior release build

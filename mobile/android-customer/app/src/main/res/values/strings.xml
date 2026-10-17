@@ -2,4 +2,15 @@
     <string name="app_name">Lady Go</string>
     <string name="home_title">Lady Go</string>
     <string name="home_subtitle">Safe, simple rides for women.</string>
+    <string name="home_booking_coming_soon">Booking a ride is coming in the next update.</string>
+    <string name="home_logout_action">Log out</string>
+
+    <string name="onboarding_retry_action">Try again</string>
+    <string name="onboarding_logout_action">Log out</string>
+    <string name="onboarding_continue_action">Continue</string>
+    <string name="onboarding_name_title">What should we call you?</string>
+    <string name="onboarding_name_hint">Your first name is shown to your driver.</string>
+    <string name="onboarding_name_label">Your name</string>
+    <string name="onboarding_declaration_title">Before you ride</string>
+    <string name="onboarding_declaration_accept_action">I agree</string>
 </resources>
