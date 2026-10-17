@@ -2,7 +2,9 @@
     <string name="app_name">Lady Go</string>
     <string name="home_title">Lady Go</string>
     <string name="home_subtitle">Safe, simple rides for women.</string>
-    <string name="home_booking_coming_soon">Booking a ride is coming in the next update.</string>
+    <string name="home_book_ride_action">Book a ride</string>
+    <string name="home_ride_in_progress">You have a ride in progress.</string>
+    <string name="home_resume_ride_action">View my ride</string>
     <string name="home_logout_action">Log out</string>
 
     <string name="onboarding_retry_action">Try again</string>
@@ -13,4 +15,53 @@
     <string name="onboarding_name_label">Your name</string>
     <string name="onboarding_declaration_title">Before you ride</string>
     <string name="onboarding_declaration_accept_action">I agree</string>
+
+    <string name="book_title">Where to?</string>
+    <string name="book_locating">Finding your location...</string>
+    <string name="book_pickup_label">Pickup</string>
+    <string name="book_destination_label">Destination</string>
+    <string name="book_fare_label">Fare</string>
+    <string name="book_fare_approximate">This is an approximate fare.</string>
+    <string name="book_payment_cash">Pay your driver in cash.</string>
+    <string name="book_location_rationale">Lady Go uses your location to set your pickup point and to find drivers near you. Please choose Precise location.</string>
+    <string name="book_grant_location_action">Allow location</string>
+    <string name="book_location_unavailable">Could not get your location. Turn on location services and try again.</string>
+    <string name="book_open_settings_action">Open settings</string>
+    <string name="book_retry_action">Try again</string>
+    <string name="book_search_action">Search</string>
+    <string name="book_no_results">No places found. Try a more specific address.</string>
+    <string name="book_confirm_action">Book ride</string>
+    <string name="book_change_destination_action">Change destination</string>
+    <string name="book_back_action">Back</string>
+
+    <string name="selfie_title">Quick selfie</string>
+    <string name="selfie_hint">For everyone\'s safety, take a selfie before each ride. Your driver sees it when she meets you.</string>
+    <string name="selfie_permission_needed">Camera access is needed to take your selfie.</string>
+    <string name="selfie_grant_permission_action">Allow camera</string>
+    <string name="selfie_capture_action">Take selfie and book</string>
+    <string name="selfie_uploading">Uploading...</string>
+    <string name="selfie_open_settings_action">Open settings</string>
+    <string name="selfie_cancel_action">Cancel</string>
+    <string name="selfie_capture_failed">Could not take the photo. Try again.</string>
+
+    <string name="track_title_searching">Finding your driver</string>
+    <string name="track_title_driver_coming">Your driver is on the way</string>
+    <string name="track_title_in_trip">Trip in progress</string>
+    <string name="track_title_payment">Trip complete</string>
+    <string name="track_title_finished">All done</string>
+    <string name="track_title_cancelled">Ride cancelled</string>
+    <string name="track_note_searching">We are looking for a driver near you.</string>
+    <string name="track_note_pay_cash">Please pay your driver the fare in cash.</string>
+    <string name="track_note_finished">Thanks for riding with Lady Go.</string>
+    <string name="track_note_cancelled">This ride was cancelled.</string>
+    <string name="track_pin_label">Your ride PIN</string>
+    <string name="track_pin_hint">Tell this PIN to your driver when she arrives. Only share it in person.</string>
+    <string name="track_call_112_action">Call 112</string>
+    <string name="track_cancel_action">Cancel ride</string>
+    <string name="track_cancel_title">Cancel this ride?</string>
+    <string name="track_cancel_fee_note">A cancellation fee may apply once a driver has accepted your ride.</string>
+    <string name="track_cancel_reason_label">Reason (optional)</string>
+    <string name="track_cancel_confirm">Cancel ride</string>
+    <string name="track_cancel_keep">Keep ride</string>
+    <string name="track_done_action">Back to home</string>
 </resources>

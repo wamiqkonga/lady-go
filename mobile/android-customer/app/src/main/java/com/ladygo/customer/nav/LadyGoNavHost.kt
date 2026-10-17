@@ -6,10 +6,14 @@ import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.ladygo.customer.auth.SessionManager
+import com.ladygo.customer.booking.ui.BookRideScreen
+import com.ladygo.customer.booking.ui.TrackBookingScreen
 import com.ladygo.customer.login.ui.LoginScreen
 import com.ladygo.customer.onboarding.ui.OnboardingScreen
 import com.ladygo.customer.ui.HomeScreen
@@ -21,6 +25,10 @@ object Routes {
     const val LOGIN = "login"
     const val ONBOARDING = "onboarding"
     const val HOME = "home"
+    const val BOOK = "book"
+    const val TRACK = "track/{bookingId}"
+
+    fun track(bookingId: java.util.UUID) = "track/$bookingId"
 }
 
 @HiltViewModel
@@ -66,6 +74,27 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
                 navController.navigate(Routes.HOME) { popUpTo(Routes.ONBOARDING) { inclusive = true } }
             })
         }
-        composable(Routes.HOME) { HomeScreen() }
+        composable(Routes.HOME) {
+            HomeScreen(
+                onBookRide = { navController.navigate(Routes.BOOK) { launchSingleTop = true } },
+                onResumeRide = { id -> navController.navigate(Routes.track(id)) { launchSingleTop = true } },
+            )
+        }
+        composable(Routes.BOOK) {
+            BookRideScreen(
+                onBooked = { booking ->
+                    booking.id?.let { id ->
+                        navController.navigate(Routes.track(id)) { popUpTo(Routes.HOME) }
+                    }
+                },
+                onClose = { navController.popBackStack(Routes.HOME, inclusive = false) },
+            )
+        }
+        composable(
+            Routes.TRACK,
+            arguments = listOf(navArgument("bookingId") { type = NavType.StringType }),
+        ) {
+            TrackBookingScreen(onDone = { navController.popBackStack(Routes.HOME, inclusive = false) })
+        }
     }
 }

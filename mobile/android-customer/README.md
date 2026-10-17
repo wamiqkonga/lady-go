@@ -3,8 +3,9 @@
 Phase 1 skeleton: Kotlin, Jetpack Compose, MVVM (ViewModel + StateFlow). Application ID `com.ladygo.customer`.
 
 ## Status
-Slice 1 built: OTP login (`intendedRole=CUSTOMER`), onboarding gate (name + declaration), placeholder Home.
-Booking and ride-in-progress follow - see `docs/product/customer-android-design.md`. Generated API client
+Slices 1-2 built: OTP login (`intendedRole=CUSTOMER`), onboarding gate (name + declaration), book a ride (location,
+destination search, fare estimate, selfie, cash booking) and a polling track/cancel screen. Live push, trip share and
+the in-ride safety actions follow - see `docs/product/customer-android-design.md`. Generated API client
 lives in `app/openapi-client/` (regenerate with `gradle :app:openApiGenerateClient`; CI drift-checks it).
 
 ## Build

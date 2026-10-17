@@ -11,6 +11,7 @@ import com.ladygo.customer.auth.AuthInterceptor
 import com.ladygo.customer.auth.EncryptedTokenStore
 import com.ladygo.customer.auth.TokenAuthenticator
 import com.ladygo.customer.auth.TokenStore
+import com.ladygo.customer.booking.RideSelfieApi
 import com.squareup.moshi.Moshi
 import dagger.Binds
 import dagger.Module
@@ -133,6 +134,12 @@ object NetworkModule {
     fun provideBookingControllerApi(
         @AuthenticatedClient retrofit: Retrofit,
     ): BookingControllerApi = retrofit.create(BookingControllerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRideSelfieApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): RideSelfieApi = retrofit.create(RideSelfieApi::class.java)
 
     // Public (the service-area list is needed before any booking) but harmless to authenticate.
     @Provides
