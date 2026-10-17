@@ -1,9 +1,15 @@
 # Lady Go — Development Roadmap
 
-Status: v0.6 · Phases 0–6 closed (auth, customer booking, driver onboarding, matching/offers); Phase 6.5
+Status: v0.7 · Phases 0–6 closed (auth, customer booking, driver onboarding, matching/offers); Phase 6.5
 (ride lifecycle) and Phase 7.5 (trip sharing; SOS deferred) built, pilot scope only — see notes below;
 WebSocket/Redis realtime infra (part of Phase 7) built, but live-tracking UI and admin live map not yet
-started; closed-pilot client build order decided (Android first, iOS after)
+started; closed-pilot client build order decided (Android first, iOS after). Since v0.6: admin web
+(Phase 9) built for driver review, ride/flag oversight, audit log and config editing (live-map/drivers-
+list/customers/safety screens still placeholder stubs); the driver-registration website is built;
+the driver Android app has slices 1 and 2a done, slice 2b (STOMP ride-offer receive/accept/decline) in
+progress; the repo moved from a personal GitHub account to the `Lady-Go` GitHub organization, which
+brought a CI minutes budget (Actions minutes are no longer effectively unlimited) — see the CI/security
+hardening note below for what that changed about how CI is run.
 
 ## Phase plan
 
@@ -20,7 +26,7 @@ started; closed-pilot client build order decided (Android first, iOS after)
 | 7 | Real-time (PARTIAL — WebSocket/Redis infra built 2026-10-07; live tracking UI and admin live map not started) | WebSocket/STOMP, Redis, live tracking, admin live map | Load test at target scale |
 | 7.5 | Trip sharing + Call 112 (BUILT 2026-10-09, pilot scope only — SOS deferred to a public-launch gate, see "Launch gates" below; not in the original plan, see note below) | Trip-share link (rider-only, hashed token, expiring/revocable), one-tap Call 112 | Design doc first, same as every other phase |
 | 8 | Payments | Abstraction, provider, webhooks, refunds, receipts, cash flow | Idempotency and webhook tests |
-| 9 | Admin portal | Dashboard, management screens, pricing/config, audit. **Step-up MFA**: destructive admin actions (pricing/config changes, admin user management per `docs/product/admin-flows.md` §1) must require a fresh TOTP re-verification beyond login-time MFA — deferred from Phase 3 (`docs/security/auth-design.md` §12, OQ-7); do not ship this UI without it. | Admin E2E flows |
+| 9 | Admin portal (BUILT, see note below — step-up MFA still outstanding) | Dashboard, driver review/approval, ride/booking oversight, audit log, pricing/config editing. **Step-up MFA not yet built**: the config edit screen (`frontend/admin/src/pages/ConfigScreen.tsx`, `PUT /api/v1/admin/config/{id}`) exists and is live today, protected only by `SUPER_ADMIN` role + a mandatory free-text reason + an audit-log entry — **no fresh TOTP re-verification beyond login-time MFA**, confirmed against both the frontend save flow and the backend's `@PreAuthorize`/`AdminConfigService.update()`. This was deferred from Phase 3 (`docs/security/auth-design.md` §12, OQ-7) and is still deferred — do not ship this UI (i.e. do not expose it outside a developer's own machine) without it; see "Launch gates" below. | Admin E2E flows |
 | 10 | Safety | SOS, emergency contacts, share trip, ride PIN, incidents | Incident E2E; ops runbook |
 | 11 | Testing hardening | Coverage of critical flows, E2E, security review, load tests | Definition of Done met across modules |
 | 12 | Deployment | Environments, containers, monitoring, backups, migration strategy | Staging mirrors production |
@@ -89,6 +95,7 @@ pilot (decided below) and that decision needs a concrete, written trigger — th
 | Background-verification process actually run on every driver (D5/D10) | Both — already a hard gate even for the pilot | Not a launch-scale question; a women-only safety platform cannot pilot with unverified drivers under any framing. |
 | `docs/security/auth-design.md` §15 backlog (table above) | Public launch, both items | Already tracked there with the same phase triggers; listed here only so "launch gates" is the one place that answers "are we ready yet." |
 | Admin-web production CSP header, specifically `frame-ancestors` (`docs/security/admin-web-csp.md`) | Pilot or public launch, whichever first exposes admin web outside a developer's own machine | The dev-server header and the build-time `<meta>` tag ship automatically with the code, but `frame-ancestors` cannot be expressed in a `<meta>` tag at all (CSP spec) - it only works as a real HTTP header, which has to be configured at whatever reverse proxy/CDN actually serves the built static files. Nothing in this repo can set it for a static host, so it is a deploy-time step, not a code gate. |
+| Step-up MFA on destructive admin actions (Phase 9 table above, `docs/security/auth-design.md` §12 OQ-7) | Pilot or public launch, whichever first exposes admin web outside a developer's own machine | The `SUPER_ADMIN` config edit screen is built and live today (`ConfigScreen.tsx` / `AdminConfigController`), protected only by role + a mandatory reason + an audit-log entry - no fresh TOTP re-verification. Admin user management is the same gap once/if it ships. Do not expose the admin web beyond a developer's own machine until this is built. |
 
 ## Risk register
 See `docs/product/requirements.md` section 7.
@@ -177,3 +184,50 @@ SOS. Build order:
 iOS (`mobile/ios-driver`, `mobile/ios-customer`) starts only after the Android-only pilot concludes —
 the cohort size (5–10 drivers, 30–50 riders) doesn't justify building and maintaining two native stacks
 before the first real-world signal comes back.
+
+## Phase 9 (admin web) status (2026-10-17)
+
+Built: `Dashboard`, `Login`, driver review/approval (`DriverDocumentQueue` + per-driver `DriverReview`),
+ride/booking oversight with flag handling (`RideOversight` + `RideDetail`), an audit log viewer
+(`AuditLog`), and the config/pricing editor (`ConfigScreen`) - all real screens, confirmed against
+`frontend/admin/src/pages/` and the routes in `App.tsx`, not placeholders. Still placeholder stubs
+(routed to a generic `Placeholder` component, not built): live map, a plain drivers list, a customers
+screen, and a safety screen. **Config editing has no step-up MFA yet** - see the Phase 9 table row and
+"Launch gates" above; this is the one concrete, currently-shippable-but-unsafe-to-expose gap in what's
+built so far.
+
+## Driver-registration website status
+
+Built, not a skeleton: OTP login, a dashboard, document upload (with file validation/preview and
+resumable upload state), and selfie capture, each with their own tests, plus a Playwright e2e suite
+(`frontend/driver-registration/e2e/`). `frontend/driver-registration/src` is ~5,700 lines across 21
+files, confirmed non-trivial.
+
+## Driver Android app status
+
+Slice 1 (auth/OTP login, onboarding status gate, generated OpenAPI client) and slice 2a (go-online
+toggle, location foreground service, battery-optimisation guidance) are done, each closed with its own
+fresh-context review pass (see commit history: `d0db4d8`, `a938c4e`). Slice 2b (STOMP-over-WebSocket
+connection manager with reconnect/backoff/token-refresh, ride-offer receive/accept/decline, a
+high-priority offer notification, and reconciliation on reconnect/resume) is in progress - design in
+`docs/product/driver-android-design.md`. The ride loop itself (to pickup, arrived, PIN, in trip,
+complete + cash confirm, early end) is slice 3, not started.
+
+## CI/security hardening status (2026-10-17)
+
+The repo's primary GitHub remote moved from a personal account to the `Lady-Go` GitHub organization
+(confirmed: `origin` now points at `github.com/Lady-Go/lady-go.git`; an old personal-account remote is
+still present locally under a stale name but is not what CI/PRs use). This is not just cosmetic: an
+organization's GitHub Actions minutes are a real, metered budget in a way a personal account's
+effectively weren't, which is why this repo's working agreement since the move has been one CI run per
+work slice (mid-slice backup pushes use `[skip ci]`; only the final push of a slice runs CI) rather than
+a push-per-commit habit.
+
+Separately, a full Semgrep SAST triage closed out all 42 findings from the first real scan (SHA-pinning
+every mutable GitHub Actions tag, a 7-day Dependabot/npm release-age cooldown, two false-positive
+suppressions for the apps' required `MAIN`/`LAUNCHER` activities) and added a real severity gate to the
+`sast` CI job: it now fails on `ERROR`/`HIGH`/`CRITICAL` findings and only reports (non-blocking) below
+that, with no `continue-on-error` masking the gate itself - see `docs/security/sast-triage.md`. One
+known, currently-failing, org-move-caused gap: the `secret-scan` job (`gitleaks-action`) now fails
+because `gitleaks` requires a paid license for an organization-owned repo and no `GITLEAKS_LICENSE`
+secret is configured yet - tracked as an open item, not fixed in that pass.
