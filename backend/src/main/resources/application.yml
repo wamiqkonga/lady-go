@@ -6,6 +6,13 @@ spring:
   autoconfigure:
     # We provide our own authentication in Phase 3; do not create a default in-memory user/password.
     exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  servlet:
+    multipart:
+      # Spring's default is 1 MB per file, which silently undercuts the service-level image limit
+      # (verification.upload.max_size.bytes, 8 MB): a phone selfie / document photo over 1 MB was
+      # rejected before the service ever saw it. Keep these >= that limit.
+      max-file-size: 8MB
+      max-request-size: 10MB
   jpa:
     # Request-scoped sessions hide lazy-loading bugs and hold connections during serialisation.
     open-in-view: false
