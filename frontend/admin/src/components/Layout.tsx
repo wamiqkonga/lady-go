@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import { useSession } from '../lib/sessionContext'
 
@@ -19,7 +20,10 @@ export default function Layout() {
   return (
     <div className="admin-shell">
       <aside className="sidebar">
-        <div className="brand">Lady Go Admin</div>
+        <div className="brand">
+          <Logo size={30} />
+          <span>Lady Go Admin</span>
+        </div>
         <nav aria-label="Admin">
           {nav.map((n) => (
             <NavLink key={n.to} to={n.to}>

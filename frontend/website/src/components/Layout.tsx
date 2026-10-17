@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 
 const links = [
@@ -19,7 +20,8 @@ export default function Layout() {
     <div className="shell">
       <header className="site-header">
         <Link to="/" className="brand" onClick={() => setOpen(false)}>
-          Lady Go
+          <Logo size={34} />
+          <span>Lady Go</span>
         </Link>
         <button
           type="button"

@@ -147,3 +147,26 @@ a { color: var(--brand); }
   .sidebar .sign-out { margin-top: 0.75rem; }
   .content { padding: 1rem 20px 2rem; }
 }
+
+/* Motion: calm, short, ease-out. Everything stops under prefers-reduced-motion. */
+@keyframes lg-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes lg-beat { 0%, 56%, 100% { transform: scale(1); } 14% { transform: scale(1.14); } 28% { transform: scale(1); } 42% { transform: scale(1.08); } }
+@keyframes lg-spark { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
+.logo-mark { flex: none; transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.logo-heart, .logo-spark { transform-box: fill-box; transform-origin: center; }
+.logo-heart { animation: lg-beat 3s ease-in-out infinite; }
+.logo-spark { animation: lg-spark 2.4s ease-in-out infinite; }
+.brand { display: inline-flex; align-items: center; gap: 0.5rem; }
+.brand:hover .logo-mark { transform: rotate(-6deg) scale(1.06); }
+.content > * { animation: lg-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.cards > .card { animation: lg-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.cards > .card:nth-child(2) { animation-delay: 0.08s; }
+.cards > .card:nth-child(3) { animation-delay: 0.16s; }
+.cards > .card:nth-child(4) { animation-delay: 0.24s; }
+.cards > .card:hover { transform: translateY(-4px); box-shadow: 0 10px 28px rgba(106, 44, 112, 0.14); }
+.button, .theme-toggle, .nav a { transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease; }
+.button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(106, 44, 112, 0.28); }
+.button:active:not(:disabled) { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
