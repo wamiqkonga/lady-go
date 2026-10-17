@@ -9,6 +9,7 @@ import com.ladygo.driver.location.AvailabilityRepository
 import com.ladygo.driver.location.LocationServiceEvent
 import com.ladygo.driver.location.LocationServiceEvents
 import com.ladygo.driver.location.SetAvailabilityOutcome
+import com.ladygo.driver.realtime.StompConnectionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,7 @@ class HomeViewModel
         private val availabilityRepository: AvailabilityRepository,
         private val locationServiceEvents: LocationServiceEvents,
         private val appPreferences: AppPreferences,
+        private val stompConnectionManager: StompConnectionManager,
     ) : ViewModel() {
         private val _uiState =
             MutableStateFlow(
@@ -54,12 +56,14 @@ class HomeViewModel
             viewModelScope.launch {
                 locationServiceEvents.events.collect { event ->
                     when (event) {
-                        LocationServiceEvent.DriverSetOfflineByServer ->
+                        LocationServiceEvent.DriverSetOfflineByServer -> {
+                            stompConnectionManager.disconnect()
                             _uiState.value =
                                 _uiState.value.copy(
                                     availability = Availability.OFFLINE,
                                     infoMessage = "You were set offline by Lady Go.",
                                 )
+                        }
                     }
                 }
             }
@@ -73,11 +77,16 @@ class HomeViewModel
                 val outcome = if (goingOnline) availabilityRepository.goOnline() else availabilityRepository.goOffline()
                 _uiState.value =
                     when (outcome) {
-                        SetAvailabilityOutcome.Success ->
+                        SetAvailabilityOutcome.Success -> {
+                            // Server-authoritative order, same reasoning as the location service's own
+                            // ONLINE/OFFLINE start/stop: the STOMP connection follows the *confirmed*
+                            // server response, not the tap itself.
+                            if (goingOnline) stompConnectionManager.connect() else stompConnectionManager.disconnect()
                             _uiState.value.copy(
                                 isTogglingAvailability = false,
                                 availability = if (goingOnline) Availability.ONLINE else Availability.OFFLINE,
                             )
+                        }
                         is SetAvailabilityOutcome.Failed ->
                             _uiState.value.copy(
                                 isTogglingAvailability = false,

@@ -307,6 +307,17 @@ dependencies {
     implementation(libs.androidx.security.crypto)
     implementation(libs.play.services.location)
 
+    // STOMP-over-WebSocket client for ride offers (slice 2b) - verified before adding: MIT licensed,
+    // actively maintained (github.com/joffrey-bion/krossbow, last push within days of this commit),
+    // OkHttp engine on the same OkHttp major version already used here (4.x), supports custom WebSocket
+    // handshake headers (needed for the JWT - the backend's AuthHandshakeInterceptor only reads
+    // Authorization from the handshake request itself, never a query string) and STOMP heartbeats.
+    // No built-in STOMP-level auto-reconnect (confirmed against the library's own issue tracker) -
+    // StompConnectionManager implements that itself, which the design doc requires anyway
+    // (exponential backoff + jitter, not a bare library default).
+    implementation(libs.krossbow.stomp.core)
+    implementation(libs.krossbow.websocket.okhttp)
+
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)

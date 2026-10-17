@@ -28,6 +28,11 @@ complexity:
     # genuinely grew unwieldy - HomeContent's two permission-dialog param groups - was refactored
     # into BatteryGuidanceDialogState/FineLocationDeniedDialogState instead of raising this again.)
     functionThreshold: 8
+    # StompConnectionManager's constructor has 8 real, distinct Hilt-injected collaborators (token
+    # store/refresher, session manager, the STOMP session factory, the system-ping API, the events
+    # bus, Moshi, its own scope) - same "each one is genuinely needed, grouping them would be
+    # ceremony" reasoning as functionThreshold above, not a complexity smell to flatten.
+    constructorThreshold: 9
 
 naming:
   FunctionNaming:

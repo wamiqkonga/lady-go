@@ -6,6 +6,7 @@ import com.ladygo.driver.location.AvailabilityRepository
 import com.ladygo.driver.location.LocationServiceEvent
 import com.ladygo.driver.location.LocationServiceEvents
 import com.ladygo.driver.location.SetAvailabilityOutcome
+import com.ladygo.driver.realtime.StompConnectionManager
 import com.ladygo.driver.testing.MainDispatcherRule
 import com.ladygo.driver.ui.Availability
 import com.ladygo.driver.ui.HomeViewModel
@@ -13,6 +14,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -38,8 +40,10 @@ class HomeViewModelTest {
         }
     private val eventsFlow = MutableSharedFlow<LocationServiceEvent>(extraBufferCapacity = 4)
     private val locationServiceEvents = mockk<LocationServiceEvents> { every { events } returns eventsFlow }
+    private val stompConnectionManager = mockk<StompConnectionManager>(relaxed = true)
 
-    private fun viewModel() = HomeViewModel(authRepository, availabilityRepository, locationServiceEvents, appPreferences)
+    private fun viewModel() =
+        HomeViewModel(authRepository, availabilityRepository, locationServiceEvents, appPreferences, stompConnectionManager)
 
     @Test
     fun startsOfflineRegardlessOfAnyPriorSession() {
@@ -138,6 +142,60 @@ class HomeViewModelTest {
 
             assertEquals(Availability.OFFLINE, vm.uiState.value.availability)
             assertEquals("You were set offline by Lady Go.", vm.uiState.value.infoMessage)
+        }
+
+    @Test
+    fun goingOnlineConnectsTheStompClientOnlyAfterTheServerConfirms() =
+        runTest {
+            coEvery { availabilityRepository.goOnline() } returns SetAvailabilityOutcome.Success
+            val vm = viewModel()
+
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            verify(exactly = 1) { stompConnectionManager.connect() }
+            coVerify(exactly = 0) { stompConnectionManager.disconnect() }
+        }
+
+    @Test
+    fun aFailedGoOnlineNeverConnectsTheStompClient() =
+        runTest {
+            coEvery { availabilityRepository.goOnline() } returns SetAvailabilityOutcome.Failed("No approved vehicle on file.")
+            val vm = viewModel()
+
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            verify(exactly = 0) { stompConnectionManager.connect() }
+        }
+
+    @Test
+    fun goingOfflineDisconnectsTheStompClient() =
+        runTest {
+            coEvery { availabilityRepository.goOnline() } returns SetAvailabilityOutcome.Success
+            coEvery { availabilityRepository.goOffline() } returns SetAvailabilityOutcome.Success
+            val vm = viewModel()
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { stompConnectionManager.disconnect() }
+        }
+
+    @Test
+    fun serverRejectingALocationUpdateAsOfflineAlsoDisconnectsStomp() =
+        runTest {
+            coEvery { availabilityRepository.goOnline() } returns SetAvailabilityOutcome.Success
+            val vm = viewModel()
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            eventsFlow.emit(LocationServiceEvent.DriverSetOfflineByServer)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { stompConnectionManager.disconnect() }
         }
 
     @Test

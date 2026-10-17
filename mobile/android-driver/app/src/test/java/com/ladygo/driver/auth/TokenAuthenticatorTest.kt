@@ -23,7 +23,8 @@ class TokenAuthenticatorTest {
     private val authApi = mockk<AuthControllerApi>()
     private val tokenStore = FakeTokenStore()
     private val sessionManager = SessionManager(tokenStore)
-    private val authenticator = TokenAuthenticator(tokenStore, sessionManager, authApi)
+    private val tokenRefresher = TokenRefresher(tokenStore, sessionManager, authApi)
+    private val authenticator = TokenAuthenticator(tokenRefresher)
 
     private fun requestWithAuth(token: String): Request =
         Request
