@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthError, login } from '../lib/auth'
 
+import ThemeToggle from '../components/ThemeToggle'
+
 export default function Login() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -44,6 +46,7 @@ export default function Login() {
   return (
     <main className="login">
       <h1>Lady Go Admin</h1>
+      <ThemeToggle />
       <form onSubmit={onSubmit} className="form">
         <label htmlFor="email">Email</label>
         <input

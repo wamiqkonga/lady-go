@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import ThemeToggle from './ThemeToggle'
 import { useSession } from '../lib/sessionContext'
 
 const nav = [
@@ -26,6 +27,7 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        <ThemeToggle />
         <button type="button" className="sign-out" onClick={signOut}>
           Sign out
         </button>
