@@ -21,9 +21,42 @@
     <string name="offer_expired_message">This offer has expired.</string>
     <string name="offer_no_longer_available_message">This offer is no longer available.</string>
 
-    <string name="active_ride_stub_title">Ride accepted</string>
-    <string name="active_ride_stub_booking_id">Booking: %1$s</string>
-    <string name="active_ride_stub_status">Status: %1$s</string>
-    <string name="active_ride_stub_note">The full ride flow (to pickup, arrived, PIN, in trip, complete) is coming in the next update.</string>
-    <string name="active_ride_stub_back_to_home">Back to home</string>
+    <string name="ride_title_to_pickup">Head to pickup</string>
+    <string name="ride_title_arrived">Rider meeting</string>
+    <string name="ride_title_in_trip">Trip in progress</string>
+    <string name="ride_title_payment">Trip complete</string>
+    <string name="ride_title_finished">All done</string>
+    <string name="ride_title_ended">Ride ended</string>
+
+    <string name="ride_pickup_label">Pickup</string>
+    <string name="ride_destination_label">Destination</string>
+    <string name="ride_fare_label">Fare</string>
+    <string name="ride_payment_cash">Payment: cash</string>
+    <string name="ride_payment_online">Payment: online</string>
+
+    <string name="ride_navigate_action">Navigate</string>
+    <string name="ride_arrived_action">I\'ve arrived</string>
+    <string name="ride_call_112_action">Call 112</string>
+    <string name="ride_pin_label">Ride PIN</string>
+    <string name="ride_pin_hint">Ask the rider to read out her PIN.</string>
+    <string name="ride_start_action">Start ride</string>
+    <string name="ride_complete_action">Complete ride</string>
+    <string name="ride_end_early_action">End ride early</string>
+    <string name="ride_end_early_title">End the ride early?</string>
+    <string name="ride_end_early_reason_label">Reason</string>
+    <string name="ride_end_early_safety_label">I don\'t feel safe</string>
+    <string name="ride_end_early_confirm">End ride</string>
+    <string name="ride_end_early_cancel">Keep riding</string>
+    <string name="ride_confirm_cash_action">Cash collected</string>
+    <string name="ride_cash_confirmed_note">Cash confirmed. Your rider has a short window to raise any problem before this closes.</string>
+    <string name="ride_payment_online_note">Online payment is not available yet.</string>
+    <string name="ride_finished_note">This ride is complete.</string>
+    <string name="ride_ended_note">This ride is no longer active.</string>
+    <string name="ride_done_action">Back to home</string>
+    <string name="ride_selfie_title">Rider photo</string>
+    <string name="ride_selfie_loading">Loading photo...</string>
+    <string name="ride_selfie_unavailable">Photo unavailable.</string>
+    <string name="ride_selfie_retry">Try again</string>
+    <string name="ride_selfie_content_description">Photo of your rider</string>
+    <string name="ride_no_navigation_app">No maps app found.</string>
 </resources>

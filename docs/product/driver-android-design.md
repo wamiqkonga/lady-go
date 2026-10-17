@@ -399,3 +399,62 @@ supersede the corresponding bullets elsewhere in this doc (§1, §2.3, §4 updat
    per Android's own documented foreground-service exemption. The real limitation is Doze/OEM process
    killers, which no permission grant fixes; FCM-based wake-up is a launch gate for that reason, not
    for this one.
+
+## 7. Slice 3 - the ride loop (decided and built 2026-10-17)
+
+Built straight from §1/§3 above and the real endpoints in `docs/api/ride-lifecycle.md` §2, with these
+concrete decisions (and the places the earlier sections turned out not to match the backend):
+
+1. **Stages, derived only from the server's `BookingStatus`** (`RideStateMachine.stageFor`, a pure
+   function): `DRIVER_ACCEPTED`/`DRIVER_ARRIVING` -> TO_PICKUP; `DRIVER_ARRIVED` -> ARRIVED;
+   `RIDE_STARTED` -> IN_TRIP; `RIDE_COMPLETED`/`PAYMENT_PENDING` -> PAYMENT; `COMPLETED` -> FINISHED;
+   `CANCELLED` and any pre-acceptance status (`REQUESTED`, `SEARCHING_DRIVER`, `DRIVER_ASSIGNED` - the
+   booking bounced away from this driver) -> ENDED. Every action calls the server first and the UI
+   re-derives from the returned `BookingDetailResponse`; a rejected action keeps the screen, shows the
+   server's real message (too far / stale GPS / wrong PIN / lockout) and then re-fetches the booking so
+   the server wins if state moved.
+2. **"I've arrived" is one tap but two calls**: from `DRIVER_ACCEPTED` the app calls `.../arriving` and
+   then `.../arrived` (the backend only allows `arrived` from `DRIVER_ARRIVING`). The proximity+freshness
+   gate stays 100% server-side; the app never does distance math.
+3. **Cash confirm lives on the PAYMENT stage, not in-trip.** §1 above had "Confirm cash collected" on the
+   in-trip screen, but `docs/api/ride-lifecycle.md` §2.6 only allows it once the booking is
+   `PAYMENT_PENDING` (after `complete`), so the button appears there, for `paymentMethod == CASH` only.
+4. **One deliberate departure from "no ride state on disk" (§3 rule 4):** there is no "current booking"
+   endpoint and no ride-history endpoint in the OpenAPI contract, so after an app kill the app cannot
+   discover an in-progress ride from the server alone. Only the **active booking id** (a UUID - no PII,
+   no tokens, no location) is kept in plain `AppPreferences`, set when a ride is accepted and cleared on
+   FINISHED/ENDED, on "Done", and on logout. On the next resume the app re-fetches
+   `GET /drivers/me/bookings/{id}` and the server's answer drives everything - the stored id is only a
+   pointer, never state. (A proper `GET /drivers/me/rides/current` would remove this; backlog item.)
+5. **Navigation hand-off, no in-app map**: "Navigate" opens `google.navigation:q=<address>` (falls back to
+   a `geo:0,0?q=` intent). The booking payload carries addresses, not coordinates, so navigation is by
+   address string; the destination address is used once the trip has started.
+6. **Rider selfie** (ARRIVED only): `GET .../bookings/{id}/rider-selfie` returns a short-TTL signed URL;
+   the app downloads the bytes once on entering the stage (no disk cache, no image-loading library),
+   refuses non-http(s) URLs, and shows the PIN-entry and selfie screen under `FLAG_SECURE`.
+7. **Call 112** is a native-dialer `ACTION_DIAL` button on TO_PICKUP, ARRIVED and IN_TRIP.
+8. **End ride early**: reason (required) + "I don't feel safe" checkbox (`safetyConcern`), confirmed in a
+   dialog; the server's fare/flag policy (ride-lifecycle §4/§6) is authoritative and the result is just
+   shown on the PAYMENT screen.
+9. **Not in this slice**: ride history/earnings screen (no history endpoint exists yet), FCM wake-up
+   (launch gate), driver-initiated cancel after acceptance (only the eligibility-concern cancel exists).
+
+### 7.1 Fresh-context review of slice 3 (2026-10-17) - what it found and what changed
+
+Fixed, each with a regression test: (a) after "cash collected" the driver was pinned to the ride screen for
+the whole 60-minute dispute window and a new offer could be silently stolen off-screen - the ride screen is
+now pinned only while the ride is *ongoing*, never takes the screen from a showing offer, and the PAYMENT
+stage gets "Back to home" once cash is confirmed; (b) a slow reconcile/push could overwrite a newer action
+result and re-enable buttons - stale (backwards) snapshots are ignored and only an action's own result clears
+the in-flight flag; (c) results landing after Done, logout or a newer ride no longer resurrect/overwrite a
+ride (generation counter); (d) a 404/403 on reconcile now shows "Ride ended" instead of silently dropping to
+Home, and other 4xx codes no longer forget an in-progress ride; (e) a repeat "cash collected" rejected as
+already-confirmed is treated as confirmed; (f) the rider-photo loader can no longer crash on a malformed
+body and is capped at 2 MB; (g) the PIN is no longer in saveable state.
+
+Known limits left as follow-ups (backend-side): the backend sends the driver no push when the rider cancels
+after acceptance or when the cash sweep completes a booking, so the app learns of those on the next
+resume/reconnect (or when an action is refused); the booking payload has no `cashConfirmedAt`, so the
+"cash confirmed" state is inferred locally plus the already-confirmed rejection; and a driver who accepts a
+new offer before confirming cash on the previous ride would stop tracking that ride (the cash confirm is
+then no longer reachable from the app) - worth blocking accept while a ride is in PAYMENT.

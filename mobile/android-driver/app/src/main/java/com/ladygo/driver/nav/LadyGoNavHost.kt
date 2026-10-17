@@ -3,10 +3,7 @@ package com.ladygo.driver.nav
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -16,8 +13,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.ladygo.driver.api.generated.models.BookingDetailResponse
 import com.ladygo.driver.auth.SessionManager
 import com.ladygo.driver.login.ui.LoginScreen
 import com.ladygo.driver.offer.OfferUiState
@@ -27,7 +24,8 @@ import com.ladygo.driver.onboarding.ui.OnboardingGateScreen
 import com.ladygo.driver.realtime.RealtimeEvent
 import com.ladygo.driver.realtime.RealtimeEvents
 import com.ladygo.driver.realtime.ServerClockSkew
-import com.ladygo.driver.ride.ActiveRideStubScreen
+import com.ladygo.driver.ride.ActiveRideViewModel
+import com.ladygo.driver.ride.ui.ActiveRideScreen
 import com.ladygo.driver.ui.HomeScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
@@ -42,7 +40,7 @@ object Routes {
     const val ONBOARDING_GATE = "onboarding_gate"
     const val HOME = "home"
     const val INCOMING_OFFER = "incoming_offer"
-    const val ACTIVE_RIDE_STUB = "active_ride_stub"
+    const val ACTIVE_RIDE = "active_ride"
 }
 
 @HiltViewModel
@@ -85,10 +83,13 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
     // navigation to/from the incoming-offer screen, not be torn down and recreated with it.
     val offerViewModel: OfferViewModel = hiltViewModel()
     val realtimeConnectionViewModel: RealtimeConnectionViewModel = hiltViewModel()
-    var acceptedBooking by remember { mutableStateOf<BookingDetailResponse?>(null) }
+    val rideViewModel: ActiveRideViewModel = hiltViewModel()
 
-    LaunchedEffect(realtimeConnectionViewModel, offerViewModel) {
-        realtimeConnectionViewModel.connected.collect { skew -> offerViewModel.reconcile(skew) }
+    LaunchedEffect(realtimeConnectionViewModel, offerViewModel, rideViewModel) {
+        realtimeConnectionViewModel.connected.collect { skew ->
+            offerViewModel.reconcile(skew)
+            rideViewModel.reconcile()
+        }
     }
 
     LaunchedEffect(sessionViewModel) {
@@ -104,13 +105,14 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
         }
     }
 
-    ReconcileOfferOnResumeEffect(offerViewModel)
+    ReconcileOnResumeEffect(offerViewModel, rideViewModel)
 
     // One observer, works no matter which screen the driver is on when an offer arrives or resolves -
     // same "single place" reasoning as the logout observer above. An offer can only ever arrive while
     // already online (authenticated, past onboarding), so this never needs to guard against firing
     // from Login/the onboarding gate.
     val offerState = offerViewModel.uiState.collectAsStateWithLifecycle().value
+    RideNavigationEffect(navController, rideViewModel, offerShowing = offerState is OfferUiState.Showing)
     LaunchedEffect(offerState) {
         when (offerState) {
             is OfferUiState.Showing ->
@@ -145,41 +147,71 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
         composable(Routes.INCOMING_OFFER) {
             OfferScreen(
                 viewModel = offerViewModel,
-                onAccepted = { booking ->
-                    acceptedBooking = booking
-                    navController.navigate(Routes.ACTIVE_RIDE_STUB) {
-                        popUpTo(Routes.HOME)
-                    }
-                },
+                onAccepted = { booking -> rideViewModel.track(booking) }, // the effect above navigates
                 onDismissed = {
                     navController.popBackStack(Routes.HOME, inclusive = false)
                 },
             )
         }
-        composable(Routes.ACTIVE_RIDE_STUB) {
-            acceptedBooking?.let { booking ->
-                ActiveRideStubScreen(
-                    booking = booking,
-                    onBackToHome = {
-                        acceptedBooking = null
-                        navController.popBackStack(Routes.HOME, inclusive = false)
-                    },
-                )
-            }
+        composable(Routes.ACTIVE_RIDE) {
+            ActiveRideScreen(
+                viewModel = rideViewModel,
+                onFinished = { navController.popBackStack(Routes.HOME, inclusive = false) },
+            )
+        }
+    }
+}
+
+/** A ride that still needs the driver owns the screen: it is entered right after accepting an offer, and
+ *  also after an app kill (the remembered booking id is re-fetched on resume), as soon as the driver is
+ *  actually on Home. It never steals the screen from a *showing* offer (a new offer can arrive while the
+ *  driver is still on the post-trip cash screen) and never re-pins a finished ride: those stay on the
+ *  ride screen only until the driver taps "Back to home" (design doc §7). */
+@Composable
+private fun RideNavigationEffect(
+    navController: NavHostController,
+    rideViewModel: ActiveRideViewModel,
+    offerShowing: Boolean,
+) {
+    val rideState = rideViewModel.uiState.collectAsStateWithLifecycle().value
+    val currentRoute =
+        navController
+            .currentBackStackEntryAsState()
+            .value
+            ?.destination
+            ?.route
+    val rideOngoing = rideState.isOngoing
+    val rideLeftover = rideState.isActive && !rideState.isOngoing
+    LaunchedEffect(rideOngoing, rideLeftover, currentRoute, offerShowing) {
+        val onHomeOrAcceptedOffer = currentRoute == Routes.HOME || (currentRoute == Routes.INCOMING_OFFER && !offerShowing)
+        if (rideOngoing && onHomeOrAcceptedOffer) {
+            navController.navigate(Routes.ACTIVE_RIDE) { popUpTo(Routes.HOME) }
+        } else if (rideLeftover && currentRoute == Routes.HOME) {
+            // A finished/ended ride found while on Home (e.g. restored after an app kill) needs no screen.
+            rideViewModel.onDone()
+        } else if (!rideState.isActive && currentRoute == Routes.ACTIVE_RIDE) {
+            // The ride was cleared underneath the screen (logout) - never leave a blank screen.
+            navController.popBackStack(Routes.HOME, inclusive = false)
         }
     }
 }
 
 /** Design doc §3 rule 2: reconcile on every app foreground/resume, not just on STOMP (re)connect -
  *  the very first ON_RESUME after a cold start also covers rule 4's "app was killed" case, since
- *  there's no separate signal to tell those two apart. */
+ *  there's no separate signal to tell those two apart. Covers both a pending offer and a ride in progress. */
 @Composable
-private fun ReconcileOfferOnResumeEffect(offerViewModel: OfferViewModel) {
+private fun ReconcileOnResumeEffect(
+    offerViewModel: OfferViewModel,
+    rideViewModel: ActiveRideViewModel,
+) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, offerViewModel) {
+    DisposableEffect(lifecycleOwner, offerViewModel, rideViewModel) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) offerViewModel.reconcile()
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    offerViewModel.reconcile()
+                    rideViewModel.reconcile()
+                }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }

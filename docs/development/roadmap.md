@@ -6,8 +6,8 @@ WebSocket/Redis realtime infra (part of Phase 7) built, but live-tracking UI and
 started; closed-pilot client build order decided (Android first, iOS after). Since v0.6: admin web
 (Phase 9) built for driver review, ride/flag oversight, audit log and config editing (live-map/drivers-
 list/customers/safety screens still placeholder stubs); the driver-registration website is built;
-the driver Android app has slices 1 and 2a done, slice 2b (STOMP ride-offer receive/accept/decline) in
-progress; the repo moved from a personal GitHub account to the `Lady-Go` GitHub organization, which
+the driver Android app has slices 1, 2a, 2b and 3 built (2b = STOMP ride-offer receive/accept/decline,
+commit `a7091a7`; 3 = the ride loop, uncommitted, awaiting a fresh-context review and an emulator pass); the repo moved from a personal GitHub account to the `Lady-Go` GitHub organization, which
 brought a CI minutes budget (Actions minutes are no longer effectively unlimited) — see the CI/security
 hardening note below for what that changed about how CI is run.
 
@@ -209,9 +209,12 @@ Slice 1 (auth/OTP login, onboarding status gate, generated OpenAPI client) and s
 toggle, location foreground service, battery-optimisation guidance) are done, each closed with its own
 fresh-context review pass (see commit history: `d0db4d8`, `a938c4e`). Slice 2b (STOMP-over-WebSocket
 connection manager with reconnect/backoff/token-refresh, ride-offer receive/accept/decline, a
-high-priority offer notification, and reconciliation on reconnect/resume) is in progress - design in
-`docs/product/driver-android-design.md`. The ride loop itself (to pickup, arrived, PIN, in trip,
-complete + cash confirm, early end) is slice 3, not started.
+high-priority offer notification, and reconciliation on reconnect/resume) is done (`a7091a7`, with a
+fresh-context review that found and fixed 3 CRITICAL + 4 IMPORTANT issues) - design in
+`docs/product/driver-android-design.md`. Slice 3 (the ride loop: to pickup, arrived + rider photo, PIN, in trip, complete + cash confirm,
+early end, Call 112, resume after app kill) is built and unit-tested (design in
+`docs/product/driver-android-design.md` §7) but has not yet had a fresh-context review or been run
+against the real backend on an emulator; no ride-history screen yet (no endpoint).
 
 ## CI/security hardening status (2026-10-17)
 

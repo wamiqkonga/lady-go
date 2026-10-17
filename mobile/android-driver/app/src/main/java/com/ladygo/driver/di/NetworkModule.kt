@@ -2,8 +2,10 @@ package com.ladygo.driver.di
 
 import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
+import com.ladygo.driver.api.generated.apis.DriverBookingControllerApi
 import com.ladygo.driver.api.generated.apis.DriverControllerApi
 import com.ladygo.driver.api.generated.apis.DriverOfferControllerApi
+import com.ladygo.driver.api.generated.apis.RideLifecycleControllerApi
 import com.ladygo.driver.api.generated.apis.SystemControllerApi
 import com.ladygo.driver.api.generated.infrastructure.Serializer
 import com.ladygo.driver.auth.AuthInterceptor
@@ -168,6 +170,18 @@ object NetworkModule {
     fun provideDriverOfferControllerApi(
         @AuthenticatedClient retrofit: Retrofit,
     ): DriverOfferControllerApi = retrofit.create(DriverOfferControllerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRideLifecycleControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): RideLifecycleControllerApi = retrofit.create(RideLifecycleControllerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDriverBookingControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): DriverBookingControllerApi = retrofit.create(DriverBookingControllerApi::class.java)
 
     // Public, no auth required (SystemController has no @PreAuthorize) - used for the STOMP clock-skew
     // sample before any connection exists, so it deliberately goes through the plain client, not the
