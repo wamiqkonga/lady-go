@@ -135,7 +135,7 @@ jobs:
         run: >
           semgrep scan
           --config p/security-audit --config p/owasp-top-ten
-          --config p/java --config p/typescript --config p/kotlin --config p/swift
+          --config p/java --config p/typescript --config p/kotlin --config p/swift --config p/react
           --json --output semgrep-results.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()

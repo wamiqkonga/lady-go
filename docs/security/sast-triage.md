@@ -14,11 +14,12 @@ same pinned version and rule config as the `sast` job:
 pip install semgrep==1.180.0
 SEMGREP_SEND_METRICS=off semgrep scan \
   --config p/security-audit --config p/owasp-top-ten \
-  --config p/java --config p/typescript --config p/kotlin --config p/swift \
+  --config p/java --config p/typescript --config p/kotlin --config p/swift --config p/react \
   --json --output semgrep-results.json
 ```
 
-Run 2026-10-15, before any fixes: 42 findings. Same command after all fixes below: 0 findings.
+Run 2026-10-15, before any fixes: 42 findings (without `p/react`, added in a follow-up pass — see
+"Rule pack coverage" below). Same command after all fixes below: 0 findings.
 
 Note: `p/security-audit`, `p/owasp-top-ten`, etc. are Semgrep registry packs, not
 version-pinned themselves (Semgrep's registry doesn't version packs the way `pip`/Maven version a
@@ -120,6 +121,71 @@ Files: `frontend/admin/.npmrc`, `frontend/driver-registration/.npmrc`.
 supply-chain reasoning as the Dependabot cooldown fix above. This is an npm ≥11.10 feature and is
 silently ignored (not an error) on older npm versions. `frontend/website` has no `.npmrc` and was
 not flagged by Semgrep, so none was added there — out of scope for this triage.
+
+**Follow-up check (2026-10-17): the setting is currently inert in CI.** `frontend.yml`,
+`admin-web-e2e.yml` and `driver-registration-e2e.yml` all pin `actions/setup-node` to `node-version:
+22`, which GitHub Actions resolves to `22.23.3` (confirmed from the job logs — `Found in cache @
+/opt/hostedtoolcache/node/22.23.3/x64`). Node 22.23.3 bundles **npm 10.9.9** (confirmed from
+`nodejs.org`'s release manifest), below the npm ≥11.10 floor this rule requires. `min-release-age=7`
+is silently ignored on every current CI run — not a bug in the setting itself, but the fix as
+applied doesn't do anything yet. Bumping CI to an npm ≥11.10 (e.g. via `npm install -g npm@latest`
+as an added workflow step, or a newer Node major once one ships with it) is a separate, undone
+follow-up — flagged here, not actioned, since it wasn't part of this triage's scope.
+
+## Rule pack coverage
+
+Follow-up check (2026-10-17) of whether the `sast` job's configured packs
+(`p/security-audit p/owasp-top-ten p/java p/typescript p/kotlin p/swift`) actually cover this
+repo's three real stacks:
+
+- **Java/Spring** (backend, `spring-boot-starter-web` per `backend/pom.xml`): covered. No separate
+  `p/spring` pack exists in Semgrep's registry (confirmed — `--config p/spring` fails to resolve).
+  Spring-specific taint rules ship inside `p/security-audit` under the `java.spring.*` namespace,
+  confirmed by scanning a synthetic Spring controller with a tainted SQL string — it was caught by
+  `java.spring.security.injection.tainted-sql-string.tainted-sql-string` (`ERROR`) with no pack
+  changes needed.
+- **Kotlin/Android** (`mobile/android-customer`, `mobile/android-driver`): partially covered. No
+  separate `p/android` pack exists either (confirmed the same way). Android-specific rules (e.g.
+  `java.android.security.exported_activity.exported_activity`, finding #2 above) ship under the
+  `java.android.*` namespace inside `p/java`/`p/security-audit`, already loaded. Native-Kotlin
+  rules from `p/kotlin` itself are thin on Semgrep's free/unauthenticated tier — a synthetic
+  `WebView` sample with `javaScriptEnabled = true` + `loadUrl(url)` on an untrusted `url` was not
+  flagged by any currently-loaded pack. Accepted as a known registry-tier limitation, not a missing
+  pack-name gap, since there's no additional named pack to add for it.
+- **TypeScript/React** (`frontend/admin`, `frontend/driver-registration`, `frontend/website`, all
+  confirmed React apps per their `package.json`): **gap found and fixed.** `p/react` exists in the
+  registry (confirmed it resolves, 4 rules on the free tier, including
+  `typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml` for
+  `dangerouslySetInnerHTML` misuse) but was not in the job's `--config` list. Added
+  `--config p/react` to the `sast` job's Semgrep scan step. Re-scanning the whole repo locally with
+  the updated six-pack config (`p/security-audit p/owasp-top-ten p/java p/typescript p/kotlin
+  p/swift p/react`) produced **0 new findings** — no further triage needed for this pass.
+
+## SHA-pin verification
+
+Follow-up check (2026-10-17) of the 32-finding SHA-pinning fix (finding #1 above): re-resolved
+every unique `owner/repo@tag` this repo pins against GitHub's API (`gh api
+repos/{owner}/{repo}/commits/{tag}`), and separately confirmed each pinned SHA exists as a real
+commit inside that exact repo (`gh api repos/{owner}/{repo}/commits/{sha}`) — catching the case
+where a SHA pin accidentally pointed at a commit from the wrong repository.
+
+| ref | pinned SHA matches repo | still matches live tag |
+|---|---|---|
+| `actions/checkout@v4` | yes | yes |
+| `actions/setup-java@v4` | yes | yes |
+| `actions/setup-node@v4` | yes | yes |
+| `actions/upload-artifact@v4` | yes | yes |
+| `gradle/actions/setup-gradle@v4` | yes | yes |
+| `gitleaks/gitleaks-action@v2` | yes | yes |
+| `actions/dependency-review-action@v4` | yes | yes |
+| `actions/setup-python@v5` | yes | yes |
+| `github/codeql-action/{init,autobuild,analyze}@v3` | yes | **no** |
+
+All 9 pinned SHAs belong to the repository they claim to pin — none points outside its own action's
+repo. One has drifted: `github/codeql-action`'s `v3` tag has moved to a newer commit since this SHA
+was resolved — expected, since that's exactly what pinning a tag freezes against. No action needed:
+the `codeql` job that uses it is `if: false` (disabled — see that job's own comment in
+`security.yml` for why), so this isn't live in any running workflow.
 
 ## Gate verification
 
