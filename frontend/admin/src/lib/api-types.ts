@@ -379,7 +379,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["getCustomerDeclarationStatus"];
         put?: never;
         post: operations["acceptDeclaration_1"];
         delete?: never;
@@ -2992,6 +2992,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseEmergencyContactResponse"];
+                };
+            };
+        };
+    };
+    getCustomerDeclarationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDeclarationStatusResponse"];
                 };
             };
         };

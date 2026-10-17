@@ -236,6 +236,21 @@ class CustomerServiceIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void declarationStatusShowsTheTextAndFlipsToAcceptedForThisRiderOnly() {
+        UUID userId = newCustomerUserId();
+        UUID otherUserId = newCustomerUserId();
+
+        var before = customerService.getDeclarationStatus(userId);
+        assertThat(before.currentText()).isNotBlank();
+        assertThat(before.accepted()).isFalse();
+
+        customerService.acceptDeclaration(userId, before.currentVersion());
+
+        assertThat(customerService.getDeclarationStatus(userId).accepted()).isTrue();
+        assertThat(customerService.getDeclarationStatus(otherUserId).accepted()).isFalse();
+    }
+
+    @Test
     void captureRideSelfieSucceeds() {
         UUID userId = newCustomerUserId();
         var file = new org.springframework.mock.web.MockMultipartFile(

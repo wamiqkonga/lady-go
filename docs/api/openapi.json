@@ -1032,6 +1032,24 @@
       }
     },
     "/api/v1/customers/me/declaration": {
+      "get": {
+        "tags": [
+          "customer-controller"
+        ],
+        "operationId": "getCustomerDeclarationStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDeclarationStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "customer-controller"

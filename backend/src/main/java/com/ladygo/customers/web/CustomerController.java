@@ -13,7 +13,9 @@ import com.ladygo.common.api.ApiResponse;
 import com.ladygo.common.api.PageResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.verification.web.dto.DeclarationAcceptRequest;
+import io.swagger.v3.oas.annotations.Operation;
 import com.ladygo.verification.web.dto.DeclarationResponse;
+import com.ladygo.verification.web.dto.DeclarationStatusResponse;
 import com.ladygo.verification.web.dto.RideSelfieResponse;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -121,6 +123,16 @@ public class CustomerController {
     public ApiResponse<DeclarationResponse> acceptDeclaration(
             @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DeclarationAcceptRequest request) {
         return ApiResponse.ok(customerService.acceptDeclaration(principal.userId(), request.declarationVersion()));
+    }
+
+    /** The current declaration text + whether this rider has accepted it, so the app can show it first. */
+    // Explicit id: springdoc otherwise disambiguates the clash with the driver endpoint by discovery order
+    // ("getDeclarationStatus_1"), which would silently swap generated client method names if that order changed.
+    @Operation(operationId = "getCustomerDeclarationStatus")
+    @GetMapping("/declaration")
+    public ApiResponse<DeclarationStatusResponse> getDeclarationStatus(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(customerService.getDeclarationStatus(principal.userId()));
     }
 
     /** docs/api/driver-onboarding.md section 4 - a fresh selfie captured per booking, not a one-time artifact. */

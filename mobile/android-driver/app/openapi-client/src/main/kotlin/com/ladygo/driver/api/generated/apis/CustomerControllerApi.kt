@@ -8,6 +8,7 @@ import com.squareup.moshi.Json
 
 import com.ladygo.driver.api.generated.models.ApiResponseCustomerProfileResponse
 import com.ladygo.driver.api.generated.models.ApiResponseDeclarationResponse
+import com.ladygo.driver.api.generated.models.ApiResponseDeclarationStatusResponse
 import com.ladygo.driver.api.generated.models.ApiResponseEmergencyContactResponse
 import com.ladygo.driver.api.generated.models.ApiResponseListEmergencyContactResponse
 import com.ladygo.driver.api.generated.models.ApiResponseListSavedLocationResponse
@@ -102,6 +103,18 @@ interface CustomerControllerApi {
      */
     @DELETE("api/v1/customers/me/saved-locations/{id}")
     suspend fun deleteSavedLocation(@Path("id") id: java.util.UUID): Response<ApiResponseVoid>
+
+    /**
+     * GET api/v1/customers/me/declaration
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @return [ApiResponseDeclarationStatusResponse]
+     */
+    @GET("api/v1/customers/me/declaration")
+    suspend fun getCustomerDeclarationStatus(): Response<ApiResponseDeclarationStatusResponse>
 
     /**
      * GET api/v1/customers/me

@@ -27,6 +27,7 @@ import com.ladygo.verification.domain.SubjectType;
 import com.ladygo.verification.service.RideSelfieService;
 import com.ladygo.verification.service.SelfDeclarationService;
 import com.ladygo.verification.web.dto.DeclarationResponse;
+import com.ladygo.verification.web.dto.DeclarationStatusResponse;
 import com.ladygo.verification.web.dto.RideSelfieResponse;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -69,6 +70,13 @@ public class CustomerService {
     public DeclarationResponse acceptDeclaration(UUID userId, String declarationVersion) {
         Customer customer = resolveCustomer(userId);
         return selfDeclarations.accept(SubjectType.CUSTOMER, customer.getId(), declarationVersion);
+    }
+
+    /** The current declaration text and whether this rider has accepted it - a client has to be able to
+     *  show the text before asking for acceptance (mirrors the driver-side status endpoint). */
+    public DeclarationStatusResponse getDeclarationStatus(UUID userId) {
+        Customer customer = resolveCustomer(userId);
+        return selfDeclarations.currentStatus(SubjectType.CUSTOMER, customer.getId());
     }
 
     @Transactional
