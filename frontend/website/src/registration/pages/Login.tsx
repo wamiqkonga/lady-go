@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { requestOtp, verifyOtp, AuthError } from '../lib/auth'
 
 export default function Login() {
@@ -28,7 +28,7 @@ export default function Login() {
     setError(null)
     try {
       await verifyOtp(phone, code)
-      navigate('/', { replace: true })
+      navigate('/driver/register', { replace: true })
     } catch (err) {
       setError(err instanceof AuthError ? err.message : 'Incorrect code.')
     } finally {
@@ -39,7 +39,7 @@ export default function Login() {
   return (
     <div className="app-shell">
       <div className="topbar">
-        <span className="brand">Lady Go — Drive with us</span>
+        <Link to="/driver" className="brand">Lady Go — Drive with us</Link>
       </div>
       <div className="content login">
         <h1>Driver registration</h1>

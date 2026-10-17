@@ -16,7 +16,7 @@ async function waitForOtpCode(phone: string, backendLogPath: string): Promise<st
 }
 
 export async function loginAs(page: Page, phone: string, backendLogPath: string): Promise<void> {
-  await page.goto('/login')
+  await page.goto('/driver/login')
   await page.getByLabel('Phone number').fill(phone)
   await page.getByRole('button', { name: 'Send code' }).click()
   await expect(page.getByLabel('Code')).toBeVisible()

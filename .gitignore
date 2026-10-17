@@ -35,9 +35,9 @@ frontend/admin/src/lib/api-types.fresh.ts
 frontend/admin/playwright-report/
 frontend/admin/test-results/
 frontend/admin/e2e/.auth/
-frontend/driver-registration/src/lib/api-types.fresh.ts
-frontend/driver-registration/playwright-report/
-frontend/driver-registration/test-results/
+frontend/website/src/registration/lib/api-types.fresh.ts
+frontend/website/playwright-report/
+frontend/website/test-results/
 
 # Android
 mobile/android-*/build/

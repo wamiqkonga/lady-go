@@ -8,7 +8,7 @@ A women-focused pick-and-drop transportation platform: customer and driver mobil
 
 | Project | Verified on authoring machine | How to verify |
 |---------|-------------------------------|---------------|
-| `frontend/website` | Lint, type-check, 13 tests, production build pass | `npm ci && npm run lint && npm run typecheck && npm test && npm run build` |
+| `frontend/website` | Lint, type-check, 29 tests (incl. driver self-registration), production build, CSP check pass; Playwright E2E in CI | `npm ci && npm run lint && npm run typecheck && npm test && npm run build` |
 | `frontend/admin` | Lint, type-check, 15 tests, production build pass | same |
 | `backend` (Phase 1 skeleton) | CI green (build + tests) | `cd backend && mvn verify` (needs Docker for the database tests) |
 | `backend` database (Phase 2) | Migrations V1–V11, entities, repositories and invariants verified on PostgreSQL 16 + PostGIS. `DatabaseMigrationTest`, `EnumSchemaParityTest`, `PersistenceMappingTest`, `DatabaseConstraintsTest` green locally and in CI (Testcontainers) | `cd backend && mvn verify` |

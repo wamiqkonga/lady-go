@@ -19,6 +19,18 @@ export default function Home() {
         </div>
         <p className="note">The Lady Go apps are in development. Launch details will be announced here.</p>
       </section>
+      <section className="earn-banner" aria-label="Drive with Lady Go">
+        <div>
+          <p className="earn-eyebrow">For women drivers</p>
+          <h2>
+            Earn <span className="earn-amount">₹30,000+</span> a month with us
+          </h2>
+          <p>Register yourself online in minutes, then drive on your own hours.</p>
+        </div>
+        <Link className="button" to="/driver">
+          Register as a driver
+        </Link>
+      </section>
       <section className="cards" aria-label="Highlights">
         <div className="card">
           <h2>Know your driver</h2>

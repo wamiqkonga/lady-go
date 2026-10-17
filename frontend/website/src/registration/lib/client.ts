@@ -1,6 +1,6 @@
 import createClient, { type Middleware } from 'openapi-fetch'
 import type { paths } from './api-types'
-import { API_BASE_URL } from '../config'
+import { API_BASE_URL } from '../../config'
 import { getAccessToken } from './auth'
 
 const authMiddleware: Middleware = {

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../config'
+import { API_BASE_URL } from '../../config'
 
 /**
  * Session model: both the access token AND the refresh token live in memory only, never

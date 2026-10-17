@@ -14,7 +14,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await logout()
-    navigate('/login', { replace: true })
+    navigate('/driver/login', { replace: true })
   }
 
   return <SessionContext.Provider value={{ signedIn, signOut }}>{children}</SessionContext.Provider>

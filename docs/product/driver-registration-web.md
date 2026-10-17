@@ -1,5 +1,7 @@
 # Driver registration website — design
 
+> **Update:** this app was merged into `frontend/website` (code under `src/registration/`). Routes: `/driver` (earnings pitch, public), `/driver/login`, `/driver/register` (authenticated dashboard); `/login` redirects to `/driver/login`. Dev port is now the website's 5173. References below to `frontend/driver-registration` mean `frontend/website`.
+
 Status: proceeding directly to build per instruction (no approval gate). Short design, then build.
 
 ## 0. Scope

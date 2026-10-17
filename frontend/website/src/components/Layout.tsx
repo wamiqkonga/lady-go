@@ -35,8 +35,8 @@ export default function Layout() {
               {l.label}
             </NavLink>
           ))}
-          <NavLink to="/login" className="nav-cta" onClick={() => setOpen(false)}>
-            Log in
+          <NavLink to="/driver/login" className="nav-cta" onClick={() => setOpen(false)}>
+            Driver login
           </NavLink>
         </nav>
       </header>

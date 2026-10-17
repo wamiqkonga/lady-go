@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [website, admin, driver-registration]
+        app: [website, admin]
     defaults:
       run:
         working-directory: frontend/${{ matrix.app }}
@@ -29,14 +29,14 @@ jobs:
           cache-dependency-path: frontend/${{ matrix.app }}/package-lock.json
       - run: npm ci
       - name: Check generated API client is up to date
-        if: matrix.app == 'admin' || matrix.app == 'driver-registration'
+        if: matrix.app == 'admin' || matrix.app == 'website'
         run: npm run openapi:check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
       - name: Check production CSP has no unsafe-inline/unsafe-eval/third-party sources
-        if: matrix.app == 'admin' || matrix.app == 'driver-registration'
+        if: matrix.app == 'admin' || matrix.app == 'website'
         run: npm run csp:check
       - name: Dependency audit
         run: npm audit --audit-level=high

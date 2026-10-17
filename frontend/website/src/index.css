@@ -6,6 +6,10 @@
   --brand-contrast: #ffffff;
   --surface: #f6f1f8;
   --border: #e2d9e7;
+  --panel: #ffffff;
+  --ok: #1b7a3d;
+  --warn: #8a6d00;
+  --bad: #b3261e;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--fg);
   background: var(--bg);
@@ -20,6 +24,10 @@
     --brand-contrast: #17131c;
     --surface: #221c29;
     --border: #3a3144;
+    --panel: #1f1926;
+    --ok: #7fd99a;
+    --warn: #e8d16a;
+    --bad: #ffb4a9;
   }
 }
 * { box-sizing: border-box; }
@@ -67,3 +75,15 @@ summary { cursor: pointer; font-weight: 600; }
   .nav { display: none; width: 100%; flex-direction: column; align-items: flex-start; padding: 0.5rem 0; }
   .nav.open { display: flex; }
 }
+.earn-hero, .earn-banner {
+  background: linear-gradient(135deg, #7a2e8e, #4a1659); color: #ffffff;
+  border-radius: 16px; padding: 2rem 1.5rem; margin: 1rem 0 1.5rem;
+}
+.earn-hero .lead, .earn-hero .note, .earn-banner p { color: inherit; opacity: 0.92; }
+.earn-hero h1, .earn-banner h2 { margin: 0.25rem 0 0.5rem; font-size: clamp(1.7rem, 5vw, 2.6rem); }
+.earn-eyebrow { margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8rem; font-weight: 700; opacity: 0.9; }
+.earn-amount { background: #ffffff; color: #7a2e8e; border-radius: 8px; padding: 0 0.4rem; white-space: nowrap; }
+.earn-hero .button, .earn-banner .button { background: #ffffff; color: #7a2e8e; font-weight: 600; }
+.earn-hero .button.secondary { background: transparent; color: #ffffff; border: 1px solid #ffffff; }
+.earn-banner { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap; }
+.earn-banner h2 { font-size: clamp(1.4rem, 4vw, 2rem); }

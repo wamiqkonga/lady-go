@@ -18,12 +18,12 @@ describe('website routes', () => {
     ['/about', 'About Lady Go'],
     ['/how-it-works', 'How it works'],
     ['/safety', 'Safety'],
-    ['/driver', 'Drive with Lady Go'],
+    ['/driver', 'Earn ₹30,000+ a month with us'],
+    ['/driver/login', 'Driver registration'],
     ['/contact', 'Contact us'],
     ['/faq', 'Frequently asked questions'],
     ['/terms', 'Terms of service'],
     ['/privacy', 'Privacy policy'],
-    ['/login', 'Log in'],
   ]
 
   it.each(routes)('renders %s', (path, heading) => {
@@ -36,10 +36,21 @@ describe('website routes', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument()
   })
 
-  it('does not enable login before authentication exists', () => {
+  it('redirects /login to the driver registration login', () => {
     renderAt('/login')
-    expect(screen.getByLabelText('Phone number')).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Send code' })).toBeDisabled()
+    expect(screen.getByRole('heading', { level: 1, name: 'Driver registration' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Phone number')).toBeEnabled()
+  })
+
+  it('sends signed-out visitors from /driver/register to the login', () => {
+    renderAt('/driver/register')
+    expect(screen.getByRole('heading', { level: 1, name: 'Driver registration' })).toBeInTheDocument()
+  })
+
+  it('advertises driver earnings on the homepage and links to registration', () => {
+    renderAt('/')
+    expect(screen.getByRole('heading', { level: 2, name: /₹30,000\+/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Register as a driver' })).toHaveAttribute('href', '/driver')
   })
 
   it('toggles the mobile menu', async () => {

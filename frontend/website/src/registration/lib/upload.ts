@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../config'
+import { API_BASE_URL } from '../../config'
 import { getAccessToken } from './auth'
 import { ApiCallError } from './client'
 import type { components } from './api-types'

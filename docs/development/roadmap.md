@@ -5,7 +5,7 @@ Status: v0.7 · Phases 0–6 closed (auth, customer booking, driver onboarding, 
 WebSocket/Redis realtime infra (part of Phase 7) built, but live-tracking UI and admin live map not yet
 started; closed-pilot client build order decided (Android first, iOS after). Since v0.6: admin web
 (Phase 9) built for driver review, ride/flag oversight, audit log and config editing (live-map/drivers-
-list/customers/safety screens still placeholder stubs); the driver-registration website is built;
+list/customers/safety screens still placeholder stubs); driver self-registration is built into the public website (`/driver`, `/driver/register`);
 the driver Android app has slices 1, 2a, 2b and 3 built (2b = STOMP ride-offer receive/accept/decline,
 commit `a7091a7`; 3 = the ride loop, uncommitted, awaiting a fresh-context review and an emulator pass); the repo moved from a personal GitHub account to the `Lady-Go` GitHub organization, which
 brought a CI minutes budget (Actions minutes are no longer effectively unlimited) — see the CI/security
@@ -200,7 +200,7 @@ built so far.
 
 Built, not a skeleton: OTP login, a dashboard, document upload (with file validation/preview and
 resumable upload state), and selfie capture, each with their own tests, plus a Playwright e2e suite
-(`frontend/driver-registration/e2e/`). `frontend/driver-registration/src` is ~5,700 lines across 21
+(`frontend/website/e2e/`). `frontend/website/src` is ~5,700 lines across 21
 files, confirmed non-trivial.
 
 ## Driver Android app status

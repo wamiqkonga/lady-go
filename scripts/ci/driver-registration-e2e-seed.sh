@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Seeds everything frontend/driver-registration's Playwright suite (frontend/driver-registration/e2e/)
+# Seeds everything frontend/website's Playwright suite (frontend/website/e2e/)
 # needs, against a real backend + Postgres already running in CI (.github/workflows/
 # driver-registration-e2e.yml starts both before calling this).
 #

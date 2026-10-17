@@ -5,7 +5,7 @@ import { useSession } from './sessionContext'
 export default function RequireAuth({ children }: { children: ReactNode }) {
   const { signedIn } = useSession()
   if (!signedIn) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/driver/login" replace />
   }
   return children
 }

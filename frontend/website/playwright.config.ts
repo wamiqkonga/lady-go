@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * E2E suite for the driver registration website, run in CI against a real backend + Postgres +
+ * E2E suite for the website (driver registration flow), run in CI against a real backend + Postgres +
  * seeded data, never mocked (see .github/workflows/driver-registration-e2e.yml and
  * scripts/ci/driver-registration-e2e-seed.sh).
  *
@@ -19,7 +19,7 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? [['html', { outputFolder: 'playwright-report' }], ['github']] : 'list',
   use: {
-    baseURL: process.env.DRIVER_REG_E2E_BASE_URL ?? 'http://localhost:5175',
+    baseURL: process.env.DRIVER_REG_E2E_BASE_URL ?? 'http://localhost:5173',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

@@ -115,7 +115,7 @@ it's yanked.
 > This `.npmrc` does not set a minimum release age, or sets it too low. Add `min-release-age` to
 > wait before resolving newly published package versions.
 
-Files: `frontend/admin/.npmrc`, `frontend/driver-registration/.npmrc`.
+Files: `frontend/admin/.npmrc`, `frontend/website/.npmrc`.
 
 **Classification: real issue — fixed.** Added `min-release-age=7` to both files, for the same
 supply-chain reasoning as the Dependabot cooldown fix above. This is an npm ≥11.10 feature and is
@@ -152,7 +152,7 @@ repo's three real stacks:
   `WebView` sample with `javaScriptEnabled = true` + `loadUrl(url)` on an untrusted `url` was not
   flagged by any currently-loaded pack. Accepted as a known registry-tier limitation, not a missing
   pack-name gap, since there's no additional named pack to add for it.
-- **TypeScript/React** (`frontend/admin`, `frontend/driver-registration`, `frontend/website`, all
+- **TypeScript/React** (`frontend/admin`, `frontend/website`, all
   confirmed React apps per their `package.json`): **gap found and fixed.** `p/react` exists in the
   registry (confirmed it resolves, 4 rules on the free tier, including
   `typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml` for
