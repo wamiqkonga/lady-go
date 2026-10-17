@@ -1,7 +1,7 @@
 /* Driver self-registration flow. Everything is scoped under .app-shell so it never leaks into the
  * marketing site, and overrides the few site-wide class names (.content, .form, .brand) the two share.
  * Colour tokens (--panel, --ok, --warn, --bad) live in ../index.css. */
-.app-shell { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.app-shell { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
 .app-shell .topbar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: var(--panel); border-bottom: 1px solid var(--border); position: sticky; top: 0; }
 .app-shell .topbar .brand { font-weight: 800; font-size: 1rem; }
 .app-shell .topbar button { background: none; border: 0; color: var(--muted); font-size: 0.9rem; }
@@ -9,25 +9,31 @@
 
 .app-shell .login { padding: 1.5rem 0; }
 .app-shell .form { display: grid; gap: 0.6rem; max-width: none; }
-.app-shell .form input, .app-shell .form select { padding: 0.7rem; border: 1px solid var(--border); border-radius: 10px; font-size: 1rem; width: 100%; }
+.app-shell .form input, .app-shell .form select { padding: 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 1rem; width: 100%; background: var(--surface-variant); color: var(--fg); }
 .app-shell .form .error { color: var(--bad); font-size: 0.9rem; margin: 0; }
 
 .app-shell .primary-action { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; padding: 0.9rem 1rem; background: var(--panel); border-top: 1px solid var(--border); }
-.app-shell .primary-action button { width: 100%; padding: 0.9rem; border-radius: 12px; border: 0; background: var(--brand); color: var(--brand-contrast); font-size: 1.05rem; font-weight: 600; }
+.app-shell .primary-action button { width: 100%; padding: 0.9rem; min-height: 56px; border-radius: 999px; border: 0; background: var(--brand); color: var(--brand-contrast); font-size: 1.05rem; font-weight: 700; }
 .app-shell .primary-action button:disabled { opacity: 0.5; }
 
-.app-shell .section { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; margin-bottom: 0.9rem; }
+.app-shell .section { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
 .app-shell .section h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
 .app-shell .muted { color: var(--muted); font-size: 0.9rem; }
 
-.app-shell .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
-.app-shell .badge-ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
-.app-shell .badge-warn { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
-.app-shell .badge-bad { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+.app-shell .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+.app-shell .badge-ok { background: var(--ok-container); color: var(--ok); }
+.app-shell .badge-warn { background: var(--warn-container); color: var(--warn); }
+.app-shell .badge-bad { background: var(--bad-container); color: var(--bad); }
 
 .app-shell .review-note { margin: 0.4rem 0 0; font-size: 0.9rem; }
-.app-shell .preview { max-width: 100%; border-radius: 10px; margin-top: 0.5rem; display: block; }
+.app-shell .preview { max-width: 100%; border-radius: var(--radius-md); margin-top: 0.5rem; display: block; }
 .app-shell .row-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap; }
-.app-shell .row-actions button { padding: 0.55rem 0.9rem; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); font-size: 0.95rem; }
+.app-shell .row-actions button { min-height: 48px; padding: 0.55rem 1.1rem; border-radius: 999px; border: 1.5px solid var(--brand); background: transparent; color: var(--brand); font: inherit; font-weight: 700; }
 
 .app-shell [role='alert'] { color: var(--bad); }
+
+/* Login/OTP form buttons: primary pill; the secondary action (e.g. "Use a different number") is quiet. */
+.app-shell .form button { min-height: 56px; border-radius: 999px; border: 0; background: var(--brand); color: var(--brand-contrast); font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer; }
+.app-shell .form button.quiet { background: transparent; color: var(--brand); min-height: 48px; }
+.app-shell .form button:disabled { opacity: 0.5; cursor: not-allowed; }
+.app-shell .form label { font-weight: 600; }

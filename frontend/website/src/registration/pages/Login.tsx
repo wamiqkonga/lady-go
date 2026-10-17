@@ -90,7 +90,7 @@ export default function Login() {
             <button type="submit" disabled={busy || code.length !== 6}>
               Continue
             </button>
-            <button type="button" onClick={() => setStage('phone')} disabled={busy}>
+            <button type="button" className="quiet" onClick={() => setStage('phone')} disabled={busy}>
               Use a different number
             </button>
           </form>
