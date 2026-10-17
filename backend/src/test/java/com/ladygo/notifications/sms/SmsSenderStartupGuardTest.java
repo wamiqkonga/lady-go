@@ -22,6 +22,10 @@ class SmsSenderStartupGuardTest {
             "tmpl-1", "entity-1", "{\"to\":\"{{to}}\"}", "messageId", "errorCode",
             3000, 5000, 2, 500, 5, 30000);
 
+    private static final SmsSenderProperties WHATSAPP_STYLE = new SmsSenderProperties(
+            "https://graph.facebook.com/v21.0/123/messages", "Authorization", "Bearer secret-token", "", "", "",
+            "{\"to\":\"{{to}}\"}", "messages.0.id", "error.code", 3000, 5000, 2, 500, 5, 30000);
+
     private static final SmsSenderProperties BLANK = new SmsSenderProperties(
             null, null, null, null, null, null, null, null, null, 3000, 5000, 2, 500, 5, 30000);
 
@@ -51,6 +55,26 @@ class SmsSenderStartupGuardTest {
         when(environment.getActiveProfiles()).thenReturn(new String[] {"prod"});
         var guard = new SmsSenderStartupGuard(List.of(HTTP_LIKE), FULLY_CONFIGURED, environment);
         assertThatCode(guard::verifyRealSenderConfiguredInGuardedProfiles).doesNotThrowAnyException();
+    }
+
+    @Test
+    void passesUnderProdWithAWhatsAppStyleConfigAndNoSmsSpecificIds() {
+        when(environment.getActiveProfiles()).thenReturn(new String[] {"prod"});
+        var guard = new SmsSenderStartupGuard(List.of(HTTP_LIKE), WHATSAPP_STYLE, environment);
+        assertThatCode(guard::verifyRealSenderConfiguredInGuardedProfiles).doesNotThrowAnyException();
+    }
+
+    @Test
+    void failsFastWhenTheBodyTemplateReferencesADltIdThatIsBlank() {
+        when(environment.getActiveProfiles()).thenReturn(new String[] {"prod"});
+        var smsStyleMissingIds = new SmsSenderProperties(
+                "https://provider.example/send", "Authorization", "secret-token", "", "", "",
+                "{\"to\":\"{{to}}\",\"tmpl\":\"{{dltTemplateId}}\",\"from\":\"{{senderId}}\"}",
+                "messageId", "errorCode", 3000, 5000, 2, 500, 5, 30000);
+        var guard = new SmsSenderStartupGuard(List.of(HTTP_LIKE), smsStyleMissingIds, environment);
+        assertThatThrownBy(guard::verifyRealSenderConfiguredInGuardedProfiles)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("missing required configuration");
     }
 
     @Test

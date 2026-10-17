@@ -47,8 +47,8 @@ public class SmsSenderStartupGuard {
         }
         if (!properties.isFullyConfigured()) {
             throw new IllegalStateException(
-                    "HttpSmsSender is missing required configuration (base URL, auth header, sender id, "
-                            + "DLT template/entity id, or body template) under staging/prod - set the "
+                    "HttpSmsSender is missing required configuration (base URL, auth header "
+                            + "name/value, or body template) under staging/prod - set the "
                             + "LADYGO_SMS_* environment variables (see docs/development/sms-provider-setup.md).");
         }
     }

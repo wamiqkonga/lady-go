@@ -38,6 +38,10 @@ Everything already built and CI-green on `develop`:
   all: no API call, no logging of when it's pressed, no platform liability framing of an automated or
   assisted dial. It just opens the phone's own dialer pre-filled, the same as if the rider had dialled
   it herself. Placed visibly during an active ride (same screen the trip-share action lives on).
+- **Update 2026-10-17: OTP goes over WhatsApp (Meta Cloud API), not SMS** - the bullet below is kept as
+  history; the TRAI DLT blocker it describes does not apply to WhatsApp. The founder's action item is now
+  Meta business verification + an approved authentication template; setup in
+  `docs/development/sms-provider-setup.md` ("WhatsApp (pilot channel)").
 - **Real SMS/OTP provider, OTP only** (decided 2026-10-09 - this was an open question, now resolved):
   `MockSmsService` is dev/test-only by construction (`SmsStartupGuard` enforces this can never run in
   staging/prod), and a closed pilot still needs real OTP delivery - unlike SOS, there's no "supervise

@@ -64,6 +64,58 @@ class HttpSmsSenderTest {
                 "messageId", "errorCode", 2000, readTimeoutMs, maxRetries, 10, 5, 30000);
     }
 
+    private SmsSenderProperties whatsAppPropertiesFor(HttpServer httpServer) {
+        String baseUrl = "http://localhost:" + httpServer.getAddress().getPort() + "/send";
+        return new SmsSenderProperties(
+                baseUrl, "Authorization", "Bearer secret-token", "", "", "",
+                "{\"messaging_product\":\"whatsapp\",\"to\":\"{{to}}\",\"type\":\"template\","
+                        + "\"template\":{\"name\":\"otp\",\"language\":{\"code\":\"en\"}}}",
+                "messages.0.id", "error.code", 2000, 2000, 0, 10, 5, 30000);
+    }
+
+    @Test
+    void extractsNestedWhatsAppStyleMessageIdAndErrorCode() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        server = startServer(requests, 200, "{\"messages\":[{\"id\":\"wamid.ABC\"}]}", 0);
+        SmsDeliveryResult ok = new HttpSmsSender(whatsAppPropertiesFor(server), new ObjectMapper())
+                .send("+919900000001", "otp_code", Map.of("code", "123456"));
+        assertThat(ok.accepted()).isTrue();
+        assertThat(ok.providerMessageId()).isEqualTo("wamid.ABC");
+        server.stop(0);
+
+        server = startServer(requests, 400, "{\"error\":{\"code\":131030,\"message\":\"not allowed\"}}", 0);
+        SmsDeliveryResult failed = new HttpSmsSender(whatsAppPropertiesFor(server), new ObjectMapper())
+                .send("+919900000001", "otp_code", Map.of("code", "123456"));
+        assertThat(failed.accepted()).isFalse();
+        assertThat(failed.errorCode()).isEqualTo("131030");
+    }
+
+    @Test
+    void missingNestedPathYieldsNullNotAnException() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        server = startServer(requests, 200, "{\"messages\":[]}", 0);
+        SmsDeliveryResult ok = new HttpSmsSender(whatsAppPropertiesFor(server), new ObjectMapper())
+                .send("+919900000001", "otp_code", Map.of("code", "123456"));
+        assertThat(ok.accepted()).isTrue();
+        assertThat(ok.providerMessageId()).isNull();
+    }
+
+    @Test
+    void anAbsurdlyLargeArrayIndexInTheConfiguredPathIsNotFoundNotAnException() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        server = startServer(requests, 200, "{\"messages\":[{\"id\":\"x\"}]}", 0);
+        String baseUrl = "http://localhost:" + server.getAddress().getPort() + "/send";
+        SmsSenderProperties props = new SmsSenderProperties(
+                baseUrl, "Authorization", "Bearer t", "", "", "", "{\"to\":\"{{to}}\"}",
+                "messages.99999999999.id", "error.code", 2000, 2000, 0, 10, 5, 30000);
+
+        SmsDeliveryResult result = new HttpSmsSender(props, new ObjectMapper())
+                .send("+919900000001", "otp_code", Map.of("code", "123456"));
+
+        assertThat(result.accepted()).isTrue();
+        assertThat(result.providerMessageId()).isNull();
+    }
+
     @Test
     void acceptsOnA200AndExtractsTheProviderMessageId() throws Exception {
         AtomicInteger requests = new AtomicInteger();

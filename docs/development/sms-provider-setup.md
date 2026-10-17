@@ -1,8 +1,55 @@
 # SMS provider setup (OTP delivery)
 
-Status: adapter built, no provider chosen (D3 in `docs/development/roadmap.md` - public-launch gate,
-not required for the closed pilot's known user set). This doc is what whoever picks a provider later
-needs to configure it - it does not pick one.
+Status: adapter built. **Pilot channel decided 2026-10-17: WhatsApp (Meta Cloud API) instead of SMS** -
+see "WhatsApp (pilot channel)" below; no DLT needed on that path. The SMS sections further down stay
+valid for a later SMS fallback at public launch. The class names say "Sms" but the adapter is a generic
+HTTP JSON sender and carries either channel.
+
+## WhatsApp (pilot channel)
+
+No code beyond the generic adapter: dot-path response parsing (`messages.0.id`, `error.code`) and
+optional sender/DLT ids make it fit Meta's WhatsApp Cloud API through configuration alone.
+
+Operational prerequisites (founder, start now - verification takes days): a Meta Business account with
+business verification, a WhatsApp Business phone number (not one already used in the consumer app), a
+System User access token (permanent, `whatsapp_business_messaging` scope), and an approved
+**Authentication**-category message template (e.g. `ladygo_otp`, language `en`) with the copy-code button.
+Authentication templates are the cheapest category and need no free-text approval of the OTP wording.
+
+| Variable | Value |
+|---|---|
+| `LADYGO_SMS_BASE_URL` | `https://graph.facebook.com/v21.0/<PHONE_NUMBER_ID>/messages` |
+| `LADYGO_SMS_AUTH_HEADER_NAME` | `Authorization` |
+| `LADYGO_SMS_AUTH_HEADER_VALUE` | `Bearer <system user token>` - secret |
+| `LADYGO_SMS_SENDER_ID`, `_DLT_TEMPLATE_ID`, `_DLT_ENTITY_ID` | leave unset (blank) |
+| `LADYGO_SMS_RESPONSE_MESSAGE_ID_FIELD` | `messages.0.id` |
+| `LADYGO_SMS_RESPONSE_ERROR_CODE_FIELD` | `error.code` |
+| `LADYGO_SMS_BODY_TEMPLATE` | see below |
+
+Body template (Meta's authentication-template shape; `{{to}}` must be digits with country code - Meta
+accepts the E.164 `+` prefix too):
+
+```json
+{"messaging_product":"whatsapp","to":"{{to}}","type":"template",
+ "template":{"name":"ladygo_otp","language":{"code":"en"},
+  "components":[
+   {"type":"body","parameters":[{"type":"text","text":"{{var:code}}"}]},
+   {"type":"button","sub_type":"url","index":"0","parameters":[{"type":"text","text":"{{var:code}}"}]}]}}
+```
+
+Notes:
+- Meta returns HTTP 200 with a `messages[0].id` once it *accepts* the message; actual delivery (user not
+  on WhatsApp, blocked, etc.) is reported later by webhook, which this adapter does not consume. A rider
+  or driver without WhatsApp on the registered number gets no code - acceptable for a known pilot cohort,
+  and an SMS fallback (second sender behind the same interface) is a public-launch item.
+- Retry policy (5xx/timeout only, never 4xx) and the circuit breaker apply unchanged. Meta rate-limit
+  errors arrive as 4xx (`130429`), so they are not retried; the per-number/IP/global send caps below still
+  bound volume.
+- Verify the template name, language and component layout against the approved template in Meta's
+  dashboard before first send - a mismatch is a 4xx (`132000`/`132001`) and the circuit breaker will not
+  open on a single one, but every login will fail until corrected.
+- Not yet exercised against the live API (no credentials yet); adapter behaviour is covered by stub-server
+  tests with Meta-shaped responses.
 
 ## Architecture
 
@@ -30,12 +77,12 @@ manager only, same rule as every other `LADYGO_*` secret in this repo.
 | `LADYGO_SMS_BASE_URL` | yes | Provider's send endpoint (full URL) |
 | `LADYGO_SMS_AUTH_HEADER_NAME` | yes | HTTP header carrying the credential (default `Authorization`) |
 | `LADYGO_SMS_AUTH_HEADER_VALUE` | yes | The credential itself - secret |
-| `LADYGO_SMS_SENDER_ID` | yes | Registered SMS sender id/header the provider requires |
-| `LADYGO_SMS_DLT_TEMPLATE_ID` | yes | India DLT template id for the OTP message content |
-| `LADYGO_SMS_DLT_ENTITY_ID` | yes | India DLT principal entity id |
+| `LADYGO_SMS_SENDER_ID` | no (SMS only) | Registered SMS sender id/header the provider requires |
+| `LADYGO_SMS_DLT_TEMPLATE_ID` | no (SMS only) | India DLT template id for the OTP message content |
+| `LADYGO_SMS_DLT_ENTITY_ID` | no (SMS only) | India DLT principal entity id |
 | `LADYGO_SMS_BODY_TEMPLATE` | yes | The provider's request body - see "Body template" below |
-| `LADYGO_SMS_RESPONSE_MESSAGE_ID_FIELD` | no (default `messageId`) | Top-level JSON field in a 2xx response holding the provider's message id |
-| `LADYGO_SMS_RESPONSE_ERROR_CODE_FIELD` | no (default `errorCode`) | Top-level JSON field in a non-2xx response holding a provider error code |
+| `LADYGO_SMS_RESPONSE_MESSAGE_ID_FIELD` | no (default `messageId`) | JSON field (dot path) in a 2xx response holding the provider's message id |
+| `LADYGO_SMS_RESPONSE_ERROR_CODE_FIELD` | no (default `errorCode`) | JSON field (dot path) in a non-2xx response holding a provider error code |
 | `LADYGO_SMS_CONNECT_TIMEOUT_MS` | no (default `3000`) | Connect timeout |
 | `LADYGO_SMS_READ_TIMEOUT_MS` | no (default `5000`) | Read/response timeout |
 | `LADYGO_SMS_MAX_RETRIES` | no (default `2`) | Additional attempts after the first, only on a 5xx or timeout/IO error - never on a 4xx |

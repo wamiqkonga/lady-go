@@ -129,16 +129,32 @@ public class HttpSmsSender implements SmsSender {
         }
     }
 
+    /** {@code fieldName} is a dot path into the JSON response, with numeric segments indexing arrays
+     *  (e.g. {@code messages.0.id} for WhatsApp Cloud API); a plain name is a top-level field. */
     private String extractField(String responseBody, String fieldName) {
         if (fieldName == null || fieldName.isBlank() || responseBody == null || responseBody.isBlank()) {
             return null;
         }
         try {
             JsonNode node = objectMapper.readTree(responseBody);
-            JsonNode field = node.get(fieldName);
-            return field == null || field.isNull() ? null : field.asText();
+            for (String segment : fieldName.split("\\.")) {
+                if (node == null) {
+                    return null;
+                }
+                Integer index = node.isArray() ? parseIndex(segment) : null;
+                node = index != null ? node.get(index) : node.get(segment);
+            }
+            return node == null || node.isNull() || node.isContainerNode() ? null : node.asText();
         } catch (IOException ex) {
             return null;
+        }
+    }
+
+    private static Integer parseIndex(String segment) {
+        try {
+            return Integer.valueOf(segment);
+        } catch (NumberFormatException ex) {
+            return null; // not an array index (or absurdly large) - treated as "not found" by node.get
         }
     }
 

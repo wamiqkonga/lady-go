@@ -40,9 +40,9 @@ ladygo:
       base-url: ${LADYGO_SMS_BASE_URL}
       auth-header-name: ${LADYGO_SMS_AUTH_HEADER_NAME}
       auth-header-value: ${LADYGO_SMS_AUTH_HEADER_VALUE}
-      sender-id: ${LADYGO_SMS_SENDER_ID}
-      dlt-template-id: ${LADYGO_SMS_DLT_TEMPLATE_ID}
-      dlt-entity-id: ${LADYGO_SMS_DLT_ENTITY_ID}
+      sender-id: ${LADYGO_SMS_SENDER_ID:}
+      dlt-template-id: ${LADYGO_SMS_DLT_TEMPLATE_ID:}
+      dlt-entity-id: ${LADYGO_SMS_DLT_ENTITY_ID:}
       body-template: ${LADYGO_SMS_BODY_TEMPLATE}
       response-message-id-field: ${LADYGO_SMS_RESPONSE_MESSAGE_ID_FIELD:messageId}
       response-error-code-field: ${LADYGO_SMS_RESPONSE_ERROR_CODE_FIELD:errorCode}
