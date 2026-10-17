@@ -60,4 +60,12 @@ describe('website routes', () => {
     await userEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })
+
+  it('switches between light and dark mode and remembers the choice', async () => {
+    renderAt('/')
+    await userEvent.click(screen.getByRole('button', { name: /Switch to (light|dark) mode/ }))
+    const chosen = document.documentElement.dataset.theme
+    expect(['light', 'dark']).toContain(chosen)
+    expect(localStorage.getItem('ladygo-theme')).toBe(chosen)
+  })
 })

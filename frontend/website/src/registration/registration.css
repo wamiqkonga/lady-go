@@ -37,3 +37,4 @@
 .app-shell .form button.quiet { background: transparent; color: var(--brand); min-height: 48px; }
 .app-shell .form button:disabled { opacity: 0.5; cursor: not-allowed; }
 .app-shell .form label { font-weight: 600; }
+.app-shell .topbar-actions { display: flex; gap: 0.5rem; align-items: center; }

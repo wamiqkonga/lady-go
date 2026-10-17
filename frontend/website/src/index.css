@@ -36,9 +36,10 @@
   color: var(--fg);
   background: var(--bg);
   line-height: 1.6;
+  color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #171019;
     --fg: #f0e4f2;
     --muted: #c9b8cc;
@@ -58,6 +59,26 @@
     --bad: #ffb4ab;
     --bad-container: #601410;
   }
+}
+:root[data-theme='dark'] {
+  --bg: #171019;
+  --fg: #f0e4f2;
+  --muted: #c9b8cc;
+  --brand: #e7b6ec;
+  --brand-contrast: #3a0f40;
+  --brand-container: #4c1b52;
+  --rose: #ffb1c4;
+  --rose-container: #5e1a33;
+  --surface: #211826;
+  --surface-variant: #2d2231;
+  --border: #5a4a5e;
+  --panel: #211826;
+  --ok: #8edbc4;
+  --ok-container: #0f3d31;
+  --warn: #f5c76a;
+  --warn-container: #4a3200;
+  --bad: #ffb4ab;
+  --bad-container: #601410;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); }
@@ -128,3 +149,8 @@ summary { cursor: pointer; font-weight: 700; }
 .earn-hero .button.secondary { background: transparent; color: #ffffff; border-color: #ffffff; }
 .earn-banner { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap; }
 .earn-banner h2 { font-size: clamp(1.5rem, 4vw, 2.1rem); }
+
+.theme-toggle {
+  background: none; border: 1px solid var(--border); border-radius: 999px; min-height: 40px;
+  padding: 0.3rem 0.9rem; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer;
+}

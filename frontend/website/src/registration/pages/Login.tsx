@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import ThemeToggle from '../../components/ThemeToggle'
 import { requestOtp, verifyOtp, AuthError } from '../lib/auth'
 
 export default function Login() {
@@ -40,6 +41,7 @@ export default function Login() {
     <div className="app-shell">
       <div className="topbar">
         <Link to="/driver" className="brand">Lady Go — Drive with us</Link>
+        <ThemeToggle />
       </div>
       <div className="content login">
         <h1>Driver registration</h1>

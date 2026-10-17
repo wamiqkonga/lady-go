@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { client, unwrap, ApiCallError } from '../lib/client'
+import ThemeToggle from '../../components/ThemeToggle'
 import { useSession } from '../lib/sessionContext'
 import DocumentUploadSection from '../components/DocumentUploadSection'
 import SelfieCapture from '../components/SelfieCapture'
@@ -179,7 +180,10 @@ export default function Dashboard() {
     <div className="app-shell">
       <div className="topbar">
         <span className="brand">Driver registration</span>
-        <button type="button" onClick={signOut}>Sign out</button>
+        <span className="topbar-actions">
+          <ThemeToggle />
+          <button type="button" onClick={signOut}>Sign out</button>
+        </span>
       </div>
       <div className="content">
         <h1>My application</h1>

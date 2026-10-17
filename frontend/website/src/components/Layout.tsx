@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import ThemeToggle from './ThemeToggle'
 
 const links = [
   { to: '/about', label: 'About' },
@@ -38,6 +39,7 @@ export default function Layout() {
           <NavLink to="/driver/login" className="nav-cta" onClick={() => setOpen(false)}>
             Driver login
           </NavLink>
+          <ThemeToggle />
         </nav>
       </header>
       <main className="content">
