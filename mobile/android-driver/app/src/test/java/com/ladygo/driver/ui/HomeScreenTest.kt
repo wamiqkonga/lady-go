@@ -3,6 +3,7 @@ package com.ladygo.driver.ui
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -112,7 +113,7 @@ class HomeScreenTest {
         var dismissed = false
         setContent(state = HomeUiState(error = "oops"), onDismissMessages = { dismissed = true })
 
-        composeRule.onNodeWithText("oops").performClick()
+        composeRule.onNodeWithText("oops").performScrollTo().performClick()
 
         assert(dismissed)
     }

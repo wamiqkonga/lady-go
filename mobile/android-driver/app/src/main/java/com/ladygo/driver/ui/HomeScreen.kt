@@ -328,20 +328,20 @@ private fun TipRow(
 @Composable
 private fun AvailabilityCard(online: Boolean) {
     LadyGoCard(container = if (online) LadyGoTheme.extra.successContainer else MaterialTheme.colorScheme.surface) {
-      StatusChip(
-          text = if (online) stringResource(R.string.home_chip_online) else stringResource(R.string.home_chip_offline),
-          kind = if (online) BannerKind.SUCCESS else BannerKind.INFO,
-          icon = if (online) Icons.Filled.WifiTethering else Icons.Filled.PowerSettingsNew,
-      )
-      Text(
-          text = if (online) "You're online" else "You're offline",
-          style = MaterialTheme.typography.headlineMedium,
-          color = if (online) LadyGoTheme.extra.onSuccessContainer else MaterialTheme.colorScheme.onSurface,
-      )
-      Text(
-          text = stringResource(if (online) R.string.home_online_body else R.string.home_offline_body),
-          style = MaterialTheme.typography.bodyMedium,
-          color = if (online) LadyGoTheme.extra.onSuccessContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-      }
+        StatusChip(
+            text = if (online) stringResource(R.string.home_chip_online) else stringResource(R.string.home_chip_offline),
+            kind = if (online) BannerKind.SUCCESS else BannerKind.INFO,
+            icon = if (online) Icons.Filled.WifiTethering else Icons.Filled.PowerSettingsNew,
+        )
+        Text(
+            text = if (online) "You're online" else "You're offline",
+            style = MaterialTheme.typography.headlineMedium,
+            color = if (online) LadyGoTheme.extra.onSuccessContainer else MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = stringResource(if (online) R.string.home_online_body else R.string.home_offline_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (online) LadyGoTheme.extra.onSuccessContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

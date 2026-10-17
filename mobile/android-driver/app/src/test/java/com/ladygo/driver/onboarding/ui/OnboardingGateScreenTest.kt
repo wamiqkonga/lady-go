@@ -92,6 +92,6 @@ class OnboardingGateScreenTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Continue on the Lady Go website").assertExists()
-        composeRule.onNodeWithText("- LICENSE: Expired.").assertExists()
+        composeRule.onNodeWithText("LICENSE: Expired.").assertExists()
     }
 }

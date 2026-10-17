@@ -95,7 +95,7 @@ class ActiveRideContentTest {
         show(state(Status.RIDE_STARTED), ActiveRideActions(onEndEarly = { r, s -> ended = r to s }))
 
         composeRule.onNodeWithText("Complete ride").assertExists()
-        composeRule.onNodeWithText("End ride early").performClick()
+        composeRule.onNodeWithText("End ride early").performScrollTo().performClick()
         composeRule.onNodeWithText("End ride").assertIsNotEnabled()
         composeRule.onNodeWithTag("end_early_reason").performTextInput("rider unwell")
         composeRule.onNodeWithText("I don't feel safe").performClick()

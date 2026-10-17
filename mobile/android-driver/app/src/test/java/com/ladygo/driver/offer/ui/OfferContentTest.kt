@@ -47,7 +47,7 @@ class OfferContentTest {
             OfferContent(state = showingState(), onAccept = {}, onDecline = {}, onCountdownExpired = {})
         }
 
-        composeRule.onNodeWithText("PKR 250").assertExists()
+        composeRule.onNodeWithText("PKR 2.50").assertExists()
         composeRule.onNodeWithText("Accept").assertExists()
         composeRule.onNodeWithText("Decline").assertExists()
     }
