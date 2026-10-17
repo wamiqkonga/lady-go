@@ -176,12 +176,11 @@ where a SHA pin accidentally pointed at a commit from the wrong repository.
 | `actions/setup-node@v4` | yes | yes |
 | `actions/upload-artifact@v4` | yes | yes |
 | `gradle/actions/setup-gradle@v4` | yes | yes |
-| `gitleaks/gitleaks-action@v2` | yes | yes |
 | `actions/dependency-review-action@v4` | yes | yes |
 | `actions/setup-python@v5` | yes | yes |
 | `github/codeql-action/{init,autobuild,analyze}@v3` | yes | **no** |
 
-All 9 pinned SHAs belong to the repository they claim to pin — none points outside its own action's
+All pinned action SHAs belong to the repository they claim to pin — none points outside its own action's
 repo. One has drifted: `github/codeql-action`'s `v3` tag has moved to a newer commit since this SHA
 was resolved — expected, since that's exactly what pinning a tag freezes against. No action needed:
 the `codeql` job that uses it is `if: false` (disabled — see that job's own comment in
@@ -204,3 +203,5 @@ both ways, since none of the 42 real findings above are `ERROR`/`HIGH`/`CRITICAL
 0 findings remain as of the fixes and suppressions above (confirmed by local re-scan with the
 job's exact version and rule config). The gate now fails the job on any future `ERROR`/`HIGH`/
 `CRITICAL` finding and reports (without blocking) anything lower.
+
+_Update 2026-10-17: `gitleaks/gitleaks-action` was removed from the table above - the `secret-scan` job now installs the gitleaks CLI v8.30.1 directly and verifies the tarball against its published SHA-256 (see `.github/workflows/security.yml`), so it is no longer an SHA-pinned third-party action._

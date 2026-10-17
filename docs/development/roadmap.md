@@ -230,7 +230,9 @@ Separately, a full Semgrep SAST triage closed out all 42 findings from the first
 every mutable GitHub Actions tag, a 7-day Dependabot/npm release-age cooldown, two false-positive
 suppressions for the apps' required `MAIN`/`LAUNCHER` activities) and added a real severity gate to the
 `sast` CI job: it now fails on `ERROR`/`HIGH`/`CRITICAL` findings and only reports (non-blocking) below
-that, with no `continue-on-error` masking the gate itself - see `docs/security/sast-triage.md`. One
-known, currently-failing, org-move-caused gap: the `secret-scan` job (`gitleaks-action`) now fails
-because `gitleaks` requires a paid license for an organization-owned repo and no `GITLEAKS_LICENSE`
-secret is configured yet - tracked as an open item, not fixed in that pass.
+that, with no `continue-on-error` masking the gate itself - see `docs/security/sast-triage.md`. The org move
+also broke the `secret-scan` job (`gitleaks-action` needs a paid licence for an organization-owned repo);
+fixed 2026-10-17 by running the MIT-licensed gitleaks CLI directly (pinned release, SHA-256 verified,
+full-history scan, `--redact`) instead of the action - no licence or secret needed; a local scan of all
+103 commits found no leaks. Still open: the PR-only `dependency-review` job fails because the dependency
+graph / GitHub Advanced Security is not available for this private org repo.
