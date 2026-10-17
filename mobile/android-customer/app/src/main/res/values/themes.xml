@@ -1,3 +1,5 @@
 <resources>
-    <style name="Theme.LadyGo" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.LadyGo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ladygo_window_background</item>
+    </style>
 </resources>

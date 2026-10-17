@@ -96,7 +96,7 @@ class BookRideContentTest {
         )
 
         composeRule.onNodeWithTag("book_fare").assertExists()
-        composeRule.onNodeWithText("INR 18500").assertExists()
+        composeRule.onNodeWithText("\u20B9185").assertExists()
         composeRule.onNodeWithText("Pay your driver in cash.").assertExists()
         composeRule.onNodeWithText("Book ride").performClick()
         assertEquals(1, booked)

@@ -2,18 +2,18 @@ package com.ladygo.customer.booking.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +38,21 @@ import com.ladygo.customer.booking.ExternalIntents
 import com.ladygo.customer.booking.TrackBookingViewModel
 import com.ladygo.customer.booking.TrackStage
 import com.ladygo.customer.booking.TrackUiState
+import com.ladygo.customer.ui.components.BannerKind
+import com.ladygo.customer.ui.components.EmergencyButton
+import com.ladygo.customer.ui.components.FareCard
+import com.ladygo.customer.ui.components.InfoBanner
+import com.ladygo.customer.ui.components.LadyGoScreen
+import com.ladygo.customer.ui.components.LoadingState
+import com.ladygo.customer.ui.components.Money
+import com.ladygo.customer.ui.components.PersonVehicleCard
+import com.ladygo.customer.ui.components.PinDisplay
+import com.ladygo.customer.ui.components.PrimaryButton
+import com.ladygo.customer.ui.components.QuietButton
+import com.ladygo.customer.ui.components.RouteCard
+import com.ladygo.customer.ui.components.StateIllustration
+import com.ladygo.customer.ui.components.StatusChip
+import com.ladygo.customer.ui.theme.LadyGoTheme
 import kotlinx.coroutines.delay
 
 private const val POLL_INTERVAL_MILLIS = 5_000L
@@ -84,40 +99,38 @@ fun TrackBookingContent(
     // The ride PIN is shown here: no screenshots / recordings while it is on screen.
     SecureWindowEffect(enabled = state.stage == TrackStage.DRIVER_COMING)
     var showCancel by rememberSaveable { mutableStateOf(false) }
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier.padding(innerPadding).padding(24.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            val stage = state.stage
-            val booking = state.booking
-            if (stage == null || booking == null) {
-                CircularProgressIndicator()
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                return@Column
-            }
-            Text(stageTitle(stage), style = MaterialTheme.typography.headlineMedium)
-            RouteSummary(booking)
-            if (stage == TrackStage.DRIVER_COMING) DriverCard(booking)
-            if (stage == TrackStage.SEARCHING) CircularProgressIndicator()
-            StageNote(stage, booking)
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("track_error")) }
+    val stage = state.stage
+    val booking = state.booking
+    if (stage == null || booking == null) {
+        LadyGoScreen {
+            LoadingState(message = stringResource(R.string.track_loading))
+            state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR) }
+        }
+        return
+    }
+    LadyGoScreen(
+        title = stageTitle(stage),
+        bottomBar = {
             if (stage.showsEmergencyCall) {
-                OutlinedButton(onClick = actions.onCall112, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.track_call_112_action))
-                }
+                EmergencyButton(
+                    text = stringResource(R.string.track_call_112_action),
+                    onClick = actions.onCall112,
+                    icon = Icons.Filled.Phone,
+                )
             }
             if (stage.canCancel) {
-                OutlinedButton(onClick = { showCancel = true }, enabled = !state.isCancelling, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.track_cancel_action))
-                }
+                QuietButton(
+                    text = stringResource(R.string.track_cancel_action),
+                    onClick = { showCancel = true },
+                    enabled = !state.isCancelling,
+                )
             }
-            if (!stage.isLive) {
-                Button(onClick = actions.onDone, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.track_done_action))
-                }
-            }
-        }
+            if (!stage.isLive) PrimaryButton(text = stringResource(R.string.track_done_action), onClick = actions.onDone)
+        },
+    ) {
+        state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("track_error")) }
+        StageHeader(stage)
+        StageBody(stage, booking)
     }
     if (showCancel) {
         CancelDialog(
@@ -126,6 +139,98 @@ fun TrackBookingContent(
                 actions.onCancel(reason)
             },
             onDismiss = { showCancel = false },
+        )
+    }
+}
+
+@Composable
+private fun StageHeader(stage: TrackStage) {
+    when (stage) {
+        TrackStage.SEARCHING ->
+            StateIllustration(
+                icon = Icons.Filled.Search,
+                title = stringResource(R.string.track_headline_searching),
+                body = stringResource(R.string.track_note_searching),
+            )
+        TrackStage.DRIVER_COMING ->
+            StatusChip(
+                text = stringResource(R.string.track_chip_coming),
+                kind = BannerKind.SUCCESS,
+                icon = Icons.Filled.DirectionsCar,
+            )
+        TrackStage.IN_TRIP ->
+            StatusChip(
+                text = stringResource(R.string.track_chip_in_trip),
+                kind = BannerKind.INFO,
+                icon = Icons.Filled.Shield,
+            )
+        TrackStage.PAYMENT ->
+            StatusChip(
+                text = stringResource(R.string.track_chip_arrived),
+                kind = BannerKind.SUCCESS,
+                icon = Icons.Filled.CheckCircle,
+            )
+        TrackStage.FINISHED ->
+            StateIllustration(
+                icon = Icons.Filled.Favorite,
+                title = stringResource(R.string.track_headline_finished),
+                body = stringResource(R.string.track_note_finished),
+                tint = LadyGoTheme.extra.success,
+                container = LadyGoTheme.extra.successContainer,
+            )
+        TrackStage.CANCELLED ->
+            StateIllustration(
+                icon = Icons.Filled.Cancel,
+                title = stringResource(R.string.track_headline_cancelled),
+                body = stringResource(R.string.track_note_cancelled),
+            )
+    }
+}
+
+@Composable
+private fun StageBody(
+    stage: TrackStage,
+    booking: BookingDetailResponse,
+) {
+    if (stage == TrackStage.DRIVER_COMING) {
+        val driver = booking.driver
+        if (driver != null) {
+            PersonVehicleCard(
+                name = driver.name,
+                verifiedLabel = stringResource(R.string.track_verified_driver),
+                vehicle = listOfNotNull(driver.vehicleColor, driver.vehicleMake, driver.vehicleModel).joinToString(" "),
+                plate = driver.vehicleRegistration,
+            )
+        }
+        booking.ridePin?.let { pin ->
+            PinDisplay(
+                pin = pin,
+                label = stringResource(R.string.track_pin_label),
+                hint = stringResource(R.string.track_pin_hint),
+                modifier = Modifier.testTag("track_pin"),
+            )
+        }
+    }
+    RouteCard(
+        pickupLabel = stringResource(R.string.book_pickup_label),
+        pickup = booking.pickupAddress,
+        destinationLabel = stringResource(R.string.book_destination_label),
+        destination = booking.destinationAddress,
+    )
+    val fare = booking.finalFare ?: booking.estimatedFare
+    if (fare != null && stage != TrackStage.CANCELLED && stage != TrackStage.SEARCHING) {
+        val cash = booking.paymentMethod == BookingDetailResponse.PaymentMethod.CASH
+        FareCard(
+            label = stringResource(R.string.book_fare_label),
+            amount = Money.format(fare, booking.currency),
+            caption =
+                if (stage == TrackStage.PAYMENT &&
+                    cash
+                ) {
+                    stringResource(R.string.track_note_pay_cash)
+                } else {
+                    stringResource(R.string.book_payment_cash)
+                },
         )
     }
 }
@@ -144,45 +249,6 @@ private fun stageTitle(stage: TrackStage): String =
     )
 
 @Composable
-private fun RouteSummary(booking: BookingDetailResponse) {
-    booking.pickupAddress?.let { Text("${stringResource(R.string.book_pickup_label)}: $it") }
-    booking.destinationAddress?.let { Text("${stringResource(R.string.book_destination_label)}: $it") }
-    val fare = booking.finalFare ?: booking.estimatedFare
-    if (fare != null) Text("${stringResource(R.string.book_fare_label)}: ${booking.currency.orEmpty()} $fare".replace("  ", " "))
-}
-
-@Composable
-private fun DriverCard(booking: BookingDetailResponse) {
-    val driver = booking.driver
-    if (driver != null) {
-        Text(driver.name.orEmpty(), style = MaterialTheme.typography.titleMedium)
-        val vehicle = listOfNotNull(driver.vehicleColor, driver.vehicleMake, driver.vehicleModel).joinToString(" ")
-        if (vehicle.isNotBlank()) Text(vehicle)
-        driver.vehicleRegistration?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
-    }
-    booking.ridePin?.let { pin ->
-        Text(stringResource(R.string.track_pin_label), style = MaterialTheme.typography.labelLarge)
-        Text(pin, style = MaterialTheme.typography.displaySmall, modifier = Modifier.testTag("track_pin"))
-        Text(stringResource(R.string.track_pin_hint))
-    }
-}
-
-@Composable
-private fun StageNote(
-    stage: TrackStage,
-    booking: BookingDetailResponse,
-) {
-    when (stage) {
-        TrackStage.SEARCHING -> Text(stringResource(R.string.track_note_searching))
-        TrackStage.PAYMENT ->
-            if (booking.paymentMethod == BookingDetailResponse.PaymentMethod.CASH) Text(stringResource(R.string.track_note_pay_cash))
-        TrackStage.FINISHED -> Text(stringResource(R.string.track_note_finished))
-        TrackStage.CANCELLED -> Text(stringResource(R.string.track_note_cancelled))
-        else -> Unit
-    }
-}
-
-@Composable
 private fun CancelDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -190,14 +256,16 @@ private fun CancelDialog(
     var reason by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.extraLarge,
         title = { Text(stringResource(R.string.track_cancel_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.track_cancel_fee_note))
+                Text(stringResource(R.string.track_cancel_fee_note), style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     value = reason,
                     onValueChange = { reason = it },
                     label = { Text(stringResource(R.string.track_cancel_reason_label)) },
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth().testTag("cancel_reason"),
                 )
             }

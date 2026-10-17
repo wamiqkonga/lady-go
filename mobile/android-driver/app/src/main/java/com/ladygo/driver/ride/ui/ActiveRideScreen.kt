@@ -11,21 +11,22 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Navigation
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,7 +38,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -54,6 +57,22 @@ import com.ladygo.driver.ride.ActiveRideViewModel
 import com.ladygo.driver.ride.ExternalIntents
 import com.ladygo.driver.ride.RideStage
 import com.ladygo.driver.ride.SelfieState
+import com.ladygo.driver.ui.components.BannerKind
+import com.ladygo.driver.ui.components.EmergencyButton
+import com.ladygo.driver.ui.components.FareCard
+import com.ladygo.driver.ui.components.InfoBanner
+import com.ladygo.driver.ui.components.LadyGoCard
+import com.ladygo.driver.ui.components.LadyGoScreen
+import com.ladygo.driver.ui.components.LadyGoTextField
+import com.ladygo.driver.ui.components.LoadingState
+import com.ladygo.driver.ui.components.Money
+import com.ladygo.driver.ui.components.PrimaryButton
+import com.ladygo.driver.ui.components.QuietButton
+import com.ladygo.driver.ui.components.RouteCard
+import com.ladygo.driver.ui.components.SecondaryButton
+import com.ladygo.driver.ui.components.StateIllustration
+import com.ladygo.driver.ui.components.StepDots
+import com.ladygo.driver.ui.theme.LadyGoTheme
 
 @Composable
 fun ActiveRideScreen(
@@ -103,32 +122,113 @@ fun ActiveRideContent(
     // screen recording while they are on screen.
     SecureWindowEffect(enabled = stage == RideStage.ARRIVED)
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .padding(innerPadding)
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(text = stageTitle(stage), style = MaterialTheme.typography.headlineMedium)
-            RideSummary(booking = booking)
-            state.error?.let { message ->
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.testTag("ride_error"),
+    LadyGoScreen(
+        title = stageTitle(stage),
+        bottomBar = { BottomActions(state, stage, actions) },
+    ) {
+        StageProgress(stage)
+        state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("ride_error")) }
+        StageContent(state, stage, booking, actions)
+    }
+}
+
+@Composable
+private fun BottomActions(
+    state: ActiveRideUiState,
+    stage: RideStage,
+    actions: ActiveRideActions,
+) {
+    val busy = state.isActionInFlight
+    when (stage) {
+        RideStage.TO_PICKUP ->
+            PrimaryButton(
+                text = stringResource(R.string.ride_arrived_action),
+                onClick = actions.onImArrived,
+                enabled = !busy,
+                loading = busy,
+            )
+        RideStage.IN_TRIP ->
+            PrimaryButton(
+                text = stringResource(R.string.ride_complete_action),
+                onClick = actions.onComplete,
+                enabled = !busy,
+                loading = busy,
+            )
+        RideStage.PAYMENT ->
+            if (state.cashConfirmed || state.booking?.paymentMethod != BookingDetailResponse.PaymentMethod.CASH) {
+                if (state.cashConfirmed) PrimaryButton(text = stringResource(R.string.ride_done_action), onClick = actions.onDone)
+            } else {
+                PrimaryButton(
+                    text = stringResource(R.string.ride_confirm_cash_action),
+                    onClick = actions.onConfirmCash,
+                    enabled = !busy,
+                    loading = busy,
                 )
             }
-            StageActions(state = state, stage = stage, booking = booking, actions = actions)
-            if (stage.showsEmergencyCall) {
-                OutlinedButton(onClick = actions.onCall112, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.ride_call_112_action))
-                }
+        RideStage.FINISHED, RideStage.ENDED -> PrimaryButton(text = stringResource(R.string.ride_done_action), onClick = actions.onDone)
+        RideStage.ARRIVED -> Unit // the Start button sits with the PIN field so it can read what was typed
+    }
+    if (stage.showsEmergencyCall) {
+        EmergencyButton(text = stringResource(R.string.ride_call_112_action), onClick = actions.onCall112, icon = Icons.Filled.Phone)
+    }
+}
+
+@Composable
+private fun StageProgress(stage: RideStage) {
+    val index =
+        when (stage) {
+            RideStage.TO_PICKUP -> 0
+            RideStage.ARRIVED -> 1
+            RideStage.IN_TRIP -> 2
+            else -> 3
+        }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        StepDots(current = index, total = 4)
+        Text(
+            stringResource(R.string.ride_steps_caption),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun StageContent(
+    state: ActiveRideUiState,
+    stage: RideStage,
+    booking: BookingDetailResponse,
+    actions: ActiveRideActions,
+) {
+    val busy = state.isActionInFlight
+    when (stage) {
+        RideStage.TO_PICKUP -> {
+            RouteSummary(booking)
+            booking.pickupAddress?.let {
+                SecondaryButton(text = stringResource(R.string.ride_navigate_action), onClick = {
+                    actions.onNavigate(it)
+                }, icon = Icons.Filled.Navigation)
             }
         }
+        RideStage.ARRIVED -> {
+            SelfieSection(selfie = state.selfie, onRetry = actions.onRetrySelfie)
+            PinEntry(busy = busy, onStart = actions.onStartRide)
+        }
+        RideStage.IN_TRIP -> InTripContent(booking, busy, actions)
+        RideStage.PAYMENT -> PaymentContent(booking, state.cashConfirmed)
+        RideStage.FINISHED ->
+            StateIllustration(
+                icon = Icons.Filled.CheckCircle,
+                title = stringResource(R.string.ride_finished_title),
+                body = stringResource(R.string.ride_finished_note),
+                tint = LadyGoTheme.extra.success,
+                container = LadyGoTheme.extra.successContainer,
+            )
+        RideStage.ENDED ->
+            StateIllustration(
+                icon = Icons.Filled.Info,
+                title = stringResource(R.string.ride_ended_title),
+                body = stringResource(R.string.ride_ended_note),
+            )
     }
 }
 
@@ -146,90 +246,38 @@ private fun stageTitle(stage: RideStage): String =
     )
 
 @Composable
-private fun RideSummary(booking: BookingDetailResponse) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        booking.pickupAddress?.let { LabeledLine(stringResource(R.string.ride_pickup_label), it) }
-        booking.destinationAddress?.let { LabeledLine(stringResource(R.string.ride_destination_label), it) }
-        val fare = booking.finalFare ?: booking.estimatedFare
-        val currency = booking.currency
-        if (fare != null && currency != null) {
-            LabeledLine(stringResource(R.string.ride_fare_label), "$currency $fare")
-        }
-        when (booking.paymentMethod) {
-            BookingDetailResponse.PaymentMethod.CASH -> Text(stringResource(R.string.ride_payment_cash))
-            BookingDetailResponse.PaymentMethod.ONLINE -> Text(stringResource(R.string.ride_payment_online))
-            null -> Unit
-        }
+private fun RouteSummary(booking: BookingDetailResponse) {
+    RouteCard(
+        pickupLabel = stringResource(R.string.ride_pickup_label),
+        pickup = booking.pickupAddress,
+        destinationLabel = stringResource(R.string.ride_destination_label),
+        destination = booking.destinationAddress,
+    )
+    val fare = booking.finalFare ?: booking.estimatedFare
+    if (fare != null) {
+        val cash = booking.paymentMethod == BookingDetailResponse.PaymentMethod.CASH
+        FareCard(
+            label = stringResource(R.string.ride_fare_label),
+            amount = Money.format(fare, booking.currency),
+            caption = stringResource(if (cash) R.string.ride_payment_cash else R.string.ride_payment_online),
+        )
     }
 }
 
 @Composable
-private fun LabeledLine(
-    label: String,
-    value: String,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = label, style = MaterialTheme.typography.labelLarge)
-        Text(text = value)
-    }
-}
-
-@Composable
-private fun StageActions(
-    state: ActiveRideUiState,
-    stage: RideStage,
-    booking: BookingDetailResponse,
-    actions: ActiveRideActions,
-) {
-    val busy = state.isActionInFlight
-    when (stage) {
-        RideStage.TO_PICKUP -> {
-            booking.pickupAddress?.let { address ->
-                OutlinedButton(onClick = { actions.onNavigate(address) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.ride_navigate_action))
-                }
-            }
-            Button(onClick = actions.onImArrived, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.ride_arrived_action))
-            }
-        }
-        RideStage.ARRIVED -> {
-            SelfieSection(selfie = state.selfie, onRetry = actions.onRetrySelfie)
-            PinEntry(busy = busy, onStart = actions.onStartRide)
-        }
-        RideStage.IN_TRIP -> InTripActions(booking = booking, busy = busy, actions = actions)
-        RideStage.PAYMENT -> {
-            PaymentActions(booking = booking, busy = busy, cashConfirmed = state.cashConfirmed, onConfirmCash = actions.onConfirmCash)
-            // Confirming the cash is the driver's last duty; the booking itself settles on the server later.
-            if (state.cashConfirmed) {
-                Button(onClick = actions.onDone, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.ride_done_action))
-                }
-            }
-        }
-        RideStage.FINISHED -> DoneSection(stringResource(R.string.ride_finished_note), actions.onDone)
-        RideStage.ENDED -> DoneSection(stringResource(R.string.ride_ended_note), actions.onDone)
-    }
-}
-
-@Composable
-private fun InTripActions(
+private fun InTripContent(
     booking: BookingDetailResponse,
     busy: Boolean,
     actions: ActiveRideActions,
 ) {
     var showEndEarly by rememberSaveable { mutableStateOf(false) }
-    booking.destinationAddress?.let { address ->
-        OutlinedButton(onClick = { actions.onNavigate(address) }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.ride_navigate_action))
-        }
+    RouteSummary(booking)
+    booking.destinationAddress?.let {
+        SecondaryButton(text = stringResource(R.string.ride_navigate_action), onClick = {
+            actions.onNavigate(it)
+        }, icon = Icons.Filled.Navigation)
     }
-    Button(onClick = actions.onComplete, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.ride_complete_action))
-    }
-    OutlinedButton(onClick = { showEndEarly = true }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.ride_end_early_action))
-    }
+    QuietButton(text = stringResource(R.string.ride_end_early_action), onClick = { showEndEarly = true }, enabled = !busy)
     if (showEndEarly) {
         EndEarlyDialog(
             onConfirm = { reason, safety ->
@@ -242,33 +290,29 @@ private fun InTripActions(
 }
 
 @Composable
-private fun PaymentActions(
+private fun PaymentContent(
     booking: BookingDetailResponse,
-    busy: Boolean,
     cashConfirmed: Boolean,
-    onConfirmCash: () -> Unit,
 ) {
+    val fare = booking.finalFare ?: booking.estimatedFare
     when (booking.paymentMethod) {
-        BookingDetailResponse.PaymentMethod.CASH ->
-            if (cashConfirmed) {
-                Text(stringResource(R.string.ride_cash_confirmed_note))
-            } else {
-                Button(onClick = onConfirmCash, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.ride_confirm_cash_action))
-                }
+        BookingDetailResponse.PaymentMethod.CASH -> {
+            if (fare != null) {
+                FareCard(
+                    label = stringResource(R.string.ride_collect_label),
+                    amount = Money.format(fare, booking.currency),
+                    caption = stringResource(R.string.ride_payment_cash),
+                )
             }
-        else -> Text(stringResource(R.string.ride_payment_online_note))
-    }
-}
-
-@Composable
-private fun DoneSection(
-    note: String,
-    onDone: () -> Unit,
-) {
-    Text(note)
-    Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.ride_done_action))
+            if (cashConfirmed) {
+                InfoBanner(
+                    text = stringResource(R.string.ride_cash_confirmed_note),
+                    kind = BannerKind.SUCCESS,
+                    icon = Icons.Filled.CheckCircle,
+                )
+            }
+        }
+        else -> InfoBanner(text = stringResource(R.string.ride_payment_online_note), kind = BannerKind.INFO)
     }
 }
 
@@ -279,18 +323,25 @@ private fun PinEntry(
 ) {
     // remember, not rememberSaveable: the PIN must never reach the saved-instance Bundle.
     var pin by remember { mutableStateOf("") }
-    Text(stringResource(R.string.ride_pin_hint), style = MaterialTheme.typography.bodyMedium)
-    OutlinedTextField(
-        value = pin,
-        onValueChange = { pin = it.filter(Char::isDigit).take(MAX_PIN_INPUT_LENGTH) },
-        label = { Text(stringResource(R.string.ride_pin_label)) },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-        modifier = Modifier.fillMaxWidth().testTag("ride_pin_field"),
-    )
-    Button(onClick = { onStart(pin) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.ride_start_action))
+    LadyGoCard {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Text(stringResource(R.string.ride_pin_label), style = MaterialTheme.typography.labelLarge)
+        }
+        Text(
+            stringResource(R.string.ride_pin_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LadyGoTextField(
+            value = pin,
+            onValueChange = { pin = it.filter(Char::isDigit).take(MAX_PIN_INPUT_LENGTH) },
+            label = stringResource(R.string.ride_pin_label),
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            modifier = Modifier.testTag("ride_pin_field"),
+        )
+        PrimaryButton(text = stringResource(R.string.ride_start_action), onClick = { onStart(pin) }, enabled = !busy, loading = busy)
     }
 }
 
@@ -299,23 +350,26 @@ private fun SelfieSection(
     selfie: SelfieState,
     onRetry: () -> Unit,
 ) {
-    Text(stringResource(R.string.ride_selfie_title), style = MaterialTheme.typography.titleMedium)
-    when (selfie) {
-        SelfieState.Idle, SelfieState.Loading -> Text(stringResource(R.string.ride_selfie_loading))
-        SelfieState.Unavailable -> {
-            Text(stringResource(R.string.ride_selfie_unavailable))
-            TextButton(onClick = onRetry) { Text(stringResource(R.string.ride_selfie_retry)) }
-        }
-        is SelfieState.Loaded -> {
-            val bitmap = remember(selfie.image) { BitmapFactory.decodeByteArray(selfie.image.bytes, 0, selfie.image.bytes.size) }
-            if (bitmap == null) {
-                Text(stringResource(R.string.ride_selfie_unavailable))
-            } else {
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = stringResource(R.string.ride_selfie_content_description),
-                    modifier = Modifier.fillMaxWidth().height(SELFIE_HEIGHT),
-                )
+    LadyGoCard {
+        Text(stringResource(R.string.ride_selfie_title), style = MaterialTheme.typography.titleMedium)
+        when (selfie) {
+            SelfieState.Idle, SelfieState.Loading -> LoadingState(message = stringResource(R.string.ride_selfie_loading))
+            SelfieState.Unavailable -> {
+                InfoBanner(text = stringResource(R.string.ride_selfie_unavailable), kind = BannerKind.WARNING)
+                QuietButton(text = stringResource(R.string.ride_selfie_retry), onClick = onRetry)
+            }
+            is SelfieState.Loaded -> {
+                val bitmap = remember(selfie.image) { BitmapFactory.decodeByteArray(selfie.image.bytes, 0, selfie.image.bytes.size) }
+                if (bitmap == null) {
+                    InfoBanner(text = stringResource(R.string.ride_selfie_unavailable), kind = BannerKind.WARNING)
+                } else {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = stringResource(R.string.ride_selfie_content_description),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth().height(SELFIE_HEIGHT).clip(MaterialTheme.shapes.large),
+                    )
+                }
             }
         }
     }
@@ -330,6 +384,7 @@ private fun EndEarlyDialog(
     var safety by rememberSaveable { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.extraLarge,
         title = { Text(stringResource(R.string.ride_end_early_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -337,6 +392,7 @@ private fun EndEarlyDialog(
                     value = reason,
                     onValueChange = { reason = it },
                     label = { Text(stringResource(R.string.ride_end_early_reason_label)) },
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier.fillMaxWidth().testTag("end_early_reason"),
                 )
                 Row(
@@ -359,7 +415,6 @@ private fun EndEarlyDialog(
     )
 }
 
-/** Sets `FLAG_SECURE` on the hosting window while [enabled]; a no-op when the composition isn't hosted by an Activity. */
 @Composable
 fun SecureWindowEffect(enabled: Boolean) {
     val activity = LocalContext.current.findActivity()

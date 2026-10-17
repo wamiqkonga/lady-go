@@ -1,19 +1,12 @@
 package com.ladygo.customer.onboarding.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -26,6 +19,16 @@ import com.ladygo.customer.R
 import com.ladygo.customer.onboarding.OnboardingState
 import com.ladygo.customer.onboarding.OnboardingUiState
 import com.ladygo.customer.onboarding.OnboardingViewModel
+import com.ladygo.customer.ui.components.BannerKind
+import com.ladygo.customer.ui.components.InfoBanner
+import com.ladygo.customer.ui.components.LadyGoCard
+import com.ladygo.customer.ui.components.LadyGoScreen
+import com.ladygo.customer.ui.components.LadyGoTextField
+import com.ladygo.customer.ui.components.LoadingState
+import com.ladygo.customer.ui.components.PrimaryButton
+import com.ladygo.customer.ui.components.QuietButton
+import com.ladygo.customer.ui.components.StateIllustration
+import com.ladygo.customer.ui.components.StepDots
 
 @Composable
 fun OnboardingScreen(
@@ -55,24 +58,22 @@ fun OnboardingContent(
     onRetry: () -> Unit,
     onLogout: () -> Unit,
 ) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .padding(innerPadding)
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            val content = state.state
-            when {
-                state.isLoading || content == null || content == OnboardingState.Ready -> CircularProgressIndicator()
-                content is OnboardingState.LoadError -> LoadErrorSection(content.message, onRetry)
-                content == OnboardingState.NeedsName -> NameSection(state, onNameChanged, onSaveName)
-                content is OnboardingState.NeedsDeclaration -> DeclarationSection(state, content, onAcceptDeclaration)
-            }
-            // Always a way out: wrong number, or a load error that never clears, must not trap the rider.
-            TextButton(onClick = onLogout) { Text(stringResource(R.string.onboarding_logout_action)) }
+    val content = state.state
+    val step = if (content is OnboardingState.NeedsDeclaration) 1 else 0
+    val showSteps = !state.isLoading && (content == OnboardingState.NeedsName || content is OnboardingState.NeedsDeclaration)
+    LadyGoScreen(
+        bottomBar = { QuietButton(text = stringResource(R.string.onboarding_logout_action), onClick = onLogout) },
+    ) {
+        Spacer(Modifier.height(32.dp))
+        if (showSteps) StepDots(current = step, total = 2)
+        when {
+            state.isLoading || content == null || content == OnboardingState.Ready ->
+                LoadingState(
+                    message = stringResource(R.string.onboarding_loading),
+                )
+            content is OnboardingState.LoadError -> LoadErrorSection(content.message, onRetry)
+            content == OnboardingState.NeedsName -> NameSection(state, onNameChanged, onSaveName)
+            content is OnboardingState.NeedsDeclaration -> DeclarationSection(state, content, onAcceptDeclaration)
         }
     }
 }
@@ -82,8 +83,15 @@ private fun LoadErrorSection(
     message: String,
     onRetry: () -> Unit,
 ) {
-    Text(text = message, color = MaterialTheme.colorScheme.error)
-    Button(onClick = onRetry) { Text(stringResource(R.string.onboarding_retry_action)) }
+    StateIllustration(
+        icon = Icons.Filled.CloudOff,
+        title = stringResource(R.string.onboarding_error_title),
+        body = null,
+        tint = MaterialTheme.colorScheme.error,
+        container = MaterialTheme.colorScheme.errorContainer,
+    )
+    InfoBanner(text = message, kind = BannerKind.ERROR)
+    PrimaryButton(text = stringResource(R.string.onboarding_retry_action), onClick = onRetry)
 }
 
 @Composable
@@ -92,21 +100,26 @@ private fun NameSection(
     onNameChanged: (String) -> Unit,
     onSaveName: () -> Unit,
 ) {
-    Text(stringResource(R.string.onboarding_name_title), style = MaterialTheme.typography.headlineMedium)
-    Text(stringResource(R.string.onboarding_name_hint))
-    OutlinedTextField(
+    Text(stringResource(R.string.onboarding_name_title), style = MaterialTheme.typography.headlineLarge)
+    Text(
+        stringResource(R.string.onboarding_name_hint),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    LadyGoTextField(
         value = state.nameInput,
         onValueChange = onNameChanged,
-        label = { Text(stringResource(R.string.onboarding_name_label)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth().testTag("onboarding_name_field"),
+        label = stringResource(R.string.onboarding_name_label),
+        leadingIcon = Icons.Filled.Person,
+        modifier = Modifier.testTag("onboarding_name_field"),
     )
     ErrorText(state.error)
-    Button(
+    PrimaryButton(
+        text = stringResource(R.string.onboarding_continue_action),
         onClick = onSaveName,
         enabled = state.nameInput.isNotBlank() && !state.isSubmitting,
-        modifier = Modifier.fillMaxWidth(),
-    ) { Text(stringResource(R.string.onboarding_continue_action)) }
+        loading = state.isSubmitting,
+    )
 }
 
 @Composable
@@ -115,15 +128,29 @@ private fun DeclarationSection(
     declaration: OnboardingState.NeedsDeclaration,
     onAccept: () -> Unit,
 ) {
-    Text(stringResource(R.string.onboarding_declaration_title), style = MaterialTheme.typography.headlineMedium)
-    Text(text = declaration.text, modifier = Modifier.testTag("onboarding_declaration_text"))
-    ErrorText(state.error)
-    Button(onClick = onAccept, enabled = !state.isSubmitting, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.onboarding_declaration_accept_action))
+    Text(stringResource(R.string.onboarding_declaration_title), style = MaterialTheme.typography.headlineLarge)
+    Text(
+        stringResource(R.string.onboarding_declaration_intro),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    LadyGoCard {
+        Text(
+            text = declaration.text,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.testTag("onboarding_declaration_text"),
+        )
     }
+    ErrorText(state.error)
+    PrimaryButton(
+        text = stringResource(R.string.onboarding_declaration_accept_action),
+        onClick = onAccept,
+        enabled = !state.isSubmitting,
+        loading = state.isSubmitting,
+    )
 }
 
 @Composable
 private fun ErrorText(message: String?) {
-    message?.let { Text(text = it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("onboarding_error")) }
+    message?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("onboarding_error")) }
 }

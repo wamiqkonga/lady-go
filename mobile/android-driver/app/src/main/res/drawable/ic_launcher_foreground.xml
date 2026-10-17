@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Lady Go mark: a protective shield with a heart, centred inside the adaptive-icon safe zone. -->
+    <group android:translateX="28" android:translateY="27" android:scaleX="2.15" android:scaleY="2.15">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M12,1L3,5v6c0,5.55 3.84,10.74 9,12 5.16,-1.26 9,-6.45 9,-12V5l-9,-4z" />
+    </group>
+    <group android:translateX="45" android:translateY="45" android:scaleX="0.75" android:scaleY="0.75">
+        <path
+            android:fillColor="#6A2C70"
+            android:pathData="M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z" />
+    </group>
+</vector>

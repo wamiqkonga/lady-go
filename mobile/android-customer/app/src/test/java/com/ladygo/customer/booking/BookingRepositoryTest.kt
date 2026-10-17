@@ -182,6 +182,17 @@ class BookingRepositoryTest {
         }
 
     @Test
+    fun aCashRideWaitingOutItsDisputeWindowDoesNotBlockANewBooking() =
+        runTest {
+            val settling = BookingDetailResponse(id = UUID.randomUUID(), status = Status.PAYMENT_PENDING)
+            val page = PageResponseBookingDetailResponse(content = listOf(settling))
+            coEvery { bookingApi.history(0, any(), any()) } returns
+                Response.success(ApiResponsePageResponseBookingDetailResponse(data = page))
+
+            assertEquals(ActiveBookingOutcome.None, repository.findActiveBooking())
+        }
+
+    @Test
     fun findActiveBookingDistinguishesNoneFromAFailedLookup() =
         runTest {
             val page = PageResponseBookingDetailResponse(content = listOf(BookingDetailResponse(status = Status.CANCELLED)))

@@ -1,12 +1,23 @@
 <resources>
     <string name="app_name">Lady Go</string>
     <string name="home_title">Lady Go</string>
+    <string name="home_greeting">Hello</string>
+    <string name="home_where_to">Where would you like to go?</string>
+    <string name="home_ride_in_progress_body">Your driver and ride details are one tap away.</string>
+    <string name="home_safety_title">How we keep you safe</string>
+    <string name="home_safety_verified">Every driver is verified by our team before she can drive.</string>
+    <string name="home_safety_pin">A private ride PIN, shared only in person, starts every trip.</string>
+    <string name="home_safety_112">Call 112 is one tap away during any ride.</string>
+    <string name="home_cash_note">For now you pay your driver in cash at the end of the ride.</string>
     <string name="home_subtitle">Safe, simple rides for women.</string>
     <string name="home_book_ride_action">Book a ride</string>
     <string name="home_ride_in_progress">You have a ride in progress.</string>
     <string name="home_resume_ride_action">View my ride</string>
     <string name="home_logout_action">Log out</string>
 
+    <string name="onboarding_loading">Getting things ready...</string>
+    <string name="onboarding_error_title">We could not load this</string>
+    <string name="onboarding_declaration_intro">Please read this and agree before your first ride. It helps keep Lady Go safe for everyone.</string>
     <string name="onboarding_retry_action">Try again</string>
     <string name="onboarding_logout_action">Log out</string>
     <string name="onboarding_continue_action">Continue</string>
@@ -17,6 +28,11 @@
     <string name="onboarding_declaration_accept_action">I agree</string>
 
     <string name="book_title">Where to?</string>
+    <string name="book_location_title">Where are you?</string>
+    <string name="book_location_unavailable_title">We cannot find you yet</string>
+    <string name="book_destination_helper">Type a landmark, area or address.</string>
+    <string name="book_results_label">Tap your destination</string>
+    <string name="book_selfie_heads_up">Next, you will take a quick selfie. Your driver sees it so she knows who to look for.</string>
     <string name="book_locating">Finding your location...</string>
     <string name="book_pickup_label">Pickup</string>
     <string name="book_destination_label">Destination</string>
@@ -36,6 +52,8 @@
 
     <string name="selfie_title">Quick selfie</string>
     <string name="selfie_hint">For everyone\'s safety, take a selfie before each ride. Your driver sees it when she meets you.</string>
+    <string name="selfie_permission_title">We need your camera</string>
+    <string name="selfie_privacy_note">Your photo is only shown to your driver for this ride and is never saved to your gallery.</string>
     <string name="selfie_permission_needed">Camera access is needed to take your selfie.</string>
     <string name="selfie_grant_permission_action">Allow camera</string>
     <string name="selfie_capture_action">Take selfie and book</string>
@@ -44,12 +62,20 @@
     <string name="selfie_cancel_action">Cancel</string>
     <string name="selfie_capture_failed">Could not take the photo. Try again.</string>
 
-    <string name="track_title_searching">Finding your driver</string>
-    <string name="track_title_driver_coming">Your driver is on the way</string>
-    <string name="track_title_in_trip">Trip in progress</string>
+    <string name="track_loading">Loading your ride...</string>
+    <string name="track_headline_searching">Finding a driver near you</string>
+    <string name="track_headline_finished">Thanks for riding with us</string>
+    <string name="track_headline_cancelled">This ride was cancelled</string>
+    <string name="track_chip_coming">Driver on the way</string>
+    <string name="track_chip_in_trip">On your way</string>
+    <string name="track_chip_arrived">You have arrived</string>
+    <string name="track_verified_driver">Verified driver</string>
+    <string name="track_title_searching">Your ride</string>
+    <string name="track_title_driver_coming">Your ride</string>
+    <string name="track_title_in_trip">Your trip</string>
     <string name="track_title_payment">Trip complete</string>
-    <string name="track_title_finished">All done</string>
-    <string name="track_title_cancelled">Ride cancelled</string>
+    <string name="track_title_finished">Your ride</string>
+    <string name="track_title_cancelled">Your ride</string>
     <string name="track_note_searching">We are looking for a driver near you.</string>
     <string name="track_note_pay_cash">Please pay your driver the fare in cash.</string>
     <string name="track_note_finished">Thanks for riding with Lady Go.</string>
@@ -64,4 +90,12 @@
     <string name="track_cancel_confirm">Cancel ride</string>
     <string name="track_cancel_keep">Keep ride</string>
     <string name="track_done_action">Back to home</string>
+
+    <string name="login_hero_title">Lady Go</string>
+    <string name="login_hero_subtitle">Safe, simple rides for women.</string>
+    <string name="login_phone_title">Welcome</string>
+    <string name="login_phone_body">Enter your phone number and we will send you a code to sign in.</string>
+    <string name="login_phone_helper">Include your country code, for example +91.</string>
+    <string name="login_code_title">Check your messages</string>
+    <string name="login_privacy_note">We only use your number to sign you in and keep you safe.</string>
 </resources>

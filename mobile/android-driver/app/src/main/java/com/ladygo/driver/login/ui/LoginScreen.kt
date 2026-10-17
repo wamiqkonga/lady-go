@@ -1,26 +1,46 @@
 package com.ladygo.driver.login.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ladygo.driver.R
 import com.ladygo.driver.login.LoginStep
 import com.ladygo.driver.login.LoginUiState
 import com.ladygo.driver.login.LoginViewModel
+import com.ladygo.driver.ui.components.BannerKind
+import com.ladygo.driver.ui.components.BrandHeader
+import com.ladygo.driver.ui.components.InfoBanner
+import com.ladygo.driver.ui.components.LadyGoTextField
+import com.ladygo.driver.ui.components.PrimaryButton
+import com.ladygo.driver.ui.components.QuietButton
 
 @Composable
 fun LoginScreen(
@@ -52,64 +72,98 @@ fun LoginContent(
     onVerifyOtp: () -> Unit,
     onBackToPhoneEntry: () -> Unit,
 ) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier.padding(innerPadding).padding(24.dp).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
+    ) {
+        BrandHeader(title = stringResource(R.string.login_hero_title), subtitle = stringResource(R.string.login_hero_subtitle))
+        Surface(
+            color = MaterialTheme.colorScheme.background,
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            modifier = Modifier.fillMaxWidth().offset(y = (-28).dp),
         ) {
-            Text(text = "Lady Go Driver", style = MaterialTheme.typography.headlineMedium)
-
-            when (state.step) {
-                LoginStep.PHONE_ENTRY -> {
-                    Text(text = "Enter your phone number to sign in.", style = MaterialTheme.typography.bodyMedium)
-                    OutlinedTextField(
-                        value = state.phone,
-                        onValueChange = onPhoneChanged,
-                        label = { Text("Phone number") },
-                        keyboardOptions =
-                            androidx.compose.foundation.text
-                                .KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Button(
-                        onClick = onRequestOtp,
-                        enabled = state.phone.isNotBlank() && !state.isLoading,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(if (state.isLoading) "Sending..." else "Send code")
-                    }
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp).navigationBarsPadding(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                when (state.step) {
+                    LoginStep.PHONE_ENTRY -> PhoneStep(state, onPhoneChanged, onRequestOtp)
+                    LoginStep.CODE_ENTRY -> CodeStep(state, onCodeChanged, onVerifyOtp, onBackToPhoneEntry)
                 }
-                LoginStep.CODE_ENTRY -> {
-                    Text(text = "Enter the code sent to ${state.phone}.", style = MaterialTheme.typography.bodyMedium)
-                    OutlinedTextField(
-                        value = state.code,
-                        onValueChange = onCodeChanged,
-                        label = { Text("6-digit code") },
-                        keyboardOptions =
-                            androidx.compose.foundation.text
-                                .KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                        modifier = Modifier.fillMaxWidth(),
+                state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
                     )
-                    Button(
-                        onClick = onVerifyOtp,
-                        enabled = state.code.isNotBlank() && !state.isLoading,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(if (state.isLoading) "Verifying..." else "Sign in")
-                    }
-                    TextButton(onClick = onBackToPhoneEntry, enabled = !state.isLoading) {
-                        Text("Use a different number")
-                    }
+                    Text(
+                        stringResource(R.string.login_privacy_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-            }
-
-            state.error?.let { message ->
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
             }
         }
     }
+}
+
+@Composable
+private fun PhoneStep(
+    state: LoginUiState,
+    onPhoneChanged: (String) -> Unit,
+    onRequestOtp: () -> Unit,
+) {
+    Text(stringResource(R.string.login_phone_title), style = MaterialTheme.typography.headlineMedium)
+    Text(
+        stringResource(R.string.login_phone_body),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    LadyGoTextField(
+        value = state.phone,
+        onValueChange = onPhoneChanged,
+        label = "Phone number",
+        leadingIcon = Icons.Filled.Phone,
+        helper = stringResource(R.string.login_phone_helper),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+    )
+    PrimaryButton(
+        text = if (state.isLoading) "Sending..." else "Send code",
+        onClick = onRequestOtp,
+        enabled = state.phone.isNotBlank() && !state.isLoading,
+    )
+}
+
+@Composable
+private fun CodeStep(
+    state: LoginUiState,
+    onCodeChanged: (String) -> Unit,
+    onVerifyOtp: () -> Unit,
+    onBackToPhoneEntry: () -> Unit,
+) {
+    Text(stringResource(R.string.login_code_title), style = MaterialTheme.typography.headlineMedium)
+    Text(
+        "Enter the code sent to ${state.phone}.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    LadyGoTextField(
+        value = state.code,
+        onValueChange = onCodeChanged,
+        label = "6-digit code",
+        leadingIcon = Icons.Filled.Lock,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+    )
+    PrimaryButton(
+        text = if (state.isLoading) "Verifying..." else "Sign in",
+        onClick = onVerifyOtp,
+        enabled = state.code.isNotBlank() && !state.isLoading,
+    )
+    QuietButton(text = "Use a different number", onClick = onBackToPhoneEntry, enabled = !state.isLoading)
 }

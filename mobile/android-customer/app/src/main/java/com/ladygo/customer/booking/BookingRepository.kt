@@ -113,7 +113,15 @@ private const val HTTP_NOT_FOUND = 404
 private const val ERROR_FARE_CHANGED = "FARE_CHANGED"
 private const val ACTIVE_LOOKUP_PAGE_SIZE = 10
 
-private val TERMINAL_STATUSES = setOf(BookingDetailResponse.Status.COMPLETED, BookingDetailResponse.Status.CANCELLED)
+/** Statuses that no longer block a new booking. `PAYMENT_PENDING` is here on purpose: for a cash ride the booking
+ *  stays there for the whole dispute window (default 60 min) after the driver confirmed the cash - the trip is
+ *  over and the rider must be free to book again. */
+private val NOT_ACTIVE_STATUSES =
+    setOf(
+        BookingDetailResponse.Status.PAYMENT_PENDING,
+        BookingDetailResponse.Status.COMPLETED,
+        BookingDetailResponse.Status.CANCELLED,
+    )
 
 /** Estimate / selfie / create / fetch / cancel against the booking API (docs/api/booking.md). Each
  *  returns the server's verdict; nothing here decides a fare, a status or eligibility locally. */
@@ -214,7 +222,7 @@ class BookingRepository
                     .body()
                     ?.data
                     ?.content
-                    ?.firstOrNull { it.status != null && it.status !in TERMINAL_STATUSES }
+                    ?.firstOrNull { it.status != null && it.status !in NOT_ACTIVE_STATUSES }
             return if (active == null) ActiveBookingOutcome.None else ActiveBookingOutcome.Found(active)
         }
 

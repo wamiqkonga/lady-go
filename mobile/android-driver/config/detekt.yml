@@ -28,6 +28,9 @@ complexity:
     # genuinely grew unwieldy - HomeContent's two permission-dialog param groups - was refactored
     # into BatteryGuidanceDialogState/FineLocationDeniedDialogState instead of raising this again.)
     functionThreshold: 8
+    # Design-system components (ui/components) are UI building blocks with many *optional* styling
+    # parameters (all defaulted), the idiom Material itself uses - not a smell for those.
+    ignoreDefaultParameters: true
     # StompConnectionManager's constructor has 8 real, distinct Hilt-injected collaborators (token
     # store/refresher, session manager, the STOMP session factory, the system-ping API, the events
     # bus, Moshi, its own scope) - same "each one is genuinely needed, grouping them would be

@@ -59,4 +59,32 @@
     <string name="ride_selfie_retry">Try again</string>
     <string name="ride_selfie_content_description">Photo of your rider</string>
     <string name="ride_no_navigation_app">No maps app found.</string>
+
+    <string name="login_hero_title">Lady Go Driver</string>
+    <string name="login_hero_subtitle">Drive with confidence. Earn on your terms.</string>
+    <string name="login_phone_title">Welcome back</string>
+    <string name="login_phone_body">Enter your phone number and we will send you a code to sign in.</string>
+    <string name="login_phone_helper">Include your country code, for example +91.</string>
+    <string name="login_code_title">Check your messages</string>
+    <string name="login_privacy_note">We only use your number to sign you in and keep your account safe.</string>
+
+    <string name="home_chip_online">Online</string>
+    <string name="home_chip_offline">Offline</string>
+    <string name="home_online_body">Ride requests will appear here. Keep the app open and your phone charged for the best results.</string>
+    <string name="home_offline_body">Go online when you are ready to receive ride requests.</string>
+    <string name="home_tips_title">Good to know</string>
+    <string name="home_tip_location">Your location is shared only while you are online.</string>
+    <string name="home_tip_pin">Riders share a private PIN with you in person to start a trip.</string>
+    <string name="home_tip_112">Call 112 is one tap away during any ride.</string>
+
+    <string name="offer_time_left">to respond</string>
+    <string name="offer_fare_label">Estimated fare</string>
+    <string name="offer_cash_caption">Paid in cash by the rider.</string>
+    <string name="offer_distance">About %1$.1f km to the pickup area</string>
+    <string name="offer_privacy_note">You will see the exact pickup point once you accept.</string>
+
+    <string name="ride_steps_caption">Pickup  \u2022  Meet  \u2022  Trip  \u2022  Payment</string>
+    <string name="ride_collect_label">Collect from rider</string>
+    <string name="ride_finished_title">Well done</string>
+    <string name="ride_ended_title">This ride has ended</string>
 </resources>

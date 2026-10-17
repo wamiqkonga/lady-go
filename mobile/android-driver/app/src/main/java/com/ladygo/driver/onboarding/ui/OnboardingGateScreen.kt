@@ -1,15 +1,16 @@
 package com.ladygo.driver.onboarding.ui
 
 import android.content.Intent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -25,6 +26,14 @@ import com.ladygo.driver.onboarding.GateUiState
 import com.ladygo.driver.onboarding.OnboardingGateViewModel
 import com.ladygo.driver.onboarding.OnboardingStatus
 import com.ladygo.driver.onboarding.isApproved
+import com.ladygo.driver.ui.components.BannerKind
+import com.ladygo.driver.ui.components.InfoBanner
+import com.ladygo.driver.ui.components.LadyGoScreen
+import com.ladygo.driver.ui.components.LoadingState
+import com.ladygo.driver.ui.components.PrimaryButton
+import com.ladygo.driver.ui.components.SectionLabel
+import com.ladygo.driver.ui.components.StateIllustration
+import com.ladygo.driver.ui.theme.LadyGoTheme
 
 @Composable
 fun OnboardingGateScreen(
@@ -46,26 +55,27 @@ private fun OnboardingGateContent(
     onRetry: () -> Unit,
 ) {
     val context = LocalContext.current
-
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier.padding(innerPadding).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (state.isLoading) {
-                CircularProgressIndicator()
-                return@Column
+    LadyGoScreen {
+        Spacer(Modifier.height(24.dp))
+        if (state.isLoading) {
+            LoadingState(message = "Checking your application...")
+            return@LadyGoScreen
+        }
+        when (val status = state.status) {
+            null -> Unit
+            is OnboardingStatus.LoadError -> {
+                StateIllustration(
+                    icon = Icons.Filled.CloudOff,
+                    title = "Couldn't load your status",
+                    body = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    container = MaterialTheme.colorScheme.errorContainer,
+                )
+                InfoBanner(text = status.message, kind = BannerKind.ERROR)
+                PrimaryButton(text = "Retry", onClick = onRetry)
             }
-            when (val status = state.status) {
-                null -> Unit
-                is OnboardingStatus.LoadError -> {
-                    Text("Couldn't load your status", style = MaterialTheme.typography.headlineSmall)
-                    Text(status.message, style = MaterialTheme.typography.bodyMedium)
-                    Button(onClick = onRetry) { Text("Retry") }
-                }
-                is OnboardingStatus.Known -> StatusBody(status.verificationStatus, status.documentNotes, context)
-                OnboardingStatus.NotStarted -> StatusBody(null, emptyList(), context)
-            }
+            is OnboardingStatus.Known -> StatusBody(status.verificationStatus, status.documentNotes, context)
+            OnboardingStatus.NotStarted -> StatusBody(null, emptyList(), context)
         }
     }
 }
@@ -77,22 +87,42 @@ private fun StatusBody(
     context: android.content.Context,
 ) {
     val (headline, body) = headlineAndBody(status)
-    Text(headline, style = MaterialTheme.typography.headlineSmall)
-    Text(body, style = MaterialTheme.typography.bodyMedium)
+    val look = statusLook(status)
+    StateIllustration(icon = look.icon, title = headline, body = body, tint = look.tint(), container = look.container())
 
     if (status == VerificationStatus.REJECTED && documentNotes.isNotEmpty()) {
-        Text("What needs fixing:", style = MaterialTheme.typography.titleMedium)
+        SectionLabel("What needs fixing")
         documentNotes.forEach { note ->
-            Text("- ${note.type}: ${note.note ?: "No reason given."}", style = MaterialTheme.typography.bodySmall)
+            InfoBanner(text = "${note.type}: ${note.note ?: "No reason given."}", kind = BannerKind.WARNING)
         }
     }
 
-    Button(onClick = {
-        context.startActivity(Intent(Intent.ACTION_VIEW, BuildConfig.DRIVER_REGISTRATION_URL.toUri()))
-    }) {
-        Text("Continue on the Lady Go website")
+    if (status != VerificationStatus.PENDING_REVIEW) {
+        PrimaryButton(
+            text = "Continue on the Lady Go website",
+            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, BuildConfig.DRIVER_REGISTRATION_URL.toUri())) },
+        )
     }
 }
+
+private class StatusLook(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val tint: @Composable () -> androidx.compose.ui.graphics.Color,
+    val container: @Composable () -> androidx.compose.ui.graphics.Color,
+)
+
+private fun statusLook(status: VerificationStatus?): StatusLook =
+    when (status) {
+        VerificationStatus.PENDING_REVIEW ->
+            StatusLook(Icons.Filled.HourglassTop, { LadyGoTheme.extra.warning }, { LadyGoTheme.extra.warningContainer })
+        VerificationStatus.REJECTED ->
+            StatusLook(Icons.Filled.EditNote, { MaterialTheme.colorScheme.secondary }, { MaterialTheme.colorScheme.secondaryContainer })
+        VerificationStatus.SUSPENDED ->
+            StatusLook(Icons.Filled.Block, { MaterialTheme.colorScheme.error }, { MaterialTheme.colorScheme.errorContainer })
+        VerificationStatus.APPROVED ->
+            StatusLook(Icons.Filled.VerifiedUser, { LadyGoTheme.extra.success }, { LadyGoTheme.extra.successContainer })
+        else -> StatusLook(Icons.Filled.Badge, { MaterialTheme.colorScheme.primary }, { MaterialTheme.colorScheme.primaryContainer })
+    }
 
 private fun headlineAndBody(status: VerificationStatus?): Pair<String, String> =
     when (status) {

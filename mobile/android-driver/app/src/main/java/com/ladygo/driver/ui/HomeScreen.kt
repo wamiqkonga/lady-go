@@ -7,15 +7,25 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,7 +34,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -35,6 +47,16 @@ import com.ladygo.driver.R
 import com.ladygo.driver.location.GoOnlineStep
 import com.ladygo.driver.location.LocationForegroundService
 import com.ladygo.driver.location.decideNextGoOnlineStep
+import com.ladygo.driver.ui.components.BannerKind
+import com.ladygo.driver.ui.components.InfoBanner
+import com.ladygo.driver.ui.components.LadyGoCard
+import com.ladygo.driver.ui.components.LadyGoScreen
+import com.ladygo.driver.ui.components.LogoMark
+import com.ladygo.driver.ui.components.PrimaryButton
+import com.ladygo.driver.ui.components.QuietButton
+import com.ladygo.driver.ui.components.SectionLabel
+import com.ladygo.driver.ui.components.StatusChip
+import com.ladygo.driver.ui.theme.LadyGoTheme
 
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
@@ -215,44 +237,46 @@ fun HomeContent(
     batteryGuidanceDialog: BatteryGuidanceDialogState,
     fineLocationDeniedDialog: FineLocationDeniedDialogState,
 ) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier.padding(innerPadding).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(text = stringResource(R.string.home_title), style = MaterialTheme.typography.headlineMedium)
-            Text(
-                text = if (state.availability == Availability.ONLINE) "You're online" else "You're offline",
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Button(onClick = onToggleAvailability, enabled = !state.isTogglingAvailability) {
-                Text(
+    val online = state.availability == Availability.ONLINE
+    LadyGoScreen(
+        bottomBar = {
+            PrimaryButton(
+                text =
                     when {
                         state.isTogglingAvailability -> "Please wait..."
-                        state.availability == Availability.ONLINE -> "Go offline"
+                        online -> "Go offline"
                         else -> "Go online"
                     },
-                )
-            }
-            state.error?.let { message ->
+                onClick = onToggleAvailability,
+                enabled = !state.isTogglingAvailability,
+                icon = Icons.Filled.PowerSettingsNew,
+            )
+            QuietButton(text = "Log out", onClick = onLogout)
+        },
+    ) {
+        Spacer(Modifier.height(24.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(LadyGoTheme.extra.heroStart)) { LogoMark(size = 52.dp) }
+            Column {
+                Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.clickable(onClick = onDismissMessages),
+                    stringResource(R.string.home_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            state.infoMessage?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.clickable(onClick = onDismissMessages),
-                )
-            }
-            Button(onClick = onLogout) {
-                Text("Log out")
             }
         }
+        AvailabilityCard(online)
+        state.error?.let { message ->
+            InfoBanner(text = message, kind = BannerKind.ERROR, modifier = Modifier.clickable(onClick = onDismissMessages))
+        }
+        state.infoMessage?.let { message ->
+            InfoBanner(text = message, kind = BannerKind.INFO, modifier = Modifier.clickable(onClick = onDismissMessages))
+        }
+        SectionLabel(stringResource(R.string.home_tips_title))
+        TipRow(Icons.Filled.LocationOn, stringResource(R.string.home_tip_location))
+        TipRow(Icons.Filled.Lock, stringResource(R.string.home_tip_pin))
+        TipRow(Icons.Filled.Shield, stringResource(R.string.home_tip_112))
     }
 
     if (batteryGuidanceDialog.show) {
@@ -288,4 +312,36 @@ fun HomeContent(
             },
         )
     }
+}
+
+@Composable
+private fun TipRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, tint = LadyGoTheme.extra.success, modifier = Modifier.size(22.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun AvailabilityCard(online: Boolean) {
+    LadyGoCard(container = if (online) LadyGoTheme.extra.successContainer else MaterialTheme.colorScheme.surface) {
+      StatusChip(
+          text = if (online) stringResource(R.string.home_chip_online) else stringResource(R.string.home_chip_offline),
+          kind = if (online) BannerKind.SUCCESS else BannerKind.INFO,
+          icon = if (online) Icons.Filled.WifiTethering else Icons.Filled.PowerSettingsNew,
+      )
+      Text(
+          text = if (online) "You're online" else "You're offline",
+          style = MaterialTheme.typography.headlineMedium,
+          color = if (online) LadyGoTheme.extra.onSuccessContainer else MaterialTheme.colorScheme.onSurface,
+      )
+      Text(
+          text = stringResource(if (online) R.string.home_online_body else R.string.home_offline_body),
+          style = MaterialTheme.typography.bodyMedium,
+          color = if (online) LadyGoTheme.extra.onSuccessContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      }
 }
