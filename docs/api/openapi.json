@@ -4386,6 +4386,12 @@
           },
           "challengeToken": {
             "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 0,
+            "format": "email"
           }
         },
         "required": [

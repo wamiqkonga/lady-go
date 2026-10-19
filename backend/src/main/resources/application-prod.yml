@@ -23,6 +23,7 @@ ladygo:
   jwt:
     secret: ${LADYGO_JWT_SECRET}
   otp:
+    channel: ${LADYGO_OTP_CHANNEL:sms}
     hash-secret: ${LADYGO_OTP_HASH_SECRET}
   mfa:
     enc-key: ${LADYGO_MFA_ENC_KEY}
@@ -35,15 +36,20 @@ ladygo:
       endpoint: ${LADYGO_S3_ENDPOINT:}
       access-key: ${LADYGO_S3_ACCESS_KEY:}
       secret-key: ${LADYGO_S3_SECRET_KEY:}
+  email:
+    ses:
+      region: ${LADYGO_EMAIL_SES_REGION:ap-south-1}
+      from: ${LADYGO_EMAIL_FROM:}
   sms:
+    # Required only when ladygo.otp.channel=sms: SmsSenderStartupGuard enforces non-blank values then.
     http:
-      base-url: ${LADYGO_SMS_BASE_URL}
-      auth-header-name: ${LADYGO_SMS_AUTH_HEADER_NAME}
-      auth-header-value: ${LADYGO_SMS_AUTH_HEADER_VALUE}
+      base-url: ${LADYGO_SMS_BASE_URL:}
+      auth-header-name: ${LADYGO_SMS_AUTH_HEADER_NAME:Authorization}
+      auth-header-value: ${LADYGO_SMS_AUTH_HEADER_VALUE:}
       sender-id: ${LADYGO_SMS_SENDER_ID:}
       dlt-template-id: ${LADYGO_SMS_DLT_TEMPLATE_ID:}
       dlt-entity-id: ${LADYGO_SMS_DLT_ENTITY_ID:}
-      body-template: ${LADYGO_SMS_BODY_TEMPLATE}
+      body-template: ${LADYGO_SMS_BODY_TEMPLATE:}
       response-message-id-field: ${LADYGO_SMS_RESPONSE_MESSAGE_ID_FIELD:messageId}
       response-error-code-field: ${LADYGO_SMS_RESPONSE_ERROR_CODE_FIELD:errorCode}
       connect-timeout-ms: ${LADYGO_SMS_CONNECT_TIMEOUT_MS:3000}

@@ -19,6 +19,10 @@ public class OtpRequest extends CreatedEntity {
     @Column(name = "phone", length = 16, nullable = false)
     private String phone;
 
+    /** Delivery address when the email channel is on (lower-cased); null for SMS requests. */
+    @Column(name = "email", length = 254)
+    private String email;
+
     @Column(name = "code_hash", length = 255, nullable = false)
     private String codeHash;
 

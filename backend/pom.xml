@@ -140,6 +140,13 @@
       <artifactId>s3</artifactId>
     </dependency>
 
+    <!-- MVP 1 email OTP: Amazon SES v2 client (only wired when ladygo.otp.channel=email under
+         staging/prod). Version managed by the AWS SDK BOM above. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sesv2</artifactId>
+    </dependency>
+
     <!-- Tests -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

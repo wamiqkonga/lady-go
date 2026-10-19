@@ -69,7 +69,13 @@ ladygo:
     # Dev-only placeholder; staging/prod require LADYGO_JWT_SECRET with no default (see application-prod.yml).
     secret: ${LADYGO_JWT_SECRET:dev-only-insecure-jwt-secret-CHANGE-ME-0123456789}
   otp:
+    # sms (default) or email (MVP 1: code delivered by email via SES, see docs/development/email-otp-setup.md)
+    channel: ${LADYGO_OTP_CHANNEL:sms}
     hash-secret: ${LADYGO_OTP_HASH_SECRET:dev-only-insecure-otp-secret-CHANGE-ME-0123456789}
+  email:
+    ses:
+      region: ${LADYGO_EMAIL_SES_REGION:ap-south-1}
+      from: ${LADYGO_EMAIL_FROM:}
   mfa:
     enc-key: ${LADYGO_MFA_ENC_KEY:DevInsecureMfaEncKeyChangeMe1234}
   ride:

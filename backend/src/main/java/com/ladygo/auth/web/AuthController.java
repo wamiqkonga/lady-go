@@ -60,7 +60,7 @@ public class AuthController {
             @Valid @RequestBody OtpRequestRequest request, HttpServletRequest httpRequest) {
         otpLoginService.requestOtp(
                 request.phone(), request.purpose(), request.intendedRole(),
-                clientIpResolver.resolve(httpRequest), request.challengeToken());
+                clientIpResolver.resolve(httpRequest), request.challengeToken(), request.email());
         return ApiResponse.ok(new MessageResponse(GENERIC_OTP_SENT));
     }
 

@@ -40,6 +40,11 @@ public class SmsSenderStartupGuard {
         if (!guarded) {
             return;
         }
+        if ("email".equalsIgnoreCase(environment.getProperty("ladygo.otp.channel", "sms"))) {
+            // MVP 1 email-OTP channel: SMS is not used, so its provider config is not required. The
+            // email sender's own required properties fail startup if missing (SesEmailSender).
+            return;
+        }
         boolean loggingSenderPresent = smsSenders.stream().anyMatch(LoggingSmsSender.class::isInstance);
         if (loggingSenderPresent) {
             throw new IllegalStateException(
