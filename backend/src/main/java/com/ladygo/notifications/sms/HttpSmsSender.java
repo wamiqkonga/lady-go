@@ -14,6 +14,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -49,6 +50,7 @@ public class HttpSmsSender implements SmsSender {
     private final HttpClient httpClient;
     private final SimpleCircuitBreaker circuitBreaker;
 
+    @Autowired
     public HttpSmsSender(SmsSenderProperties properties, ObjectMapper objectMapper) {
         this(properties, objectMapper, Clock.systemUTC());
     }
