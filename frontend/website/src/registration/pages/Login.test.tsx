@@ -25,11 +25,12 @@ describe('Login', () => {
     )
 
     await userEvent.type(screen.getByLabelText('Phone number'), '+919900000001')
+    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
 
     await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
     const requestCall = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(requestCall).toMatchObject({ phone: '+919900000001', purpose: 'LOGIN', intendedRole: 'DRIVER' })
+    expect(requestCall).toMatchObject({ phone: '+919900000001', email: 'driver@example.com', purpose: 'LOGIN', intendedRole: 'DRIVER' })
 
     await userEvent.type(screen.getByLabelText('Code'), '123456')
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
@@ -53,6 +54,7 @@ describe('Login', () => {
     )
 
     await userEvent.type(screen.getByLabelText('Phone number'), '+919900000002')
+    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
     await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
 
@@ -73,6 +75,7 @@ describe('Login', () => {
     )
 
     await userEvent.type(screen.getByLabelText('Phone number'), '+919900000003')
+    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())

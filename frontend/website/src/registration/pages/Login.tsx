@@ -6,6 +6,7 @@ import { requestOtp, verifyOtp, AuthError } from '../lib/auth'
 export default function Login() {
   const navigate = useNavigate()
   const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [stage, setStage] = useState<'phone' | 'code'>('phone')
   const [busy, setBusy] = useState(false)
@@ -15,7 +16,7 @@ export default function Login() {
     setBusy(true)
     setError(null)
     try {
-      await requestOtp(phone)
+      await requestOtp(phone, email.trim())
       setStage('code')
     } catch (err) {
       setError(err instanceof AuthError ? err.message : 'Failed to send the code.')
@@ -63,8 +64,19 @@ export default function Login() {
               onChange={(e) => setPhone(e.target.value)}
               autoFocus
             />
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <p className="muted">We email your sign-in code to this address. Use the same email each time you sign in.</p>
             {error && <p role="alert" className="error">{error}</p>}
-            <button type="submit" disabled={busy || !phone.trim()}>
+            <button type="submit" disabled={busy || !phone.trim() || !email.trim()}>
               Send code
             </button>
           </form>
@@ -76,7 +88,7 @@ export default function Login() {
               confirmCode()
             }}
           >
-            <p className="muted">Enter the 6-digit code sent to {phone}.</p>
+            <p className="muted">Enter the 6-digit code we emailed to {email}.</p>
             <label htmlFor="code">Code</label>
             <input
               id="code"
@@ -93,7 +105,7 @@ export default function Login() {
               Continue
             </button>
             <button type="button" className="quiet" onClick={() => setStage('phone')} disabled={busy}>
-              Use a different number
+              Use different details
             </button>
           </form>
         )}

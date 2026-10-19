@@ -1689,6 +1689,8 @@ export interface components {
             /** @enum {string} */
             intendedRole: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
             challengeToken?: string;
+            /** Format: email */
+            email?: string;
         };
         ApiResponseMessageResponse: {
             success?: boolean;

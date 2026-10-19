@@ -62,9 +62,9 @@ export class AuthError extends Error {
  *  "families" for reuse detection; it carries no identity of its own. */
 const deviceId = crypto.randomUUID()
 
-export async function requestOtp(phone: string, challengeToken?: string): Promise<void> {
+export async function requestOtp(phone: string, email: string, challengeToken?: string): Promise<void> {
   await postJson<{ message: string }>('/api/v1/auth/otp/request', {
-    phone, purpose: 'LOGIN', intendedRole: 'DRIVER', challengeToken,
+    phone, email, purpose: 'LOGIN', intendedRole: 'DRIVER', challengeToken,
   })
 }
 

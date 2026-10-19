@@ -18,6 +18,8 @@ async function waitForOtpCode(phone: string, backendLogPath: string): Promise<st
 export async function loginAs(page: Page, phone: string, backendLogPath: string): Promise<void> {
   await page.goto('/driver/login')
   await page.getByLabel('Phone number').fill(phone)
+  // Required by the form; the e2e backend uses the SMS channel (logged code), which ignores it.
+  await page.getByLabel('Email').fill('e2e-driver@ladygo.test')
   await page.getByRole('button', { name: 'Send code' }).click()
   await expect(page.getByLabel('Code')).toBeVisible()
 
