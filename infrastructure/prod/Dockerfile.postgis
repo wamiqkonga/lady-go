@@ -1,0 +1,6 @@
+# PostGIS on the official postgres base. The official postgis/postgis image has no arm64 build, and this
+# deployment runs on a Graviton (arm64) instance, so install PostGIS from the PGDG apt repo instead.
+FROM postgres:16
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-16-postgis-3 postgresql-16-postgis-3-scripts \
+ && rm -rf /var/lib/apt/lists/*

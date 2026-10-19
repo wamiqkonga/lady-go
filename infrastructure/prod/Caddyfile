@@ -1,0 +1,7 @@
+api.ladygoride.com {
+	encode zstd gzip
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy backend:8080
+}
