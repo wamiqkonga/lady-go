@@ -1,9 +1,30 @@
 api.ladygoride.com {
 	encode zstd gzip
+
+	# Access log: status/path/timing for debugging, but no secrets or personal data. Caddy already redacts
+	# Authorization and Cookie/Set-Cookie (log_credentials stays off); the filter below also redacts the
+	# app's own secret headers and drops query parameters that carry personal data (e.g. the driver's
+	# licence number and expiry on POST /api/v1/drivers/me/documents). Add any new secret header or
+	# sensitive query parameter here when an endpoint starts using one.
 	log {
 		output stdout
-		format json
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					delete number
+					delete expiresAt
+					delete token
+					delete code
+				}
+				request>headers>X-Trip-Share-Token replace REDACTED
+				request>headers>X-Csrf-Token replace REDACTED
+				request>headers>X-CSRF-Token replace REDACTED
+				request>headers>Idempotency-Key replace REDACTED
+			}
+		}
 	}
+
 	request_body {
 		max_size 10MB
 	}
