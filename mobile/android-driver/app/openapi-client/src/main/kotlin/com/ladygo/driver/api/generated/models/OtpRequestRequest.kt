@@ -26,6 +26,7 @@ import com.squareup.moshi.JsonClass
  * @param purpose 
  * @param intendedRole 
  * @param challengeToken 
+ * @param email 
  */
 
 
@@ -41,7 +42,10 @@ data class OtpRequestRequest (
     val intendedRole: OtpRequestRequest.IntendedRole,
 
     @Json(name = "challengeToken")
-    val challengeToken: kotlin.String? = null
+    val challengeToken: kotlin.String? = null,
+
+    @Json(name = "email")
+    val email: kotlin.String? = null
 
 ) {
 
