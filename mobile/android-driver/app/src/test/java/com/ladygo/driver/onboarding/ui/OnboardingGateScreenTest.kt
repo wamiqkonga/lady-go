@@ -32,10 +32,21 @@ class OnboardingGateScreenTest {
         var approvedCalled = false
 
         composeRule.setContent {
-            OnboardingGateScreen(onApproved = { approvedCalled = true }, viewModel = OnboardingGateViewModel(repository))
+            OnboardingGateScreen(
+                onApproved = { approvedCalled = true },
+                viewModel = OnboardingGateViewModel(repository, mockk(relaxed = true)),
+            )
         }
         composeRule.waitForIdle()
         return approvedCalled
+    }
+
+    @Test
+    fun pendingReviewOffersCheckAgainAndLogOut() {
+        renderGate(OnboardingStatus.Known(VerificationStatus.PENDING_REVIEW))
+
+        composeRule.onNodeWithText("Check again").assertExists()
+        composeRule.onNodeWithText("Log out").assertExists()
     }
 
     @Test
@@ -87,7 +98,7 @@ class OnboardingGateScreenTest {
             )
 
         composeRule.setContent {
-            OnboardingGateScreen(onApproved = {}, viewModel = OnboardingGateViewModel(repository))
+            OnboardingGateScreen(onApproved = {}, viewModel = OnboardingGateViewModel(repository, mockk(relaxed = true)))
         }
         composeRule.waitForIdle()
 

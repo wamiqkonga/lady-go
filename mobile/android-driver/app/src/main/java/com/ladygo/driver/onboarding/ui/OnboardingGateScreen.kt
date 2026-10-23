@@ -13,11 +13,17 @@ import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.api.generated.models.DriverProfileResponse.VerificationStatus
@@ -31,6 +37,8 @@ import com.ladygo.driver.ui.components.InfoBanner
 import com.ladygo.driver.ui.components.LadyGoScreen
 import com.ladygo.driver.ui.components.LoadingState
 import com.ladygo.driver.ui.components.PrimaryButton
+import com.ladygo.driver.ui.components.QuietButton
+import com.ladygo.driver.ui.components.SecondaryButton
 import com.ladygo.driver.ui.components.SectionLabel
 import com.ladygo.driver.ui.components.StateIllustration
 import com.ladygo.driver.ui.theme.LadyGoTheme
@@ -46,13 +54,22 @@ fun OnboardingGateScreen(
         if (state.isApproved()) onApproved()
     }
 
-    OnboardingGateContent(state = state, onRetry = viewModel::refresh)
+    // Approval happens on the admin side while the driver is elsewhere (often the website), so
+    // re-check whenever the app comes back to the foreground. The first ON_RESUME is the initial
+    // launch, which the ViewModel's own init-time load already covers.
+    var seenFirstResume by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (seenFirstResume) viewModel.refresh() else seenFirstResume = true
+    }
+
+    OnboardingGateContent(state = state, onRetry = viewModel::refresh, onLogout = viewModel::onLogout)
 }
 
 @Composable
 private fun OnboardingGateContent(
     state: GateUiState,
     onRetry: () -> Unit,
+    onLogout: () -> Unit,
 ) {
     val context = LocalContext.current
     LadyGoScreen {
@@ -74,9 +91,10 @@ private fun OnboardingGateContent(
                 InfoBanner(text = status.message, kind = BannerKind.ERROR)
                 PrimaryButton(text = "Retry", onClick = onRetry)
             }
-            is OnboardingStatus.Known -> StatusBody(status.verificationStatus, status.documentNotes, context)
-            OnboardingStatus.NotStarted -> StatusBody(null, emptyList(), context)
+            is OnboardingStatus.Known -> StatusBody(status.verificationStatus, status.documentNotes, context, onRetry)
+            OnboardingStatus.NotStarted -> StatusBody(null, emptyList(), context, onRetry)
         }
+        QuietButton(text = "Log out", onClick = onLogout)
     }
 }
 
@@ -85,6 +103,7 @@ private fun StatusBody(
     status: VerificationStatus?,
     documentNotes: List<DocumentNote>,
     context: android.content.Context,
+    onRetry: () -> Unit,
 ) {
     val (headline, body) = headlineAndBody(status)
     val look = statusLook(status)
@@ -103,6 +122,7 @@ private fun StatusBody(
             onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, BuildConfig.DRIVER_REGISTRATION_URL.toUri())) },
         )
     }
+    SecondaryButton(text = "Check again", onClick = onRetry)
 }
 
 private class StatusLook(
