@@ -134,7 +134,7 @@ PYEOF
 RIDE_SELFIE_RESPONSE=$(curl -s -X POST "$BASE_URL/api/v1/customers/me/ride-selfies" \
   -H "Authorization: Bearer $RIDER_TOKEN" -F "file=@${SEED_IMAGE};type=image/png")
 require_success "$RIDE_SELFIE_RESPONSE" "Capturing the ride selfie"
-RIDE_SELFIE_ID=$(echo "$RIDE_SELFIE_RESPONSE" | json_field "['data']['id']")
+RIDE_SELFIE_ID=$(echo "$RIDE_SELFIE_RESPONSE" | json_field "['data']['rideSelfieId']")
 
 echo "== Getting a fare estimate (expectedFare must match a fresh quote) =="
 ESTIMATE_RESPONSE=$(curl -s -X POST "$BASE_URL/api/v1/bookings/estimate" -H "Authorization: Bearer $RIDER_TOKEN" \
