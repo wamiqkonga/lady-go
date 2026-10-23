@@ -3,7 +3,7 @@ package com.ladygo.notifications.email;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.regions.Region;
@@ -16,13 +16,14 @@ import software.amazon.awssdk.services.sesv2.model.Message;
 import software.amazon.awssdk.services.sesv2.model.SendEmailRequest;
 
 /**
- * Amazon SES v2 sender. Wired only under staging/prod and only when {@code ladygo.otp.channel=email}.
+ * Amazon SES v2 sender. Wired only under staging/prod, only when {@code ladygo.otp.channel=email} and {@code ladygo.email.provider=ses}
+ * (the default provider).
  * Credentials come from the AWS default provider chain (env vars / instance role); the sender address
  * must be a verified SES identity. Never logs the message body (it carries the OTP).
  */
 @Component
 @Profile("!dev & !test")
-@ConditionalOnProperty(name = "ladygo.otp.channel", havingValue = "email")
+@ConditionalOnExpression("'${ladygo.otp.channel:sms}' == 'email' and '${ladygo.email.provider:ses}' == 'ses'")
 public class SesEmailSender implements EmailSender {
 
     private static final Logger log = LoggerFactory.getLogger(SesEmailSender.class);
