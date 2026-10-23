@@ -33,9 +33,11 @@ class HomeViewModelTest {
 
     private val authRepository = mockk<AuthRepository>()
     private val availabilityRepository = mockk<AvailabilityRepository>()
+    private var trackedBookingId: String? = "11111111-1111-1111-1111-111111111111"
     private val appPreferences =
         mockk<AppPreferences> {
             every { hasShownBatteryOptimizationGuidance() } returns false
+            every { activeBookingId() } answers { trackedBookingId }
             every { markBatteryOptimizationGuidanceShown() } returns Unit
         }
     private val eventsFlow = MutableSharedFlow<LocationServiceEvent>(extraBufferCapacity = 4)
@@ -49,6 +51,99 @@ class HomeViewModelTest {
     fun startsOfflineRegardlessOfAnyPriorSession() {
         assertEquals(Availability.OFFLINE, viewModel().uiState.value.availability)
     }
+
+    @Test
+    fun aFreshViewModelWithNoTrackedRideSilentlySendsGoOfflineOnce() =
+        runTest {
+            trackedBookingId = null
+            coEvery { availabilityRepository.goOffline() } returns SetAvailabilityOutcome.Success
+
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { availabilityRepository.goOffline() }
+            assertEquals(Availability.OFFLINE, vm.uiState.value.availability)
+            assertNull(vm.uiState.value.error)
+            assertNull(vm.uiState.value.infoMessage)
+        }
+
+    @Test
+    fun aFreshViewModelWithATrackedRideDoesNotSendGoOffline() =
+        runTest {
+            viewModel()
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { availabilityRepository.goOffline() }
+        }
+
+    @Test
+    fun theSilentGoOfflineSwallowsAFailureWithoutShowingAnError() =
+        runTest {
+            trackedBookingId = null
+            coEvery { availabilityRepository.goOffline() } returns SetAvailabilityOutcome.Failed("Could not reach the server.")
+
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.error)
+            assertNull(vm.uiState.value.infoMessage)
+            verify(exactly = 0) { stompConnectionManager.connect() }
+        }
+
+    @Test
+    fun theSilentGoOfflineTreatsABusy403AsLiveWorkNotAnError() =
+        runTest {
+            trackedBookingId = null
+            coEvery { availabilityRepository.goOffline() } returns
+                SetAvailabilityOutcome.Failed("Availability cannot be changed directly while BUSY.", 403)
+
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            verify(exactly = 1) { stompConnectionManager.connect() }
+            assertNull(vm.uiState.value.error)
+            assertTrue(vm.uiState.value.infoMessage != null)
+        }
+
+    @Test
+    fun whenARideEndsWhileHomeIsOfflineItSendsGoOffline() =
+        runTest {
+            coEvery { availabilityRepository.goOffline() } returns SetAvailabilityOutcome.Success
+            val vm = viewModel()
+
+            vm.onRideEnded()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { availabilityRepository.goOffline() }
+            assertNull(vm.uiState.value.error)
+        }
+
+    @Test
+    fun whenARideEndsWhileHomeIsOnlineItDoesNotSendGoOffline() =
+        runTest {
+            coEvery { availabilityRepository.goOnline() } returns SetAvailabilityOutcome.Success
+            val vm = viewModel()
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            vm.onRideEnded()
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { availabilityRepository.goOffline() }
+            assertEquals(Availability.ONLINE, vm.uiState.value.availability)
+        }
+
+    @Test
+    fun aFailedGoOfflineAfterARideEndsShowsNoError() =
+        runTest {
+            coEvery { availabilityRepository.goOffline() } returns SetAvailabilityOutcome.Failed("boom", 500)
+            val vm = viewModel()
+
+            vm.onRideEnded()
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.error)
+        }
 
     @Test
     fun exposesConfiguredApiBaseUrl() {
@@ -113,6 +208,36 @@ class HomeViewModelTest {
 
             assertEquals(Availability.ONLINE, vm.uiState.value.availability)
             assertEquals("Availability cannot be changed directly while BUSY.", vm.uiState.value.error)
+        }
+
+    @Test
+    fun aBusyRefusalMeansLiveWorkSoItConnectsAndShowsAnInfoMessageNotAnError() =
+        runTest {
+            coEvery { availabilityRepository.goOnline() } returns
+                SetAvailabilityOutcome.Failed("Availability cannot be changed directly while BUSY.", 403)
+            val vm = viewModel()
+
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            verify(exactly = 1) { stompConnectionManager.connect() } // the reconnect path re-fetches the offer and ride
+            assertNull(vm.uiState.value.error)
+            assertTrue(vm.uiState.value.infoMessage != null)
+            assertFalse(vm.uiState.value.isTogglingAvailability)
+        }
+
+    @Test
+    fun aSuspendedRefusalIsStillAnError() =
+        runTest {
+            coEvery { availabilityRepository.goOnline() } returns
+                SetAvailabilityOutcome.Failed("Availability cannot be changed directly while SUSPENDED.", 403)
+            val vm = viewModel()
+
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            verify(exactly = 0) { stompConnectionManager.connect() }
+            assertEquals("Availability cannot be changed directly while SUSPENDED.", vm.uiState.value.error)
         }
 
     @Test

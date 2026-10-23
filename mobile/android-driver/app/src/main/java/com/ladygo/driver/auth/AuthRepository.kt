@@ -4,7 +4,10 @@ import com.ladygo.driver.api.generated.apis.AuthControllerApi
 import com.ladygo.driver.api.generated.models.LogoutRequest
 import com.ladygo.driver.api.generated.models.OtpRequestRequest
 import com.ladygo.driver.api.generated.models.OtpVerifyRequest
+import com.ladygo.driver.location.AppPreferences
+import com.ladygo.driver.location.AvailabilityRepository
 import com.ladygo.driver.network.errorMessageOrDefault
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +44,8 @@ class AuthRepository
         private val authApi: AuthControllerApi,
         private val tokenStore: TokenStore,
         private val sessionManager: SessionManager,
+        private val availabilityRepository: AvailabilityRepository,
+        private val appPreferences: AppPreferences,
     ) {
         /** One per process, never persisted - only distinguishes refresh-token "families" for the
          *  server's reuse detection, matching the web client's same reasoning. */
@@ -105,12 +110,22 @@ class AuthRepository
             return VerifyOtpOutcome.LoggedIn
         }
 
-        /** Best-effort server-side revoke, same as the website: tokens are cleared locally either way. */
+        /** Best-effort server-side revoke, same as the website: tokens are cleared locally either way.
+         *  An explicit logout also goes OFFLINE on the server first (while the access token still works) so
+         *  the driver isn't left matchable with nobody holding the app, and forgets the remembered ride -
+         *  unlike a forced logout (see [SessionManager.onLoggedOut]), which keeps it so the ride resumes
+         *  after the next sign-in. Neither step may ever hold up or fail the logout. */
         suspend fun logout() {
+            withTimeoutOrNull(GO_OFFLINE_TIMEOUT_MILLIS) { runCatching { availabilityRepository.goOffline() } }
+            appPreferences.setActiveBookingId(null)
             val refreshToken = tokenStore.getRefreshToken()
             if (refreshToken != null) {
                 runCatching { authApi.logout(LogoutRequest(refreshToken = refreshToken, logoutAll = false)) }
             }
             sessionManager.onLoggedOut()
+        }
+
+        private companion object {
+            const val GO_OFFLINE_TIMEOUT_MILLIS = 3_000L
         }
     }

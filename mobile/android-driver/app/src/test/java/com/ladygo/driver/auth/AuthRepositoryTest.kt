@@ -4,10 +4,14 @@ import com.ladygo.driver.api.generated.apis.AuthControllerApi
 import com.ladygo.driver.api.generated.models.ApiResponseMessageResponse
 import com.ladygo.driver.api.generated.models.ApiResponseObject
 import com.ladygo.driver.api.generated.models.MessageResponse
+import com.ladygo.driver.location.AppPreferences
+import com.ladygo.driver.location.AvailabilityRepository
+import com.ladygo.driver.location.SetAvailabilityOutcome
 import com.ladygo.driver.testing.FakeTokenStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -15,6 +19,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import retrofit2.Response
 
@@ -22,7 +27,14 @@ class AuthRepositoryTest {
     private val authApi = mockk<AuthControllerApi>()
     private val tokenStore = FakeTokenStore()
     private val sessionManager = SessionManager(tokenStore)
-    private val repository = AuthRepository(authApi, tokenStore, sessionManager)
+    private val availabilityRepository = mockk<AvailabilityRepository>()
+    private val appPreferences = mockk<AppPreferences>(relaxed = true)
+    private val repository = AuthRepository(authApi, tokenStore, sessionManager, availabilityRepository, appPreferences)
+
+    @Before
+    fun goOfflineSucceeds() {
+        coEvery { availabilityRepository.goOffline() } returns SetAvailabilityOutcome.Success
+    }
 
     private fun <T> errorResponse(
         code: Int,
@@ -115,6 +127,21 @@ class AuthRepositoryTest {
 
             coVerify(exactly = 1) { authApi.logout(any()) }
             assertNull(tokenStore.getAccessToken())
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun logoutGoesOfflineOnTheServerForgetsTheRideAndStillCompletesWhenOfflineFails() =
+        runTest {
+            tokenStore.setTokens("access-1", "refresh-1")
+            sessionManager.onLoggedIn()
+            coEvery { availabilityRepository.goOffline() } throws java.io.IOException("no network")
+            coEvery { authApi.logout(any()) } returns Response.success(null)
+
+            repository.logout()
+
+            coVerify(exactly = 1) { availabilityRepository.goOffline() }
+            verify { appPreferences.setActiveBookingId(null) }
             assertFalse(sessionManager.isLoggedIn.value)
         }
 

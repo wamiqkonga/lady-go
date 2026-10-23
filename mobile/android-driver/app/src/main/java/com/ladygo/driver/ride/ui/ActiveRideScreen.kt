@@ -86,6 +86,7 @@ fun ActiveRideScreen(
     BackHandler(enabled = true) {}
 
     val noMapsMessage = stringResource(R.string.ride_no_navigation_app)
+    val dialerFailedMessage = stringResource(R.string.ride_dialer_failed)
     ActiveRideContent(
         state = state,
         actions =
@@ -94,6 +95,7 @@ fun ActiveRideScreen(
                 onStartRide = viewModel::onStartRide,
                 onComplete = viewModel::onComplete,
                 onEndEarly = viewModel::onEndEarly,
+                onCantComplete = viewModel::onCantCompleteRide,
                 onConfirmCash = viewModel::onConfirmCashCollected,
                 onRetrySelfie = viewModel::onRetrySelfie,
                 onNavigate = { address ->
@@ -101,7 +103,10 @@ fun ActiveRideScreen(
                         Toast.makeText(context, noMapsMessage, Toast.LENGTH_SHORT).show()
                     }
                 },
-                onCall112 = { ExternalIntents.dialEmergency(context) },
+                onCall112 = {
+                    // Long, and worded as an instruction: in an emergency a silent no-op is the worst outcome.
+                    if (!ExternalIntents.dialEmergency(context)) Toast.makeText(context, dialerFailedMessage, Toast.LENGTH_LONG).show()
+                },
                 onDone = {
                     viewModel.onDone()
                     onFinished()
@@ -208,10 +213,12 @@ private fun StageContent(
                     actions.onNavigate(it)
                 }, icon = Icons.Filled.Navigation)
             }
+            CantCompleteAction(busy = busy, onConfirm = actions.onCantComplete)
         }
         RideStage.ARRIVED -> {
             SelfieSection(selfie = state.selfie, onRetry = actions.onRetrySelfie)
             PinEntry(busy = busy, onStart = actions.onStartRide)
+            CantCompleteAction(busy = busy, onConfirm = actions.onCantComplete)
         }
         RideStage.IN_TRIP -> InTripContent(booking, busy, actions)
         RideStage.PAYMENT -> PaymentContent(booking, state.cashConfirmed)
@@ -287,6 +294,64 @@ private fun InTripContent(
             onDismiss = { showEndEarly = false },
         )
     }
+}
+
+/** The exit before the trip starts (rider doesn't match, can't take her): deliberately a quiet text button
+ *  at the foot of the content, away from the primary action, and behind a confirm dialog. */
+@Composable
+private fun CantCompleteAction(
+    busy: Boolean,
+    onConfirm: (reason: String) -> Unit,
+) {
+    var showDialog by rememberSaveable { mutableStateOf(false) }
+    QuietButton(
+        text = stringResource(R.string.ride_cant_complete_action),
+        onClick = { showDialog = true },
+        enabled = !busy,
+        modifier = Modifier.testTag("ride_cant_complete"),
+    )
+    if (showDialog) {
+        CantCompleteDialog(
+            onConfirm = { reason ->
+                showDialog = false
+                onConfirm(reason)
+            },
+            onDismiss = { showDialog = false },
+        )
+    }
+}
+
+@Composable
+private fun CantCompleteDialog(
+    onConfirm: (reason: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var reason by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.extraLarge,
+        title = { Text(stringResource(R.string.ride_cant_complete_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.ride_cant_complete_body), style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text(stringResource(R.string.ride_cant_complete_reason_label)) },
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth().testTag("cant_complete_reason"),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(reason) }, enabled = reason.isNotBlank()) {
+                Text(stringResource(R.string.ride_cant_complete_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.ride_cant_complete_keep)) }
+        },
+    )
 }
 
 @Composable

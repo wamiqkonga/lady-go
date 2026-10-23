@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -16,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ladygo.driver.auth.SessionManager
+import com.ladygo.driver.location.LocationForegroundService
 import com.ladygo.driver.login.ui.LoginScreen
 import com.ladygo.driver.offer.OfferUiState
 import com.ladygo.driver.offer.OfferViewModel
@@ -92,12 +94,21 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
         }
     }
 
+    val context = LocalContext.current
+    val rideOngoing =
+        rideViewModel.uiState
+            .collectAsStateWithLifecycle()
+            .value.isOngoing
+    val rideEndCount = rideViewModel.rideEndCount.collectAsStateWithLifecycle().value
+    RideLocationServiceEffect(rideOngoing)
+
     LaunchedEffect(sessionViewModel) {
         // The first emission is the value already used to pick startDestination above - only a
         // *later* change (an actual logout happening while the host is already running) needs to
         // force a navigation.
         sessionViewModel.isLoggedIn.drop(1).collect { loggedIn ->
             if (!loggedIn) {
+                LocationForegroundService.stop(context)
                 navController.navigate(Routes.LOGIN) {
                     popUpTo(0) { inclusive = true }
                 }
@@ -142,7 +153,7 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
             })
         }
         composable(Routes.HOME) {
-            HomeScreen()
+            HomeScreen(rideOngoing = rideOngoing, rideEndCount = rideEndCount)
         }
         composable(Routes.INCOMING_OFFER) {
             OfferScreen(
@@ -159,6 +170,16 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
                 onFinished = { navController.popBackStack(Routes.HOME, inclusive = false) },
             )
         }
+    }
+}
+
+/** A ride in progress needs fresh location (the server gates arrive/start on it) even though no Home
+ *  screen is composed to start the service - e.g. a ride restored after the app was killed. */
+@Composable
+private fun RideLocationServiceEffect(rideOngoing: Boolean) {
+    val context = LocalContext.current
+    LaunchedEffect(rideOngoing) {
+        if (rideOngoing) LocationForegroundService.start(context)
     }
 }
 

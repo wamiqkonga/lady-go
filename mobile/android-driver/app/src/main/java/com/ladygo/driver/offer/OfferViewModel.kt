@@ -7,6 +7,9 @@ import com.ladygo.driver.api.generated.models.OfferResponse
 import com.ladygo.driver.realtime.OfferCountdown
 import com.ladygo.driver.realtime.ServerClockSkew
 import com.ladygo.driver.realtime.parseIsoInstantMillis
+import com.ladygo.driver.ride.RideActionOutcome
+import com.ladygo.driver.ride.RideRepository
+import com.ladygo.driver.ride.RideStateMachine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -66,6 +69,7 @@ class OfferViewModel
     constructor(
         private val offerRepository: OfferRepository,
         private val offerCoordinator: OfferCoordinator,
+        private val rideRepository: RideRepository,
     ) : ViewModel() {
         private var lastKnownSkew: ServerClockSkew = ServerClockSkew.NONE
 
@@ -108,10 +112,24 @@ class OfferViewModel
             viewModelScope.launch {
                 when (val outcome = offerRepository.accept(offerId)) {
                     is AcceptOfferOutcome.Accepted -> resolve(offerId, OfferResolutionOutcome.Accepted(outcome.booking))
-                    is AcceptOfferOutcome.Rejected -> resolve(offerId, OfferResolutionOutcome.NoLongerAvailable(outcome.message))
-                    is AcceptOfferOutcome.NetworkFailure -> handleRetryableFailure(showing, offerId, outcome.message)
+                    is AcceptOfferOutcome.Rejected ->
+                        acceptedAnyway(showing.offer)?.let { resolve(offerId, OfferResolutionOutcome.Accepted(it)) }
+                            ?: resolve(offerId, OfferResolutionOutcome.NoLongerAvailable(outcome.message))
+                    is AcceptOfferOutcome.NetworkFailure ->
+                        acceptedAnyway(showing.offer)?.let { resolve(offerId, OfferResolutionOutcome.Accepted(it)) }
+                            ?: handleRetryableFailure(showing, offerId, outcome.message)
                 }
             }
+        }
+
+        /** A lost or garbled accept response doesn't mean the accept didn't happen (the server may have
+         *  committed it, then the response, or the retry's "no longer available", never reached us). After
+         *  any non-success, ask the server about the booking itself: if it is already this driver's, the
+         *  ride is accepted and must be tracked, or it would be orphaned (nothing else would ever show it). */
+        private suspend fun acceptedAnyway(offer: OfferResponse): BookingDetailResponse? {
+            val bookingId = offer.bookingId ?: return null
+            val fetched = rideRepository.fetch(bookingId) as? RideActionOutcome.Success ?: return null
+            return fetched.booking.takeIf { RideStateMachine.isAcceptedAndInProgress(it.status) }
         }
 
         fun onDecline() {
@@ -168,7 +186,11 @@ class OfferViewModel
         }
 
         fun onResolutionConsumed() {
-            _uiState.value = OfferUiState.None
+            // An offer that arrived while the Resolved state was up was skipped by the slot collector;
+            // pick it up now rather than leaving it unseen until the next reconcile.
+            val slot = offerCoordinator.slot.value
+            _uiState.value =
+                if (slot is OfferSlot.Occupied) OfferUiState.Showing(offer = slot.offer, skew = slot.skew) else OfferUiState.None
         }
 
         private fun resolve(

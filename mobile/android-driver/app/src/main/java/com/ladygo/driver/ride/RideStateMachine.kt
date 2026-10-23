@@ -36,6 +36,13 @@ object RideStateMachine {
             else -> null
         }
 
+    /** The booking is this driver's and still in progress (accepted up to payment). Used to recognise
+     *  that an accept whose response was lost did in fact land. */
+    fun isAcceptedAndInProgress(status: Status?): Boolean {
+        val rank = progressRank(status) ?: return false
+        return rank < (progressRank(Status.COMPLETED) ?: Int.MAX_VALUE)
+    }
+
     /** Whether [incoming] may replace [current]. Moving backwards is only legitimate when the ride has
      *  left this driver (cancelled / bounced back to the pool), never for another in-flight status. */
     fun isStaleRegression(

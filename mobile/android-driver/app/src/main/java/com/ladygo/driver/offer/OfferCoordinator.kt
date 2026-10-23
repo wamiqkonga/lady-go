@@ -39,6 +39,8 @@ class OfferCoordinator
         val slot: StateFlow<OfferSlot> = _slot.asStateFlow()
 
         init {
+            // A notification left over from a previous process is stale: the slot starts empty.
+            offerNotifier.cancel()
             scope.launch {
                 realtimeEvents.events.collect { event ->
                     if (event is RealtimeEvent.OfferReceived) handlePushedOffer(event.offer, event.skew)
@@ -66,8 +68,11 @@ class OfferCoordinator
         /** The server no longer has a current offer - if we're still holding one, it was resolved
          *  some other way while nothing was watching (cancelled, claimed, cleaned up); the server wins. */
         fun onReconciledNone() {
+            // Always: a notification can outlive the slot (swiped-away app, push dropped), and the
+            // server says there is no offer.
+            offerNotifier.cancel()
             val current = (_slot.value as? OfferSlot.Occupied)?.offer?.offerId ?: return
-            clearIfCurrent(current)
+            if (offerInbox.clearIfCurrent(current)) _slot.value = OfferSlot.Empty
         }
 
         /** Called once an offer is resolved (accepted/declined/expired/no-longer-available) so the

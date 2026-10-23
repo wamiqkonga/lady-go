@@ -9,8 +9,10 @@ import javax.inject.Singleton
 sealed interface SetAvailabilityOutcome {
     data object Success : SetAvailabilityOutcome
 
+    /** [httpCode] is the server's status when it answered at all, `null` when the call never got a response. */
     data class Failed(
         val message: String,
+        val httpCode: Int? = null,
     ) : SetAvailabilityOutcome
 }
 
@@ -45,7 +47,7 @@ class AvailabilityRepository
             return if (response.isSuccessful) {
                 SetAvailabilityOutcome.Success
             } else {
-                SetAvailabilityOutcome.Failed(errorMessageOrDefault(response, "Failed to update your availability."))
+                SetAvailabilityOutcome.Failed(errorMessageOrDefault(response, "Failed to update your availability."), response.code())
             }
         }
     }

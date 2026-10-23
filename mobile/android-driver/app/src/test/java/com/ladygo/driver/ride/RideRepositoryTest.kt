@@ -4,6 +4,7 @@ import com.ladygo.driver.api.generated.apis.DriverBookingControllerApi
 import com.ladygo.driver.api.generated.apis.RideLifecycleControllerApi
 import com.ladygo.driver.api.generated.models.ApiResponseBookingDetailResponse
 import com.ladygo.driver.api.generated.models.BookingDetailResponse
+import com.ladygo.driver.api.generated.models.CancelBookingRequest
 import com.ladygo.driver.api.generated.models.EndRideEarlyRequest
 import com.ladygo.driver.api.generated.models.StartRideRequest
 import io.mockk.coEvery
@@ -53,6 +54,15 @@ class RideRepositoryTest {
                 Response.success(ApiResponseBookingDetailResponse(data = booking))
 
             assertTrue(repository.endEarly(id, "unwell", true) is RideActionOutcome.Success)
+        }
+
+    @Test
+    fun cancelForEligibilityConcernSendsTheReason() =
+        runTest {
+            coEvery { bookingApi.cancelForEligibilityConcern(id, CancelBookingRequest(reason = "Not the rider")) } returns
+                Response.success(ApiResponseBookingDetailResponse(data = booking))
+
+            assertTrue(repository.cancelForEligibilityConcern(id, "Not the rider") is RideActionOutcome.Success)
         }
 
     @Test

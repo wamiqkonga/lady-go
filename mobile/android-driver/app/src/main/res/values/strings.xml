@@ -59,6 +59,13 @@
     <string name="ride_selfie_retry">Try again</string>
     <string name="ride_selfie_content_description">Photo of your rider</string>
     <string name="ride_no_navigation_app">No maps app found.</string>
+    <string name="ride_dialer_failed">Could not open the dialer - dial 112 now.</string>
+    <string name="ride_cant_complete_action">I can\'t complete this ride</string>
+    <string name="ride_cant_complete_title">Can\'t complete this ride?</string>
+    <string name="ride_cant_complete_body">Use this if you cannot take this rider, for example if she does not match the profile you were shown. The ride is cancelled without a penalty and reported to Lady Go.</string>
+    <string name="ride_cant_complete_reason_label">What happened?</string>
+    <string name="ride_cant_complete_confirm">Cancel ride</string>
+    <string name="ride_cant_complete_keep">Keep ride</string>
 
     <string name="login_hero_title">Lady Go Driver</string>
     <string name="login_hero_subtitle">Drive with confidence. Earn on your terms.</string>

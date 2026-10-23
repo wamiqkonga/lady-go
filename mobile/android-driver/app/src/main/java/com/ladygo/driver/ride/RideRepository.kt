@@ -4,6 +4,7 @@ import com.ladygo.driver.api.generated.apis.DriverBookingControllerApi
 import com.ladygo.driver.api.generated.apis.RideLifecycleControllerApi
 import com.ladygo.driver.api.generated.models.ApiResponseBookingDetailResponse
 import com.ladygo.driver.api.generated.models.BookingDetailResponse
+import com.ladygo.driver.api.generated.models.CancelBookingRequest
 import com.ladygo.driver.api.generated.models.EndRideEarlyRequest
 import com.ladygo.driver.api.generated.models.StartRideRequest
 import com.ladygo.driver.network.errorMessageOrDefault
@@ -69,6 +70,15 @@ class RideRepository
         ): RideActionOutcome =
             call("Could not end the ride.") {
                 rideApi.endEarly(bookingId, EndRideEarlyRequest(reason = reason, safetyConcern = safetyConcern))
+            }
+
+        /** Cancels without penalty before the trip starts and files an eligibility report server-side. */
+        suspend fun cancelForEligibilityConcern(
+            bookingId: UUID,
+            reason: String,
+        ): RideActionOutcome =
+            call("Could not cancel the ride.") {
+                bookingApi.cancelForEligibilityConcern(bookingId, CancelBookingRequest(reason = reason))
             }
 
         suspend fun confirmCashCollected(bookingId: UUID): RideActionOutcome =

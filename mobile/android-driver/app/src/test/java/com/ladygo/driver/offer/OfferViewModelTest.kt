@@ -3,6 +3,8 @@ package com.ladygo.driver.offer
 import com.ladygo.driver.api.generated.models.BookingDetailResponse
 import com.ladygo.driver.api.generated.models.OfferResponse
 import com.ladygo.driver.realtime.ServerClockSkew
+import com.ladygo.driver.ride.RideActionOutcome
+import com.ladygo.driver.ride.RideRepository
 import com.ladygo.driver.testing.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -29,16 +31,19 @@ class OfferViewModelTest {
 
     private val offerRepository = mockk<OfferRepository>()
     private val slotFlow = MutableStateFlow<OfferSlot>(OfferSlot.Empty)
+    private val rideRepository = mockk<RideRepository>()
     private val offerCoordinator =
         mockk<OfferCoordinator>(relaxed = true) {
             every { slot } returns slotFlow
+            // The real coordinator empties its slot when an offer is resolved.
+            every { clearIfCurrent(any()) } answers { slotFlow.value = OfferSlot.Empty }
         }
 
     /** Advances once right after construction so the ViewModel's `init`-block collector has actually
      *  subscribed to [offerCoordinator]'s slot before a test mutates [slotFlow] - a `StateFlow`
      *  collector that hasn't started yet would miss an update made before it does. */
     private fun TestScope.viewModel(): OfferViewModel {
-        val vm = OfferViewModel(offerRepository, offerCoordinator)
+        val vm = OfferViewModel(offerRepository, offerCoordinator, rideRepository)
         advanceUntilIdle()
         return vm
     }
@@ -46,7 +51,8 @@ class OfferViewModelTest {
     private fun offer(
         id: UUID = UUID.randomUUID(),
         expiresAt: String = Instant.now().plusSeconds(60).toString(),
-    ) = OfferResponse(offerId = id, estimatedFare = 200L, currency = "PKR", expiresAt = expiresAt)
+        bookingId: UUID? = null,
+    ) = OfferResponse(offerId = id, bookingId = bookingId, estimatedFare = 200L, currency = "PKR", expiresAt = expiresAt)
 
     private fun show(offer: OfferResponse) {
         slotFlow.value = OfferSlot.Occupied(offer, ServerClockSkew.NONE)
@@ -122,6 +128,91 @@ class OfferViewModelTest {
 
             val resolved = vm.uiState.value as OfferUiState.Resolved
             assertEquals("This offer has expired.", (resolved.outcome as OfferResolutionOutcome.NoLongerAvailable).message)
+        }
+
+    @Test
+    fun aLostAcceptResponseIsTrackedWhenTheBookingIsAlreadyAccepted() =
+        runTest {
+            val vm = viewModel()
+            val bookingId = UUID.randomUUID()
+            val theOffer = offer(bookingId = bookingId)
+            show(theOffer)
+            advanceUntilIdle()
+            val booking = BookingDetailResponse(id = bookingId, status = BookingDetailResponse.Status.DRIVER_ACCEPTED)
+            coEvery { offerRepository.accept(theOffer.offerId!!) } returns AcceptOfferOutcome.NetworkFailure("Could not reach the server.")
+            coEvery { rideRepository.fetch(bookingId) } returns RideActionOutcome.Success(booking)
+
+            vm.onAccept()
+            advanceUntilIdle()
+
+            val resolved = vm.uiState.value as OfferUiState.Resolved
+            assertEquals(booking, (resolved.outcome as OfferResolutionOutcome.Accepted).booking)
+        }
+
+    @Test
+    fun aRejectedAcceptThatActuallyLandedIsTrackedToo() =
+        runTest {
+            val vm = viewModel()
+            val bookingId = UUID.randomUUID()
+            val theOffer = offer(bookingId = bookingId)
+            show(theOffer)
+            advanceUntilIdle()
+            val booking = BookingDetailResponse(id = bookingId, status = BookingDetailResponse.Status.DRIVER_ARRIVING)
+            coEvery { offerRepository.accept(theOffer.offerId!!) } returns AcceptOfferOutcome.Rejected("This offer is no longer available.")
+            coEvery { rideRepository.fetch(bookingId) } returns RideActionOutcome.Success(booking)
+
+            vm.onAccept()
+            advanceUntilIdle()
+
+            val resolved = vm.uiState.value as OfferUiState.Resolved
+            assertEquals(booking, (resolved.outcome as OfferResolutionOutcome.Accepted).booking)
+        }
+
+    @Test
+    fun aRejectedAcceptStaysNoLongerAvailableWhenTheBookingIsNotTheDriversNow() =
+        runTest {
+            val vm = viewModel()
+            val bookingId = UUID.randomUUID()
+            val theOffer = offer(bookingId = bookingId)
+            show(theOffer)
+            advanceUntilIdle()
+            coEvery { offerRepository.accept(theOffer.offerId!!) } returns AcceptOfferOutcome.Rejected("This offer is no longer available.")
+            coEvery { rideRepository.fetch(bookingId) } returns
+                RideActionOutcome.Success(BookingDetailResponse(id = bookingId, status = BookingDetailResponse.Status.DRIVER_ASSIGNED))
+
+            vm.onAccept()
+            advanceUntilIdle()
+
+            val resolved = vm.uiState.value as OfferUiState.Resolved
+            assertEquals("This offer is no longer available.", (resolved.outcome as OfferResolutionOutcome.NoLongerAvailable).message)
+        }
+
+    @Test
+    fun consumingAResolutionShowsAnOfferThatArrivedMeanwhile() =
+        runTest {
+            val vm = viewModel()
+            val first = offer()
+            show(first)
+            advanceUntilIdle()
+            coEvery { offerRepository.decline(first.offerId!!) } returns DeclineOfferOutcome.Declined
+            vm.onDecline()
+            advanceUntilIdle()
+            val second = offer()
+            show(second) // arrives while the Resolved state is up: the slot collector skips it
+
+            vm.onResolutionConsumed()
+
+            assertEquals(second, (vm.uiState.value as OfferUiState.Showing).offer)
+        }
+
+    @Test
+    fun consumingAResolutionWithAnEmptySlotShowsNothing() =
+        runTest {
+            val vm = viewModel()
+
+            vm.onResolutionConsumed()
+
+            assertEquals(OfferUiState.None, vm.uiState.value)
         }
 
     @Test

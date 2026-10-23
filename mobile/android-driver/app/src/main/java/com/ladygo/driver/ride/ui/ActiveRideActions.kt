@@ -6,6 +6,7 @@ data class ActiveRideActions(
     val onStartRide: (String) -> Unit = {},
     val onComplete: () -> Unit = {},
     val onEndEarly: (reason: String, safetyConcern: Boolean) -> Unit = { _, _ -> },
+    val onCantComplete: (reason: String) -> Unit = {},
     val onConfirmCash: () -> Unit = {},
     val onRetrySelfie: () -> Unit = {},
     val onNavigate: (address: String) -> Unit = {},

@@ -4,6 +4,7 @@ import com.ladygo.driver.api.generated.models.OfferResponse
 import com.ladygo.driver.realtime.RealtimeEvent
 import com.ladygo.driver.realtime.RealtimeEvents
 import com.ladygo.driver.realtime.ServerClockSkew
+import io.mockk.clearMocks
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +31,7 @@ class OfferCoordinatorTest {
     private fun TestScope.coordinator(): OfferCoordinator {
         val coordinator = OfferCoordinator(realtimeEvents, offerNotifier, CoroutineScope(coroutineContext + Job()))
         advanceUntilIdle() // let the init-block collector actually subscribe before the first emit below
+        clearMocks(offerNotifier, answers = false) // drop the start-up cancel(); it has its own test below
         return coordinator
     }
 
@@ -109,13 +111,23 @@ class OfferCoordinatorTest {
         }
 
     @Test
-    fun onReconciledNoneIsANoOpWhenNothingIsHeld() =
+    fun onReconciledNoneStillCancelsTheNotificationWhenNothingIsHeld() =
         runTest {
             val coordinator = coordinator()
 
             coordinator.onReconciledNone()
 
-            verify(exactly = 0) { offerNotifier.cancel() }
+            assertTrue(coordinator.slot.value is OfferSlot.Empty)
+            verify(exactly = 1) { offerNotifier.cancel() }
+        }
+
+    @Test
+    fun startingTheCoordinatorCancelsAStaleOfferNotification() =
+        runTest {
+            OfferCoordinator(realtimeEvents, offerNotifier, CoroutineScope(coroutineContext + Job()))
+            advanceUntilIdle()
+
+            verify(exactly = 1) { offerNotifier.cancel() }
         }
 
     @Test

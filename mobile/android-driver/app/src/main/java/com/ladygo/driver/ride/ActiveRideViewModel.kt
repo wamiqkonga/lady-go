@@ -7,6 +7,7 @@ import com.ladygo.driver.auth.SessionManager
 import com.ladygo.driver.location.AppPreferences
 import com.ladygo.driver.realtime.RealtimeEvent
 import com.ladygo.driver.realtime.RealtimeEvents
+import com.ladygo.driver.realtime.StompConnectionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,6 +58,7 @@ class ActiveRideViewModel
         private val rideRepository: RideRepository,
         private val selfieRepository: RiderSelfieRepository,
         private val appPreferences: AppPreferences,
+        private val stompConnectionManager: StompConnectionManager,
         realtimeEvents: RealtimeEvents,
         sessionManager: SessionManager,
     ) : ViewModel() {
@@ -67,6 +69,13 @@ class ActiveRideViewModel
          *  before a Done/logout) must not resurrect or overwrite what is on screen when it finally lands. */
         private var generation = 0
 
+        private val _rideEndCount = MutableStateFlow(0)
+
+        /** Bumped each time a ride the driver was on is closed out (Done, or a successful "can't complete").
+         *  The server has just released the driver, so Home uses this to re-sync its availability. Not bumped
+         *  by logout. */
+        val rideEndCount: StateFlow<Int> = _rideEndCount.asStateFlow()
+
         init {
             viewModelScope.launch {
                 realtimeEvents.events.filterIsInstance<RealtimeEvent.BookingUpdated>().collect { event ->
@@ -75,7 +84,10 @@ class ActiveRideViewModel
                 }
             }
             viewModelScope.launch {
-                sessionManager.isLoggedIn.collect { loggedIn -> if (!loggedIn) clearAll() }
+                // Drops what is on screen but keeps the remembered booking id: this fires for a forced logout
+                // too (refresh token expired/revoked), and that ride must resume after the next sign-in.
+                // An explicit logout forgets the id itself ([com.ladygo.driver.auth.AuthRepository.logout]).
+                sessionManager.isLoggedIn.collect { loggedIn -> if (!loggedIn) clearAll(forgetBooking = false) }
             }
         }
 
@@ -127,6 +139,36 @@ class ActiveRideViewModel
             runAction { id, _ -> rideRepository.start(id, trimmed) }
         }
 
+        /** Before the trip starts only: cancel without penalty on an eligibility concern. On success the ride
+         *  is forgotten and the screen returns to Home, like "Done". */
+        fun onCantCompleteRide(reason: String) {
+            val trimmed = reason.trim()
+            if (trimmed.isEmpty()) {
+                _uiState.update { it.copy(error = "Please say what happened.") }
+                return
+            }
+            val current = _uiState.value
+            val id = current.booking?.id ?: return
+            if (current.isActionInFlight) return
+            val startedAt = generation
+            _uiState.update { it.copy(isActionInFlight = true, error = null) }
+            viewModelScope.launch {
+                val outcome = rideRepository.cancelForEligibilityConcern(id, trimmed)
+                if (startedAt != generation) return@launch
+                when (outcome) {
+                    is RideActionOutcome.Success -> endRide()
+                    is RideActionOutcome.Rejected -> {
+                        _uiState.update { it.copy(isActionInFlight = false, error = outcome.message) }
+                        reconcile()
+                    }
+                    is RideActionOutcome.NetworkFailure -> {
+                        _uiState.update { it.copy(isActionInFlight = false, error = outcome.message) }
+                        reconcile() // the cancel may have landed - never assume either way
+                    }
+                }
+            }
+        }
+
         fun onComplete() = runAction { id, _ -> rideRepository.complete(id) }
 
         fun onEndEarly(
@@ -153,7 +195,7 @@ class ActiveRideViewModel
 
         fun onRetrySelfie() = loadSelfie()
 
-        fun onDone() = clearAll()
+        fun onDone() = endRide()
 
         fun dismissError() = _uiState.update { it.copy(error = null) }
 
@@ -219,7 +261,14 @@ class ActiveRideViewModel
                     selfie = if (stage == RideStage.ARRIVED) it.selfie else SelfieState.Idle,
                 )
             }
-            if (stage != null && !stage.isOngoing) appPreferences.setActiveBookingId(null)
+            if (stage != null && !stage.isOngoing) {
+                appPreferences.setActiveBookingId(null)
+            } else if (stage != null) {
+                // The driver is on a ride (accepted just now, or restored after an app kill - where Home's own
+                // availability starts OFFLINE and never connects): the live connection is needed to see
+                // rider cancellations, and no-op if it is already up.
+                stompConnectionManager.connect()
+            }
             if (stage == RideStage.ARRIVED && before.stage != RideStage.ARRIVED) loadSelfie()
         }
 
@@ -240,9 +289,15 @@ class ActiveRideViewModel
             }
         }
 
-        private fun clearAll() {
+        private fun endRide() {
+            val hadRide = _uiState.value.isActive
+            clearAll()
+            if (hadRide) _rideEndCount.update { it + 1 }
+        }
+
+        private fun clearAll(forgetBooking: Boolean = true) {
             generation++
-            appPreferences.setActiveBookingId(null)
+            if (forgetBooking) appPreferences.setActiveBookingId(null)
             _uiState.value = ActiveRideUiState()
         }
 

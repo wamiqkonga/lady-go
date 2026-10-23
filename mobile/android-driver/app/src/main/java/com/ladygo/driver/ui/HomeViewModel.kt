@@ -53,6 +53,9 @@ class HomeViewModel
         val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
         init {
+            // Home is only shown to a logged-in, approved driver. The server may still have this driver ONLINE
+            // from before a process kill; with no ride tracked, quietly bring it in line with our OFFLINE start.
+            if (appPreferences.activeBookingId() == null) silentGoOffline()
             viewModelScope.launch {
                 locationServiceEvents.events.collect { event ->
                     when (event) {
@@ -88,11 +91,35 @@ class HomeViewModel
                             )
                         }
                         is SetAvailabilityOutcome.Failed ->
-                            _uiState.value.copy(
-                                isTogglingAvailability = false,
-                                error = outcome.message,
-                            )
+                            if (outcome.isDriverOnLiveWork()) {
+                                // The server disagrees with our fresh-OFFLINE start: this driver is already BUSY /
+                                // ON_RIDE (an offer or ride survived an app restart). Not an error - connect so the
+                                // existing reconnect reconciliation (offer + ride re-fetch) surfaces it.
+                                stompConnectionManager.connect()
+                                _uiState.value.copy(isTogglingAvailability = false, infoMessage = LIVE_WORK_MESSAGE)
+                            } else {
+                                _uiState.value.copy(
+                                    isTogglingAvailability = false,
+                                    error = outcome.message,
+                                )
+                            }
                     }
+            }
+        }
+
+        /** A ride just ended, so the server has released the driver back to ONLINE. If Home is OFFLINE, say so. */
+        fun onRideEnded() {
+            if (_uiState.value.availability == Availability.OFFLINE && !_uiState.value.isTogglingAvailability) silentGoOffline()
+        }
+
+        /** Best-effort, never shows an error. A BUSY/ON_RIDE refusal gets the same treatment as the toggle. */
+        private fun silentGoOffline() {
+            viewModelScope.launch {
+                val outcome = availabilityRepository.goOffline()
+                if (outcome is SetAvailabilityOutcome.Failed && outcome.isDriverOnLiveWork()) {
+                    stompConnectionManager.connect()
+                    _uiState.value = _uiState.value.copy(infoMessage = LIVE_WORK_MESSAGE)
+                }
             }
         }
 
@@ -105,10 +132,21 @@ class HomeViewModel
             _uiState.value = _uiState.value.copy(error = null, infoMessage = null)
         }
 
+        private fun SetAvailabilityOutcome.Failed.isDriverOnLiveWork(): Boolean =
+            httpCode == HTTP_FORBIDDEN && LIVE_WORK_STATES.any { message.contains(it) }
+
         fun onLogout() {
             _uiState.value = _uiState.value.copy(availability = Availability.OFFLINE)
             viewModelScope.launch {
                 authRepository.logout()
             }
+        }
+
+        private companion object {
+            const val HTTP_FORBIDDEN = 403
+            const val LIVE_WORK_MESSAGE = "You already have a ride request or a ride in progress. Opening it now."
+
+            // DriverAvailabilityService's "cannot be changed directly while X." for the two states that mean live work.
+            val LIVE_WORK_STATES = listOf("BUSY", "ON_RIDE")
         }
     }

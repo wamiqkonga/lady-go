@@ -74,6 +74,7 @@ class AvailabilityRepositoryTest {
                 "Availability cannot be changed directly while BUSY.",
                 (outcome as SetAvailabilityOutcome.Failed).message,
             )
+            assertEquals(403, outcome.httpCode)
         }
 
     @Test
@@ -84,6 +85,7 @@ class AvailabilityRepositoryTest {
             val outcome = repository.goOnline()
 
             assertTrue(outcome is SetAvailabilityOutcome.Failed)
+            assertEquals(null, (outcome as SetAvailabilityOutcome.Failed).httpCode)
         }
 
     private fun errorResponse(body: String): Response<ApiResponseDriverAvailabilityResponse> =

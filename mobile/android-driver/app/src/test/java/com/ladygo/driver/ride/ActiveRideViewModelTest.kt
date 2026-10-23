@@ -7,6 +7,7 @@ import com.ladygo.driver.auth.SessionManager
 import com.ladygo.driver.location.AppPreferences
 import com.ladygo.driver.realtime.RealtimeEvent
 import com.ladygo.driver.realtime.RealtimeEvents
+import com.ladygo.driver.realtime.StompConnectionManager
 import com.ladygo.driver.testing.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -44,10 +45,11 @@ class ActiveRideViewModelTest {
     private val realtimeEvents = RealtimeEvents()
     private val loggedIn = MutableStateFlow(true)
     private val sessionManager = mockk<SessionManager> { every { isLoggedIn } returns loggedIn }
+    private val stompConnectionManager = mockk<StompConnectionManager>(relaxed = true)
     private val id = UUID.randomUUID()
 
     private fun TestScope.viewModel(): ActiveRideViewModel {
-        val vm = ActiveRideViewModel(rideRepository, selfieRepository, preferences, realtimeEvents, sessionManager)
+        val vm = ActiveRideViewModel(rideRepository, selfieRepository, preferences, stompConnectionManager, realtimeEvents, sessionManager)
         advanceUntilIdle()
         return vm
     }
@@ -467,7 +469,7 @@ class ActiveRideViewModelTest {
         }
 
     @Test
-    fun loggingOutClearsTheRide() =
+    fun aForcedLogoutClearsTheScreenButKeepsTheRememberedBookingSoItResumesAfterSignIn() =
         runTest {
             val vm = viewModel()
             vm.track(booking(Status.RIDE_STARTED))
@@ -476,7 +478,77 @@ class ActiveRideViewModelTest {
             advanceUntilIdle()
 
             assertFalse(vm.uiState.value.isActive)
+            verify(exactly = 0) { preferences.setActiveBookingId(null) }
+        }
+
+    @Test
+    fun trackingARideConnectsTheRealtimeClientEvenWhenHomeIsOffline() =
+        runTest {
+            val vm = viewModel()
+
+            vm.track(booking(Status.DRIVER_ACCEPTED))
+
+            verify(atLeast = 1) { stompConnectionManager.connect() }
+        }
+
+    @Test
+    fun aRideRestoredAfterAnAppKillConnectsTheRealtimeClient() =
+        runTest {
+            every { preferences.activeBookingId() } returns id.toString()
+            coEvery { rideRepository.fetch(id) } returns RideActionOutcome.Success(booking(Status.RIDE_STARTED))
+            val vm = viewModel()
+
+            vm.reconcile()
+            advanceUntilIdle()
+
+            assertEquals(RideStage.IN_TRIP, vm.uiState.value.stage)
+            verify(atLeast = 1) { stompConnectionManager.connect() }
+        }
+
+    @Test
+    fun cantCompleteCancelsWithTheReasonThenClearsTheRide() =
+        runTest {
+            coEvery { rideRepository.cancelForEligibilityConcern(id, "Not the rider in the photo") } returns
+                RideActionOutcome.Success(booking(Status.CANCELLED))
+            val vm = viewModel()
+            vm.track(booking(Status.DRIVER_ACCEPTED))
+
+            vm.onCantCompleteRide("  Not the rider in the photo ")
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { rideRepository.cancelForEligibilityConcern(id, "Not the rider in the photo") }
+            assertFalse(vm.uiState.value.isActive)
             verify { preferences.setActiveBookingId(null) }
+        }
+
+    @Test
+    fun cantCompleteShowsTheServersMessageAndKeepsTheRideOnFailure() =
+        runTest {
+            coEvery { rideRepository.cancelForEligibilityConcern(id, any()) } returns
+                RideActionOutcome.Rejected("This ride can no longer be cancelled.")
+            coEvery { rideRepository.fetch(id) } returns RideActionOutcome.Success(booking(Status.DRIVER_ACCEPTED))
+            val vm = viewModel()
+            vm.track(booking(Status.DRIVER_ACCEPTED))
+
+            vm.onCantCompleteRide("Not the rider")
+            advanceUntilIdle()
+
+            assertTrue(vm.uiState.value.isActive)
+            assertEquals("This ride can no longer be cancelled.", vm.uiState.value.error)
+            assertFalse(vm.uiState.value.isActionInFlight)
+        }
+
+    @Test
+    fun cantCompleteNeedsAReason() =
+        runTest {
+            val vm = viewModel()
+            vm.track(booking(Status.DRIVER_ACCEPTED))
+
+            vm.onCantCompleteRide("   ")
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { rideRepository.cancelForEligibilityConcern(any(), any()) }
+            assertTrue(vm.uiState.value.error != null)
         }
 
     @Test
@@ -488,5 +560,52 @@ class ActiveRideViewModelTest {
             vm.onDone()
 
             assertFalse(vm.uiState.value.isActive)
+        }
+
+    @Test
+    fun doneCountsARideEndSoHomeCanReleaseTheServerSideBusyState() =
+        runTest {
+            val vm = viewModel()
+            vm.track(booking(Status.COMPLETED))
+            assertEquals(0, vm.rideEndCount.value)
+
+            vm.onDone()
+
+            assertEquals(1, vm.rideEndCount.value)
+        }
+
+    @Test
+    fun doneWithNoRideDoesNotCountARideEnd() =
+        runTest {
+            val vm = viewModel()
+
+            vm.onDone()
+
+            assertEquals(0, vm.rideEndCount.value)
+        }
+
+    @Test
+    fun aSuccessfulCantCompleteCountsARideEnd() =
+        runTest {
+            coEvery { rideRepository.cancelForEligibilityConcern(id, any()) } returns RideActionOutcome.Success(booking(Status.CANCELLED))
+            val vm = viewModel()
+            vm.track(booking(Status.DRIVER_ACCEPTED))
+
+            vm.onCantCompleteRide("Not the rider")
+            advanceUntilIdle()
+
+            assertEquals(1, vm.rideEndCount.value)
+        }
+
+    @Test
+    fun aForcedLogoutDoesNotCountARideEnd() =
+        runTest {
+            val vm = viewModel()
+            vm.track(booking(Status.DRIVER_ACCEPTED))
+
+            loggedIn.value = false
+            advanceUntilIdle()
+
+            assertEquals(0, vm.rideEndCount.value)
         }
 }

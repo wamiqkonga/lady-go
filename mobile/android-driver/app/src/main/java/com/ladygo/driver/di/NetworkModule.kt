@@ -115,12 +115,20 @@ object NetworkModule {
             // sets its Authorization header directly on the handshake request, so without this redact
             // it would be the one client that actually logs the bearer token (fresh-context review
             // finding).
-            builder.addInterceptor(
+            val bodyLogger =
                 HttpLoggingInterceptor().apply {
                     level = HttpLoggingInterceptor.Level.BODY
                     redactHeader("Authorization")
-                },
-            )
+                }
+            // The ride-start request carries the rider PIN and the selfie response a signed URL: headers only.
+            val headersLogger =
+                HttpLoggingInterceptor().apply {
+                    level = HttpLoggingInterceptor.Level.HEADERS
+                    redactHeader("Authorization")
+                }
+            builder.addInterceptor { chain ->
+                (if (isBodyLoggingSensitive(chain.request().url.encodedPath)) headersLogger else bodyLogger).intercept(chain)
+            }
         }
         return builder
     }
@@ -215,3 +223,8 @@ object NetworkModule {
 
     private const val STOMP_WS_PING_INTERVAL_SECONDS = 20L
 }
+
+private val SENSITIVE_BODY_PATHS = listOf(Regex("/(rides|bookings)/[^/]+/start/?$"), Regex("/bookings/[^/]+/rider-selfie/?$"))
+
+/** Paths whose request/response bodies must never reach the debug log: the ride PIN and the rider selfie's signed URL. */
+internal fun isBodyLoggingSensitive(encodedPath: String): Boolean = SENSITIVE_BODY_PATHS.any { it.containsMatchIn(encodedPath) }

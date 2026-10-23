@@ -31,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -47,6 +48,7 @@ import com.ladygo.driver.R
 import com.ladygo.driver.location.GoOnlineStep
 import com.ladygo.driver.location.LocationForegroundService
 import com.ladygo.driver.location.decideNextGoOnlineStep
+import com.ladygo.driver.location.shouldRunLocationService
 import com.ladygo.driver.ui.components.BannerKind
 import com.ladygo.driver.ui.components.InfoBanner
 import com.ladygo.driver.ui.components.LadyGoCard
@@ -59,8 +61,21 @@ import com.ladygo.driver.ui.components.StatusChip
 import com.ladygo.driver.ui.theme.LadyGoTheme
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    rideOngoing: Boolean = false,
+    rideEndCount: Int = 0,
+    viewModel: HomeViewModel = hiltViewModel(),
+) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+
+    // Starts at the current count so a fresh Home never reacts to rides that ended before it existed.
+    var seenRideEndCount by rememberSaveable { mutableIntStateOf(rideEndCount) }
+    LaunchedEffect(rideEndCount) {
+        if (rideEndCount != seenRideEndCount) {
+            seenRideEndCount = rideEndCount
+            viewModel.onRideEnded()
+        }
+    }
     val context = LocalContext.current
 
     // rememberSaveable, not remember: a config change (rotation) mid-go-online-flow must not reset
@@ -143,8 +158,11 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
     // flips to OFFLINE as part of the same state update onLogout performs, before Home ever leaves
     // composition, so this one effect reacting to that value is both necessary and sufficient -
     // no separate "leaving composition" safety net needed.
-    LaunchedEffect(state.availability) {
-        if (state.availability == Availability.ONLINE) {
+    //
+    // [rideOngoing] keeps the service alive for a ride restored after an app kill, when the local flag
+    // is OFFLINE again but the driver is still on a trip (see shouldRunLocationService).
+    LaunchedEffect(state.availability, rideOngoing) {
+        if (shouldRunLocationService(online = state.availability == Availability.ONLINE, rideOngoing = rideOngoing)) {
             LocationForegroundService.start(context)
         } else {
             LocationForegroundService.stop(context)

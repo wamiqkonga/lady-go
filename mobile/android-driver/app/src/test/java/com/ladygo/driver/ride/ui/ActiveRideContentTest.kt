@@ -68,6 +68,31 @@ class ActiveRideContentTest {
     }
 
     @Test
+    fun cantCompleteIsOfferedBeforeTheTripStartsBehindAConfirmDialogThatNeedsAReason() {
+        var reason: String? = null
+        show(state(Status.DRIVER_ARRIVING), ActiveRideActions(onCantComplete = { reason = it }))
+
+        composeRule.onNodeWithTag("ride_cant_complete").performScrollTo().performClick()
+        composeRule.onNodeWithText("Cancel ride").assertIsNotEnabled()
+        composeRule.onNodeWithTag("cant_complete_reason").performTextInput("Not the rider in the photo")
+        composeRule.onNodeWithText("Cancel ride").performClick()
+
+        assertEquals("Not the rider in the photo", reason)
+    }
+
+    @Test
+    fun cantCompleteIsOfferedWhenArrivedAndNotOnceTheTripHasStarted() {
+        show(state(Status.DRIVER_ARRIVED))
+        composeRule.onNodeWithTag("ride_cant_complete").assertExists()
+    }
+
+    @Test
+    fun cantCompleteIsNotOfferedInTrip() {
+        show(state(Status.RIDE_STARTED))
+        composeRule.onNodeWithTag("ride_cant_complete").assertDoesNotExist()
+    }
+
+    @Test
     fun startRideIsOnlyOfferedOnceArrivedAndPassesTheEnteredPin() {
         var pin: String? = null
         show(state(Status.DRIVER_ARRIVED), ActiveRideActions(onStartRide = { pin = it }))
