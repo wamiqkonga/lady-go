@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import com.ladygo.driver.MainActivity
 import com.ladygo.driver.R
 import com.ladygo.driver.api.generated.models.OfferResponse
+import com.ladygo.driver.ui.components.Money
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,11 +66,11 @@ class OfferNotifier
             context.getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
         }
 
-        private fun formatFare(offer: OfferResponse): String {
+        internal fun formatFare(offer: OfferResponse): String {
             val fare = offer.estimatedFare
             val currency = offer.currency
             return if (fare != null && currency != null) {
-                context.getString(R.string.offer_notification_text_with_fare, currency, fare)
+                context.getString(R.string.offer_notification_text_with_fare, Money.format(fare, currency))
             } else {
                 context.getString(R.string.offer_notification_text_generic)
             }
