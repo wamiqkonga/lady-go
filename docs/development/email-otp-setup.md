@@ -21,6 +21,23 @@ SMS/WhatsApp. Switch: `LADYGO_OTP_CHANNEL=email` (default `sms`, which keeps the
   global caps.
 - The Android apps still send phone only, so they cannot log in while the channel is `email`.
 
+## Choosing the email provider (`LADYGO_EMAIL_PROVIDER`)
+Two senders exist; the channel stays `LADYGO_OTP_CHANNEL=email` for both.
+
+| Provider | Setting | When |
+|---|---|---|
+| Amazon SES | `LADYGO_EMAIL_PROVIDER=ses` (default) | Once AWS grants production access (the sandbox only reaches verified addresses). |
+| Any SMTP relay | `LADYGO_EMAIL_PROVIDER=smtp` | Free stop-gap while SES is pending: Resend (100 emails/day, 3,000/month free), Brevo, Gmail, a hosting mailbox. |
+
+SMTP settings (all required when the provider is `smtp`; startup fails naming any that are missing):
+`LADYGO_SMTP_HOST` (e.g. `smtp.resend.com`), `LADYGO_SMTP_PORT` (587 STARTTLS, or 465 implicit TLS), `LADYGO_SMTP_USERNAME`
+(Resend uses the literal `resend`), `LADYGO_SMTP_PASSWORD` (Resend: the API key), `LADYGO_EMAIL_FROM`. TLS is mandatory; the
+sender never falls back to plain text. Store the password with `scripts/ops/set-smtp-secret.sh` (hidden input, written only
+to `/opt/ladygo/.env`), then restart the backend. To switch back, set `LADYGO_EMAIL_PROVIDER=ses` and restart.
+
+Resend setup: add `ladygoride.com` under Domains, add the DNS records it lists at the DNS host, wait for "Verified", then
+create an API key with sending access only. The sender address must be on the verified domain (`no-reply@ladygoride.com`).
+
 ## Amazon SES setup
 1. SES in the same region as the app (default `ap-south-1`, `LADYGO_EMAIL_SES_REGION`).
 2. Verify the domain `ladygoride.com` (Easy DKIM CNAMEs, plus SPF/DMARC TXT records, at the DNS host).
