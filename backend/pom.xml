@@ -8,7 +8,7 @@
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
     <!-- Spring Boot 3.x line (spec: Spring Boot 3+). Bump to the latest 3.5.x patch on first CI run. -->
-    <version>3.5.7</version>
+    <version>4.1.1</version>
     <relativePath/>
   </parent>
 
