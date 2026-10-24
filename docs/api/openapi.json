@@ -2449,6 +2449,26 @@
         }
       }
     },
+    "/api/v1/support/contact": {
+      "get": {
+        "tags": [
+          "support-contact-controller"
+        ],
+        "operationId": "getSupportContact",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSupportContactResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/drivers/me/rides": {
       "get": {
         "tags": [
@@ -5219,6 +5239,38 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSupportContactResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SupportContactResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SupportContactResponse": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string"
+          },
+          "whatsapp": {
+            "type": "string"
           }
         }
       },

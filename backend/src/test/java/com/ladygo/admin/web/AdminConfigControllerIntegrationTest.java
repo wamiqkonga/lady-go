@@ -245,4 +245,35 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
                         .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("6000", "test reason"))))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void supportContactNumbersCanBeSetAndClearedAndBadFormatsAreRejected() throws Exception {
+        UUID superAdminId = newUser(UserRole.SUPER_ADMIN).getId();
+        String auth = "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN);
+        for (String key : new String[] {"support.phone", "support.whatsapp"}) {
+            ConfigEntry entry = seededEntry(key);
+            assertThat(entry.getConfigValue()).isEmpty();
+            for (String bad : new String[] {"abc12345678", "+1234567", "1234567890123456", "+9198 7654 3210",
+                    "++919876543210", "98765-43210", " 919876543210", "919876543210\n"}) {
+                mockMvc.perform(put("/api/v1/admin/config/" + entry.getId()).header("Authorization", auth)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest(bad, "bad"))))
+                        .andExpect(status().isBadRequest());
+            }
+            assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue()).isEmpty();
+            for (String good : new String[] {"+919876543210", "12345678", "123456789012345"}) {
+                mockMvc.perform(put("/api/v1/admin/config/" + entry.getId()).header("Authorization", auth)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest(good, "set"))))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.data.configValue").value(good));
+            }
+            mockMvc.perform(put("/api/v1/admin/config/" + entry.getId()).header("Authorization", auth)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("  ", "clear"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.configValue").value(""));
+            assertThat(configEntries.findById(entry.getId()).orElseThrow().getConfigValue()).isEmpty();
+        }
+    }
 }

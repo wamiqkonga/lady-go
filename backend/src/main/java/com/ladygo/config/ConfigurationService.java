@@ -49,6 +49,13 @@ public class ConfigurationService {
                 });
     }
 
+    /** Trimmed text value of an optional key; empty when the row is absent or its value is blank. */
+    public Optional<String> findString(String key) {
+        return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
+                .map(entry -> entry.getConfigValue() == null ? "" : entry.getConfigValue().trim())
+                .filter(value -> !value.isEmpty());
+    }
+
     public boolean getBoolean(String key, boolean fallback) {
         return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
                 .map(entry -> Boolean.parseBoolean(entry.getConfigValue()))

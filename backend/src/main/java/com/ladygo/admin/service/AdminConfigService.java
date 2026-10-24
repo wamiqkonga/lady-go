@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import com.ladygo.admin.domain.AuditLog;
 import com.ladygo.admin.repository.AuditLogRepository;
 import com.ladygo.admin.web.dto.AdminConfigEntryResponse;
@@ -79,7 +80,11 @@ public class AdminConfigService {
             Map.entry("ratings.submit.max_per_hour", new long[] {1, 1_000}));
 
     /** Keys whose empty value means "not configured" and may be restored by an admin. */
-    private static final Set<String> OPTIONAL_UNSET_KEYS = Set.of("earnings.commission.bps");
+    private static final Set<String> OPTIONAL_UNSET_KEYS = Set.of("earnings.commission.bps", "support.phone", "support.whatsapp");
+
+    /** Support contact numbers: optional leading +, then 8-15 digits, nothing else (no spaces). */
+    private static final Set<String> PHONE_NUMBER_KEYS = Set.of("support.phone", "support.whatsapp");
+    private static final Pattern PHONE_NUMBER = Pattern.compile("^\\+?[0-9]{8,15}$");
 
     private static final Map<String, BigDecimal[]> DECIMAL_BOUNDS = Map.of(
             "booking.fare.change.tolerance.pct", new BigDecimal[] {BigDecimal.ZERO, new BigDecimal("100")});
@@ -135,7 +140,11 @@ public class AdminConfigService {
      *  {@code ==} comparisons instead, same as every other enum-dispatch in this codebase. */
     private static void validate(String key, ConfigValueType type, String value) {
         if (value.isEmpty() && OPTIONAL_UNSET_KEYS.contains(key)) {
-            return; // deliberately unset (e.g. no commission configured) - the only key allowed to be blank.
+            return; // deliberately unset (e.g. no commission configured, no support number yet).
+        }
+        if (PHONE_NUMBER_KEYS.contains(key) && !PHONE_NUMBER.matcher(value).matches()) {
+            throw new ValidationException(
+                    "Value for " + key + " must be digits with an optional leading + (8 to 15 digits, no spaces).");
         }
         try {
             if (type == ConfigValueType.INTEGER) {
