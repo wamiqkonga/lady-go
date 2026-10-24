@@ -47,3 +47,8 @@ Fixed: F1, F2 (client), F3, review items 1, 2, 3, 4, 10, 12, 13 (PIN body; note 
 ## Follow-ups noted during step 2
 - Admin web (`frontend/admin`, step 8): `RideOversight.tsx` keeps a fixed `FLAG_TYPES` filter list and `lib/api-types.ts` is generated; add `LOW_RATING` and `REPEATED_LOW_RATING` to the filter and regenerate the types.
 - `docs/api/ride-lifecycle.md` needs a short section pointing at the earnings snapshot and ratings rules.
+
+## Step 2 backend review (2026-10-24, fresh Opus, read-only) - findings
+Fixed in the follow-up commit: history address visibility for cancelled bookings (1), retaliation leak via ratedByRider and the exact distribution (2), rating vs completion lock order and stale entity (3), commission rate cannot be set back to unset (4), commissionConfigured and currency from stored rows (5), REPEATED_LOW_RATING flooding (6), lost @Transactional on the 3-arg early end (7), unknown rating tag 500 (8).
+Deferred (step 9 hardening): rider selfie watermark text is clipped (font sized from width/20 for a 36-char id, pre-existing), EXIF orientation ignored so phone photos may be sideways, slow getScaledInstance downscale with no endpoint rate limit or cache on GET /drivers/me/bookings/{id}/rider-selfie.
+Verified by real API run against the local stack: accept replay, PIN start, complete, cash confirm, earnings row, history, two-way ratings, 409/403 cases, driver-only cashConfirmedAt.
