@@ -22,6 +22,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ladygo.driver.R
 import com.ladygo.driver.api.generated.models.DriverEarningsResponse
@@ -40,6 +41,7 @@ import com.ladygo.driver.ui.components.Money
 import com.ladygo.driver.ui.components.PrimaryButton
 import com.ladygo.driver.ui.components.SectionLabel
 import com.ladygo.driver.ui.components.StateIllustration
+import com.ladygo.driver.ui.components.isLargeFontScale
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -47,6 +49,10 @@ import java.util.Locale
 @Composable
 fun EarningsScreen(viewModel: EarningsViewModel = hiltViewModel()) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onResume()
+        onPauseOrDispose {}
+    }
     EarningsContent(
         state = state,
         onSelectWeek = viewModel::onSelectWeek,
@@ -177,8 +183,8 @@ private fun DayRow(
     val rides = (day.rides ?: 0L).toInt()
     val net = if (day.commissionConfigured == true) day.net ?: day.gross ?: 0L else day.gross ?: 0L
     LadyGoCard(modifier = Modifier.fillMaxWidth()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(modifier = Modifier.weight(1f)) {
+        val dayAndRides: @Composable (Modifier) -> Unit = { modifier ->
+            Column(modifier = modifier) {
                 Text(formatDay(day.date), style = MaterialTheme.typography.titleSmall)
                 Text(
                     pluralStringResource(R.plurals.earnings_ride_count, rides, rides),
@@ -186,7 +192,15 @@ private fun DayRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        if (isLargeFontScale()) {
+            dayAndRides(Modifier)
             Text(Money.format(net, currency), style = MaterialTheme.typography.titleMedium)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                dayAndRides(Modifier.weight(1f))
+                Text(Money.format(net, currency), style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }

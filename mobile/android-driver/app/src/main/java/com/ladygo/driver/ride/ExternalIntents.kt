@@ -10,6 +10,24 @@ object ExternalIntents {
     /** `ACTION_DIAL` opens the dialer pre-filled; the driver makes the final tap. No backend involvement. */
     fun dialEmergency(context: Context): Boolean = launch(context, Intent(Intent.ACTION_DIAL, Uri.parse("tel:112")))
 
+    /** Opens the dialer pre-filled with [number] (the support line); the driver makes the final tap. */
+    fun dial(
+        context: Context,
+        number: String,
+    ): Boolean = launch(context, Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)))
+
+    /** Opens [url] in the browser; false when the device has no app that can. */
+    fun openUrl(
+        context: Context,
+        url: String,
+    ): Boolean = launch(context, Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+
+    /** Opens a WhatsApp chat via the universal link; [digits] is the number with no `+`, spaces or dashes. */
+    fun openWhatsApp(
+        context: Context,
+        digits: String,
+    ): Boolean = launch(context, Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits")))
+
     /** Hand-off to Google Maps turn-by-turn by address, falling back to any `geo:` handler. */
     fun navigateTo(
         context: Context,

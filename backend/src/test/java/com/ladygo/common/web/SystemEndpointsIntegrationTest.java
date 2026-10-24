@@ -37,6 +37,14 @@ class SystemEndpointsIntegrationTest {
     }
 
     @Test
+    void infoEndpointIsPublicAndShowsWhichBuildIsRunning() throws Exception {
+        mockMvc.perform(get("/actuator/info"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.app.commit").value(System.getenv().getOrDefault("GIT_SHA", "unknown")))
+                .andExpect(jsonPath("$.build.time").exists());
+    }
+
+    @Test
     void protectedEndpointReturns401InStandardEnvelopeWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/api/v1/customers/me"))
                 .andExpect(status().isUnauthorized())

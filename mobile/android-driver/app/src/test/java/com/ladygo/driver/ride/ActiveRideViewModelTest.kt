@@ -563,6 +563,49 @@ class ActiveRideViewModelTest {
         }
 
     @Test
+    fun doneOnAFinishedRideReturnsHomeAtOnceAndHandsBackTheBookingToRate() =
+        runTest {
+            val vm = viewModel()
+            vm.track(booking(Status.COMPLETED))
+
+            val ratable = vm.onDone()
+
+            assertEquals(id, ratable)
+            assertFalse(vm.uiState.value.isActive) // cleared immediately; nothing waits on the rating prompt
+            assertEquals(1, vm.rideEndCount.value) // the ride-end bookkeeping is unchanged
+            verify { preferences.setActiveBookingId(null) }
+        }
+
+    @Test
+    fun doneOnACashRideOnceCashIsConfirmedAlsoOffersTheRating() =
+        runTest {
+            coEvery { rideRepository.confirmCashCollected(id) } returns RideActionOutcome.Success(booking(Status.PAYMENT_PENDING))
+            val vm = viewModel()
+            vm.track(booking(Status.PAYMENT_PENDING))
+            vm.onConfirmCashCollected()
+            advanceUntilIdle()
+
+            assertEquals(id, vm.onDone())
+            assertEquals(1, vm.rideEndCount.value)
+        }
+
+    @Test
+    fun doneOnAnEndedOrCancelledRideOffersNoRating() =
+        runTest {
+            val vm = viewModel()
+            vm.track(booking(Status.CANCELLED))
+
+            assertNull(vm.onDone())
+            assertEquals(1, vm.rideEndCount.value)
+        }
+
+    @Test
+    fun doneWithNoRideOffersNoRating() =
+        runTest {
+            assertNull(viewModel().onDone())
+        }
+
+    @Test
     fun doneCountsARideEndSoHomeCanReleaseTheServerSideBusyState() =
         runTest {
             val vm = viewModel()

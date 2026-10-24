@@ -1,6 +1,5 @@
 package com.ladygo.driver.onboarding.ui
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
@@ -20,12 +19,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.api.generated.models.DriverProfileResponse.VerificationStatus
 import com.ladygo.driver.onboarding.DocumentNote
 import com.ladygo.driver.onboarding.GateUiState
@@ -119,7 +116,7 @@ private fun StatusBody(
     if (status != VerificationStatus.PENDING_REVIEW) {
         PrimaryButton(
             text = "Continue on the Lady Go website",
-            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, BuildConfig.DRIVER_REGISTRATION_URL.toUri())) },
+            onClick = { openDriverWebsite(context) },
         )
     }
     SecondaryButton(text = "Check again", onClick = onRetry)

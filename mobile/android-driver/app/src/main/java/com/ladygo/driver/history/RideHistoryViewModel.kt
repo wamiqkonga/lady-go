@@ -27,6 +27,8 @@ data class RideHistoryUiState(
     val loadMoreError: String? = null,
 )
 
+private val RideHistoryUiState.isBusy: Boolean get() = isLoading || isRefreshing || isLoadingMore
+
 /**
  * Ride history, newest first, 20 per page. Pages are appended without duplicates ([PagedList]); a refresh
  * restarts from page 0 and replaces the rows only when it succeeds. At most one request is in flight: a
@@ -50,6 +52,23 @@ class RideHistoryViewModel
 
         fun item(bookingId: UUID): RideHistoryItem? = _uiState.value.items.firstOrNull { it.bookingId == bookingId }
 
+        /** The server accepted this driver's rating of [bookingId]: show it on the row now, no reload. */
+        fun onRated(
+            bookingId: UUID,
+            score: Int,
+        ) {
+            if (paged.items.none { it.bookingId == bookingId }) return
+            paged = paged.copy(items = paged.items.map { if (it.bookingId == bookingId) it.copy(myRating = score) else it })
+            _uiState.value = _uiState.value.copy(items = paged.items)
+        }
+
+        /** The server said this ride was already rated by this driver: keep the row, hide the Rate button, invent no score. */
+        fun onAlreadyRated(bookingId: UUID) {
+            if (paged.items.none { it.bookingId == bookingId }) return
+            paged = paged.copy(items = paged.items.map { if (it.bookingId == bookingId) it.copy(alreadyRated = true) else it })
+            _uiState.value = _uiState.value.copy(items = paged.items)
+        }
+
         fun onRetry() {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             loadFirstPage()
@@ -62,10 +81,32 @@ class RideHistoryViewModel
             loadFirstPage()
         }
 
+        /**
+         * The screen came back (a tab switch, back from a ride's detail, the app returning to the foreground): quietly
+         * re-read page 0 and merge it in. Rows from later pages the driver already scrolled to stay; only a pull to
+         * refresh restarts the list.
+         */
+        fun onResume() {
+            val state = _uiState.value
+            if (state.isBusy || state.items.isEmpty()) return
+            _uiState.value = state.copy(isRefreshing = true, refreshError = null)
+            loadJob =
+                viewModelScope.launch {
+                    when (val outcome = repository.fetchPage(0)) {
+                        is RideHistoryOutcome.Success -> {
+                            paged = paged.mergeFirstPage(outcome.items, outcome.hasMore)
+                            _uiState.value = _uiState.value.copy(items = paged.items, hasMore = paged.hasMore, isRefreshing = false)
+                        }
+                        is RideHistoryOutcome.Failed ->
+                            _uiState.value = _uiState.value.copy(isRefreshing = false, refreshError = outcome.message)
+                    }
+                }
+        }
+
         /** Called as the driver nears the end of the list, and by the retry row after a failed next page. */
         fun onLoadMore() {
             val state = _uiState.value
-            if (!state.hasMore || state.isLoading || state.isRefreshing || state.isLoadingMore) return
+            if (!state.hasMore || state.isBusy) return
             _uiState.value = state.copy(isLoadingMore = true, loadMoreError = null)
             loadJob =
                 viewModelScope.launch {

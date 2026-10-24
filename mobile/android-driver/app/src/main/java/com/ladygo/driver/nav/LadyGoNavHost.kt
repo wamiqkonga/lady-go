@@ -27,6 +27,7 @@ import androidx.navigation.navArgument
 import com.ladygo.driver.account.MeScreen
 import com.ladygo.driver.auth.SessionManager
 import com.ladygo.driver.earnings.ui.EarningsScreen
+import com.ladygo.driver.help.ui.HelpScreen
 import com.ladygo.driver.history.RideHistoryViewModel
 import com.ladygo.driver.history.ui.RideDetailScreen
 import com.ladygo.driver.history.ui.RideHistoryScreen
@@ -36,6 +37,8 @@ import com.ladygo.driver.offer.OfferUiState
 import com.ladygo.driver.offer.OfferViewModel
 import com.ladygo.driver.offer.ui.OfferScreen
 import com.ladygo.driver.onboarding.ui.OnboardingGateScreen
+import com.ladygo.driver.rating.RateRiderViewModel
+import com.ladygo.driver.rating.ui.RateRiderHost
 import com.ladygo.driver.realtime.RealtimeEvent
 import com.ladygo.driver.realtime.RealtimeEvents
 import com.ladygo.driver.realtime.ServerClockSkew
@@ -60,6 +63,7 @@ object Routes {
     const val EARNINGS = "earnings"
     const val RIDES = "rides"
     const val ME = "me"
+    const val HELP = "help"
     const val RIDE_DETAIL = "ride_detail/{bookingId}"
 
     fun rideDetail(bookingId: UUID) = "ride_detail/$bookingId"
@@ -106,6 +110,9 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
     val offerViewModel: OfferViewModel = hiltViewModel()
     val realtimeConnectionViewModel: RealtimeConnectionViewModel = hiltViewModel()
     val rideViewModel: ActiveRideViewModel = hiltViewModel()
+    // Activity-scoped too: the rating prompt is opened by Done on the ride screen and shown on whatever resting
+    // screen the driver lands on, and must not be torn down with the ride screen.
+    val rateViewModel: RateRiderViewModel = hiltViewModel()
 
     LaunchedEffect(realtimeConnectionViewModel, offerViewModel, rideViewModel) {
         realtimeConnectionViewModel.connected.collect { skew ->
@@ -143,7 +150,7 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
     // already online (authenticated, past onboarding), so this never needs to guard against firing
     // from Login/the onboarding gate.
     val offerState = offerViewModel.uiState.collectAsStateWithLifecycle().value
-    RideNavigationEffect(navController, rideViewModel, offerShowing = offerState is OfferUiState.Showing)
+    RideNavigationEffect(navController, rideViewModel, rateViewModel, offerShowing = offerState is OfferUiState.Showing)
     LaunchedEffect(offerState) {
         when (offerState) {
             is OfferUiState.Showing ->
@@ -154,7 +161,12 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
         }
     }
 
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val currentRoute =
+        navController
+            .currentBackStackEntryAsState()
+            .value
+            ?.destination
+            ?.route
     // Insets are left to each screen (as before); the bar only claims its own height, and only on the four tab
     // pages, so Login, the gate, an incoming offer and an active ride stay exactly as they were.
     Scaffold(
@@ -167,9 +179,12 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
             modifier = Modifier.padding(barPadding).consumeWindowInsets(barPadding),
             offerViewModel = offerViewModel,
             rideViewModel = rideViewModel,
+            rateViewModel = rateViewModel,
             rideOngoing = rideOngoing,
             rideEndCount = rideEndCount,
         )
+        // Skippable and never blocking: hidden whenever an offer or an active ride owns the screen.
+        RateRiderHost(viewModel = rateViewModel, visible = isHomeTreeRoute(currentRoute))
     }
 }
 
@@ -181,6 +196,7 @@ private fun LadyGoNavGraph(
     modifier: Modifier,
     offerViewModel: OfferViewModel,
     rideViewModel: ActiveRideViewModel,
+    rateViewModel: RateRiderViewModel,
     rideOngoing: Boolean,
     rideEndCount: Int,
 ) {
@@ -208,8 +224,10 @@ private fun LadyGoNavGraph(
         }
         composable(Routes.EARNINGS) { EarningsScreen() }
         composable(Routes.RIDES) { entry ->
+            val history = homeScopedRideHistory(navController, entry)
+            RatedRowsEffect(rateViewModel, history)
             RideHistoryScreen(
-                viewModel = homeScopedRideHistory(navController, entry),
+                viewModel = history,
                 onOpenRide = { bookingId -> navController.navigate(Routes.rideDetail(bookingId)) },
             )
         }
@@ -219,12 +237,16 @@ private fun LadyGoNavGraph(
         ) { entry ->
             val history = homeScopedRideHistory(navController, entry)
             val bookingId = entry.arguments?.getString("bookingId")?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+            val historyState = history.uiState.collectAsStateWithLifecycle().value
+            RatedRowsEffect(rateViewModel, history)
             RideDetailScreen(
-                ride = bookingId?.let(history::item),
+                ride = historyState.items.firstOrNull { it.bookingId == bookingId },
                 onBack = { navController.popBackStack() },
+                onRate = { ride -> rateViewModel.offer(ride.bookingId) },
             )
         }
-        composable(Routes.ME) { MeScreen() }
+        composable(Routes.ME) { MeScreen(onOpenHelp = { navController.navigate(Routes.HELP) }) }
+        composable(Routes.HELP) { HelpScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.INCOMING_OFFER) {
             OfferScreen(
                 viewModel = offerViewModel,
@@ -238,6 +260,7 @@ private fun LadyGoNavGraph(
             ActiveRideScreen(
                 viewModel = rideViewModel,
                 onFinished = { navController.popBackStack(Routes.HOME, inclusive = false) },
+                onRideCompleted = rateViewModel::offer,
             )
         }
     }
@@ -252,6 +275,20 @@ private fun homeScopedRideHistory(
 ): RideHistoryViewModel {
     val homeEntry = remember(entry) { navController.getBackStackEntry(Routes.HOME) }
     return hiltViewModel(homeEntry)
+}
+
+/** A rating the server accepted shows on its history row at once, without reloading the list. */
+@Composable
+internal fun RatedRowsEffect(
+    rateViewModel: RateRiderViewModel,
+    history: RideHistoryViewModel,
+) {
+    LaunchedEffect(rateViewModel, history) {
+        rateViewModel.rated.collect { history.onRated(it.bookingId, it.score) }
+    }
+    LaunchedEffect(rateViewModel, history) {
+        rateViewModel.alreadyRated.collect { history.onAlreadyRated(it) }
+    }
 }
 
 /** A ride in progress needs fresh location (the server gates arrive/start on it) even though no Home
@@ -273,6 +310,7 @@ private fun RideLocationServiceEffect(rideOngoing: Boolean) {
 private fun RideNavigationEffect(
     navController: NavHostController,
     rideViewModel: ActiveRideViewModel,
+    rateViewModel: RateRiderViewModel,
     offerShowing: Boolean,
 ) {
     val rideState = rideViewModel.uiState.collectAsStateWithLifecycle().value
@@ -290,7 +328,8 @@ private fun RideNavigationEffect(
             navController.navigate(Routes.ACTIVE_RIDE) { popUpTo(Routes.HOME) }
         } else if (rideLeftover && isHomeTreeRoute(currentRoute)) {
             // A finished/ended ride found while on Home (e.g. restored after an app kill) needs no screen.
-            rideViewModel.onDone()
+            // Offer the rating too; a repeat offer for the same ride (normal Done path) is ignored by the view model.
+            rideViewModel.onDone()?.let(rateViewModel::offer)
         } else if (!rideState.isActive && currentRoute == Routes.ACTIVE_RIDE) {
             // The ride was cleared underneath the screen (logout) - never leave a blank screen.
             navController.popBackStack(Routes.HOME, inclusive = false)
