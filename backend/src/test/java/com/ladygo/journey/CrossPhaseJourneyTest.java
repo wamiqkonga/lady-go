@@ -85,6 +85,9 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
         jdbc.update("DELETE FROM location_history WHERE ride_id IN "
                 + "(SELECT r.id FROM rides r JOIN customers c ON c.id = r.customer_id WHERE c.user_id = ?)",
                 committedCustomerUserId);
+        jdbc.update("DELETE FROM ride_earnings WHERE ride_id IN "
+                + "(SELECT r.id FROM rides r JOIN customers c ON c.id = r.customer_id WHERE c.user_id = ?)",
+                committedCustomerUserId);
         jdbc.update("DELETE FROM rides WHERE customer_id IN (SELECT id FROM customers WHERE user_id = ?)",
                 committedCustomerUserId);
         jdbc.update("DELETE FROM ride_offers WHERE booking_id IN "

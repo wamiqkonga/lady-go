@@ -7,6 +7,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -34,4 +36,9 @@ public class Rating extends CreatedEntity {
 
     @Column(name = "comment", length = 1000)
     private String comment;
+
+    /** Names of {@link RatingTag}s, at most 5 (ck_ratings_tags_size). */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "tags", columnDefinition = "text[]", nullable = false)
+    private String[] tags = new String[0];
 }

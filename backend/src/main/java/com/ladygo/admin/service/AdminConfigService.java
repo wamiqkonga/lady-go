@@ -71,7 +71,10 @@ public class AdminConfigService {
             Map.entry("admin.login.max.attempts", new long[] {1, 20}),
             Map.entry("sms.send.max_per_number.daily", new long[] {1, 1_000}),
             Map.entry("sms.send.max_per_ip.daily", new long[] {1, 5_000}),
-            Map.entry("sms.send.max_global.daily", new long[] {1, 1_000_000}));
+            Map.entry("sms.send.max_global.daily", new long[] {1, 1_000_000}),
+            Map.entry("earnings.commission.bps", new long[] {0, 10_000}),
+            Map.entry("ratings.window.days", new long[] {1, 90}),
+            Map.entry("ratings.submit.max_per_hour", new long[] {1, 1_000}));
 
     private static final Map<String, BigDecimal[]> DECIMAL_BOUNDS = Map.of(
             "booking.fare.change.tolerance.pct", new BigDecimal[] {BigDecimal.ZERO, new BigDecimal("100")});

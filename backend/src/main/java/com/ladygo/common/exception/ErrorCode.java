@@ -21,6 +21,7 @@ public enum ErrorCode {
     LIMIT_EXCEEDED(HttpStatus.UNPROCESSABLE_ENTITY, "A configured limit has been reached."),
     CONCURRENT_UPDATE(HttpStatus.CONFLICT, "This was just updated by someone else. Please retry."),
     PAYMENT_METHOD_UNAVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "This payment method is not available yet."),
+    ALREADY_RATED(HttpStatus.CONFLICT, "This ride has already been rated."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

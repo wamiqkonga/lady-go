@@ -897,6 +897,47 @@
         }
       }
     },
+    "/api/v1/drivers/me/bookings/{bookingId}/rating": {
+      "post": {
+        "tags": [
+          "rating-controller"
+        ],
+        "operationId": "rateRider",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRatingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseRatingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/customers/me/saved-locations": {
       "get": {
         "tags": [
@@ -1539,6 +1580,47 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{bookingId}/rating": {
+      "post": {
+        "tags": [
+          "rating-controller"
+        ],
+        "operationId": "rateDriver",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitRatingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseRatingResponse"
                 }
               }
             }
@@ -2349,6 +2431,56 @@
         }
       }
     },
+    "/api/v1/drivers/me/rides": {
+      "get": {
+        "tags": [
+          "driver-earnings-controller"
+        ],
+        "operationId": "listMyRides",
+        "parameters": [
+          {
+            "name": "pageable",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseDriverRideHistoryItemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/drivers/me/ratings/summary": {
+      "get": {
+        "tags": [
+          "rating-controller"
+        ],
+        "operationId": "getMyRatingSummary",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverRatingSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/drivers/me/offers/current": {
       "get": {
         "tags": [
@@ -2362,6 +2494,46 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseOfferResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/drivers/me/earnings": {
+      "get": {
+        "tags": [
+          "driver-earnings-controller"
+        ],
+        "operationId": "getMyEarnings",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverEarningsResponse"
                 }
               }
             }
@@ -2657,7 +2829,9 @@
                 "PIN_LOCKOUT",
                 "CASH_DISPUTE",
                 "RIDER_SAFETY_CANCEL",
-                "RIDER_CONFIRMED_ARRIVAL"
+                "RIDER_CONFIRMED_ARRIVAL",
+                "LOW_RATING",
+                "REPEATED_LOW_RATING"
               ]
             }
           },
@@ -3852,6 +4026,80 @@
           "reason"
         ]
       },
+      "SubmitRatingRequest": {
+        "type": "object",
+        "properties": {
+          "score": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5,
+            "minimum": 1
+          },
+          "comment": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "POLITE",
+                "SAFE_DRIVING",
+                "CLEAN_VEHICLE",
+                "RESPECTFUL",
+                "ON_TIME"
+              ]
+            }
+          }
+        },
+        "required": [
+          "score"
+        ]
+      },
+      "ApiResponseRatingResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RatingResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RatingResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ApiResponseRideSelfieResponse": {
         "type": "object",
         "properties": {
@@ -4389,9 +4637,9 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "maxLength": 254,
-            "minLength": 0,
-            "format": "email"
+            "minLength": 0
           }
         },
         "required": [
@@ -4628,7 +4876,9 @@
               "PIN_LOCKOUT",
               "CASH_DISPUTE",
               "RIDER_SAFETY_CANCEL",
-              "RIDER_CONFIRMED_ARRIVAL"
+              "RIDER_CONFIRMED_ARRIVAL",
+              "LOW_RATING",
+              "REPEATED_LOW_RATING"
             ]
           },
           "raisedBy": {
@@ -4951,6 +5201,165 @@
           }
         }
       },
+      "Pageable": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "sort": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ApiResponsePageResponseDriverRideHistoryItemResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResponseDriverRideHistoryItemResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DriverRideHistoryItemResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rideId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pickupAddress": {
+            "type": "string"
+          },
+          "destinationAddress": {
+            "type": "string"
+          },
+          "finalFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "myRating": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ratedByRider": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PageResponseDriverRideHistoryItemResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DriverRideHistoryItemResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponseDriverRatingSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DriverRatingSummaryResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DriverRatingSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "avg": {
+            "type": "number"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "distribution": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "recentTagCounts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        }
+      },
       "ApiResponseOfferResponse": {
         "type": "object",
         "properties": {
@@ -5014,6 +5423,126 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseDriverEarningsResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DriverEarningsResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DriverEarningsResponse": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/EarningsTotalsResponse"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EarningsDayResponse"
+            }
+          }
+        }
+      },
+      "EarningsDayResponse": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "rides": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gross": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "commission": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "net": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "cashCollected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "onlineCollected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "commissionConfigured": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EarningsTotalsResponse": {
+        "type": "object",
+        "properties": {
+          "rides": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gross": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "commission": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "net": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "cashCollected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "onlineCollected": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "commissionConfigured": {
+            "type": "boolean"
           }
         }
       },
@@ -5126,27 +5655,6 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
-          }
-        }
-      },
-      "Pageable": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          },
-          "size": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 1
-          },
-          "sort": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
           }
         }
       },

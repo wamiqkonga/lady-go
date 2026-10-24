@@ -5,6 +5,7 @@ import com.ladygo.bookings.domain.BookingStatus;
 import com.ladygo.bookings.repository.BookingRepository;
 import com.ladygo.bookings.service.BookingStatusChangedEvent;
 import com.ladygo.drivers.repository.DriverRepository;
+import com.ladygo.drivers.service.EarningsRecorder;
 import com.ladygo.rides.domain.Ride;
 import com.ladygo.rides.domain.RideStatus;
 import com.ladygo.rides.repository.RideRepository;
@@ -45,11 +46,15 @@ public class RideStatusSyncListener {
     private final BookingRepository bookings;
     private final RideRepository rides;
     private final DriverRepository drivers;
+    private final EarningsRecorder earningsRecorder;
 
-    public RideStatusSyncListener(BookingRepository bookings, RideRepository rides, DriverRepository drivers) {
+    public RideStatusSyncListener(
+            BookingRepository bookings, RideRepository rides, DriverRepository drivers,
+            EarningsRecorder earningsRecorder) {
         this.bookings = bookings;
         this.rides = rides;
         this.drivers = drivers;
+        this.earningsRecorder = earningsRecorder;
     }
 
     @EventListener
@@ -117,5 +122,8 @@ public class RideStatusSyncListener {
     private void onRideCompleted(BookingStatusChangedEvent event) {
         rides.findByBookingId(event.bookingId())
                 .ifPresent(ride -> drivers.releaseFromOffer(ride.getDriverId()));
+        // docs/api/driver-earnings-ratings.md section 5: one earnings row per completed ride, written in
+        // this same transaction; idempotent, so a replayed event cannot double-count or fail completion.
+        earningsRecorder.recordForCompletedBooking(event.bookingId());
     }
 }

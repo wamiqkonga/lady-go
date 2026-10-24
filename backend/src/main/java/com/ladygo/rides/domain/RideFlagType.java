@@ -7,5 +7,9 @@ public enum RideFlagType {
     PIN_LOCKOUT,
     CASH_DISPUTE,
     RIDER_SAFETY_CANCEL,
-    RIDER_CONFIRMED_ARRIVAL
+    RIDER_CONFIRMED_ARRIVAL,
+    /** A rating of 1 or 2 (docs/api/driver-earnings-ratings.md section 4.3) - queued for admin review. */
+    LOW_RATING,
+    /** More than two 1-star ratings from one rider against the same driver within 7 days (section 7). */
+    REPEATED_LOW_RATING
 }

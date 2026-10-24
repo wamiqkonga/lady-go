@@ -116,5 +116,6 @@ class EnumSchemaParityTest {
         check("ride_flags", "type", RideFlagType.class);
         check("ride_flags", "raised_by", ActorType.class);
         check("ride_flags", "rider_response", RideFlagRiderResponse.class);
+        check("ride_earnings", "payment_method", PaymentMode.class);
     }
 }
