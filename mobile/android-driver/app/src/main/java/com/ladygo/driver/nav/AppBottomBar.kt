@@ -33,10 +33,11 @@ enum class MainTab(
 
 /** Routes that belong to the signed-in driver's resting area: the four tabs and the screens opened from them.
  *  An incoming offer or an active ride may take the screen over from any of these. */
-fun isHomeTreeRoute(route: String?): Boolean = route == Routes.RIDE_DETAIL || MainTab.entries.any { it.route == route }
+fun isHomeTreeRoute(route: String?): Boolean =
+    route == Routes.RIDE_DETAIL || route == Routes.HELP || MainTab.entries.any { it.route == route }
 
 /** The bar is only for the four tab pages. Login, the onboarding gate, an incoming offer, an active ride and
- *  a ride's detail page are all full-screen. */
+ *  a ride's detail page and Help are all full-screen. */
 fun showsBottomBar(route: String?): Boolean = MainTab.entries.any { it.route == route }
 
 /** Switch tabs the standard way: one copy of each tab, state saved and restored, Home is the root. */

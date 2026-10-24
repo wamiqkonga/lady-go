@@ -185,4 +185,38 @@ class RideHistoryViewModelTest {
             advanceUntilIdle()
             coVerify(exactly = 2) { repository.fetchPage(0) }
         }
+
+    @Test
+    fun aSavedRatingShowsOnItsRowWithoutAReload() =
+        runTest {
+            coEvery { repository.fetchPage(0) } returns RideHistoryOutcome.Success(listOf(a, b), hasMore = false)
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            vm.onRated(b.bookingId, 4)
+
+            assertNull(
+                vm.uiState.value.items[0]
+                    .myRating,
+            )
+            assertEquals(
+                4,
+                vm.uiState.value.items[1]
+                    .myRating,
+            )
+            assertEquals(4, vm.item(b.bookingId)?.myRating)
+            coVerify(exactly = 1) { repository.fetchPage(0) }
+        }
+
+    @Test
+    fun ratingARideThatIsNotInTheListChangesNothing() =
+        runTest {
+            coEvery { repository.fetchPage(0) } returns RideHistoryOutcome.Success(listOf(a), hasMore = false)
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            vm.onRated(c.bookingId, 5)
+
+            assertEquals(listOf(a), vm.uiState.value.items)
+        }
 }

@@ -103,8 +103,79 @@
     <string name="nav_me">Me</string>
 
     <string name="me_title">Me</string>
-    <string name="me_coming_next_title">Coming next</string>
-    <string name="me_coming_next_body">Your rating, documents and help will appear here soon.</string>
+    <string name="me_loading">Loading your details...</string>
+    <string name="me_error_title">Could not load your details</string>
+    <string name="me_refresh_failed">Could not refresh. Showing what we loaded earlier.</string>
+    <string name="me_help">Help and support</string>
+    <string name="me_rating_title">Your rating</string>
+    <string name="me_rating_none">No ratings yet. Riders can rate you after a ride.</string>
+    <string name="me_rating_distribution_later">Distribution appears after 5 ratings</string>
+    <string name="me_rating_tags_title">What riders said recently</string>
+    <plurals name="me_rating_count">
+        <item quantity="one">From %1$d rating</item>
+        <item quantity="other">From %1$d ratings</item>
+    </plurals>
+    <plurals name="me_rating_stars">
+        <item quantity="one">%1$d star</item>
+        <item quantity="other">%1$d stars</item>
+    </plurals>
+    <string name="me_tag_polite">Polite</string>
+    <string name="me_tag_safe_driving">Safe driving</string>
+    <string name="me_tag_clean_vehicle">Clean vehicle</string>
+    <string name="me_tag_on_time">On time</string>
+    <string name="me_documents_title">Documents</string>
+    <string name="me_documents_none">No documents uploaded yet.</string>
+    <string name="me_vehicle_title">Vehicle</string>
+    <string name="me_vehicle_none">No vehicle added yet.</string>
+    <string name="me_vehicle_unnamed">Your vehicle</string>
+    <string name="me_changes_note">To change a document or your vehicle, continue on the Lady Go website.</string>
+    <string name="me_website_action">Continue on the Lady Go website</string>
+    <string name="me_status_approved">Approved</string>
+    <string name="me_status_pending">Under review</string>
+    <string name="me_status_rejected">Rejected</string>
+    <string name="me_status_suspended">Suspended</string>
+    <string name="me_status_unknown">Unknown</string>
+    <string name="doc_government_id">Government ID</string>
+    <string name="doc_license">Driving licence</string>
+    <string name="doc_vehicle_registration">Vehicle registration</string>
+    <string name="doc_vehicle_photo">Vehicle photo</string>
+    <string name="doc_insurance">Insurance</string>
+    <string name="doc_fitness_certificate">Fitness certificate</string>
+    <string name="doc_pollution_certificate">Pollution certificate</string>
+    <string name="doc_police_verification">Police verification</string>
+    <string name="doc_permit">Permit</string>
+    <string name="doc_photo">Profile photo</string>
+    <string name="doc_selfie">Selfie</string>
+    <string name="doc_other">Other document</string>
+
+    <string name="help_title">Help and support</string>
+    <string name="help_support_title">Talk to support</string>
+    <string name="help_loading">Loading support details...</string>
+    <string name="help_load_failed">Could not load the support details.</string>
+    <string name="help_coming_soon">Support details coming soon</string>
+    <string name="help_call_support">Call support</string>
+    <string name="help_whatsapp">Message on WhatsApp</string>
+    <string name="help_whatsapp_failed">WhatsApp is not installed or could not be opened.</string>
+    <string name="help_diagnostics_title">Something not working?</string>
+    <string name="help_diagnostics_body">Copy the app and phone details so support can help faster. They hold no password, phone number or location.</string>
+    <string name="help_copy_diagnostics">Copy diagnostics</string>
+    <string name="help_diagnostics_copied">Diagnostics copied</string>
+
+    <string name="rate_title">Rate your rider</string>
+    <string name="rate_prompt">How was this rider? You can skip this.</string>
+    <plurals name="rate_star_description">
+        <item quantity="one">%1$d star</item>
+        <item quantity="other">%1$d stars</item>
+    </plurals>
+    <string name="rate_tag_respectful">Respectful</string>
+    <string name="rate_tag_on_time">On time</string>
+    <string name="rate_submit">Submit rating</string>
+    <string name="rate_skip">Skip</string>
+    <string name="rate_close">Close</string>
+    <string name="rate_thanks">Thanks for rating your rider.</string>
+    <string name="rate_already_rated">You already rated this ride</string>
+    <string name="rate_network_failure">Could not reach the server. Retry, or skip for now.</string>
+    <string name="rides_rate_action">Rate the rider</string>
     <string name="me_log_out">Log out</string>
 
     <string name="earnings_title">Earnings</string>

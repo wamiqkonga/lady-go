@@ -52,6 +52,16 @@ class RideHistoryViewModel
 
         fun item(bookingId: UUID): RideHistoryItem? = _uiState.value.items.firstOrNull { it.bookingId == bookingId }
 
+        /** The server accepted this driver's rating of [bookingId]: show it on the row now, no reload. */
+        fun onRated(
+            bookingId: UUID,
+            score: Int,
+        ) {
+            if (paged.items.none { it.bookingId == bookingId }) return
+            paged = paged.copy(items = paged.items.map { if (it.bookingId == bookingId) it.copy(myRating = score) else it })
+            _uiState.value = _uiState.value.copy(items = paged.items)
+        }
+
         fun onRetry() {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             loadFirstPage()

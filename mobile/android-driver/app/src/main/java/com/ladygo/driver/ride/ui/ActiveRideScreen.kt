@@ -73,10 +73,12 @@ import com.ladygo.driver.ui.components.SecondaryButton
 import com.ladygo.driver.ui.components.StateIllustration
 import com.ladygo.driver.ui.components.StepDots
 import com.ladygo.driver.ui.theme.LadyGoTheme
+import java.util.UUID
 
 @Composable
 fun ActiveRideScreen(
     onFinished: () -> Unit,
+    onRideCompleted: (UUID) -> Unit = {},
     viewModel: ActiveRideViewModel = hiltViewModel(),
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
@@ -108,7 +110,7 @@ fun ActiveRideScreen(
                     if (!ExternalIntents.dialEmergency(context)) Toast.makeText(context, dialerFailedMessage, Toast.LENGTH_LONG).show()
                 },
                 onDone = {
-                    viewModel.onDone()
+                    viewModel.onDone()?.let(onRideCompleted)
                     onFinished()
                 },
             ),

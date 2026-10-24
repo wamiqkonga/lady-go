@@ -87,4 +87,21 @@ class RideHistoryModelTest {
         assertEquals("Sat 24 Oct, 4:05 PM", text?.replace("pm", "PM"))
         assertNull(formatRideDate(null))
     }
+
+    private val now = Instant.parse("2026-10-24T12:00:00Z")
+
+    @Test
+    fun aCompletedUnratedRideInsideSevenDaysCanBeRated() {
+        assertTrue(rideItem().canRate(now)) // completed 1h25m ago
+    }
+
+    @Test
+    fun noRatingButtonOnceRatedOrOutsideTheWindowOrNotCompleted() {
+        assertFalse(rideItem(myRating = 5).canRate(now))
+        assertFalse(rideItem().canRate(Instant.parse("2026-10-31T10:35:00Z"))) // exactly 7 days
+        assertTrue(rideItem().canRate(Instant.parse("2026-10-31T10:34:59Z")))
+        assertFalse(rideItem(status = RideHistoryStatus.CANCELLED).canRate(now))
+        assertFalse(rideItem(status = RideHistoryStatus.ENDED_EARLY).canRate(now))
+        assertFalse(rideItem().copy(completedAt = null).canRate(now))
+    }
 }

@@ -2,25 +2,33 @@ package com.ladygo.driver.history.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.ladygo.driver.R
 import com.ladygo.driver.history.RideHistoryItem
 import com.ladygo.driver.history.RidePayment
+import com.ladygo.driver.history.canRate
 import com.ladygo.driver.history.formatRideDate
 import com.ladygo.driver.ui.components.LabelValueRow
 import com.ladygo.driver.ui.components.LadyGoCard
 import com.ladygo.driver.ui.components.LadyGoScreen
 import com.ladygo.driver.ui.components.Money
+import com.ladygo.driver.ui.components.SecondaryButton
 import com.ladygo.driver.ui.components.StateIllustration
+import java.time.Instant
 
 /** Read-only view of one history row. [ride] is null when the row is no longer in memory (e.g. the app was restarted). */
 @Composable
 fun RideDetailScreen(
     ride: RideHistoryItem?,
     onBack: () -> Unit,
+    onRate: (RideHistoryItem) -> Unit = {},
+    now: Instant = Instant.now(),
 ) {
     LadyGoScreen(
         title = stringResource(R.string.rides_detail_title),
@@ -57,6 +65,14 @@ fun RideDetailScreen(
             )
             ride.myRating?.let { LabelValueRow(stringResource(R.string.rides_detail_rating_label), "$it / 5") }
             if (ride.ratedByRider) Text(stringResource(R.string.rides_rider_rated), style = MaterialTheme.typography.bodyMedium)
+            if (ride.canRate(now)) {
+                SecondaryButton(
+                    text = stringResource(R.string.rides_rate_action),
+                    onClick = { onRate(ride) },
+                    icon = Icons.Filled.Star,
+                    modifier = Modifier.testTag("rate_rider_action"),
+                )
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.ladygo.driver.history
 
 import com.ladygo.driver.api.generated.models.DriverRideHistoryItemResponse
+import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
@@ -27,6 +28,15 @@ data class RideHistoryItem(
     /** Only a hint that the rider rated; the score itself is never sent. */
     val ratedByRider: Boolean,
 )
+
+/** The server's rating window (`docs/api/driver-earnings-ratings.md` §4.3). The server decides; this only decides whether to offer the button. */
+private val RATING_WINDOW: Duration = Duration.ofDays(7)
+
+/** Offer "Rate the rider": a completed ride she has not rated yet, inside the 7-day window. */
+fun RideHistoryItem.canRate(now: Instant): Boolean {
+    val finished = completedAt ?: return false
+    return status == RideHistoryStatus.COMPLETED && myRating == null && now.isBefore(finished.plus(RATING_WINDOW))
+}
 
 /** Null for a row without a booking id (nothing to key or open it by). */
 fun DriverRideHistoryItemResponse.toItem(): RideHistoryItem? {

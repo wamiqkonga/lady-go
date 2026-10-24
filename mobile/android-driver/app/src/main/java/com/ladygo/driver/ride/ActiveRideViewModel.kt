@@ -44,6 +44,11 @@ data class ActiveRideUiState(
 
     /** A ride that still needs the driver; the nav layer only pins the ride screen while this holds. */
     val isOngoing: Boolean get() = isActive && stage?.isOngoing == true
+
+    /** The booking the driver may be asked to rate once she presses Done: a finished ride, or a cash ride whose
+     *  cash she has just confirmed. Never an ended/cancelled one. Only a hint - the server decides. */
+    val ratableBookingId: UUID?
+        get() = booking?.id?.takeIf { stage == RideStage.FINISHED || (stage == RideStage.PAYMENT && cashConfirmed) }
 }
 
 /**
@@ -195,7 +200,13 @@ class ActiveRideViewModel
 
         fun onRetrySelfie() = loadSelfie()
 
-        fun onDone() = endRide()
+        /** Closes the ride out. Returns the booking to offer a rating for (null when there is none to rate); the
+         *  caller shows that prompt separately - it never delays or blocks going back to Home. */
+        fun onDone(): UUID? {
+            val ratable = _uiState.value.ratableBookingId
+            endRide()
+            return ratable
+        }
 
         fun dismissError() = _uiState.update { it.copy(error = null) }
 

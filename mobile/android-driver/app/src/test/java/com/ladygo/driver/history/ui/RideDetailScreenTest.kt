@@ -47,4 +47,36 @@ class RideDetailScreenTest {
         composeRule.setContent { RideDetailScreen(ride = null, onBack = {}) }
         composeRule.onNodeWithText("This ride is not available any more.").assertExists()
     }
+
+    private val now = java.time.Instant.parse("2026-10-24T12:00:00Z")
+
+    @Test
+    fun anUnratedRecentCompletedRideOffersRatingAndTheTapReportsTheRide() {
+        val ride = rideItem()
+        var rated: com.ladygo.driver.history.RideHistoryItem? = null
+        composeRule.setContent { RideDetailScreen(ride = ride, onBack = {}, onRate = { rated = it }, now = now) }
+
+        composeRule.onNodeWithText("Rate the rider").performClick()
+        assertEquals(ride, rated)
+    }
+
+    @Test
+    fun noRatingButtonForAnAlreadyRatedRide() {
+        composeRule.setContent { RideDetailScreen(ride = rideItem(myRating = 3), onBack = {}, now = now) }
+        composeRule.onNodeWithText("Rate the rider").assertDoesNotExist()
+    }
+
+    @Test
+    fun noRatingButtonOnceTheWindowHasPassed() {
+        composeRule.setContent {
+            RideDetailScreen(ride = rideItem(), onBack = {}, now = java.time.Instant.parse("2026-11-05T00:00:00Z"))
+        }
+        composeRule.onNodeWithText("Rate the rider").assertDoesNotExist()
+    }
+
+    @Test
+    fun noRatingButtonForACancelledRide() {
+        composeRule.setContent { RideDetailScreen(ride = rideItem(status = RideHistoryStatus.CANCELLED), onBack = {}, now = now) }
+        composeRule.onNodeWithText("Rate the rider").assertDoesNotExist()
+    }
 }
