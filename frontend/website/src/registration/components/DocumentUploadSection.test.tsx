@@ -58,7 +58,7 @@ describe('DocumentUploadSection', () => {
     await userEvent.upload(input, jpegFile())
     await waitFor(() => expect(screen.getByAltText('Preview')).toBeInTheDocument())
 
-    await userEvent.type(screen.getByPlaceholderText('Document number'), 'DL-1')
+    await userEvent.type(screen.getByLabelText('Document number'), 'DL-1')
     const dateInput = screen.getByLabelText('Expiry date')
     await userEvent.type(dateInput, '2030-01-01')
 

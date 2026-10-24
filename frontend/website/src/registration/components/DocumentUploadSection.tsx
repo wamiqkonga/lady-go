@@ -15,10 +15,11 @@ function statusBadge(status?: string) {
 }
 
 export default function DocumentUploadSection({
-  type, label, existing, needsNumber, needsExpiry, onUploaded,
+  type, label, tip, existing, needsNumber, needsExpiry, onUploaded,
 }: {
   type: DocumentType
   label: string
+  tip?: string
   existing?: DriverDocumentResponse
   needsNumber?: boolean
   needsExpiry?: boolean
@@ -30,6 +31,7 @@ export default function DocumentUploadSection({
   const [expiresAt, setExpiresAt] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [today] = useState(() => new Date().toISOString().slice(0, 10))
 
   function onFileChosen(chosen: File | null) {
     setError(null)
@@ -74,6 +76,7 @@ export default function DocumentUploadSection({
   return (
     <div className="section">
       <h2>{label}</h2>
+      {tip && <p className="muted">{tip}</p>}
       {existing && (
         <p>
           {statusBadge(existing.status)}
@@ -89,32 +92,45 @@ export default function DocumentUploadSection({
 
       {canResubmit && (
         <>
-          <input
-            type="file"
-            accept="image/jpeg,image/png"
-            onChange={(e) => onFileChosen(e.target.files?.[0] ?? null)}
-          />
-          {previewUrl && <img src={previewUrl} alt="Preview" className="preview" />}
-          {needsNumber && (
+          <div className="form">
+            <label htmlFor={`file-${type}`}>Photo (JPEG or PNG, up to 8 MB)</label>
             <input
-              type="text"
-              placeholder="Document number"
-              value={number}
-              onChange={(e) => setNumber(e.target.value)}
+              id={`file-${type}`}
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={(e) => onFileChosen(e.target.files?.[0] ?? null)}
             />
-          )}
-          {needsExpiry && (
-            <input
-              type="date"
-              aria-label="Expiry date"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-            />
-          )}
-          {error && <p role="alert">{error}</p>}
+            {previewUrl && <img src={previewUrl} alt="Preview" className="preview" />}
+            {needsNumber && (
+              <>
+                <label htmlFor={`num-${type}`}>Document number</label>
+                <input
+                  id={`num-${type}`}
+                  type="text"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                />
+              </>
+            )}
+            {needsExpiry && (
+              <>
+                <label htmlFor={`exp-${type}`}>Expiry date</label>
+                <input
+                  id={`exp-${type}`}
+                  type="date"
+                  min={today}
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                />
+              </>
+            )}
+          </div>
+          {error && <p role="alert" className="error">{error}</p>}
           <div className="row-actions">
             <button type="button" onClick={submit} disabled={busy || !file}>
-              {existing ? 'Resubmit' : 'Upload'}
+              {busy ? 'Uploading…' : existing ? 'Resubmit' : 'Upload'}
             </button>
           </div>
         </>

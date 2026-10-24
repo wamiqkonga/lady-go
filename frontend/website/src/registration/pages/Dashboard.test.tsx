@@ -40,62 +40,104 @@ describe('Dashboard', () => {
     await waitFor(() => expect(screen.getByRole('option', { name: 'Srinagar' })).toBeInTheDocument())
   })
 
-  it('shows all sections with current status once the driver has a profile', async () => {
-    const profile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'PENDING_REVIEW' }, error: null }
-    const vehicle = { success: true, data: { id: 'v-1', registrationNumber: 'JK01AB1234', vehicleType: 'CAB', verificationStatus: 'PENDING' }, error: null }
-    const documents = {
-      success: true,
-      data: [{ id: 'doc-1', type: 'LICENSE', status: 'REJECTED', reviewNote: 'Photo is blurry', createdAt: '2026-01-01T00:00:00Z' }],
-      error: null,
-    }
-    const declaration = { success: true, data: { currentVersion: 'v1', currentText: 'I declare that...', accepted: false, acceptedVersion: null, acceptedAt: null }, error: null }
+  const ALL_TYPES = ['LICENSE', 'VEHICLE_REGISTRATION', 'VEHICLE_PHOTO', 'INSURANCE', 'FITNESS_CERTIFICATE', 'POLLUTION_CERTIFICATE', 'SELFIE']
+  const profile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'PENDING_REVIEW' }, error: null }
+  const vehicle = { success: true, data: { id: 'v-1', registrationNumber: 'JK01AB1234', vehicleType: 'CAB', verificationStatus: 'PENDING' }, error: null }
+  const notFound = { success: false, data: null, error: { code: 'NOT_FOUND', message: 'not found' } }
+  const pendingDeclaration = { success: true, data: { currentVersion: 'v1', currentText: 'I declare that...', accepted: false, acceptedVersion: null, acceptedAt: null }, error: null }
 
-    const fetchMock = vi.fn().mockImplementation((input: Request) => {
+  function docs(overrides: Record<string, object> = {}) {
+    return {
+      success: true,
+      error: null,
+      data: ALL_TYPES.map((type, i) => ({
+        id: `doc-${i}`, type, status: 'PENDING', createdAt: '2026-01-01T00:00:00Z', ...overrides[type],
+      })),
+    }
+  }
+
+  it('resumes on a rejected document and shows the reviewer note as plain text', async () => {
+    const documents = docs({ LICENSE: { status: 'REJECTED', reviewNote: 'Photo is blurry' } })
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
       const url = input.url
       if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse(vehicle))
       if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse(documents))
-      if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(declaration))
+      if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(pendingDeclaration))
       return Promise.resolve(jsonResponse(profile))
-    })
-    vi.stubGlobal('fetch', fetchMock)
+    }))
 
     renderDashboard()
 
-    await waitFor(() => expect(screen.getByText('JK01AB1234 (CAB)', { exact: false })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Driving licence' })).toBeInTheDocument())
     expect(screen.getByText('Photo is blurry')).toBeInTheDocument()
-    expect(screen.getByText('I declare that...')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'I agree' })).toBeInTheDocument()
-
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '7')
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
     // A rejection note renders as plain text, never markup - no element created from it.
     expect(document.querySelector('.review-note')?.innerHTML).not.toContain('<')
   })
 
-  it('accepting the declaration calls the accept endpoint with the current version', async () => {
-    const profile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'PENDING_REVIEW' }, error: null }
-    const declaration = { success: true, data: { currentVersion: 'v1', currentText: 'Terms...', accepted: false, acceptedVersion: null, acceptedAt: null }, error: null }
-    const acceptedDeclaration = { success: true, data: { currentVersion: 'v1', currentText: 'Terms...', accepted: true, acceptedVersion: 'v1', acceptedAt: '2026-01-02T00:00:00Z' }, error: null }
-
-    let declarationCalls = 0
-    const fetchMock = vi.fn().mockImplementation((input: Request, init?: RequestInit) => {
+  it('does not call the application "under review" while steps are still missing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
       const url = input.url
-      if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse({ success: false, data: null, error: { code: 'NOT_FOUND', message: 'not found' } }, 404))
+      if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse(notFound, 404))
       if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse({ success: true, data: [], error: null }))
+      if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(pendingDeclaration))
+      return Promise.resolve(jsonResponse(profile))
+    }))
+
+    renderDashboard()
+
+    await waitFor(() => expect(screen.getByLabelText('Registration number')).toBeInTheDocument())
+    expect(screen.getByText('In progress')).toBeInTheDocument()
+    expect(screen.queryByText('Under review')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  })
+
+  it('accepting the declaration needs the checkbox, then calls the accept endpoint with the current version', async () => {
+    const acceptedDeclaration = { success: true, data: { currentVersion: 'v1', currentText: 'Terms...', accepted: true, acceptedVersion: 'v1', acceptedAt: '2026-01-02T00:00:00Z' }, error: null }
+    let declarationCalls = 0
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request, init?: RequestInit) => {
+      const url = input.url
+      if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse(vehicle))
+      if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse(docs()))
       if (url.endsWith('/api/v1/drivers/me/declaration') && (input.method === 'POST' || init?.method === 'POST')) {
         declarationCalls += 1
         return Promise.resolve(jsonResponse({ success: true, data: { declarationVersion: 'v1', acceptedAt: '2026-01-02T00:00:00Z' }, error: null }))
       }
       if (url.endsWith('/api/v1/drivers/me/declaration')) {
-        return Promise.resolve(jsonResponse(declarationCalls > 0 ? acceptedDeclaration : declaration))
+        return Promise.resolve(jsonResponse(declarationCalls > 0 ? acceptedDeclaration : { ...pendingDeclaration, data: { ...pendingDeclaration.data, currentText: 'Terms...' } }))
       }
       return Promise.resolve(jsonResponse(profile))
-    })
-    vi.stubGlobal('fetch', fetchMock)
+    }))
 
     renderDashboard()
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'I agree' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'I agree' })).toBeDisabled())
+    await userEvent.click(screen.getByLabelText(/I have read and understood/))
     await userEvent.click(screen.getByRole('button', { name: 'I agree' }))
 
     await waitFor(() => expect(declarationCalls).toBe(1))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+  })
+
+  it('shows a plain error when accepting the declaration fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request, init?: RequestInit) => {
+      const url = input.url
+      if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse(vehicle))
+      if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse(docs()))
+      if (url.endsWith('/api/v1/drivers/me/declaration') && (input.method === 'POST' || init?.method === 'POST')) {
+        return Promise.resolve(jsonResponse({ success: false, data: null, error: { code: 'X', message: 'Server unavailable' } }, 500))
+      }
+      if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(pendingDeclaration))
+      return Promise.resolve(jsonResponse(profile))
+    }))
+
+    renderDashboard()
+
+    await waitFor(() => expect(screen.getByLabelText(/I have read and understood/)).toBeInTheDocument())
+    await userEvent.click(screen.getByLabelText(/I have read and understood/))
+    await userEvent.click(screen.getByRole('button', { name: 'I agree' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 })

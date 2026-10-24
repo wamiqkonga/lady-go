@@ -95,6 +95,7 @@ export default function SelfieCapture({
   return (
     <div className="section">
       <h2>Selfie</h2>
+      <p className="muted">Face the camera in good light, with no sunglasses or mask. Your whole face must be visible.</p>
       {existing && (
         <p>
           {existing.status === 'APPROVED' && <span className="badge badge-ok">Approved</span>}
@@ -115,7 +116,8 @@ export default function SelfieCapture({
                   Use camera
                 </button>
               )}
-              <label className="row-actions" style={{ display: 'inline-block' }}>
+              <label className="file-pick">
+                <span>{cameraUnavailable ? 'Camera unavailable. Choose a photo instead' : 'Or choose a photo'}</span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png"
@@ -138,10 +140,10 @@ export default function SelfieCapture({
           {previewUrl && (
             <>
               <img src={previewUrl} alt="Selfie preview" className="preview" />
-              {error && <p role="alert">{error}</p>}
+              {error && <p role="alert" className="error">{error}</p>}
               <div className="row-actions">
                 <button type="button" onClick={submit} disabled={busy}>
-                  {existing ? 'Resubmit' : 'Upload'}
+                  {busy ? 'Uploading…' : existing ? 'Resubmit' : 'Upload'}
                 </button>
                 <button
                   type="button"
@@ -156,7 +158,7 @@ export default function SelfieCapture({
               </div>
             </>
           )}
-          {error && !previewUrl && <p role="alert">{error}</p>}
+          {error && !previewUrl && <p role="alert" className="error">{error}</p>}
         </>
       )}
     </div>
