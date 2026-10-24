@@ -94,4 +94,62 @@
     <string name="ride_collect_label">Collect from rider</string>
     <string name="ride_finished_title">Well done</string>
     <string name="ride_ended_title">This ride has ended</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_back">Back</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_earnings">Earnings</string>
+    <string name="nav_rides">Rides</string>
+    <string name="nav_me">Me</string>
+
+    <string name="me_title">Me</string>
+    <string name="me_coming_next_title">Coming next</string>
+    <string name="me_coming_next_body">Your rating, documents and help will appear here soon.</string>
+    <string name="me_log_out">Log out</string>
+
+    <string name="earnings_title">Earnings</string>
+    <string name="earnings_this_week">This week</string>
+    <string name="earnings_last_week">Last week</string>
+    <string name="earnings_net_label">You earned</string>
+    <string name="earnings_gross_label">Fares collected</string>
+    <string name="earnings_commission_label">Lady Go commission</string>
+    <string name="earnings_commission_unset">Commission not set yet</string>
+    <string name="earnings_rides_label">Rides</string>
+    <string name="earnings_cash_label">Cash collected</string>
+    <string name="earnings_online_label">Paid online</string>
+    <string name="earnings_by_day">By day</string>
+    <string name="earnings_empty_title">No earnings yet</string>
+    <string name="earnings_empty_body">Go online to get your first ride.</string>
+    <string name="earnings_error_title">Could not load your earnings</string>
+    <string name="earnings_refresh_failed">Could not refresh. Showing the last numbers we loaded.</string>
+    <string name="earnings_loading">Loading your earnings...</string>
+    <string name="earnings_range">%1$s to %2$s</string>
+    <plurals name="earnings_ride_count">
+        <item quantity="one">%1$d ride</item>
+        <item quantity="other">%1$d rides</item>
+    </plurals>
+
+    <string name="rides_title">Rides</string>
+    <string name="rides_empty_title">No rides yet</string>
+    <string name="rides_empty_body">Go online to get your first ride.</string>
+    <string name="rides_error_title">Could not load your rides</string>
+    <string name="rides_refresh_failed">Could not refresh. Showing the rides we loaded earlier.</string>
+    <string name="rides_loading">Loading your rides...</string>
+    <string name="rides_loading_more">Loading more rides...</string>
+    <string name="rides_load_more_failed">Could not load more rides.</string>
+    <string name="rides_status_completed">Completed</string>
+    <string name="rides_status_cancelled">Cancelled</string>
+    <string name="rides_status_ended_early">Ended early</string>
+    <string name="rides_status_other">Other</string>
+    <string name="rides_address_hidden">Address hidden for this ride</string>
+    <string name="rides_rider_rated">Rider has rated</string>
+    <string name="rides_my_rating">You rated %1$d</string>
+    <string name="rides_date_unknown">Date unavailable</string>
+    <string name="rides_detail_title">Ride details</string>
+    <string name="rides_detail_not_found">This ride is not available any more.</string>
+    <string name="rides_detail_payment_label">Payment</string>
+    <string name="rides_detail_rating_label">Your rating</string>
+    <string name="rides_payment_cash">Cash</string>
+    <string name="rides_payment_online">Online</string>
+    <string name="rides_payment_unknown">Not recorded</string>
 </resources>

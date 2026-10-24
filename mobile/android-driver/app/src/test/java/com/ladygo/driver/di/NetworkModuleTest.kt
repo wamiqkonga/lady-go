@@ -15,6 +15,12 @@ class NetworkModuleTest {
     }
 
     @Test
+    fun ratingBodiesAreNotBodyLogged() {
+        assertTrue(isBodyLoggingSensitive("/api/v1/drivers/me/bookings/$id/rating"))
+        assertTrue(isBodyLoggingSensitive("/api/v1/bookings/$id/rating"))
+    }
+
+    @Test
     fun otherPathsStillGetBodyLogging() {
         assertFalse(isBodyLoggingSensitive("/api/v1/drivers/me/bookings/$id"))
         assertFalse(isBodyLoggingSensitive("/api/v1/drivers/me/bookings/$id/arrived"))

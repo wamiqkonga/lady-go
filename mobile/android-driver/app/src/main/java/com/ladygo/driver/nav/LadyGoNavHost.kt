@@ -1,9 +1,14 @@
 package com.ladygo.driver.nav
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -11,12 +16,20 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.ladygo.driver.account.MeScreen
 import com.ladygo.driver.auth.SessionManager
+import com.ladygo.driver.earnings.ui.EarningsScreen
+import com.ladygo.driver.history.RideHistoryViewModel
+import com.ladygo.driver.history.ui.RideDetailScreen
+import com.ladygo.driver.history.ui.RideHistoryScreen
 import com.ladygo.driver.location.LocationForegroundService
 import com.ladygo.driver.login.ui.LoginScreen
 import com.ladygo.driver.offer.OfferUiState
@@ -35,6 +48,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
+import java.util.UUID
 import javax.inject.Inject
 
 object Routes {
@@ -43,6 +57,12 @@ object Routes {
     const val HOME = "home"
     const val INCOMING_OFFER = "incoming_offer"
     const val ACTIVE_RIDE = "active_ride"
+    const val EARNINGS = "earnings"
+    const val RIDES = "rides"
+    const val ME = "me"
+    const val RIDE_DETAIL = "ride_detail/{bookingId}"
+
+    fun rideDetail(bookingId: UUID) = "ride_detail/$bookingId"
 }
 
 @HiltViewModel
@@ -134,9 +154,40 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
         }
     }
 
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    // Insets are left to each screen (as before); the bar only claims its own height, and only on the four tab
+    // pages, so Login, the gate, an incoming offer and an active ride stay exactly as they were.
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = { AppBottomBar(currentRoute = currentRoute, onSelect = navController::navigateToTab) },
+    ) { barPadding ->
+        LadyGoNavGraph(
+            navController = navController,
+            startDestination = if (initiallyLoggedIn) Routes.ONBOARDING_GATE else Routes.LOGIN,
+            modifier = Modifier.padding(barPadding).consumeWindowInsets(barPadding),
+            offerViewModel = offerViewModel,
+            rideViewModel = rideViewModel,
+            rideOngoing = rideOngoing,
+            rideEndCount = rideEndCount,
+        )
+    }
+}
+
+@Suppress("LongParameterList")
+@Composable
+private fun LadyGoNavGraph(
+    navController: NavHostController,
+    startDestination: String,
+    modifier: Modifier,
+    offerViewModel: OfferViewModel,
+    rideViewModel: ActiveRideViewModel,
+    rideOngoing: Boolean,
+    rideEndCount: Int,
+) {
     NavHost(
         navController = navController,
-        startDestination = if (initiallyLoggedIn) Routes.ONBOARDING_GATE else Routes.LOGIN,
+        startDestination = startDestination,
+        modifier = modifier,
     ) {
         composable(Routes.LOGIN) {
             LoginScreen(onLoggedIn = {
@@ -155,6 +206,25 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
         composable(Routes.HOME) {
             HomeScreen(rideOngoing = rideOngoing, rideEndCount = rideEndCount)
         }
+        composable(Routes.EARNINGS) { EarningsScreen() }
+        composable(Routes.RIDES) { entry ->
+            RideHistoryScreen(
+                viewModel = homeScopedRideHistory(navController, entry),
+                onOpenRide = { bookingId -> navController.navigate(Routes.rideDetail(bookingId)) },
+            )
+        }
+        composable(
+            Routes.RIDE_DETAIL,
+            arguments = listOf(navArgument("bookingId") { type = NavType.StringType }),
+        ) { entry ->
+            val history = homeScopedRideHistory(navController, entry)
+            val bookingId = entry.arguments?.getString("bookingId")?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+            RideDetailScreen(
+                ride = bookingId?.let(history::item),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.ME) { MeScreen() }
         composable(Routes.INCOMING_OFFER) {
             OfferScreen(
                 viewModel = offerViewModel,
@@ -171,6 +241,17 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
             )
         }
     }
+}
+
+/** The ride list lives as long as the Home entry (not each tab's entry), so the open detail page and a tab switch
+ *  keep the rows already loaded, and nothing is requested before the driver first opens the Rides tab. */
+@Composable
+private fun homeScopedRideHistory(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+): RideHistoryViewModel {
+    val homeEntry = remember(entry) { navController.getBackStackEntry(Routes.HOME) }
+    return hiltViewModel(homeEntry)
 }
 
 /** A ride in progress needs fresh location (the server gates arrive/start on it) even though no Home
@@ -204,10 +285,10 @@ private fun RideNavigationEffect(
     val rideOngoing = rideState.isOngoing
     val rideLeftover = rideState.isActive && !rideState.isOngoing
     LaunchedEffect(rideOngoing, rideLeftover, currentRoute, offerShowing) {
-        val onHomeOrAcceptedOffer = currentRoute == Routes.HOME || (currentRoute == Routes.INCOMING_OFFER && !offerShowing)
+        val onHomeOrAcceptedOffer = isHomeTreeRoute(currentRoute) || (currentRoute == Routes.INCOMING_OFFER && !offerShowing)
         if (rideOngoing && onHomeOrAcceptedOffer) {
             navController.navigate(Routes.ACTIVE_RIDE) { popUpTo(Routes.HOME) }
-        } else if (rideLeftover && currentRoute == Routes.HOME) {
+        } else if (rideLeftover && isHomeTreeRoute(currentRoute)) {
             // A finished/ended ride found while on Home (e.g. restored after an app kill) needs no screen.
             rideViewModel.onDone()
         } else if (!rideState.isActive && currentRoute == Routes.ACTIVE_RIDE) {

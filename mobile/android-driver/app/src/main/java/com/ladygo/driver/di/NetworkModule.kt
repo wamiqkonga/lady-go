@@ -4,7 +4,9 @@ import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
 import com.ladygo.driver.api.generated.apis.DriverBookingControllerApi
 import com.ladygo.driver.api.generated.apis.DriverControllerApi
+import com.ladygo.driver.api.generated.apis.DriverEarningsControllerApi
 import com.ladygo.driver.api.generated.apis.DriverOfferControllerApi
+import com.ladygo.driver.api.generated.apis.RatingControllerApi
 import com.ladygo.driver.api.generated.apis.RideLifecycleControllerApi
 import com.ladygo.driver.api.generated.apis.SystemControllerApi
 import com.ladygo.driver.api.generated.infrastructure.Serializer
@@ -191,6 +193,18 @@ object NetworkModule {
         @AuthenticatedClient retrofit: Retrofit,
     ): DriverBookingControllerApi = retrofit.create(DriverBookingControllerApi::class.java)
 
+    @Provides
+    @Singleton
+    fun provideDriverEarningsControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): DriverEarningsControllerApi = retrofit.create(DriverEarningsControllerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideRatingControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): RatingControllerApi = retrofit.create(RatingControllerApi::class.java)
+
     // Public, no auth required (SystemController has no @PreAuthorize) - used for the STOMP clock-skew
     // sample before any connection exists, so it deliberately goes through the plain client, not the
     // authenticated one.
@@ -224,7 +238,13 @@ object NetworkModule {
     private const val STOMP_WS_PING_INTERVAL_SECONDS = 20L
 }
 
-private val SENSITIVE_BODY_PATHS = listOf(Regex("/(rides|bookings)/[^/]+/start/?$"), Regex("/bookings/[^/]+/rider-selfie/?$"))
+private val SENSITIVE_BODY_PATHS =
+    listOf(
+        Regex("/(rides|bookings)/[^/]+/start/?$"),
+        Regex("/bookings/[^/]+/rider-selfie/?$"),
+        Regex("/bookings/[^/]+/rating/?$"),
+    )
 
-/** Paths whose request/response bodies must never reach the debug log: the ride PIN and the rider selfie's signed URL. */
+/** Paths whose request/response bodies must never reach the debug log: the ride PIN, the rider selfie's signed URL
+ *  and a rating's score, tags and comment. */
 internal fun isBodyLoggingSensitive(encodedPath: String): Boolean = SENSITIVE_BODY_PATHS.any { it.containsMatchIn(encodedPath) }
