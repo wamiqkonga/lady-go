@@ -107,8 +107,8 @@ Read-only searching and renames: Haiku 5.5.
 ## 9. Deploy and rollback
 
 - Merge to `develop`, deploy to staging first, run the E2E workflow `driver-registration-e2e.yml`.
-- Gate the new wizard behind a flag `VITE_REG_WIZARD` (build-time) so old page stays available.
-- Rollback: set the flag off and redeploy the website (minutes). No data migration, so rollback is safe.
+- No feature flag (decided while building, to avoid maintaining two versions of the page).
+- Rollback: revert the wizard commits and redeploy the website (minutes). No data migration, so rollback is safe.
 
 ## 10. Launch and marketing
 
@@ -128,7 +128,7 @@ Follow the Dev Desk lifecycle: Ready for test, In testing/UAT, Test Failed, Read
 
 **Ticket A: Driver registration wizard, staging**
 - Why: drivers drop off on one long page with no progress.
-- Steps: (1) Deploy website build with `VITE_REG_WIZARD=true` to staging. (2) Open staging `/driver/login` on a phone. (3) Register a test driver through all steps. (4) Try wrong file, big file, refresh mid-way.
+- Steps: (1) Deploy the website build to staging. (2) Open staging `/driver/login` on a phone. (3) Register a test driver through all steps. (4) Try wrong file, big file, refresh mid-way.
 - Acceptance: every step shows progress; refresh resumes at the right step; rejected document shows reason and can be resubmitted; done screen shown; no console errors.
 - Owner: Wamiq (UAT), Claude (build). Environment: staging.
 
@@ -140,8 +140,8 @@ Follow the Dev Desk lifecycle: Ready for test, In testing/UAT, Test Failed, Read
 
 **Ticket C: Production release**
 - Why: ship to drivers.
-- Steps: after Ticket A and B pass UAT, move to Ready To Deploy, deploy website to production with the flag on, smoke test with one real login.
-- Acceptance: login, one full test registration, flag-off rollback tested once on staging first.
+- Steps: after Ticket A and B pass UAT, move to Ready To Deploy, deploy website to production, smoke test with one real login.
+- Acceptance: login, one full test registration, revert-and-redeploy rollback rehearsed once on staging first.
 - Owner: Wamiq. Environment: production, after staging passes.
 
 ## 13. Decisions needed from you
