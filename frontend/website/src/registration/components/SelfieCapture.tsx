@@ -3,6 +3,7 @@ import { uploadSelfie } from '../lib/upload'
 import { ApiCallError } from '../lib/client'
 import { validateImageFile } from '../lib/fileValidation'
 import { fileToDataUrl } from '../lib/preview'
+import DocumentStatusBadge from './DocumentStatusBadge'
 import type { components } from '../lib/api-types'
 
 type DriverDocumentResponse = components['schemas']['DriverDocumentResponse']
@@ -98,9 +99,7 @@ export default function SelfieCapture({
       <p className="muted">Face the camera in good light, with no sunglasses or mask. Your whole face must be visible.</p>
       {existing && (
         <p>
-          {existing.status === 'APPROVED' && <span className="badge badge-ok">Approved</span>}
-          {existing.status === 'REJECTED' && <span className="badge badge-bad">Rejected</span>}
-          {existing.status === 'PENDING' && <span className="badge badge-warn">Pending review</span>}
+          <DocumentStatusBadge status={existing.status} />
           {existing.status === 'REJECTED' && existing.reviewNote && (
             <span className="review-note"> {existing.reviewNote}</span>
           )}

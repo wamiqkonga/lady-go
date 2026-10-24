@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -82,5 +82,45 @@ describe('Login', () => {
     const url = fetchMock.mock.calls[0][0] as string
     expect(url).not.toContain('+919900000003')
     expect(url).not.toContain('919900000003')
+  })
+
+  it('keeps only digits (max 6) in the code field', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ success: true, data: { message: 'sent' }, error: null })))
+    render(<MemoryRouter><Login /></MemoryRouter>)
+    await userEvent.type(screen.getByLabelText('Phone number'), '+919900000001')
+    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
+    await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
+
+    fireEvent.change(screen.getByLabelText('Code'), { target: { value: '12 34-56789' } })
+
+    expect(screen.getByLabelText('Code')).toHaveValue('123456')
+  })
+
+  it('lets the driver request a new code only after the 30 second countdown', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, data: { message: 'sent' }, error: null }))
+      vi.stubGlobal('fetch', fetchMock)
+      render(<MemoryRouter><Login /></MemoryRouter>)
+      await userEvent.type(screen.getByLabelText('Phone number'), '+919900000001')
+      await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+      await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
+
+      const resend = await screen.findByRole('button', { name: /Send a new code in \d+s/ })
+      expect(resend).toBeDisabled()
+
+      // The countdown re-arms a one-second timer on every render, so tick it one second at a time.
+      for (let i = 0; i < 31; i++) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      }
+      const ready = screen.getByRole('button', { name: 'Send a new code' })
+      expect(ready).toBeEnabled()
+
+      await userEvent.click(ready)
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -51,7 +51,7 @@ export function stepState(step: Step, data: RegistrationData): StepState {
       return data.vehicle ? 'done' : 'todo'
     case 'document':
     case 'selfie': {
-      const doc = latestDocument(data.documents, step.id as DocumentType)
+      const doc = latestDocument(data.documents, step.id)
       if (!doc) return 'todo'
       return doc.status === 'REJECTED' ? 'fix' : 'done'
     }

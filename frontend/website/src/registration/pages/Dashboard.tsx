@@ -134,6 +134,7 @@ export default function Dashboard() {
   const { signOut } = useSession()
   const [profile, setProfile] = useState<DriverProfileResponse | null>(null)
   const [vehicle, setVehicle] = useState<VehicleResponse | null>(null)
+  const [vehicleLoaded, setVehicleLoaded] = useState(false)
   const [documents, setDocuments] = useState<DriverDocumentResponse[] | null>(null)
   const [declaration, setDeclaration] = useState<DeclarationStatusResponse | null>(null)
   const [vehicleForm, setVehicleForm] = useState({ registrationNumber: '', vehicleType: 'CAB', make: '', model: '', color: '' })
@@ -171,9 +172,17 @@ export default function Dashboard() {
 
   const loadRest = useCallback(() => {
     setLoadError(null)
+    // 404 means "no vehicle saved yet" (an expected state); any other failure is a real load error and
+    // must not look like an empty vehicle form, or the driver could overwrite a vehicle they already have.
     client.GET('/api/v1/drivers/me/vehicle').then((result) => {
-      try { setVehicle(unwrap(result)) } catch { setVehicle(null) }
-    }).catch(() => setVehicle(null))
+      try {
+        setVehicle(unwrap(result))
+      } catch (err) {
+        if (!(err instanceof ApiCallError && err.status === 404)) throw err
+        setVehicle(null)
+      }
+      setVehicleLoaded(true)
+    }).catch(() => setLoadError('Could not load your vehicle.'))
     client.GET('/api/v1/drivers/me/documents').then((result) => setDocuments(unwrap(result) ?? []))
       .catch(() => setLoadError('Could not load your documents.'))
     client.GET('/api/v1/drivers/me/declaration').then((result) => setDeclaration(unwrap(result)))
@@ -185,7 +194,7 @@ export default function Dashboard() {
   }, [profile, loadRest])
 
   const data: RegistrationData = { vehicle, documents: documents ?? [], declaration }
-  const ready = profile !== null && documents !== null && declaration !== null
+  const ready = profile !== null && vehicleLoaded && documents !== null && declaration !== null
 
   // Resume: once everything has loaded, jump to the first step the driver still has to do. Runs once,
   // so later edits never yank the driver to a different screen.
@@ -219,6 +228,7 @@ export default function Dashboard() {
         },
       })
       setVehicle(unwrap(result))
+      setVehicleLoaded(true)
       refreshProfileStatus()
     } catch (err) {
       setVehicleError(err instanceof ApiCallError ? err.message : 'Failed to save the vehicle.')
@@ -233,7 +243,10 @@ export default function Dashboard() {
     setDeclarationError(null)
     try {
       unwrap(await client.POST('/api/v1/drivers/me/declaration', { body: { declarationVersion: declaration.currentVersion! } }))
-      client.GET('/api/v1/drivers/me/declaration').then((result) => setDeclaration(unwrap(result)))
+      // The accept already succeeded, so show it as accepted right away; the re-fetch only brings in
+      // server-side details and a failure of it must not undo or hide the acceptance.
+      setDeclaration({ ...declaration, accepted: true, acceptedVersion: declaration.currentVersion })
+      client.GET('/api/v1/drivers/me/declaration').then((result) => setDeclaration(unwrap(result))).catch(() => {})
       refreshProfileStatus()
     } catch (err) {
       setDeclarationError(err instanceof ApiCallError ? err.message : 'Could not save your agreement. Please try again.')
@@ -353,7 +366,17 @@ export default function Dashboard() {
   function renderReviewStep() {
     return (
       <div className="section">
-        {allDone ? (
+        {allDone && (profile?.verificationStatus === 'APPROVED' || profile?.verificationStatus === 'REJECTED' || profile?.verificationStatus === 'SUSPENDED') ? (
+          <>
+            <h2>{profile.verificationStatus === 'APPROVED' ? 'You are approved' : 'Application update'}</h2>
+            <p>{statusBadge(profile.verificationStatus, allDone)}</p>
+            <p>
+              {profile.verificationStatus === 'APPROVED'
+                ? 'Your application has been approved. Open the Lady Go driver app to start driving.'
+                : 'Your application is not active. Check the notes on each document below, or contact support.'}
+            </p>
+          </>
+        ) : allDone ? (
           <>
             <h2>Application received</h2>
             <p>{statusBadge(profile?.verificationStatus, allDone)}</p>
@@ -374,7 +397,7 @@ export default function Dashboard() {
         <ul className="review-list">
           {WORK_STEPS.map((s) => {
             const state = stepState(s, data)
-            const doc = s.kind === 'document' || s.kind === 'selfie' ? latestDocument(data.documents, s.id as never) : undefined
+            const doc = s.kind === 'document' || s.kind === 'selfie' ? latestDocument(data.documents, s.id) : undefined
             return (
               <li key={s.id}>
                 <span className={`step-dot step-${state}`} aria-hidden="true" />

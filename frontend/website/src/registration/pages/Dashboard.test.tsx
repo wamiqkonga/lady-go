@@ -140,4 +140,80 @@ describe('Dashboard', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
+
+  it('waits for the vehicle before resuming, so a saved vehicle is not sent back to step 1', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
+      const url = input.url
+      if (url.endsWith('/api/v1/drivers/me/vehicle')) {
+        return new Promise((resolve) => setTimeout(() => resolve(jsonResponse(vehicle)), 150))
+      }
+      if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse({ success: true, data: [], error: null }))
+      if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(pendingDeclaration))
+      return Promise.resolve(jsonResponse(profile))
+    }))
+
+    renderDashboard()
+
+    // Vehicle exists, documents do not: first unfinished step is the licence, not the vehicle.
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Driving licence' })).toBeInTheDocument())
+  })
+
+  it('does not treat a failed vehicle load as "no vehicle yet"', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
+      const url = input.url
+      if (url.endsWith('/api/v1/drivers/me/vehicle')) {
+        return Promise.resolve(jsonResponse({ success: false, data: null, error: { code: 'X', message: 'boom' } }, 500))
+      }
+      if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse(docs()))
+      if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(pendingDeclaration))
+      return Promise.resolve(jsonResponse(profile))
+    }))
+
+    renderDashboard()
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not load your vehicle.'))
+    expect(screen.queryByLabelText('Registration number')).not.toBeInTheDocument()
+  })
+
+  it('does not say "Application received" to a rejected driver', async () => {
+    const rejectedProfile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'REJECTED' }, error: null }
+    const accepted = { success: true, data: { currentVersion: 'v1', currentText: 'x', accepted: true, acceptedVersion: 'v1', acceptedAt: 'x' }, error: null }
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
+      const url = input.url
+      if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse(vehicle))
+      if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse(docs()))
+      if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(accepted))
+      return Promise.resolve(jsonResponse(rejectedProfile))
+    }))
+
+    renderDashboard()
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application update' })).toBeInTheDocument())
+    expect(screen.queryByText('Application received')).not.toBeInTheDocument()
+  })
+
+  it('keeps the declaration accepted even if the follow-up re-fetch fails', async () => {
+    let posted = false
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request, init?: RequestInit) => {
+      const url = input.url
+      if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse(vehicle))
+      if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse(docs()))
+      if (url.endsWith('/api/v1/drivers/me/declaration') && (input.method === 'POST' || init?.method === 'POST')) {
+        posted = true
+        return Promise.resolve(jsonResponse({ success: true, data: { declarationVersion: 'v1', acceptedAt: 'x' }, error: null }))
+      }
+      if (url.endsWith('/api/v1/drivers/me/declaration')) {
+        return posted ? Promise.reject(new TypeError('offline')) : Promise.resolve(jsonResponse(pendingDeclaration))
+      }
+      return Promise.resolve(jsonResponse(profile))
+    }))
+
+    renderDashboard()
+
+    await waitFor(() => expect(screen.getByLabelText(/I have read and understood/)).toBeInTheDocument())
+    await userEvent.click(screen.getByLabelText(/I have read and understood/))
+    await userEvent.click(screen.getByRole('button', { name: 'I agree' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+  })
 })

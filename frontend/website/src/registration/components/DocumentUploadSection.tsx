@@ -3,15 +3,17 @@ import { uploadDocument } from '../lib/upload'
 import { ApiCallError } from '../lib/client'
 import { validateImageFile } from '../lib/fileValidation'
 import { fileToDataUrl } from '../lib/preview'
+import DocumentStatusBadge from './DocumentStatusBadge'
 import type { components } from '../lib/api-types'
 
 type DocumentType = NonNullable<components['schemas']['DriverDocumentResponse']['type']>
 type DriverDocumentResponse = components['schemas']['DriverDocumentResponse']
 
-function statusBadge(status?: string) {
-  if (status === 'APPROVED') return <span className="badge badge-ok">Approved</span>
-  if (status === 'REJECTED') return <span className="badge badge-bad">Rejected</span>
-  return <span className="badge badge-warn">Pending review</span>
+/** Today's date in the driver's own timezone as YYYY-MM-DD (toISOString would give the UTC date). */
+function localToday(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
 export default function DocumentUploadSection({
@@ -31,7 +33,7 @@ export default function DocumentUploadSection({
   const [expiresAt, setExpiresAt] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [today] = useState(() => new Date().toISOString().slice(0, 10))
+  const [today] = useState(localToday)
 
   function onFileChosen(chosen: File | null) {
     setError(null)
@@ -79,7 +81,7 @@ export default function DocumentUploadSection({
       {tip && <p className="muted">{tip}</p>}
       {existing && (
         <p>
-          {statusBadge(existing.status)}
+          <DocumentStatusBadge status={existing.status} />
           {existing.status === 'REJECTED' && existing.reviewNote && (
             // React escapes text children by construction - never dangerouslySetInnerHTML, so a
             // hostile reviewer note renders as literal text, never runs.
