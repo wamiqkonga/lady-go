@@ -25,7 +25,8 @@ function buildCsp(apiBaseUrl: string, isDevServer: boolean): string {
   return [
     "default-src 'self'",
     `script-src 'self'${isDevServer ? " 'unsafe-inline'" : ''}`,
-    "style-src 'self'",
+    // Dev only: Vite injects CSS as inline <style> tags for HMR, which 'self' blocks (unstyled UI).
+    `style-src 'self'${isDevServer ? " 'unsafe-inline'" : ''}`,
     `img-src 'self' data: ${apiBaseUrl}`,
     "font-src 'self'",
     `connect-src 'self' ${apiBaseUrl}`,
