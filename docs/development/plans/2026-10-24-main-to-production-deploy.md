@@ -192,3 +192,7 @@ Follow the Dev Desk lifecycle: Ready for test, In testing/UAT, Test Failed, Read
 - `/security-review` and `/code-review`: required before merge, because this controls production.
 - `/loop` or `/schedule`: after launch, a weekly adoption report from the database.
 - Parallel sessions: B1 (backend) and B3 (workflow) are independent, so they can run side by side once you approve.
+
+## 15. Update (24 Oct): free-plan GitHub limits
+
+The repo is private on GitHub Free, so branch protection rules are **not enforced** and environment deployment-branch rules are not available. The branch gate therefore lives in AWS: the deploy job has no `environment:`, and the role `ladygo-github-deploy` trusts only `repo:Lady-Go/lady-go:ref:refs/heads/main`. Anyone who can push to `main` can still deploy, so keep write access small until the org is on a paid plan (GitHub Team) where protection and required reviews are enforced. The tests still gate every deploy (the deploy job needs the test job to pass).

@@ -58,7 +58,8 @@ jobs:
     concurrency:
       group: deploy-backend
       cancel-in-progress: false
-    environment: production
+    # No "environment:" on purpose: without it GitHub puts the branch name in the sign-in token, and the AWS role
+    # trusts only refs/heads/main. That check is done by AWS, so it holds even if a branch edits this file.
     permissions:
       contents: read
       id-token: write # lets this job prove to AWS who it is (OIDC); no AWS keys are stored in GitHub
