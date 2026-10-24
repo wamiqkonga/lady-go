@@ -154,7 +154,12 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
         }
     }
 
-    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val currentRoute =
+        navController
+            .currentBackStackEntryAsState()
+            .value
+            ?.destination
+            ?.route
     // Insets are left to each screen (as before); the bar only claims its own height, and only on the four tab
     // pages, so Login, the gate, an incoming offer and an active ride stay exactly as they were.
     Scaffold(

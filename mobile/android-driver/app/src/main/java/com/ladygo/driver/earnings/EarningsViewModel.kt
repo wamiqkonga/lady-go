@@ -65,6 +65,13 @@ class EarningsViewModel
             load()
         }
 
+        /** The app came back to the foreground: quietly re-read, keeping what is on screen. Skipped while a load is running. */
+        fun onResume() {
+            val state = _uiState.value
+            if (state.isLoading || state.isRefreshing) return
+            if (state.earnings != null) onRefresh()
+        }
+
         private fun load() {
             loadJob?.cancel()
             val range = _uiState.value.range

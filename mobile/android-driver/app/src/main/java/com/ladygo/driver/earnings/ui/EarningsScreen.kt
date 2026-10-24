@@ -22,6 +22,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ladygo.driver.R
 import com.ladygo.driver.api.generated.models.DriverEarningsResponse
@@ -47,6 +48,10 @@ import java.util.Locale
 @Composable
 fun EarningsScreen(viewModel: EarningsViewModel = hiltViewModel()) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
+    LifecycleResumeEffect(viewModel) {
+        viewModel.onResume()
+        onPauseOrDispose {}
+    }
     EarningsContent(
         state = state,
         onSelectWeek = viewModel::onSelectWeek,

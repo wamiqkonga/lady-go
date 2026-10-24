@@ -27,6 +27,8 @@ data class RideHistoryUiState(
     val loadMoreError: String? = null,
 )
 
+private val RideHistoryUiState.isBusy: Boolean get() = isLoading || isRefreshing || isLoadingMore
+
 /**
  * Ride history, newest first, 20 per page. Pages are appended without duplicates ([PagedList]); a refresh
  * restarts from page 0 and replaces the rows only when it succeeds. At most one request is in flight: a
@@ -62,10 +64,17 @@ class RideHistoryViewModel
             loadFirstPage()
         }
 
+        /** The app came back to the foreground (e.g. after finishing a ride): quietly re-read the first page. */
+        fun onResume() {
+            val state = _uiState.value
+            if (state.isBusy || state.items.isEmpty()) return
+            onRefresh()
+        }
+
         /** Called as the driver nears the end of the list, and by the retry row after a failed next page. */
         fun onLoadMore() {
             val state = _uiState.value
-            if (!state.hasMore || state.isLoading || state.isRefreshing || state.isLoadingMore) return
+            if (!state.hasMore || state.isBusy) return
             _uiState.value = state.copy(isLoadingMore = true, loadMoreError = null)
             loadJob =
                 viewModelScope.launch {

@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName")
+
 package com.ladygo.driver.nav
 
 import androidx.annotation.StringRes
