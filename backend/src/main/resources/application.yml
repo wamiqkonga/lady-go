@@ -39,7 +39,18 @@ server:
     include-stacktrace: never
     include-binding-errors: never
 
+# Shown at /actuator/info so anyone can tell which build is live. GIT_SHA is baked into the image by the deploy
+# pipeline (Dockerfile build arg); it is "unknown" for local runs.
+info:
+  app:
+    commit: ${GIT_SHA:unknown}
+
 management:
+  info:
+    env:
+      enabled: true
+    build:
+      enabled: true
   endpoints:
     web:
       exposure:

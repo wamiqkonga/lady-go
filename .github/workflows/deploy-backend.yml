@@ -1,0 +1,164 @@
+name: Deploy backend
+
+# Merge to main -> test -> build arm64 image -> push to ECR -> deploy on the production host through AWS SSM.
+# The host backs up the database first, waits for /actuator/health and the new commit at /actuator/info,
+# and puts the previous image back by itself if the new one is unhealthy (infrastructure/prod/deploy.sh).
+# Manual run with "rollback_sha" re-deploys an image that is already in ECR (no rebuild).
+# One-time AWS and GitHub setup: docs/development/plans/2026-10-24-main-to-production-deploy.md (tickets T2-T5).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "infrastructure/prod/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+    inputs:
+      rollback_sha:
+        description: "Optional: full git SHA of an image already in ECR to put live (skips build)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: ladygo-backend
+
+jobs:
+  test:
+    if: ${{ inputs.rollback_sha == '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Build, unit and integration tests
+        run: mvn -B verify
+      - name: Deploy script tests
+        working-directory: .
+        run: bash infrastructure/prod/deploy.test.sh
+
+  deploy:
+    needs: test
+    # Only ever from main (a manual run started from another branch must not reach production), after tests
+    # pass, or on its own for a manual rollback (the test job is skipped then).
+    if: ${{ always() && github.ref == 'refs/heads/main' && (needs.test.result == 'success' || (needs.test.result == 'skipped' && inputs.rollback_sha != '')) }}
+    runs-on: ubuntu-latest
+    # Never two deploys at once; a second one waits. GitHub keeps only one waiting run, so start a manual
+    # rollback when nothing else is queued. The host also refuses overlapping deploys (flock in deploy.sh).
+    concurrency:
+      group: deploy-backend
+      cancel-in-progress: false
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # lets this job prove to AWS who it is (OIDC); no AWS keys are stored in GitHub
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Work out which commit to put live
+        id: version
+        env:
+          ROLLBACK_SHA: ${{ inputs.rollback_sha }}
+        run: |
+          SHA="${ROLLBACK_SHA:-$GITHUB_SHA}"
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then echo "not a full 40-character git SHA: $SHA"; exit 1; fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: ecr
+        run: |
+          REGISTRY="$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com"
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY"
+          echo "image=$REGISTRY/$ECR_REPOSITORY:${{ steps.version.outputs.sha }}" >> "$GITHUB_OUTPUT"
+
+      # Tags are immutable, so a re-run of a failed deploy must reuse the image that is already in ECR.
+      - name: Check whether this commit's image is already in ECR
+        id: exists
+        run: |
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="${{ steps.version.outputs.sha }}" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ inputs.rollback_sha }}" ]; then
+            echo "No image for ${{ steps.version.outputs.sha }} in ECR (only the newest 20 are kept)"; exit 1
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+        if: ${{ steps.exists.outputs.found == 'false' }}
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        if: ${{ steps.exists.outputs.found == 'false' }}
+      - name: Build and push the arm64 image
+        if: ${{ steps.exists.outputs.found == 'false' }}
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: backend
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.ecr.outputs.image }}
+          build-args: GIT_SHA=${{ steps.version.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy on the production host (AWS SSM)
+        env:
+          INSTANCE_ID: ${{ vars.AWS_INSTANCE_ID }}
+          IMAGE: ${{ steps.ecr.outputs.image }}
+          SHA: ${{ steps.version.outputs.sha }}
+        run: |
+          # Ship the current deploy script and compose file with the command, so the host never drifts from the repo.
+          # deploy.sh validates the compose file and swaps it in only after the database backup.
+          DEPLOY_B64="$(base64 -w0 infrastructure/prod/deploy.sh)"
+          COMPOSE_B64="$(base64 -w0 infrastructure/prod/docker-compose.yml)"
+          jq -n --arg d "$DEPLOY_B64" --arg c "$COMPOSE_B64" --arg image "$IMAGE" --arg sha "$SHA" '{
+            commands: [
+              "set -euo pipefail",
+              "echo \($d) | base64 -d > /opt/ladygo/deploy.sh.new && chmod 755 /opt/ladygo/deploy.sh.new && mv /opt/ladygo/deploy.sh.new /opt/ladygo/deploy.sh",
+              "echo \($c) | base64 -d > /opt/ladygo/stack/docker-compose.yml.new",
+              "/opt/ladygo/deploy.sh \($image) \($sha)"
+            ],
+            executionTimeout: ["900"]
+          }' > params.json
+          CMD_ID="$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript \
+            --comment "deploy $SHA" --parameters file://params.json --query Command.CommandId --output text)"
+          echo "SSM command $CMD_ID"
+          # Wait until the command finishes (success or failure), then show what the host printed.
+          for _ in $(seq 1 120); do
+            STATUS="$(aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)"
+            case "$STATUS" in Success|Failed|Cancelled|TimedOut) break ;; esac
+            sleep 10
+          done
+          case "$STATUS" in Success|Failed|Cancelled|TimedOut) ;; *)
+            # Still running after 20 minutes: stop it so it cannot race the next deploy.
+            aws ssm cancel-command --command-id "$CMD_ID" >/dev/null 2>&1 || true ;;
+          esac
+          aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" \
+            --query '{status:Status,out:StandardOutputContent,err:StandardErrorContent}' --output text
+          [ "$STATUS" = "Success" ] || { echo "Deploy did not succeed: $STATUS"; exit 1; }
+          echo "Live version: $SHA"
+
+      - name: Confirm from the outside
+        run: |
+          for _ in $(seq 1 10); do
+            if curl -fsS https://api.ladygoride.com/actuator/info | grep -q "\"commit\":\"${{ steps.version.outputs.sha }}\""; then
+              echo "api.ladygoride.com is serving ${{ steps.version.outputs.sha }}"; exit 0
+            fi
+            sleep 6
+          done
+          echo "Public URL does not show the new commit"; exit 1

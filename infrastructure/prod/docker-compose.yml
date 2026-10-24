@@ -43,7 +43,8 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
 
   backend:
-    image: ladygo-backend:local
+    # Set by deploy.sh through image.env (an ECR image tagged with the git SHA).
+    image: ${BACKEND_IMAGE:?missing - see deploy.sh}
     restart: unless-stopped
     depends_on:
       postgres: { condition: service_healthy }
