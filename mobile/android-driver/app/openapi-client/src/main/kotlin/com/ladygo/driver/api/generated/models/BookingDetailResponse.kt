@@ -36,6 +36,7 @@ import com.squareup.moshi.JsonClass
  * @param driver 
  * @param createdAt 
  * @param scheduledAt 
+ * @param cashConfirmedAt 
  */
 
 
@@ -78,7 +79,10 @@ data class BookingDetailResponse (
     val createdAt: kotlin.String? = null,
 
     @Json(name = "scheduledAt")
-    val scheduledAt: kotlin.String? = null
+    val scheduledAt: kotlin.String? = null,
+
+    @Json(name = "cashConfirmedAt")
+    val cashConfirmedAt: kotlin.String? = null
 
 ) {
 

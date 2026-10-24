@@ -49,6 +49,18 @@ interface DriverControllerApi {
     suspend fun bootstrapProfile(@Body driverProfileRequest: DriverProfileRequest): Response<ApiResponseDriverProfileResponse>
 
     /**
+     * GET api/v1/drivers/me/availability
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @return [ApiResponseDriverAvailabilityResponse]
+     */
+    @GET("api/v1/drivers/me/availability")
+    suspend fun getAvailability(): Response<ApiResponseDriverAvailabilityResponse>
+
+    /**
      * GET api/v1/drivers/me/declaration
      * 
      * 
