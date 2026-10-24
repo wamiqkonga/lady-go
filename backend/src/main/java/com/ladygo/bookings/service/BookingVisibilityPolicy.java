@@ -49,6 +49,10 @@ public final class BookingVisibilityPolicy {
     private static final Set<BookingStatus> RIDER_SELFIE_VISIBLE_TO_DRIVER = EnumSet.of(
             BookingStatus.DRIVER_ACCEPTED, BookingStatus.DRIVER_ARRIVING, BookingStatus.DRIVER_ARRIVED);
 
+    /** Cash can only have been confirmed once the ride is over. */
+    private static final Set<BookingStatus> CASH_CONFIRMED_AT_VISIBLE_TO_DRIVER = EnumSet.of(
+            BookingStatus.RIDE_COMPLETED, BookingStatus.PAYMENT_PENDING, BookingStatus.COMPLETED);
+
     private BookingVisibilityPolicy() {
     }
 
@@ -97,6 +101,9 @@ public final class BookingVisibilityPolicy {
         }
         if (RIDER_SELFIE_VISIBLE_TO_DRIVER.contains(status)) {
             fields.add(BookingField.RIDER_SELFIE);
+        }
+        if (CASH_CONFIRMED_AT_VISIBLE_TO_DRIVER.contains(status)) {
+            fields.add(BookingField.CASH_CONFIRMED_AT);
         }
         // RIDE_PIN and DRIVER_SUMMARY are never in a driver's set, in any status - see their javadoc.
         return fields;

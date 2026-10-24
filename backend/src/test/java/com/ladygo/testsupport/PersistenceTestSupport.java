@@ -115,6 +115,7 @@ public abstract class PersistenceTestSupport {
         driver.setVerificationStatus(DriverVerificationStatus.APPROVED);
         driver.setAvailabilityStatus(DriverAvailability.ONLINE);
         driver.setCurrentLocation(point(lon, lat));
+        driver.setCurrentLocationAt(Instant.now()); // fresh: matching ignores stale/unknown location times.
         return drivers.saveAndFlush(driver);
     }
 

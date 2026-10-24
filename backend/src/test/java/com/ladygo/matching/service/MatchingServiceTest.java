@@ -168,4 +168,96 @@ class MatchingServiceTest extends PersistenceTestSupport {
         assertThatThrownBy(() -> service.accept(driver.getUserId(), offer.getId()))
                 .isInstanceOf(ValidationException.class);
     }
+
+    private UUID offeredTo(Booking booking) {
+        service.tryOfferNextCandidate(booking.getId());
+        return offers.findByBookingIdAndStatus(booking.getId(), OfferStatus.OFFERED).orElseThrow().getId();
+    }
+
+    @Test
+    void aRepeatAcceptByTheSameDriverReturnsTheSameResultWithoutChangingState() {
+        City city = srinagar();
+        Driver driver = onlineDriverWithApprovedVehicle(city, VehicleType.CAB);
+        Booking booking = newBooking(newCustomer(), city, BookingStatus.SEARCHING_DRIVER, null);
+        UUID offerId = offeredTo(booking);
+        BookingDetailResponse first = service.accept(driver.getUserId(), offerId);
+        long eventsBefore = jdbc.queryForObject(
+                "SELECT count(*) FROM booking_events WHERE booking_id = ?", Long.class, booking.getId());
+        long ridesBefore = jdbc.queryForObject(
+                "SELECT count(*) FROM rides WHERE booking_id = ?", Long.class, booking.getId());
+
+        // even after the offer's own expiry time has passed (the response was lost, the driver retries late).
+        RideOffer accepted = offers.findById(offerId).orElseThrow();
+        accepted.setExpiresAt(Instant.now().minusSeconds(60));
+        offers.saveAndFlush(accepted);
+        BookingDetailResponse second = service.accept(driver.getUserId(), offerId);
+
+        assertThat(second.id()).isEqualTo(first.id());
+        assertThat(second.status()).isEqualTo(BookingStatus.DRIVER_ACCEPTED);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM booking_events WHERE booking_id = ?", Long.class, booking.getId()))
+                .isEqualTo(eventsBefore);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM rides WHERE booking_id = ?", Long.class, booking.getId()))
+                .isEqualTo(ridesBefore); // no second ride
+    }
+
+    @Test
+    void aRepeatAcceptByADifferentDriverStillFails() {
+        City city = srinagar();
+        Driver driver = onlineDriverWithApprovedVehicle(city, VehicleType.CAB);
+        Driver stranger = onlineDriverWithApprovedVehicle(city, VehicleType.AUTO);
+        Booking booking = newBooking(newCustomer(), city, BookingStatus.SEARCHING_DRIVER, null);
+        UUID offerId = offeredTo(booking);
+        service.accept(driver.getUserId(), offerId);
+
+        assertThatThrownBy(() -> service.accept(stranger.getUserId(), offerId))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void aRepeatAcceptAfterTheBookingWasCancelledStillFails() {
+        City city = srinagar();
+        Driver driver = onlineDriverWithApprovedVehicle(city, VehicleType.CAB);
+        Booking booking = newBooking(newCustomer(), city, BookingStatus.SEARCHING_DRIVER, null);
+        UUID offerId = offeredTo(booking);
+        service.accept(driver.getUserId(), offerId);
+        Booking stored = bookings.findById(booking.getId()).orElseThrow();
+        stored.setStatus(BookingStatus.CANCELLED);
+        stored.setCancelledBy(com.ladygo.common.domain.ActorType.CUSTOMER);
+        bookings.saveAndFlush(stored);
+
+        assertThatThrownBy(() -> service.accept(driver.getUserId(), offerId))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void aRepeatAcceptOfARejectedOfferStillFails() {
+        City city = srinagar();
+        Driver driver = onlineDriverWithApprovedVehicle(city, VehicleType.CAB);
+        Booking booking = newBooking(newCustomer(), city, BookingStatus.SEARCHING_DRIVER, null);
+        UUID offerId = offeredTo(booking);
+        service.reject(driver.getUserId(), offerId, "no");
+
+        assertThatThrownBy(() -> service.accept(driver.getUserId(), offerId))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void aDriverWhoseLastLocationIsFiveMinutesOldIsNotMatchedButAFreshOneIs() {
+        City city = srinagar();
+        Driver ghost = onlineDriverWithApprovedVehicle(city, VehicleType.CAB);
+        ghost.setCurrentLocationAt(Instant.now().minusSeconds(300));
+        drivers.saveAndFlush(ghost);
+        Booking booking = newBooking(newCustomer(), city, BookingStatus.SEARCHING_DRIVER, null);
+
+        service.tryOfferNextCandidate(booking.getId());
+        assertThat(offers.findByBookingId(booking.getId())).isEmpty();
+        assertThat(bookings.findById(booking.getId()).orElseThrow().getStatus())
+                .isEqualTo(BookingStatus.SEARCHING_DRIVER);
+
+        Driver fresh = onlineDriverWithApprovedVehicle(city, VehicleType.CAB);
+        service.tryOfferNextCandidate(booking.getId());
+        assertThat(offers.findByBookingIdAndStatus(booking.getId(), OfferStatus.OFFERED).orElseThrow().getDriverId())
+                .isEqualTo(fresh.getId());
+    }
 }

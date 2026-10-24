@@ -57,7 +57,8 @@ public class RideLifecycleController {
     public ApiResponse<BookingDetailResponse> endEarly(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
             @Valid @RequestBody EndRideEarlyRequest request) {
-        return ApiResponse.ok(rideLifecycleService.endRideEarlyAsDriver(principal.userId(), id, request.reason()));
+        return ApiResponse.ok(rideLifecycleService.endRideEarlyAsDriver(
+                principal.userId(), id, request.reason(), request.safetyConcern()));
     }
 
     @PostMapping("/{id}/confirm-cash-collected")

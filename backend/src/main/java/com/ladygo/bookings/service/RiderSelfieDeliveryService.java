@@ -24,6 +24,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class RiderSelfieDeliveryService {
 
+    /** Delivery form (JPEG, bounded) keeps real phone photos under the driver app's 2 MB cap. */
+    static final int MAX_SIDE_PX = 1024;
+    static final int TARGET_BYTES = 300 * 1024;
+
     private final BookingRepository bookings;
     private final DriverRepository drivers;
     private final RideSelfieRepository rideSelfies;
@@ -54,10 +58,11 @@ public class RiderSelfieDeliveryService {
 
         RideSelfie selfie = rideSelfies.findByBookingId(bookingId).orElseThrow(ResourceNotFoundException::new);
         byte[] original = fileStorage.download(selfie.getSelfieStorageKey());
-        byte[] watermarked = ImageWatermarker.withTextWatermark(original, driver.getId().toString());
+        byte[] watermarked = ImageWatermarker.withTextWatermarkJpeg(
+                original, driver.getId().toString(), MAX_SIDE_PX, TARGET_BYTES);
 
         String derivativeKey = "rider-selfie-derivatives/" + UUID.randomUUID();
-        fileStorage.upload(derivativeKey, ImageWatermarker.asStream(watermarked), watermarked.length, "image/png");
+        fileStorage.upload(derivativeKey, ImageWatermarker.asStream(watermarked), watermarked.length, "image/jpeg");
 
         int ttlSeconds = config.getInt("verification.rider_selfie.view_url.ttl.seconds", 60);
         return fileStorage.presignedDownloadUrl(derivativeKey, Duration.ofSeconds(ttlSeconds));

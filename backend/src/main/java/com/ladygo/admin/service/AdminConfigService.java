@@ -54,6 +54,7 @@ public class AdminConfigService {
             Map.entry("rider.safety_cancel.pair_cap.max", new long[] {1, 100}),
             Map.entry("rider.safety_cancel.weekly_cap.max", new long[] {1, 100}),
             Map.entry("driver.search.radius.m", new long[] {100, 50_000}),
+            Map.entry("matching.driver.location.max.age.seconds", new long[] {10, 3_600}),
             Map.entry("ride.gate.pickup_radius.m", new long[] {10, 5_000}),
             Map.entry("ride.max.distance.m", new long[] {1_000, 200_000}),
             Map.entry("booking.pickup.approximate.radius.m", new long[] {10, 5_000}),

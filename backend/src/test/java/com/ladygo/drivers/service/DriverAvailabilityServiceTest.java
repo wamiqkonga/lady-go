@@ -112,4 +112,20 @@ class DriverAvailabilityServiceTest extends PersistenceTestSupport {
         assertThatThrownBy(() -> service.setAvailability(driver.getUserId(), DriverAvailability.ONLINE))
                 .isInstanceOf(ForbiddenException.class);
     }
+
+    @Test
+    void getAvailabilityReturnsTheStoredStatus() {
+        Driver driver = approvedDriverWithApprovedVehicle(newCity());
+        assertThat(service.getAvailability(driver.getUserId()).status()).isEqualTo(DriverAvailability.OFFLINE);
+
+        driver.setAvailabilityStatus(DriverAvailability.ON_RIDE);
+        drivers.saveAndFlush(driver);
+        assertThat(service.getAvailability(driver.getUserId()).status()).isEqualTo(DriverAvailability.ON_RIDE);
+    }
+
+    @Test
+    void getAvailabilityForAnUnknownDriverIsNotFound() {
+        assertThatThrownBy(() -> service.getAvailability(java.util.UUID.randomUUID()))
+                .isInstanceOf(com.ladygo.common.exception.ResourceNotFoundException.class);
+    }
 }

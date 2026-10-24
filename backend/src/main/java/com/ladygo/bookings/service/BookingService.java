@@ -531,7 +531,8 @@ public class BookingService {
                 booking.getId(), booking.getStatus(), pickupAddress, destinationAddress,
                 booking.getVehicleType(), booking.getPaymentMethod(), booking.getEstimatedFare(),
                 booking.getFinalFare(), booking.getCurrency(), ridePin, driver,
-                booking.getCreatedAt(), booking.getScheduledAt());
+                booking.getCreatedAt(), booking.getScheduledAt(),
+                visible.contains(BookingField.CASH_CONFIRMED_AT) ? booking.getCashConfirmedAt() : null);
     }
 
     /** History list items omit {@code ridePin} and driver detail (docs/api/booking.md section 6). */
@@ -540,7 +541,7 @@ public class BookingService {
                 booking.getId(), booking.getStatus(), booking.getPickupAddress(), booking.getDestinationAddress(),
                 booking.getVehicleType(), booking.getPaymentMethod(), booking.getEstimatedFare(),
                 booking.getFinalFare(), booking.getCurrency(), null, null,
-                booking.getCreatedAt(), booking.getScheduledAt());
+                booking.getCreatedAt(), booking.getScheduledAt(), null);
     }
 
     private DriverSummaryResponse buildDriverSummary(UUID driverId) {

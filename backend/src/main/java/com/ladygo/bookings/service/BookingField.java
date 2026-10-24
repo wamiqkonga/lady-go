@@ -21,5 +21,8 @@ public enum BookingField {
      *  watermarked derivative, delivered through {@link RiderSelfieDeliveryService}, not a field on
      *  {@link com.ladygo.bookings.web.dto.BookingDetailResponse}; modelled here so the SAME policy
      *  governs it instead of a second, separately-maintained set of rules. */
-    RIDER_SELFIE
+    RIDER_SELFIE,
+    /** When the driver confirmed receiving cash for this booking - driver-only (a rider has no
+     *  equivalent field), so a driver app killed mid-ride can restore its cash step. */
+    CASH_CONFIRMED_AT
 }

@@ -111,4 +111,37 @@ class DriverBookingControllerIntegrationTest extends PersistenceTestSupport {
                         .header("Authorization", "Bearer " + tokenFor(driver.getUserId(), UserRole.DRIVER)))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void driverBookingResponseCarriesCashConfirmedAtButTheRidersDoesNot() throws Exception {
+        City city = newCity();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.PAYMENT_PENDING, driver.getId());
+        booking.setCashConfirmedAt(java.time.Instant.parse("2026-10-24T10:15:30Z"));
+        bookings.saveAndFlush(booking);
+
+        mockMvc.perform(get("/api/v1/drivers/me/bookings/" + booking.getId())
+                        .header("Authorization", "Bearer " + tokenFor(driver.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cashConfirmedAt").value("2026-10-24T10:15:30Z"));
+
+        mockMvc.perform(get("/api/v1/bookings/" + booking.getId())
+                        .header("Authorization", "Bearer " + tokenFor(customer.getUserId(), UserRole.CUSTOMER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cashConfirmedAt").value((Object) null));
+    }
+
+    @Test
+    void cashConfirmedAtIsNullForTheDriverUntilCashIsConfirmed() throws Exception {
+        City city = newCity();
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(customer, city, BookingStatus.PAYMENT_PENDING, driver.getId());
+
+        mockMvc.perform(get("/api/v1/drivers/me/bookings/" + booking.getId())
+                        .header("Authorization", "Bearer " + tokenFor(driver.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cashConfirmedAt").value((Object) null));
+    }
 }

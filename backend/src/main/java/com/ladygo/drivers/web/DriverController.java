@@ -50,6 +50,11 @@ public class DriverController {
         this.locationService = locationService;
     }
 
+    @GetMapping("/availability")
+    public ApiResponse<DriverAvailabilityResponse> getAvailability(@AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(availabilityService.getAvailability(principal.userId()));
+    }
+
     @PutMapping("/availability")
     public ApiResponse<DriverAvailabilityResponse> setAvailability(
             @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DriverAvailabilityRequest request) {

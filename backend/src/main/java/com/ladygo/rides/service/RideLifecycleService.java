@@ -34,6 +34,7 @@ import com.ladygo.rides.repository.RideFlagRepository;
 import com.ladygo.rides.repository.RideRepository;
 import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.security.ratelimit.RateLimiter;
+import com.ladygo.support.service.SafetyIncidentService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,13 +62,15 @@ public class RideLifecycleService {
     private final FareCalculator fareCalculator;
     private final JdbcTemplate jdbc;
     private final BookingService bookingService;
+    private final SafetyIncidentService safetyIncidents;
 
     public RideLifecycleService(
             BookingRepository bookings, DriverRepository drivers, CustomerRepository customers, RideRepository rides,
             RideFlagRepository rideFlags, BookingStateMachine stateMachine,
             RidePinService ridePinService, RateLimiter rateLimiter, ConfigurationService config,
             RealtimePushService push, LocationGateService gate, PricingRuleRepository pricingRules,
-            FareCalculator fareCalculator, JdbcTemplate jdbc, BookingService bookingService) {
+            FareCalculator fareCalculator, JdbcTemplate jdbc, BookingService bookingService,
+            SafetyIncidentService safetyIncidents) {
         this.bookings = bookings;
         this.drivers = drivers;
         this.customers = customers;
@@ -83,6 +86,7 @@ public class RideLifecycleService {
         this.fareCalculator = fareCalculator;
         this.jdbc = jdbc;
         this.bookingService = bookingService;
+        this.safetyIncidents = safetyIncidents;
     }
 
     @Transactional
@@ -203,8 +207,16 @@ public class RideLifecycleService {
 
     /** Either party may end a started ride early - fare is recomputed with the minimum-fare floor,
      *  and it's always flagged. A driver-initiated end far from the destination also prompts the rider. */
-    @Transactional
     public BookingDetailResponse endRideEarlyAsDriver(UUID driverUserId, UUID bookingId, String reason) {
+        return endRideEarlyAsDriver(driverUserId, bookingId, reason, false);
+    }
+
+    /** {@code safetyConcern} (docs/api/driver-earnings-ratings.md section 6, B5) additionally opens one HIGH
+     *  REPORT_CUSTOMER safety incident for ops; it never changes the fee-waived early end itself and a
+     *  problem creating the incident never fails the end. */
+    @Transactional
+    public BookingDetailResponse endRideEarlyAsDriver(
+            UUID driverUserId, UUID bookingId, String reason, boolean safetyConcern) {
         Driver driver = resolveDriver(driverUserId);
         Booking booking = requireDriverBooking(driver, bookingId);
         if (booking.getStatus() != BookingStatus.RIDE_STARTED) {
@@ -220,6 +232,10 @@ public class RideLifecycleService {
         if (far) {
             customers.findById(booking.getCustomerId()).ifPresent(customer -> push.pushToUser(
                     customer.getUserId(), "/queue/ride-flag", new RideFlagPrompt(flag.getId(), flag.getType())));
+        }
+        if (safetyConcern) {
+            rides.findByBookingId(bookingId).ifPresent(ride -> safetyIncidents.reportCustomerFromDriverEarlyEnd(
+                    ride.getId(), driverUserId, reason, driver.getCurrentLocation()));
         }
         return bookingService.getForDriver(driverUserId, bookingId);
     }

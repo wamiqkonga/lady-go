@@ -60,6 +60,24 @@
       }
     },
     "/api/v1/drivers/me/availability": {
+      "get": {
+        "tags": [
+          "driver-controller"
+        ],
+        "operationId": "getAvailability",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverAvailabilityResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "put": {
         "tags": [
           "driver-controller"
@@ -3860,6 +3878,10 @@
             "format": "date-time"
           },
           "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cashConfirmedAt": {
             "type": "string",
             "format": "date-time"
           }

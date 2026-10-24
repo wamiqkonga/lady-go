@@ -23,7 +23,9 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     Page<Driver> findByVerificationStatusOrderByCreatedAtAsc(DriverVerificationStatus status, Pageable pageable);
 
     /**
-     * Online drivers within {@code radiusM} metres of a point, nearest first (PostGIS geography, metres).
+     * Online drivers within {@code radiusM} metres of a point, nearest first (PostGIS geography, metres),
+     * whose last server-received location is not older than {@code locationNotBefore}: a driver with no
+     * recorded location time, or a stale one (app died, still marked ONLINE), is never a candidate.
      * Matching (Phase 6) will use the Redis GEO index for live search; this query is the database source of
      * truth and the fallback if Redis is unavailable.
      */
@@ -32,6 +34,7 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
             WHERE d.city_id = :cityId
               AND d.availability_status = 'ONLINE'
               AND d.current_location IS NOT NULL
+              AND d.current_location_at >= :locationNotBefore
               AND ST_DWithin(d.current_location,
                              CAST(ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) AS geography), :radiusM)
             ORDER BY ST_Distance(d.current_location,
@@ -39,7 +42,8 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
             LIMIT :maxResults
             """, nativeQuery = true)
     List<Driver> findNearbyOnline(@Param("cityId") UUID cityId, @Param("lon") double lon, @Param("lat") double lat,
-                                  @Param("radiusM") double radiusM, @Param("maxResults") int maxResults);
+                                  @Param("radiusM") double radiusM, @Param("maxResults") int maxResults,
+                                  @Param("locationNotBefore") java.time.Instant locationNotBefore);
 
     /** Atomic claim for an offer - 0 rows affected means another booking's search already claimed this
      *  driver (or they went offline), so the caller must move on to the next candidate, same

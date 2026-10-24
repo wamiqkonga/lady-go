@@ -35,6 +35,11 @@ public class DriverAvailabilityService {
         this.reverificationService = reverificationService;
     }
 
+    @Transactional(readOnly = true)
+    public DriverAvailabilityResponse getAvailability(UUID userId) {
+        return toResponse(drivers.findByUserId(userId).orElseThrow(ResourceNotFoundException::new));
+    }
+
     @Transactional
     public DriverAvailabilityResponse setAvailability(UUID userId, DriverAvailability requested) {
         if (requested != DriverAvailability.ONLINE && requested != DriverAvailability.OFFLINE) {

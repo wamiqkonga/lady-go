@@ -165,6 +165,26 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void theMatchingLocationMaxAgeIsSeededAtOneTwentyAndBoundedToTenThroughThirtySixHundred() throws Exception {
+        ConfigEntry entry = seededEntry("matching.driver.location.max.age.seconds");
+        UUID superAdminId = newUser(UserRole.SUPER_ADMIN).getId();
+        assertThat(entry.getConfigValue()).isEqualTo("120");
+
+        for (String bad : new String[] {"9", "3601"}) {
+            mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
+                            .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest(bad, "test reason"))))
+                    .andExpect(status().isBadRequest());
+        }
+        mockMvc.perform(put("/api/v1/admin/config/" + entry.getId())
+                        .header("Authorization", "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("10", "test reason"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void aValueWithinTheSafetyBoundIsAccepted() throws Exception {
         ConfigEntry entry = seededEntry("ride.pin.max.attempts");
         UUID superAdminId = newUser(UserRole.SUPER_ADMIN).getId();

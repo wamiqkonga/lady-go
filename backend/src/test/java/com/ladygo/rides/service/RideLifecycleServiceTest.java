@@ -43,6 +43,8 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
     private RidePinService ridePinService;
     @Autowired
     private RideFlagRepository rideFlags;
+    @Autowired
+    private com.ladygo.support.repository.SafetyIncidentRepository safetyIncidents;
 
     private UUID committedCityId;
     private UUID committedCustomerUserId;
@@ -712,5 +714,62 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         assertThatThrownBy(() -> service.respondToFlag(
                 customer.getUserId(), java.util.UUID.randomUUID(), flag.getId(), RideFlagRiderResponse.DISPUTED))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ---- B5: safetyConcern on the driver early-end endpoint (docs/api/driver-earnings-ratings.md section 6)
+
+    @Test
+    void driverEarlyEndWithSafetyConcernCreatesExactlyOneHighReportCustomerIncidentAndAnAuditEntry() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Customer customer = newCustomer();
+        Driver driver = driverAcceptedFor(city);
+        PricingRule rule = newPricingRule(city, VehicleType.CAB);
+        Booking booking = rideStartedBooking(customer, city, driver, rule);
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+
+        BookingDetailResponse response = service.endRideEarlyAsDriver(
+                driver.getUserId(), booking.getId(), "rider was aggressive", true);
+
+        assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
+        var all = safetyIncidents.findAll().stream().filter(i -> i.getRideId().equals(ride.getId())).toList();
+        assertThat(all).hasSize(1);
+        var incident = all.get(0);
+        assertThat(incident.getType()).isEqualTo(com.ladygo.support.domain.IncidentType.REPORT_CUSTOMER);
+        assertThat(incident.getSeverity()).isEqualTo(com.ladygo.support.domain.IncidentSeverity.HIGH);
+        assertThat(incident.getStatus()).isEqualTo(com.ladygo.support.domain.IncidentStatus.OPEN);
+        assertThat(incident.getReporterId()).isEqualTo(driver.getUserId());
+        assertThat(incident.getNotes()).isEqualTo("rider was aggressive");
+        assertThat(incident.getLocation()).isNotNull();
+        assertThat(incident.getLocation().getX()).isEqualTo(74.80);
+        assertThat(incident.getLocation().getY()).isEqualTo(34.08);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM audit_logs WHERE action = 'SAFETY_INCIDENT_CREATED' AND target_id = ? "
+                        + "AND actor_id = ?", Long.class, incident.getId().toString(), driver.getUserId())).isEqualTo(1L);
+    }
+
+    @Test
+    void driverEarlyEndWithoutSafetyConcernCreatesNoIncident() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Driver driver = driverAcceptedFor(city);
+        Booking booking = rideStartedBooking(newCustomer(), city, driver, newPricingRule(city, VehicleType.CAB));
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+
+        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop", false);
+
+        assertThat(safetyIncidents.findAll().stream().filter(i -> i.getRideId().equals(ride.getId()))).isEmpty();
+    }
+
+    @Test
+    void aRepeatedDriverEarlyEndNeverCreatesASecondIncident() {
+        City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
+        Driver driver = driverAcceptedFor(city);
+        Booking booking = rideStartedBooking(newCustomer(), city, driver, newPricingRule(city, VehicleType.CAB));
+        Ride ride = rides.findByBookingId(booking.getId()).orElseThrow();
+        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "unsafe", true);
+
+        assertThatThrownBy(() -> service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "unsafe", true))
+                .isInstanceOf(BookingStateException.class);
+
+        assertThat(safetyIncidents.findAll().stream().filter(i -> i.getRideId().equals(ride.getId()))).hasSize(1);
     }
 }

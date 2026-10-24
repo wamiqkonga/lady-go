@@ -307,7 +307,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
         URI parsed = URI.create(selfieUrl);
         byte[] fetchedSelfie = mockMvc.perform(get(parsed))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType("image/png"))
+                .andExpect(content().contentType("image/jpeg"))
                 .andReturn().getResponse().getContentAsByteArray();
         assertThat(fetchedSelfie).isNotEmpty();
 

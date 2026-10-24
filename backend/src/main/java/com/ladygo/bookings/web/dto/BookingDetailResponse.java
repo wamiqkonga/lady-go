@@ -19,5 +19,7 @@ public record BookingDetailResponse(
         String ridePin,
         DriverSummaryResponse driver,
         Instant createdAt,
-        Instant scheduledAt) {
+        Instant scheduledAt,
+        /** Driver-facing only (null for riders and in history lists) - see BookingField.CASH_CONFIRMED_AT. */
+        Instant cashConfirmedAt) {
 }

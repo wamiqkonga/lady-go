@@ -99,8 +99,12 @@ public class MatchingService {
 
         double radiusM = config.getInt("driver.search.radius.m", 5000);
         Point pickup = booking.getPickupLocation();
+        // Ghost-online guard: only drivers with a location update newer than the configured age.
+        int maxLocationAgeSeconds = config.getInt("matching.driver.location.max.age.seconds", 120);
+        Instant locationNotBefore = Instant.now().minusSeconds(maxLocationAgeSeconds);
         List<Driver> candidates = drivers.findNearbyOnline(
-                booking.getCityId(), pickup.getX(), pickup.getY(), radiusM, Math.max(maxOffers * 3, 10));
+                booking.getCityId(), pickup.getX(), pickup.getY(), radiusM, Math.max(maxOffers * 3, 10),
+                locationNotBefore);
 
         for (Driver candidate : candidates) {
             if (alreadyOffered.contains(candidate.getId())) {
@@ -139,6 +143,13 @@ public class MatchingService {
     @Transactional
     public BookingDetailResponse accept(UUID driverUserId, UUID offerId) {
         Driver driver = resolveDriver(driverUserId);
+        // Idempotent replay (a lost response): the same driver re-accepting an offer she already won, while
+        // the booking is still active for her, gets the same result with no state change. Anything else
+        // (other driver, expired/declined offer, cancelled booking) falls through to the strict checks.
+        RideOffer owned = offers.findById(offerId).filter(o -> driver.getId().equals(o.getDriverId())).orElse(null);
+        if (owned != null && owned.getStatus() == OfferStatus.ACCEPTED && isStillActiveFor(driver, owned)) {
+            return bookingService.getForDriver(driverUserId, owned.getBookingId());
+        }
         RideOffer offer = liveOfferOwnedBy(offerId, driver.getId());
 
         offer.setStatus(OfferStatus.ACCEPTED);
@@ -149,6 +160,17 @@ public class MatchingService {
                 offer.getBookingId(), BookingStatus.DRIVER_ACCEPTED, ActorType.DRIVER, driver.getId(), "accepted");
         pushBookingUpdateToCustomer(accepted);
         return bookingService.getForDriver(driverUserId, offer.getBookingId());
+    }
+
+    private static final Set<BookingStatus> ACTIVE_AFTER_ACCEPT = Set.of(
+            BookingStatus.DRIVER_ACCEPTED, BookingStatus.DRIVER_ARRIVING, BookingStatus.DRIVER_ARRIVED,
+            BookingStatus.RIDE_STARTED, BookingStatus.RIDE_COMPLETED, BookingStatus.PAYMENT_PENDING);
+
+    private boolean isStillActiveFor(Driver driver, RideOffer offer) {
+        return bookings.findById(offer.getBookingId())
+                .filter(b -> driver.getId().equals(b.getDriverId()))
+                .filter(b -> ACTIVE_AFTER_ACCEPT.contains(b.getStatus()))
+                .isPresent();
     }
 
     @Transactional

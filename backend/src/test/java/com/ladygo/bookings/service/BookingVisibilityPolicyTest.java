@@ -82,11 +82,14 @@ class BookingVisibilityPolicyTest {
                 Arguments.of(BookingViewerRole.DRIVER, BookingStatus.RIDE_STARTED,
                         fields(BookingField.PICKUP_ADDRESS_EXACT, BookingField.DESTINATION_ADDRESS_EXACT)),
                 Arguments.of(BookingViewerRole.DRIVER, BookingStatus.RIDE_COMPLETED,
-                        fields(BookingField.PICKUP_ADDRESS_EXACT, BookingField.DESTINATION_ADDRESS_EXACT)),
+                        fields(BookingField.PICKUP_ADDRESS_EXACT, BookingField.DESTINATION_ADDRESS_EXACT,
+                                BookingField.CASH_CONFIRMED_AT)),
                 Arguments.of(BookingViewerRole.DRIVER, BookingStatus.PAYMENT_PENDING,
-                        fields(BookingField.PICKUP_ADDRESS_EXACT, BookingField.DESTINATION_ADDRESS_EXACT)),
+                        fields(BookingField.PICKUP_ADDRESS_EXACT, BookingField.DESTINATION_ADDRESS_EXACT,
+                                BookingField.CASH_CONFIRMED_AT)),
                 Arguments.of(BookingViewerRole.DRIVER, BookingStatus.COMPLETED,
-                        fields(BookingField.PICKUP_ADDRESS_EXACT, BookingField.DESTINATION_ADDRESS_EXACT)),
+                        fields(BookingField.PICKUP_ADDRESS_EXACT, BookingField.DESTINATION_ADDRESS_EXACT,
+                                BookingField.CASH_CONFIRMED_AT)),
                 Arguments.of(BookingViewerRole.DRIVER, BookingStatus.CANCELLED, fields()),
 
                 // --- ADMIN: everything, every status - no admin booking-review caller exists yet
