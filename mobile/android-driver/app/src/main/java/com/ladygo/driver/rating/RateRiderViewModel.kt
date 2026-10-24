@@ -2,6 +2,7 @@ package com.ladygo.driver.rating
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ladygo.driver.auth.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -57,6 +58,7 @@ class RateRiderViewModel
     @Inject
     constructor(
         private val repository: RatingRepository,
+        sessionManager: SessionManager,
     ) : ViewModel() {
         private val _prompt = MutableStateFlow<RateRiderUiState?>(null)
         val prompt: StateFlow<RateRiderUiState?> = _prompt.asStateFlow()
@@ -64,10 +66,22 @@ class RateRiderViewModel
         private val _rated = MutableSharedFlow<RiderRated>(extraBufferCapacity = RATED_BUFFER)
         val rated: SharedFlow<RiderRated> = _rated.asSharedFlow()
 
+        private val _alreadyRated = MutableSharedFlow<UUID>(extraBufferCapacity = RATED_BUFFER)
+
+        /** The server said (409) this ride was already rated, so a ride list can hide its Rate button. */
+        val alreadyRated: SharedFlow<UUID> = _alreadyRated.asSharedFlow()
+
         /** Bumped whenever the prompt is opened or closed: a late answer for an earlier prompt must not touch a newer one. */
         private var generation = 0
 
+        init {
+            // A prompt must never outlive the session: the next driver to sign in would be shown the last one's ride.
+            viewModelScope.launch { sessionManager.isLoggedIn.collect { loggedIn -> if (!loggedIn) onSkip() } }
+        }
+
+        /** Opens the prompt for [bookingId]; asking again for the ride already being rated changes nothing. */
         fun offer(bookingId: UUID) {
+            if (_prompt.value?.bookingId == bookingId) return
             generation++
             _prompt.value = RateRiderUiState(bookingId)
         }
@@ -89,6 +103,7 @@ class RateRiderViewModel
             viewModelScope.launch {
                 val outcome = repository.rateRider(current.bookingId, current.score, current.tags)
                 if (outcome is RateRiderOutcome.Success) _rated.tryEmit(RiderRated(current.bookingId, current.score))
+                if (outcome is RateRiderOutcome.AlreadyRated) _alreadyRated.tryEmit(current.bookingId)
                 if (startedAt != generation) return@launch // skipped or replaced while in flight
                 val result =
                     when (outcome) {

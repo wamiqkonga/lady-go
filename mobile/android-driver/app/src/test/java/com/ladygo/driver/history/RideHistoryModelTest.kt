@@ -101,7 +101,13 @@ class RideHistoryModelTest {
         assertFalse(rideItem().canRate(Instant.parse("2026-10-31T10:35:00Z"))) // exactly 7 days
         assertTrue(rideItem().canRate(Instant.parse("2026-10-31T10:34:59Z")))
         assertFalse(rideItem(status = RideHistoryStatus.CANCELLED).canRate(now))
-        assertFalse(rideItem(status = RideHistoryStatus.ENDED_EARLY).canRate(now))
+        assertFalse(rideItem().copy(alreadyRated = true).canRate(now))
         assertFalse(rideItem().copy(completedAt = null).canRate(now))
+    }
+
+    @Test
+    fun anEarlyEndedRideCanBeRatedToo() {
+        assertTrue(rideItem(status = RideHistoryStatus.ENDED_EARLY).canRate(now))
+        assertFalse(rideItem(status = RideHistoryStatus.ENDED_EARLY, myRating = 2).canRate(now))
     }
 }

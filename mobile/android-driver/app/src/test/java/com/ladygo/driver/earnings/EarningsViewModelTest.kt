@@ -210,4 +210,44 @@ class EarningsViewModelTest {
             advanceUntilIdle()
             coVerify(exactly = 2) { repository.fetch(thisWeek) }
         }
+
+    @Test
+    fun theCityTimeZoneDecidesTodayEvenWhenThePhoneIsOnUtc() =
+        runTest {
+            // Monday 01:00 in Kolkata is still Sunday 19:30 UTC: the phone's week is last week's.
+            now = "2026-10-25T19:30:00Z"
+            val phoneWeek = DateRange(LocalDate.of(2026, 10, 19), LocalDate.of(2026, 10, 25))
+            val cityWeek = DateRange(LocalDate.of(2026, 10, 26), LocalDate.of(2026, 11, 1))
+            coEvery { repository.fetch(phoneWeek) } returns
+                EarningsOutcome.Success(earnings(1).copy(timeZone = "Asia/Kolkata"))
+            coEvery { repository.fetch(cityWeek) } returns EarningsOutcome.Success(earnings(0).copy(timeZone = "Asia/Kolkata"))
+
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            // the first answer revealed the city zone, so the IST week was requested straight away
+            coVerify { repository.fetch(cityWeek) }
+            assertEquals(cityWeek, vm.uiState.value.range)
+            assertEquals(earnings(0).copy(timeZone = "Asia/Kolkata"), vm.uiState.value.earnings)
+        }
+
+    @Test
+    fun afterMidnightOnANewMondayAFailedRefreshDoesNotShowOldTotalsUnderNewDates() =
+        runTest {
+            coEvery { repository.fetch(thisWeek) } returns EarningsOutcome.Success(earnings(2))
+            val nextWeek = DateRange(LocalDate.of(2026, 10, 26), LocalDate.of(2026, 11, 1))
+            coEvery { repository.fetch(nextWeek) } returns EarningsOutcome.Failed("offline")
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            now = "2026-10-26T00:05:00Z"
+            vm.onRefresh()
+            assertTrue(vm.uiState.value.isLoading)
+            assertNull(vm.uiState.value.earnings)
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.earnings)
+            assertEquals("offline", vm.uiState.value.error)
+            assertEquals(nextWeek, vm.uiState.value.range)
+        }
 }

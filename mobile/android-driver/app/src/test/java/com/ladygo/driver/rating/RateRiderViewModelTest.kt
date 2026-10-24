@@ -1,11 +1,14 @@
 package com.ladygo.driver.rating
 
+import com.ladygo.driver.auth.SessionManager
 import com.ladygo.driver.testing.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -28,7 +31,10 @@ class RateRiderViewModelTest {
     private val repository = mockk<RatingRepository>()
     private val id = UUID.randomUUID()
 
-    private fun viewModel() = RateRiderViewModel(repository)
+    private val loggedIn = MutableStateFlow(true)
+    private val sessionManager = mockk<SessionManager> { every { isLoggedIn } returns loggedIn }
+
+    private fun viewModel() = RateRiderViewModel(repository, sessionManager)
 
     @Test
     fun nothingIsShownUntilARideIsOffered() {
@@ -199,5 +205,53 @@ class RateRiderViewModelTest {
             advanceUntilIdle()
 
             assertEquals(RateRiderUiState(bookingId = other), vm.prompt.value)
+        }
+
+    @Test
+    fun loggingOutClearsThePromptSoTheNextDriverNeverSeesIt() =
+        runTest {
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.offer(id)
+            vm.onScore(5)
+
+            loggedIn.value = false
+            advanceUntilIdle()
+
+            assertNull(vm.prompt.value)
+            coVerify(exactly = 0) { repository.rateRider(any(), any(), any()) }
+        }
+
+    @Test
+    fun offeringTheRideAlreadyBeingRatedKeepsTheChoices() =
+        runTest {
+            val vm = viewModel()
+            vm.offer(id)
+            vm.onScore(4)
+
+            vm.offer(id) // e.g. the leftover-ride path after the normal Done path
+
+            assertEquals(4, vm.prompt.value?.score)
+            vm.offer(UUID.randomUUID())
+            assertEquals(0, vm.prompt.value?.score)
+        }
+
+    @Test
+    fun http409AlsoTellsTheRideListWithoutAScore() =
+        runTest {
+            coEvery { repository.rateRider(any(), any(), any()) } returns RateRiderOutcome.AlreadyRated
+            val vm = viewModel()
+            val told = mutableListOf<UUID>()
+            val rated = mutableListOf<RiderRated>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.alreadyRated.toList(told) }
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.rated.toList(rated) }
+            vm.offer(id)
+            vm.onScore(3)
+
+            vm.onSubmit()
+            advanceUntilIdle()
+
+            assertEquals(listOf(id), told)
+            assertTrue(rated.isEmpty())
         }
 }

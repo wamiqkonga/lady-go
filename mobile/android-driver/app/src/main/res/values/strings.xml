@@ -175,6 +175,9 @@
     <string name="rate_thanks">Thanks for rating your rider.</string>
     <string name="rate_already_rated">You already rated this ride</string>
     <string name="rate_network_failure">Could not reach the server. Retry, or skip for now.</string>
+    <string name="rides_detail_rating_value">%1$d / 5</string>
+    <string name="common_no_browser">No browser app found. Open the Lady Go website on another device.</string>
+    <string name="help_copy_failed">Could not copy. Try again.</string>
     <string name="rides_rate_action">Rate the rider</string>
     <string name="me_log_out">Log out</string>
 

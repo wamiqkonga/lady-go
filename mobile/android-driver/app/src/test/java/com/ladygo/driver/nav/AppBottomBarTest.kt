@@ -124,4 +124,12 @@ class AppBottomBarTest {
         composeRule.onNodeWithText("home-page").assertExists()
         assertSame(first, homeVm)
     }
+
+    @Test
+    fun theRatingSheetShowsOnRestingScreensButNeverOverAnOfferOrAnActiveRide() {
+        listOf(Routes.HOME, Routes.EARNINGS, Routes.RIDES, Routes.ME, Routes.HELP, Routes.RIDE_DETAIL)
+            .forEach { assertTrue(it, isHomeTreeRoute(it)) }
+        listOf(Routes.INCOMING_OFFER, Routes.ACTIVE_RIDE, Routes.LOGIN, Routes.ONBOARDING_GATE, null)
+            .forEach { assertFalse(it.toString(), isHomeTreeRoute(it)) }
+    }
 }

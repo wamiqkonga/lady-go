@@ -61,4 +61,12 @@ class SupportContactTest {
                 repository.fetch(),
             )
         }
+
+    @Test
+    fun aLocalFormatWhatsAppNumberWithoutAPlusIsDropped() {
+        val contact = SupportContactResponse(phone = "98765 43210", whatsapp = "9876543210").toContact()
+
+        assertEquals("98765 43210", contact.phone)
+        assertNull(contact.whatsappDigits)
+    }
 }

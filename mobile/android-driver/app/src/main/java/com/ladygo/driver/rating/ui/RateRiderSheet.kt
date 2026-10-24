@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -148,7 +149,15 @@ private fun Stars(
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
         for (star in 1..STAR_COUNT) {
-            IconButton(onClick = { onScore(star) }, enabled = enabled, modifier = Modifier.testTag("rate_star_$star")) {
+            IconButton(
+                onClick = { onScore(star) },
+                enabled = enabled,
+                modifier =
+                    Modifier.testTag("rate_star_$star").semantics {
+                        selected =
+                            star == score
+                    },
+            ) {
                 Icon(
                     imageVector = if (star <= score) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = pluralStringResource(R.plurals.rate_star_description, star, star),

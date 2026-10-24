@@ -1,5 +1,6 @@
 package com.ladygo.driver.help.ui
 
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -76,7 +77,7 @@ class HelpContentTest {
     @Test
     fun noNumbersSaysComingSoonButCall112AndDiagnosticsStay() {
         val taps = Taps()
-        show(HelpUiState(isLoading = false, contact = SupportContact(null, null)), taps = taps)
+        show(HelpUiState(isLoading = false, contact = SupportContact(null, null), driverReference = "a1b2c3d4"), taps = taps)
 
         composeRule.onNodeWithText("Support details coming soon").assertExists()
         composeRule.onNodeWithText("Call support").assertDoesNotExist()
@@ -108,10 +109,18 @@ class HelpContentTest {
     @Test
     fun copyingShowsAConfirmationAndBackWorks() {
         val taps = Taps()
-        show(HelpUiState(isLoading = false, contact = SupportContact(null, null)), copied = true, taps = taps)
+        show(HelpUiState(isLoading = false, contact = SupportContact(null, null), driverReference = "a1b2c3d4"), copied = true, taps = taps)
 
         composeRule.onNodeWithContentDescription("Back").performClick()
         assertEquals(1, taps.backs)
         composeRule.onNodeWithText("Diagnostics copied").performScrollTo().assertExists()
+    }
+
+    @Test
+    fun copyIsDisabledUntilTheDriverReferenceIsKnown() {
+        val taps = Taps()
+        show(HelpUiState(isLoading = false, contact = SupportContact(null, null), driverReference = null), taps = taps)
+
+        composeRule.onNodeWithText("Copy diagnostics").performScrollTo().assertIsNotEnabled()
     }
 }

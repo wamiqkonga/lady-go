@@ -63,7 +63,9 @@ fun RideDetailScreen(
                     },
                 ),
             )
-            ride.myRating?.let { LabelValueRow(stringResource(R.string.rides_detail_rating_label), "$it / 5") }
+            ride.myRating?.let {
+                LabelValueRow(stringResource(R.string.rides_detail_rating_label), stringResource(R.string.rides_detail_rating_value, it))
+            }
             if (ride.ratedByRider) Text(stringResource(R.string.rides_rider_rated), style = MaterialTheme.typography.bodyMedium)
             if (ride.canRate(now)) {
                 SecondaryButton(

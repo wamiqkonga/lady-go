@@ -150,7 +150,7 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
     // already online (authenticated, past onboarding), so this never needs to guard against firing
     // from Login/the onboarding gate.
     val offerState = offerViewModel.uiState.collectAsStateWithLifecycle().value
-    RideNavigationEffect(navController, rideViewModel, offerShowing = offerState is OfferUiState.Showing)
+    RideNavigationEffect(navController, rideViewModel, rateViewModel, offerShowing = offerState is OfferUiState.Showing)
     LaunchedEffect(offerState) {
         when (offerState) {
             is OfferUiState.Showing ->
@@ -279,12 +279,15 @@ private fun homeScopedRideHistory(
 
 /** A rating the server accepted shows on its history row at once, without reloading the list. */
 @Composable
-private fun RatedRowsEffect(
+internal fun RatedRowsEffect(
     rateViewModel: RateRiderViewModel,
     history: RideHistoryViewModel,
 ) {
     LaunchedEffect(rateViewModel, history) {
         rateViewModel.rated.collect { history.onRated(it.bookingId, it.score) }
+    }
+    LaunchedEffect(rateViewModel, history) {
+        rateViewModel.alreadyRated.collect { history.onAlreadyRated(it) }
     }
 }
 
@@ -307,6 +310,7 @@ private fun RideLocationServiceEffect(rideOngoing: Boolean) {
 private fun RideNavigationEffect(
     navController: NavHostController,
     rideViewModel: ActiveRideViewModel,
+    rateViewModel: RateRiderViewModel,
     offerShowing: Boolean,
 ) {
     val rideState = rideViewModel.uiState.collectAsStateWithLifecycle().value
@@ -324,7 +328,8 @@ private fun RideNavigationEffect(
             navController.navigate(Routes.ACTIVE_RIDE) { popUpTo(Routes.HOME) }
         } else if (rideLeftover && isHomeTreeRoute(currentRoute)) {
             // A finished/ended ride found while on Home (e.g. restored after an app kill) needs no screen.
-            rideViewModel.onDone()
+            // Offer the rating too; a repeat offer for the same ride (normal Done path) is ignored by the view model.
+            rideViewModel.onDone()?.let(rateViewModel::offer)
         } else if (!rideState.isActive && currentRoute == Routes.ACTIVE_RIDE) {
             // The ride was cleared underneath the screen (logout) - never leave a blank screen.
             navController.popBackStack(Routes.HOME, inclusive = false)

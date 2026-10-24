@@ -219,4 +219,59 @@ class RideHistoryViewModelTest {
 
             assertEquals(listOf(a), vm.uiState.value.items)
         }
+
+    @Test
+    fun comingBackToTheScreenKeepsRowsFromLaterPagesAndAddsNewOnes() =
+        runTest {
+            val newest = rideItem()
+            coEvery { repository.fetchPage(0) } returns RideHistoryOutcome.Success(listOf(a, b), hasMore = true)
+            coEvery { repository.fetchPage(1) } returns RideHistoryOutcome.Success(listOf(c), hasMore = false)
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.onLoadMore()
+            advanceUntilIdle()
+            assertEquals(listOf(a, b, c), vm.uiState.value.items)
+
+            // navigate away and back: page 0 now has a newer ride on top
+            coEvery { repository.fetchPage(0) } returns RideHistoryOutcome.Success(listOf(newest, a), hasMore = true)
+            vm.onResume()
+            advanceUntilIdle()
+
+            assertEquals(listOf(newest, a, b, c), vm.uiState.value.items)
+            assertFalse(vm.uiState.value.hasMore) // page 2 was the last; the merge must not re-open paging
+            assertFalse(vm.uiState.value.isRefreshing)
+        }
+
+    @Test
+    fun aFailedQuietRefreshKeepsEveryRowAndShowsTheBanner() =
+        runTest {
+            coEvery { repository.fetchPage(0) } returns RideHistoryOutcome.Success(listOf(a), hasMore = true)
+            coEvery { repository.fetchPage(1) } returns RideHistoryOutcome.Success(listOf(b), hasMore = false)
+            val vm = viewModel()
+            advanceUntilIdle()
+            vm.onLoadMore()
+            advanceUntilIdle()
+
+            coEvery { repository.fetchPage(0) } returns RideHistoryOutcome.Failed("offline")
+            vm.onResume()
+            advanceUntilIdle()
+
+            assertEquals(listOf(a, b), vm.uiState.value.items)
+            assertEquals("offline", vm.uiState.value.refreshError)
+        }
+
+    @Test
+    fun anAlreadyRatedAnswerHidesTheRateButtonWithoutInventingAScore() =
+        runTest {
+            coEvery { repository.fetchPage(0) } returns RideHistoryOutcome.Success(listOf(a), hasMore = false)
+            val vm = viewModel()
+            advanceUntilIdle()
+
+            vm.onAlreadyRated(a.bookingId)
+
+            val row = vm.item(a.bookingId)!!
+            assertTrue(row.alreadyRated)
+            assertNull(row.myRating)
+            assertFalse(row.canRate(java.time.Instant.parse("2026-10-24T12:00:00Z")))
+        }
 }

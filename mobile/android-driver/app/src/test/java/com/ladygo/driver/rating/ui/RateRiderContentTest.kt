@@ -2,8 +2,11 @@ package com.ladygo.driver.rating.ui
 
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.ladygo.driver.rating.RateResult
@@ -120,5 +123,14 @@ class RateRiderContentTest {
         composeRule.onNodeWithText("Skip").performClick()
         assertEquals(1, taps.submits)
         assertEquals(1, taps.skips)
+    }
+
+    @Test
+    fun theChosenStarIsMarkedSelectedForScreenReaders() {
+        show(RateRiderUiState(id, score = 4))
+
+        composeRule.onNodeWithTag("rate_star_4").assertIsSelected()
+        composeRule.onNodeWithTag("rate_star_5").assertIsNotSelected()
+        composeRule.onNodeWithTag("rate_star_1").assertIsNotSelected()
     }
 }

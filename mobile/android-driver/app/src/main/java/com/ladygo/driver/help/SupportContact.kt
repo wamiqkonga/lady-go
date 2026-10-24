@@ -18,7 +18,13 @@ data class SupportContact(
 fun SupportContactResponse?.toContact(): SupportContact =
     SupportContact(
         phone = this?.phone?.trim()?.takeIf { it.isNotEmpty() },
-        whatsappDigits = this?.whatsapp?.filter { it.isDigit() }?.takeIf { it.isNotEmpty() },
+        // wa.me needs the full international number, so only a "+"-prefixed value is trusted; a local-format one is dropped.
+        whatsappDigits =
+            this
+                ?.whatsapp
+                ?.takeIf { it.trim().startsWith("+") }
+                ?.filter { it.isDigit() }
+                ?.takeIf { it.isNotEmpty() },
     )
 
 sealed interface SupportOutcome {

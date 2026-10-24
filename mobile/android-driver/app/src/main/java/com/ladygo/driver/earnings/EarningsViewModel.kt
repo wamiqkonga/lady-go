@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 
 data class EarningsUiState(
@@ -42,6 +43,9 @@ class EarningsViewModel
         val uiState: StateFlow<EarningsUiState> = _uiState.asStateFlow()
         private var loadJob: Job? = null
 
+        /** The city time zone from the last response: the server buckets days in it, so "today" must be read in it too. */
+        private var cityZone: ZoneId? = null
+
         init {
             load()
         }
@@ -61,7 +65,13 @@ class EarningsViewModel
         fun onRefresh() {
             val current = _uiState.value
             if (current.earnings == null) return onRetry()
-            _uiState.value = current.copy(isRefreshing = true, refreshError = null, range = rangeFor(current.week))
+            val range = rangeFor(current.week)
+            if (range != current.range) {
+                // A new week has begun (or the city zone differs from the phone's): the old totals belong to other dates.
+                _uiState.value = EarningsUiState(week = current.week, range = range, isLoading = true)
+            } else {
+                _uiState.value = current.copy(isRefreshing = true, refreshError = null)
+            }
             load()
         }
 
@@ -78,7 +88,15 @@ class EarningsViewModel
             loadJob =
                 viewModelScope.launch {
                     when (val outcome = repository.fetch(range)) {
-                        is EarningsOutcome.Success ->
+                        is EarningsOutcome.Success -> {
+                            cityZone = outcome.earnings.timeZone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: cityZone
+                            val week = _uiState.value.week
+                            if (rangeFor(week) != range) {
+                                // The city's date differs from the phone's: these totals are for the wrong dates. Ask again.
+                                _uiState.value = EarningsUiState(week = week, range = rangeFor(week), isLoading = true)
+                                load()
+                                return@launch
+                            }
                             _uiState.value =
                                 _uiState.value.copy(
                                     isLoading = false,
@@ -87,6 +105,7 @@ class EarningsViewModel
                                     error = null,
                                     refreshError = null,
                                 )
+                        }
                         is EarningsOutcome.Failed -> {
                             val hasData = _uiState.value.earnings != null
                             _uiState.value =
@@ -101,5 +120,5 @@ class EarningsViewModel
                 }
         }
 
-        private fun rangeFor(week: WeekChoice): DateRange = weekRange(LocalDate.now(clock), week)
+        private fun rangeFor(week: WeekChoice): DateRange = weekRange(LocalDate.ofInstant(clock.instant(), cityZone ?: clock.zone), week)
     }

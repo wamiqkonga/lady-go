@@ -47,6 +47,7 @@ fun HelpScreen(
     val context = LocalContext.current
     var copied by remember { mutableStateOf(false) }
     val dialerFailed = stringResource(R.string.ride_dialer_failed)
+    val copyFailed = stringResource(R.string.help_copy_failed)
     val whatsAppFailed = stringResource(R.string.help_whatsapp_failed)
     HelpContent(
         state = state,
@@ -63,8 +64,8 @@ fun HelpScreen(
             if (!ExternalIntents.dialEmergency(context)) Toast.makeText(context, dialerFailed, Toast.LENGTH_LONG).show()
         },
         onCopyDiagnostics = {
-            copyToClipboard(context, viewModel.diagnostics())
-            copied = true
+            copied = copyToClipboard(context, viewModel.diagnostics())
+            if (!copied) Toast.makeText(context, copyFailed, Toast.LENGTH_LONG).show()
         },
     )
 }
@@ -106,6 +107,8 @@ fun HelpContent(
             SecondaryButton(
                 text = stringResource(R.string.help_copy_diagnostics),
                 onClick = onCopyDiagnostics,
+                // Wait for the driver reference (or its "unavailable" fallback) so the copied text is complete.
+                enabled = state.driverReference != null,
                 icon = Icons.Filled.ContentCopy,
             )
             if (copied) InfoBanner(text = stringResource(R.string.help_diagnostics_copied), kind = BannerKind.SUCCESS)
@@ -151,10 +154,12 @@ private fun SupportBody(
     }
 }
 
-private fun copyToClipboard(
+/** True only when the text really went to the clipboard. */
+internal fun copyToClipboard(
     context: Context,
     text: String,
-) {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+): Boolean {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return false
     clipboard.setPrimaryClip(ClipData.newPlainText("Lady Go diagnostics", text))
+    return true
 }

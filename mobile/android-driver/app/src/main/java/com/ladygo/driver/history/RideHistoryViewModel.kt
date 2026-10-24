@@ -62,6 +62,13 @@ class RideHistoryViewModel
             _uiState.value = _uiState.value.copy(items = paged.items)
         }
 
+        /** The server said this ride was already rated by this driver: keep the row, hide the Rate button, invent no score. */
+        fun onAlreadyRated(bookingId: UUID) {
+            if (paged.items.none { it.bookingId == bookingId }) return
+            paged = paged.copy(items = paged.items.map { if (it.bookingId == bookingId) it.copy(alreadyRated = true) else it })
+            _uiState.value = _uiState.value.copy(items = paged.items)
+        }
+
         fun onRetry() {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             loadFirstPage()
@@ -74,11 +81,26 @@ class RideHistoryViewModel
             loadFirstPage()
         }
 
-        /** The app came back to the foreground (e.g. after finishing a ride): quietly re-read the first page. */
+        /**
+         * The screen came back (a tab switch, back from a ride's detail, the app returning to the foreground): quietly
+         * re-read page 0 and merge it in. Rows from later pages the driver already scrolled to stay; only a pull to
+         * refresh restarts the list.
+         */
         fun onResume() {
             val state = _uiState.value
             if (state.isBusy || state.items.isEmpty()) return
-            onRefresh()
+            _uiState.value = state.copy(isRefreshing = true, refreshError = null)
+            loadJob =
+                viewModelScope.launch {
+                    when (val outcome = repository.fetchPage(0)) {
+                        is RideHistoryOutcome.Success -> {
+                            paged = paged.mergeFirstPage(outcome.items, outcome.hasMore)
+                            _uiState.value = _uiState.value.copy(items = paged.items, hasMore = paged.hasMore, isRefreshing = false)
+                        }
+                        is RideHistoryOutcome.Failed ->
+                            _uiState.value = _uiState.value.copy(isRefreshing = false, refreshError = outcome.message)
+                    }
+                }
         }
 
         /** Called as the driver nears the end of the list, and by the retry row after a failed next page. */
