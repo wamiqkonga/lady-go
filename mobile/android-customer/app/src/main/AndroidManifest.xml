@@ -2,13 +2,30 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Pickup point from the device location; Android 12+ requires COARSE declared alongside FINE. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Front-camera ride selfie, once per booking. Not required to install (tablets/emulators). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
     <application
+        android:name=".LadyGoCustomerApplication"
         android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.LadyGo"
         android:usesCleartextTraffic="false">
+        <!-- False positive: this is the app's MAIN/LAUNCHER activity, not a general exported
+             component - Android REQUIRES exported="true" here (API 31+ build-fails without it for
+             any activity with a MAIN/LAUNCHER intent-filter), and it accepts no deep-link data, no
+             custom scheme, reads no Intent extras - there is no attacker-controlled surface for
+             another app to drive into a state it doesn't already start in. See
+             docs/security/sast-triage.md. -->
+        <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

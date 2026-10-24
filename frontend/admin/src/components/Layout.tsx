@@ -1,4 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
+import { useSession } from '../lib/sessionContext'
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -13,10 +16,14 @@ const nav = [
 ]
 
 export default function Layout() {
+  const { signOut } = useSession()
   return (
     <div className="admin-shell">
       <aside className="sidebar">
-        <div className="brand">Lady Go Admin</div>
+        <div className="brand">
+          <Logo size={30} />
+          <span>Lady Go Admin</span>
+        </div>
         <nav aria-label="Admin">
           {nav.map((n) => (
             <NavLink key={n.to} to={n.to}>
@@ -24,12 +31,12 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
+        <ThemeToggle />
+        <button type="button" className="sign-out" onClick={signOut}>
+          Sign out
+        </button>
       </aside>
       <div className="main">
-        <div className="banner" role="status">
-          Not signed in. Authentication and role checks are enforced by the backend and arrive in
-          Phase 3; this screen shows no real data.
-        </div>
         <main className="content">
           <Outlet />
         </main>

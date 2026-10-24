@@ -3,7 +3,10 @@
 Phase 1 skeleton: Kotlin, Jetpack Compose, MVVM (ViewModel + StateFlow). Application ID `com.ladygo.customer`.
 
 ## Status
-**Written but not built.** The authoring machine had no Android SDK and blocked access to Google/Maven repositories, so this project has not been compiled. Library versions in `gradle/libs.versions.toml` are starting points; bump to current stable on the first build.
+Slices 1-2 built: OTP login (`intendedRole=CUSTOMER`), onboarding gate (name + declaration), book a ride (location,
+destination search, fare estimate, selfie, cash booking) and a polling track/cancel screen. Live push, trip share and
+the in-ride safety actions follow - see `docs/product/customer-android-design.md`. Generated API client
+lives in `app/openapi-client/` (regenerate with `gradle :app:openApiGenerateClient`; CI drift-checks it).
 
 ## Build
 Requirements: JDK 17+, Android SDK (API 36), Gradle 8.13+ (or generate a wrapper: `gradle wrapper`).
@@ -18,5 +21,6 @@ gradle :app:lintDebug
 - Debug builds call the backend at `http://10.0.2.2:8080` (emulator host alias).
 - Release builds read `LADYGO_API_BASE_URL` from Gradle properties (CI secret); never commit real values.
 
-## Dependencies added later (each when first needed)
-Hilt, Retrofit + Kotlin Serialization, Room, Google Maps SDK / Maps Compose, Firebase Cloud Messaging.
+## Dependencies added later
+CameraX (ride selfie), STOMP client (live ride status), Google Maps/Places only if the platform `Geocoder` proves
+inadequate for the pilot area.

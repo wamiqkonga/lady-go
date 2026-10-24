@@ -126,6 +126,13 @@ Buckets: OTP resend (per phone+purpose), admin login (per email **and** per IP �
 
 ## 9. SMS provider abstraction + mock
 
+**Superseded by `docs/development/sms-provider-setup.md`.** This section is the original Phase 3 design
+(kept for history); the actual interface that shipped is `SmsSender` (`send(toE164, templateKey,
+variables)`, not `SmsService.sendOtp`), with `LoggingSmsSender` replacing `MockSmsService` and
+`SmsSenderStartupGuard` replacing the one-off startup check described below. The generic HTTP adapter,
+retry/circuit-breaker reliability, and per-number/per-IP/global send caps described in the new doc did
+not exist when this section was written.
+
 Per `docs/architecture/backend-architecture.md` §7 (`NotificationChannel` SPI family):
 
 ```java
@@ -148,6 +155,11 @@ public interface SmsService {
 | `LADYGO_OTP_HASH_SECRET` | HMAC key for OTP code hashing | staging, prod (dev placeholder default) |
 | `LADYGO_BOOTSTRAP_ADMIN_EMAIL`, `LADYGO_BOOTSTRAP_ADMIN_PASSWORD`, `LADYGO_BOOTSTRAP_ADMIN_PHONE` | one-time first-SUPER_ADMIN creation (§3.1); phone is required only to satisfy the `users.phone NOT NULL` schema constraint, not used as a staff login factor | set once, anywhere, then should be unset/rotated |
 | `LADYGO_SMS_PROVIDER`, `LADYGO_SMS_API_KEY`, ... | real SMS provider credentials | staging, prod (no dev default — mock is used instead) |
+| `LADYGO_RIDE_PIN_SECRET` | HMAC key the ride PIN is derived from (Phase 4, docs/api/booking.md section 3) — not an auth secret, listed here to keep one inventory of every env-only key | staging, prod (dev placeholder default) |
+| `LADYGO_LOCAL_STORAGE_SECRET` | HMAC key signing `LocalFileStorage`'s dev/test "presigned URL" (Phase 5, docs/api/driver-onboarding.md section 1) | dev/test only (never used in staging/prod, which use real S3 presigning instead) |
+| `LADYGO_S3_BUCKET`, `LADYGO_S3_REGION` | FileStorage (ADR-009, Phase 5) object storage location | staging, prod |
+| `LADYGO_S3_ENDPOINT` | S3-compatible endpoint override (e.g. a self-hosted provider for staging); unset means real AWS S3 | staging only, typically |
+| `LADYGO_S3_ACCESS_KEY`, `LADYGO_S3_SECRET_KEY` | Static S3 credentials; left unset in prod to use the instance's IAM role instead (`DefaultCredentialsProvider`) | staging (prod normally unset) |
 
 `ladygo.security.trusted-proxies` (§8) is a deployment-topology setting, not a secret, but still environment-driven (no hard-coded IPs).
 

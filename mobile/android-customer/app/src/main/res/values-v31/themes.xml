@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.LadyGo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ladygo_window_background</item>
+        <!-- System splash: plum tile with the Lady Go mark instead of the default Android robot. -->
+        <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>

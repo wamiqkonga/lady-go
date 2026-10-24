@@ -13,8 +13,10 @@ import com.ladygo.auth.web.dto.TokenResponse;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.common.exception.UnauthorizedException;
 import com.ladygo.security.jwt.AuthPrincipal;
+import com.ladygo.security.net.ClientIpResolver;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,21 +40,27 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final AccessTokenIssuer accessTokenIssuer;
     private final UserRepository users;
+    private final ClientIpResolver clientIpResolver;
 
     public AuthController(
             OtpLoginService otpLoginService,
             RefreshTokenService refreshTokenService,
             AccessTokenIssuer accessTokenIssuer,
-            UserRepository users) {
+            UserRepository users,
+            ClientIpResolver clientIpResolver) {
         this.otpLoginService = otpLoginService;
         this.refreshTokenService = refreshTokenService;
         this.accessTokenIssuer = accessTokenIssuer;
         this.users = users;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/otp/request")
-    public ApiResponse<MessageResponse> requestOtp(@Valid @RequestBody OtpRequestRequest request) {
-        otpLoginService.requestOtp(request.phone(), request.purpose(), request.intendedRole());
+    public ApiResponse<MessageResponse> requestOtp(
+            @Valid @RequestBody OtpRequestRequest request, HttpServletRequest httpRequest) {
+        otpLoginService.requestOtp(
+                request.phone(), request.purpose(), request.intendedRole(),
+                clientIpResolver.resolve(httpRequest), request.challengeToken(), request.email());
         return ApiResponse.ok(new MessageResponse(GENERIC_OTP_SENT));
     }
 

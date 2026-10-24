@@ -7,3 +7,8 @@ local.properties
 captures/
 *.jks
 *.keystore
+
+# openapi-generator's own project scaffold (build.gradle, settings.gradle, README.md, proguard-rules.pro,
+# .openapi-generator/, .openapi-generator-ignore) - only the generated client source itself is committed.
+app/openapi-client/*
+!app/openapi-client/src/

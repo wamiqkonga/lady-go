@@ -1,0 +1,44 @@
+# Builds upon detekt's own default ruleset (buildUponDefaultConfig = true in app/build.gradle.kts) -
+# this file only overrides the handful of rules that are either noisy for an early-stage app or need
+# a wider threshold, it does not redefine the whole ruleset from scratch.
+style:
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    # Default 120 wraps badly for one-line mockk stub setups in tests (`coEvery { x } returns
+    # Response.success(SomeResponse(data = Thing(...)))`) - wrapping those hurts readability more
+    # than the extra width does, so this matches ktlint's own effectively-unenforced line length
+    # for non-breakable call chains rather than fighting it.
+    maxLineLength: 150
+  ReturnCount:
+    # Early-return validation/branching (reject malformed input, map a 404 to a distinct state,
+    # give up on a failed network call) is this codebase's deliberate style throughout - see
+    # AuthRepository/OnboardingRepository/TokenAuthenticator - not a complexity smell to flatten.
+    max: 6
+
+complexity:
+  LongMethod:
+    threshold: 80
+  TooManyFunctions:
+    active: false
+  LongParameterList:
+    # A UiState + one callback per user action is this app's whole architecture (unidirectional
+    # state, per the design doc) - bundling those into a params object would be ceremony, not
+    # clarity, for a Composable that just renders a state and wires up its actions. (A case that
+    # genuinely grew unwieldy - HomeContent's two permission-dialog param groups - was refactored
+    # into BatteryGuidanceDialogState/FineLocationDeniedDialogState instead of raising this again.)
+    functionThreshold: 8
+    # Design-system components (ui/components) are UI building blocks with many *optional* styling
+    # parameters (all defaulted), the idiom Material itself uses - not a smell for those.
+    ignoreDefaultParameters: true
+    # StompConnectionManager's constructor has 8 real, distinct Hilt-injected collaborators (token
+    # store/refresher, session manager, the STOMP session factory, the system-ping API, the events
+    # bus, Moshi, its own scope) - same "each one is genuinely needed, grouping them would be
+    # ceremony" reasoning as functionThreshold above, not a complexity smell to flatten.
+    constructorThreshold: 9
+
+naming:
+  FunctionNaming:
+    # Compose functions are PascalCase by convention (a Composable is a type-like constructor,
+    # not a verb), which the default camelCase rule would otherwise flag on every screen function.
+    ignoreAnnotated: ["Composable"]

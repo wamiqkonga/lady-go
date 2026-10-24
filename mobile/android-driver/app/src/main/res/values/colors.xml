@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#6A2C70</color>
+    <!-- Window background before Compose draws (avoids a white flash): matches the theme background. -->
+    <color name="ladygo_window_background">#FFF9FA</color>
+</resources>

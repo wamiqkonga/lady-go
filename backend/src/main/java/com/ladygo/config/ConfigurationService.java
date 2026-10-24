@@ -1,6 +1,8 @@
 package com.ladygo.config;
 
+import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Optional;
 import com.ladygo.config.domain.ConfigScope;
 import com.ladygo.config.repository.ConfigEntryRepository;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,33 @@ public class ConfigurationService {
                 .orElse(fallback);
     }
 
+    /**
+     * For keys that are deliberately UNSET until the owner provides a value (no safe default exists, e.g.
+     * {@code earnings.commission.bps}): empty when the row is absent OR its value is blank, so "unset"
+     * never turns into an invented number. A non-numeric value is also treated as unset rather than
+     * throwing, because the caller sits inside a ride-completion transaction that must not fail on a
+     * config typo (AdminConfigService already rejects non-integers on write).
+     */
+    public Optional<Integer> findInt(String key) {
+        return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
+                .map(entry -> entry.getConfigValue() == null ? "" : entry.getConfigValue().trim())
+                .filter(value -> !value.isEmpty())
+                .flatMap(value -> {
+                    try {
+                        return Optional.of(Integer.parseInt(value));
+                    } catch (NumberFormatException ex) {
+                        return Optional.empty();
+                    }
+                });
+    }
+
+    /** Trimmed text value of an optional key; empty when the row is absent or its value is blank. */
+    public Optional<String> findString(String key) {
+        return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
+                .map(entry -> entry.getConfigValue() == null ? "" : entry.getConfigValue().trim())
+                .filter(value -> !value.isEmpty());
+    }
+
     public boolean getBoolean(String key, boolean fallback) {
         return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
                 .map(entry -> Boolean.parseBoolean(entry.getConfigValue()))
@@ -39,9 +68,21 @@ public class ConfigurationService {
                 .orElse(fallback);
     }
 
+    public Duration getHours(String key, Duration fallback) {
+        return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
+                .map(entry -> Duration.ofHours(Long.parseLong(entry.getConfigValue())))
+                .orElse(fallback);
+    }
+
     public Duration getMinutes(String key, Duration fallback) {
         return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
                 .map(entry -> Duration.ofMinutes(Long.parseLong(entry.getConfigValue())))
+                .orElse(fallback);
+    }
+
+    public BigDecimal getBigDecimal(String key, BigDecimal fallback) {
+        return repository.findByConfigKeyAndScopeAndCityIdIsNull(key, ConfigScope.GLOBAL)
+                .map(entry -> new BigDecimal(entry.getConfigValue()))
                 .orElse(fallback);
     }
 

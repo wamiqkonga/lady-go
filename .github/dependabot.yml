@@ -1,0 +1,52 @@
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    # Waits this many days after a new version is published before proposing it - a newly published
+    # package is the likeliest moment for a supply-chain compromise to still be live and un-yanked
+    # (security review finding: package_managers.dependabot.dependabot-missing-cooldown).
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "npm"
+    directory: "/frontend/website"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "npm"
+    directory: "/frontend/admin"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "gradle"
+    directory: "/mobile/android-customer"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "gradle"
+    directory: "/mobile/android-driver"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7

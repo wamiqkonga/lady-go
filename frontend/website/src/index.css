@@ -1,69 +1,179 @@
+/* Lady Go web theme - mirrors the Android design system (docs/product/design-system.md): Plum primary,
+ * blush background, Nunito, 16/24/32 radii, pill buttons, sage/amber/error status colours. Keep the
+ * tokens below in sync with the Android apps' ui/theme/Color.kt. */
+@font-face {
+  font-family: 'Nunito';
+  src: url('/fonts/nunito-variable.ttf') format('truetype');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
 :root {
-  --bg: #ffffff;
-  --fg: #1f1b24;
-  --muted: #5d5668;
-  --brand: #7a2e8e;
+  --bg: #fff9fa;
+  --fg: #2b2030;
+  --muted: #6e5f72;
+  --brand: #6a2c70;
+  --brand-deep: #4a1d5a;
   --brand-contrast: #ffffff;
-  --surface: #f6f1f8;
-  --border: #e2d9e7;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --brand-container: #f6e4f5;
+  --rose: #c74b6e;
+  --rose-container: #ffe0e8;
+  --surface: #ffffff;
+  --surface-variant: #f7eff4;
+  --border: #d9c9d3;
+  --panel: #ffffff;
+  --ok: #1f7a63;
+  --ok-container: #ddf3eb;
+  --warn: #8a5a00;
+  --warn-container: #fff0d1;
+  --bad: #b3261e;
+  --bad-container: #fce4e1;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: var(--fg);
   background: var(--bg);
-  line-height: 1.55;
+  line-height: 1.6;
+  color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17131c;
-    --fg: #f1ecf4;
-    --muted: #b6aebf;
-    --brand: #d58be6;
-    --brand-contrast: #17131c;
-    --surface: #221c29;
-    --border: #3a3144;
+  :root:not([data-theme='light']) {
+    --bg: #171019;
+    --fg: #f0e4f2;
+    --muted: #c9b8cc;
+    --brand: #e7b6ec;
+    --brand-contrast: #3a0f40;
+    --brand-container: #4c1b52;
+    --rose: #ffb1c4;
+    --rose-container: #5e1a33;
+    --surface: #211826;
+    --surface-variant: #2d2231;
+    --border: #5a4a5e;
+    --panel: #211826;
+    --ok: #8edbc4;
+    --ok-container: #0f3d31;
+    --warn: #f5c76a;
+    --warn-container: #4a3200;
+    --bad: #ffb4ab;
+    --bad-container: #601410;
   }
 }
+:root[data-theme='dark'] {
+  --bg: #171019;
+  --fg: #f0e4f2;
+  --muted: #c9b8cc;
+  --brand: #e7b6ec;
+  --brand-contrast: #3a0f40;
+  --brand-container: #4c1b52;
+  --rose: #ffb1c4;
+  --rose-container: #5e1a33;
+  --surface: #211826;
+  --surface-variant: #2d2231;
+  --border: #5a4a5e;
+  --panel: #211826;
+  --ok: #8edbc4;
+  --ok-container: #0f3d31;
+  --warn: #f5c76a;
+  --warn-container: #4a3200;
+  --bad: #ffb4ab;
+  --bad-container: #601410;
+}
 * { box-sizing: border-box; }
-body { margin: 0; }
+body { margin: 0; background: var(--bg); }
+h1, h2, h3 { line-height: 1.25; }
+h1 { font-weight: 800; }
+h2 { font-weight: 700; }
 a { color: var(--brand); }
+:focus-visible { outline: 3px solid var(--rose); outline-offset: 2px; }
 .shell { min-height: 100vh; display: flex; flex-direction: column; }
 .site-header {
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-  gap: 0.5rem; padding: 0.75rem 16px; border-bottom: 1px solid var(--border);
+  gap: 0.5rem; padding: 0.75rem 20px; background: var(--surface); border-bottom: 1px solid var(--border);
 }
-.brand { font-weight: 800; font-size: 1.3rem; text-decoration: none; }
+.brand { font-weight: 800; font-size: 1.35rem; text-decoration: none; color: var(--brand); }
 .menu-toggle { display: none; }
-.nav { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
-.nav a { text-decoration: none; color: var(--fg); }
-.nav a.active { color: var(--brand); font-weight: 600; }
-.nav-cta { border: 1px solid var(--brand); border-radius: 999px; padding: 0.25rem 0.9rem; }
-.content { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 1.5rem 16px 3rem; }
+.nav { display: flex; gap: 1.1rem; align-items: center; flex-wrap: wrap; }
+.nav a { text-decoration: none; color: var(--fg); font-weight: 600; }
+.nav a.active { color: var(--brand); }
+.nav .nav-cta { border: 1.5px solid var(--brand); color: var(--brand); border-radius: 999px; padding: 0.3rem 1.1rem; }
+.content { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: 1.5rem 20px 3rem; }
 .hero { padding: 2rem 0; }
-.hero h1 { font-size: clamp(1.8rem, 5vw, 2.8rem); margin: 0 0 0.5rem; }
-.lead { font-size: 1.1rem; color: var(--muted); }
+.hero h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 0 0 0.5rem; }
+.lead { font-size: 1.15rem; color: var(--muted); }
 .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1.25rem 0; }
 .button {
-  display: inline-block; background: var(--brand); color: var(--brand-contrast); border: 0;
-  border-radius: 8px; padding: 0.65rem 1.2rem; text-decoration: none; font-size: 1rem; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; min-height: 48px;
+  background: var(--brand); color: var(--brand-contrast); border: 1.5px solid var(--brand);
+  border-radius: 999px; padding: 0.6rem 1.6rem; text-decoration: none; font: inherit;
+  font-weight: 700; cursor: pointer;
 }
-.button.secondary { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+.button.secondary { background: transparent; color: var(--brand); }
 .button:disabled { opacity: 0.5; cursor: not-allowed; }
 .note { color: var(--muted); font-size: 0.95rem; }
 .cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
-.card h2 { margin-top: 0; font-size: 1.1rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem 1.4rem; }
+.card h2 { margin-top: 0; font-size: 1.15rem; }
 .steps li { margin-bottom: 0.5rem; }
-details { border-bottom: 1px solid var(--border); padding: 0.75rem 0; }
-summary { cursor: pointer; font-weight: 600; }
-.form { display: grid; gap: 0.5rem; max-width: 360px; }
-.form input { padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+details { border-bottom: 1px solid var(--border); padding: 0.85rem 0; }
+summary { cursor: pointer; font-weight: 700; }
+.form { display: grid; gap: 0.6rem; max-width: 360px; }
+.form label { font-weight: 600; }
+.form input, .form select {
+  padding: 0.75rem 0.9rem; min-height: 48px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font: inherit; background: var(--surface-variant); color: var(--fg);
+}
 .site-footer {
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
-  padding: 1rem 16px; border-top: 1px solid var(--border); color: var(--muted);
+  padding: 1rem 20px; border-top: 1px solid var(--border); color: var(--muted);
 }
 .site-footer p { margin: 0; }
 @media (max-width: 700px) {
   .menu-toggle { display: inline-block; background: none; border: 1px solid var(--border);
-    border-radius: 8px; padding: 0.4rem 0.8rem; color: var(--fg); font-size: 1rem; }
+    border-radius: 999px; padding: 0.4rem 1rem; color: var(--fg); font: inherit; font-weight: 600; }
   .nav { display: none; width: 100%; flex-direction: column; align-items: flex-start; padding: 0.5rem 0; }
   .nav.open { display: flex; }
+}
+
+/* Brand gradient hero areas (same Plum -> deep Plum as the apps' BrandHeader); fixed colours in both themes. */
+.earn-hero, .earn-banner {
+  background: linear-gradient(135deg, #6a2c70, #4a1d5a); color: #ffffff;
+  border-radius: var(--radius-xl); padding: 2.25rem 1.75rem; margin: 1rem 0 1.5rem;
+}
+.earn-hero .lead, .earn-hero .note, .earn-banner p { color: inherit; opacity: 0.92; }
+.earn-hero h1, .earn-banner h2 { margin: 0.25rem 0 0.5rem; font-size: clamp(1.8rem, 5vw, 2.7rem); }
+.earn-eyebrow { margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8rem; font-weight: 800; opacity: 0.9; }
+.earn-amount { background: #ffffff; color: #6a2c70; border-radius: var(--radius-sm); padding: 0 0.45rem; white-space: nowrap; }
+.earn-hero .button, .earn-banner .button { background: #ffffff; border-color: #ffffff; color: #6a2c70; }
+.earn-hero .button.secondary { background: transparent; color: #ffffff; border-color: #ffffff; }
+.earn-banner { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; flex-wrap: wrap; }
+.earn-banner h2 { font-size: clamp(1.5rem, 4vw, 2.1rem); }
+
+.theme-toggle {
+  background: none; border: 1px solid var(--border); border-radius: 999px; min-height: 40px;
+  padding: 0.3rem 0.9rem; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer;
+}
+
+/* Motion: calm, short, ease-out. Everything stops under prefers-reduced-motion. */
+@keyframes lg-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes lg-beat { 0%, 56%, 100% { transform: scale(1); } 14% { transform: scale(1.14); } 28% { transform: scale(1); } 42% { transform: scale(1.08); } }
+@keyframes lg-spark { 0%, 100% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.25); } }
+.logo-mark { flex: none; transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.logo-heart, .logo-spark { transform-box: fill-box; transform-origin: center; }
+.logo-heart { animation: lg-beat 3s ease-in-out infinite; }
+.logo-spark { animation: lg-spark 2.4s ease-in-out infinite; }
+.brand { display: inline-flex; align-items: center; gap: 0.5rem; }
+.brand:hover .logo-mark { transform: rotate(-6deg) scale(1.06); }
+.content > * { animation: lg-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.cards > .card { animation: lg-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.cards > .card:nth-child(2) { animation-delay: 0.08s; }
+.cards > .card:nth-child(3) { animation-delay: 0.16s; }
+.cards > .card:nth-child(4) { animation-delay: 0.24s; }
+.cards > .card:hover { transform: translateY(-4px); box-shadow: 0 10px 28px rgba(106, 44, 112, 0.14); }
+.button, .theme-toggle, .nav a { transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, color 0.15s ease; }
+.button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(106, 44, 112, 0.28); }
+.button:active:not(:disabled) { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }

@@ -19,6 +19,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByRole(UserRole role);
 
+    /** scripts/ci/e2e-seed.sh's throwaway staff accounts all use "@ladygo.test" exclusively - see
+     *  E2eArtifactsStartupGuard, which refuses to start under staging/prod if this is ever true. */
+    boolean existsByEmailEndingWithIgnoreCase(String suffix);
+
     /**
      * TOTP replay rejection (docs/security/auth-design.md section 3.4): atomically accepts a code's
      * step only if it is strictly newer than the last accepted step. 0 rows affected means replay.

@@ -146,6 +146,25 @@ class DatabaseConstraintsTest extends PersistenceTestSupport {
     }
 
     @Test
+    void duplicateIdempotencyKeyForTheSameCustomerIsRejected() {
+        Customer customer = newCustomer();
+        City city = newCity();
+        Booking first = newBooking(customer, city, BookingStatus.REQUESTED, null);
+        Booking second = newBooking(customer, city, BookingStatus.REQUESTED, null);
+        second.setIdempotencyKey(first.getIdempotencyKey());
+        assertThatThrownBy(() -> bookings.saveAndFlush(second)).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void sameIdempotencyKeyIsFineAcrossDifferentCustomers() {
+        City city = newCity();
+        Booking first = newBooking(newCustomer(), city, BookingStatus.REQUESTED, null);
+        Booking second = newBooking(newCustomer(), city, BookingStatus.REQUESTED, null);
+        second.setIdempotencyKey(first.getIdempotencyKey());
+        assertThat(bookings.saveAndFlush(second).getId()).isNotNull();
+    }
+
+    @Test
     void cancelledBookingMustSayWhoCancelled() {
         Booking booking = newBooking(newCustomer(), newCity(), BookingStatus.SEARCHING_DRIVER, null);
         booking.setStatus(BookingStatus.CANCELLED);

@@ -1,0 +1,83 @@
+# Production stack for one small host (MVP 1). Secrets come from /opt/ladygo/.env (never committed).
+#   docker compose up -d                 # postgres, redis, backend (reachable on 127.0.0.1:8080 only)
+#   docker compose --profile tls up -d   # also Caddy: HTTPS for api.ladygoride.com (DNS must resolve first)
+name: ladygo
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ladygo
+      POSTGRES_USER: ladygo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ladygo -d ladygo"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    shm_size: 128mb
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?missing}", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  backend:
+    # Set by deploy.sh through image.env (an ECR image tagged with the git SHA).
+    image: ${BACKEND_IMAGE:?missing - see deploy.sh}
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    env_file: /opt/ladygo/.env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      LADYGO_DB_URL: jdbc:postgresql://postgres:5432/ladygo
+      LADYGO_DB_USERNAME: ladygo
+      LADYGO_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      LADYGO_SECURITY_TRUSTEDPROXIES_0: 172.28.0.0/24
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=55 -Xss512k"
+    ports:
+      - "127.0.0.1:8080:8080"
+    mem_limit: 1100m
+
+  caddy:
+    profiles: ["tls"]
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [backend]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

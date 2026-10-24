@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import Logo from './Logo'
+import ThemeToggle from './ThemeToggle'
 
 const links = [
   { to: '/about', label: 'About' },
@@ -18,7 +20,8 @@ export default function Layout() {
     <div className="shell">
       <header className="site-header">
         <Link to="/" className="brand" onClick={() => setOpen(false)}>
-          Lady Go
+          <Logo size={34} />
+          <span>Lady Go</span>
         </Link>
         <button
           type="button"
@@ -35,9 +38,10 @@ export default function Layout() {
               {l.label}
             </NavLink>
           ))}
-          <NavLink to="/login" className="nav-cta" onClick={() => setOpen(false)}>
-            Log in
+          <NavLink to="/driver/login" className="nav-cta" onClick={() => setOpen(false)}>
+            Driver login
           </NavLink>
+          <ThemeToggle />
         </nav>
       </header>
       <main className="content">

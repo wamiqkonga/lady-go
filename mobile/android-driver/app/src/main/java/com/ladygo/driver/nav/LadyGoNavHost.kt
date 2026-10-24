@@ -1,0 +1,360 @@
+package com.ladygo.driver.nav
+
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.ladygo.driver.account.MeScreen
+import com.ladygo.driver.auth.SessionManager
+import com.ladygo.driver.earnings.ui.EarningsScreen
+import com.ladygo.driver.help.ui.HelpScreen
+import com.ladygo.driver.history.RideHistoryViewModel
+import com.ladygo.driver.history.ui.RideDetailScreen
+import com.ladygo.driver.history.ui.RideHistoryScreen
+import com.ladygo.driver.location.LocationForegroundService
+import com.ladygo.driver.login.ui.LoginScreen
+import com.ladygo.driver.offer.OfferUiState
+import com.ladygo.driver.offer.OfferViewModel
+import com.ladygo.driver.offer.ui.OfferScreen
+import com.ladygo.driver.onboarding.ui.OnboardingGateScreen
+import com.ladygo.driver.rating.RateRiderViewModel
+import com.ladygo.driver.rating.ui.RateRiderHost
+import com.ladygo.driver.realtime.RealtimeEvent
+import com.ladygo.driver.realtime.RealtimeEvents
+import com.ladygo.driver.realtime.ServerClockSkew
+import com.ladygo.driver.ride.ActiveRideViewModel
+import com.ladygo.driver.ride.ui.ActiveRideScreen
+import com.ladygo.driver.ui.HomeScreen
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.map
+import java.util.UUID
+import javax.inject.Inject
+
+object Routes {
+    const val LOGIN = "login"
+    const val ONBOARDING_GATE = "onboarding_gate"
+    const val HOME = "home"
+    const val INCOMING_OFFER = "incoming_offer"
+    const val ACTIVE_RIDE = "active_ride"
+    const val EARNINGS = "earnings"
+    const val RIDES = "rides"
+    const val ME = "me"
+    const val HELP = "help"
+    const val RIDE_DETAIL = "ride_detail/{bookingId}"
+
+    fun rideDetail(bookingId: UUID) = "ride_detail/$bookingId"
+}
+
+@HiltViewModel
+class SessionViewModel
+    @Inject
+    constructor(
+        sessionManager: SessionManager,
+    ) : ViewModel() {
+        val isLoggedIn: StateFlow<Boolean> = sessionManager.isLoggedIn
+    }
+
+/** Just enough of [RealtimeEvents] exposed to the nav layer to re-trigger [OfferViewModel.reconcile]
+ *  on every STOMP (re)connect (design doc §2.2/§3 rule 2) - the rest of the event stream
+ *  ([RealtimeEvent.OfferReceived] itself, [RealtimeEvent.BookingUpdated]) is handled by
+ *  [com.ladygo.driver.offer.OfferCoordinator]/slice 3, not here. */
+@HiltViewModel
+class RealtimeConnectionViewModel
+    @Inject
+    constructor(
+        realtimeEvents: RealtimeEvents,
+    ) : ViewModel() {
+        val connected: Flow<ServerClockSkew> = realtimeEvents.events.filterIsInstance<RealtimeEvent.Connected>().map { it.skew }
+    }
+
+/**
+ * Single place that decides between Login/the onboarding gate/Home. The gate->Home and Login->gate
+ * transitions are driven by each screen's own callback; a *drop* back to Login - a user-initiated
+ * logout from [com.ladygo.driver.ui.HomeScreen], or a forced one from
+ * [com.ladygo.driver.auth.TokenAuthenticator] when the refresh token itself is no longer valid - is
+ * handled here, once, by observing [SessionManager.isLoggedIn] directly, so it works no matter which
+ * screen the driver happens to be on when it happens (§3 of the design doc: token expiry gets a
+ * clean logout to Login, not a screen-specific special case).
+ */
+@Composable
+fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
+    val sessionViewModel: SessionViewModel = hiltViewModel()
+    val initiallyLoggedIn = remember { sessionViewModel.isLoggedIn.value }
+    // Activity-scoped (created once here, not inside a composable(Routes.X) {} block), same reasoning
+    // as sessionViewModel above - an offer must keep counting down and stay dedup-tracked across a
+    // navigation to/from the incoming-offer screen, not be torn down and recreated with it.
+    val offerViewModel: OfferViewModel = hiltViewModel()
+    val realtimeConnectionViewModel: RealtimeConnectionViewModel = hiltViewModel()
+    val rideViewModel: ActiveRideViewModel = hiltViewModel()
+    // Activity-scoped too: the rating prompt is opened by Done on the ride screen and shown on whatever resting
+    // screen the driver lands on, and must not be torn down with the ride screen.
+    val rateViewModel: RateRiderViewModel = hiltViewModel()
+
+    LaunchedEffect(realtimeConnectionViewModel, offerViewModel, rideViewModel) {
+        realtimeConnectionViewModel.connected.collect { skew ->
+            offerViewModel.reconcile(skew)
+            rideViewModel.reconcile()
+        }
+    }
+
+    val context = LocalContext.current
+    val rideOngoing =
+        rideViewModel.uiState
+            .collectAsStateWithLifecycle()
+            .value.isOngoing
+    val rideEndCount = rideViewModel.rideEndCount.collectAsStateWithLifecycle().value
+    RideLocationServiceEffect(rideOngoing)
+
+    LaunchedEffect(sessionViewModel) {
+        // The first emission is the value already used to pick startDestination above - only a
+        // *later* change (an actual logout happening while the host is already running) needs to
+        // force a navigation.
+        sessionViewModel.isLoggedIn.drop(1).collect { loggedIn ->
+            if (!loggedIn) {
+                LocationForegroundService.stop(context)
+                navController.navigate(Routes.LOGIN) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
+    }
+
+    ReconcileOnResumeEffect(offerViewModel, rideViewModel)
+
+    // One observer, works no matter which screen the driver is on when an offer arrives or resolves -
+    // same "single place" reasoning as the logout observer above. An offer can only ever arrive while
+    // already online (authenticated, past onboarding), so this never needs to guard against firing
+    // from Login/the onboarding gate.
+    val offerState = offerViewModel.uiState.collectAsStateWithLifecycle().value
+    RideNavigationEffect(navController, rideViewModel, rateViewModel, offerShowing = offerState is OfferUiState.Showing)
+    LaunchedEffect(offerState) {
+        when (offerState) {
+            is OfferUiState.Showing ->
+                if (navController.currentDestination?.route != Routes.INCOMING_OFFER) {
+                    navController.navigate(Routes.INCOMING_OFFER)
+                }
+            else -> Unit
+        }
+    }
+
+    val currentRoute =
+        navController
+            .currentBackStackEntryAsState()
+            .value
+            ?.destination
+            ?.route
+    // Insets are left to each screen (as before); the bar only claims its own height, and only on the four tab
+    // pages, so Login, the gate, an incoming offer and an active ride stay exactly as they were.
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = { AppBottomBar(currentRoute = currentRoute, onSelect = navController::navigateToTab) },
+    ) { barPadding ->
+        LadyGoNavGraph(
+            navController = navController,
+            startDestination = if (initiallyLoggedIn) Routes.ONBOARDING_GATE else Routes.LOGIN,
+            modifier = Modifier.padding(barPadding).consumeWindowInsets(barPadding),
+            offerViewModel = offerViewModel,
+            rideViewModel = rideViewModel,
+            rateViewModel = rateViewModel,
+            rideOngoing = rideOngoing,
+            rideEndCount = rideEndCount,
+        )
+        // Skippable and never blocking: hidden whenever an offer or an active ride owns the screen.
+        RateRiderHost(viewModel = rateViewModel, visible = isHomeTreeRoute(currentRoute))
+    }
+}
+
+@Suppress("LongParameterList")
+@Composable
+private fun LadyGoNavGraph(
+    navController: NavHostController,
+    startDestination: String,
+    modifier: Modifier,
+    offerViewModel: OfferViewModel,
+    rideViewModel: ActiveRideViewModel,
+    rateViewModel: RateRiderViewModel,
+    rideOngoing: Boolean,
+    rideEndCount: Int,
+) {
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        modifier = modifier,
+    ) {
+        composable(Routes.LOGIN) {
+            LoginScreen(onLoggedIn = {
+                navController.navigate(Routes.ONBOARDING_GATE) {
+                    popUpTo(Routes.LOGIN) { inclusive = true }
+                }
+            })
+        }
+        composable(Routes.ONBOARDING_GATE) {
+            OnboardingGateScreen(onApproved = {
+                navController.navigate(Routes.HOME) {
+                    popUpTo(Routes.ONBOARDING_GATE) { inclusive = true }
+                }
+            })
+        }
+        composable(Routes.HOME) {
+            HomeScreen(rideOngoing = rideOngoing, rideEndCount = rideEndCount)
+        }
+        composable(Routes.EARNINGS) { EarningsScreen() }
+        composable(Routes.RIDES) { entry ->
+            val history = homeScopedRideHistory(navController, entry)
+            RatedRowsEffect(rateViewModel, history)
+            RideHistoryScreen(
+                viewModel = history,
+                onOpenRide = { bookingId -> navController.navigate(Routes.rideDetail(bookingId)) },
+            )
+        }
+        composable(
+            Routes.RIDE_DETAIL,
+            arguments = listOf(navArgument("bookingId") { type = NavType.StringType }),
+        ) { entry ->
+            val history = homeScopedRideHistory(navController, entry)
+            val bookingId = entry.arguments?.getString("bookingId")?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+            val historyState = history.uiState.collectAsStateWithLifecycle().value
+            RatedRowsEffect(rateViewModel, history)
+            RideDetailScreen(
+                ride = historyState.items.firstOrNull { it.bookingId == bookingId },
+                onBack = { navController.popBackStack() },
+                onRate = { ride -> rateViewModel.offer(ride.bookingId) },
+            )
+        }
+        composable(Routes.ME) { MeScreen(onOpenHelp = { navController.navigate(Routes.HELP) }) }
+        composable(Routes.HELP) { HelpScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.INCOMING_OFFER) {
+            OfferScreen(
+                viewModel = offerViewModel,
+                onAccepted = { booking -> rideViewModel.track(booking) }, // the effect above navigates
+                onDismissed = {
+                    navController.popBackStack(Routes.HOME, inclusive = false)
+                },
+            )
+        }
+        composable(Routes.ACTIVE_RIDE) {
+            ActiveRideScreen(
+                viewModel = rideViewModel,
+                onFinished = { navController.popBackStack(Routes.HOME, inclusive = false) },
+                onRideCompleted = rateViewModel::offer,
+            )
+        }
+    }
+}
+
+/** The ride list lives as long as the Home entry (not each tab's entry), so the open detail page and a tab switch
+ *  keep the rows already loaded, and nothing is requested before the driver first opens the Rides tab. */
+@Composable
+private fun homeScopedRideHistory(
+    navController: NavHostController,
+    entry: NavBackStackEntry,
+): RideHistoryViewModel {
+    val homeEntry = remember(entry) { navController.getBackStackEntry(Routes.HOME) }
+    return hiltViewModel(homeEntry)
+}
+
+/** A rating the server accepted shows on its history row at once, without reloading the list. */
+@Composable
+internal fun RatedRowsEffect(
+    rateViewModel: RateRiderViewModel,
+    history: RideHistoryViewModel,
+) {
+    LaunchedEffect(rateViewModel, history) {
+        rateViewModel.rated.collect { history.onRated(it.bookingId, it.score) }
+    }
+    LaunchedEffect(rateViewModel, history) {
+        rateViewModel.alreadyRated.collect { history.onAlreadyRated(it) }
+    }
+}
+
+/** A ride in progress needs fresh location (the server gates arrive/start on it) even though no Home
+ *  screen is composed to start the service - e.g. a ride restored after the app was killed. */
+@Composable
+private fun RideLocationServiceEffect(rideOngoing: Boolean) {
+    val context = LocalContext.current
+    LaunchedEffect(rideOngoing) {
+        if (rideOngoing) LocationForegroundService.start(context)
+    }
+}
+
+/** A ride that still needs the driver owns the screen: it is entered right after accepting an offer, and
+ *  also after an app kill (the remembered booking id is re-fetched on resume), as soon as the driver is
+ *  actually on Home. It never steals the screen from a *showing* offer (a new offer can arrive while the
+ *  driver is still on the post-trip cash screen) and never re-pins a finished ride: those stay on the
+ *  ride screen only until the driver taps "Back to home" (design doc §7). */
+@Composable
+private fun RideNavigationEffect(
+    navController: NavHostController,
+    rideViewModel: ActiveRideViewModel,
+    rateViewModel: RateRiderViewModel,
+    offerShowing: Boolean,
+) {
+    val rideState = rideViewModel.uiState.collectAsStateWithLifecycle().value
+    val currentRoute =
+        navController
+            .currentBackStackEntryAsState()
+            .value
+            ?.destination
+            ?.route
+    val rideOngoing = rideState.isOngoing
+    val rideLeftover = rideState.isActive && !rideState.isOngoing
+    LaunchedEffect(rideOngoing, rideLeftover, currentRoute, offerShowing) {
+        val onHomeOrAcceptedOffer = isHomeTreeRoute(currentRoute) || (currentRoute == Routes.INCOMING_OFFER && !offerShowing)
+        if (rideOngoing && onHomeOrAcceptedOffer) {
+            navController.navigate(Routes.ACTIVE_RIDE) { popUpTo(Routes.HOME) }
+        } else if (rideLeftover && isHomeTreeRoute(currentRoute)) {
+            // A finished/ended ride found while on Home (e.g. restored after an app kill) needs no screen.
+            // Offer the rating too; a repeat offer for the same ride (normal Done path) is ignored by the view model.
+            rideViewModel.onDone()?.let(rateViewModel::offer)
+        } else if (!rideState.isActive && currentRoute == Routes.ACTIVE_RIDE) {
+            // The ride was cleared underneath the screen (logout) - never leave a blank screen.
+            navController.popBackStack(Routes.HOME, inclusive = false)
+        }
+    }
+}
+
+/** Design doc §3 rule 2: reconcile on every app foreground/resume, not just on STOMP (re)connect -
+ *  the very first ON_RESUME after a cold start also covers rule 4's "app was killed" case, since
+ *  there's no separate signal to tell those two apart. Covers both a pending offer and a ride in progress. */
+@Composable
+private fun ReconcileOnResumeEffect(
+    offerViewModel: OfferViewModel,
+    rideViewModel: ActiveRideViewModel,
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, offerViewModel, rideViewModel) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    offerViewModel.reconcile()
+                    rideViewModel.reconcile()
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+}

@@ -148,9 +148,27 @@ class PersistenceMappingTest extends PersistenceTestSupport {
         newOnlineDriver(newCity(), 74.8098, 34.0718);
         flushAndClear();
 
-        List<Driver> found = drivers.findNearbyOnline(city.getId(), lon, lat, 5000, 10);
+        List<Driver> found = drivers.findNearbyOnline(city.getId(), lon, lat, 5000, 10, java.time.Instant.now().minusSeconds(120));
 
         assertThat(found).extracting(Driver::getId).containsExactly(nearer.getId(), near.getId());
+    }
+
+    @Test
+    void nearbyQueryIgnoresDriversWithAStaleOrUnknownLocationTime() {
+        City city = newCity();
+        Driver fresh = newOnlineDriver(city, 74.8100, 34.0720);
+        Driver stale = newOnlineDriver(city, 74.8101, 34.0721);
+        stale.setCurrentLocationAt(java.time.Instant.now().minusSeconds(300));
+        drivers.saveAndFlush(stale);
+        Driver unknown = newOnlineDriver(city, 74.8102, 34.0722);
+        unknown.setCurrentLocationAt(null);
+        drivers.saveAndFlush(unknown);
+        flushAndClear();
+
+        List<Driver> found = drivers.findNearbyOnline(
+                city.getId(), 74.8097, 34.0717, 5000, 10, java.time.Instant.now().minusSeconds(120));
+
+        assertThat(found).extracting(Driver::getId).containsExactly(fresh.getId());
     }
 
     @Test
@@ -160,7 +178,7 @@ class PersistenceMappingTest extends PersistenceTestSupport {
             newOnlineDriver(city, 74.8097 + i * 0.001, 34.0717);
         }
         flushAndClear();
-        assertThat(drivers.findNearbyOnline(city.getId(), 74.8097, 34.0717, 5000, 3)).hasSize(3);
+        assertThat(drivers.findNearbyOnline(city.getId(), 74.8097, 34.0717, 5000, 3, java.time.Instant.now().minusSeconds(120))).hasSize(3);
     }
 
     @Test

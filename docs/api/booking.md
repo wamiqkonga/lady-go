@@ -1,8 +1,8 @@
 # Lady Go — Fare Estimate, Booking, Booking State Machine (Phase 4)
 
-Status: Draft v0.1 · for approval before implementation.
+Status: v0.2 · **Approved 2026-10-04** (decisions B1–B4 below). Implementation proceeds against this version.
 
-Scope: `bookings` and `pricing` modules. Builds on tables already migrated in Phase 2 (`bookings`, `booking_events`, `ride_offers`, `pricing_rules` — `V5__pricing.sql`, `V6__bookings_events_offers.sql`) and the entities/repositories already written there, including `BookingRepository.findByCustomerIdOrderByCreatedAtDesc` (ride history, already built) and `PricingRuleRepository.findActive` (already built, exactly the lookup fare calculation needs). No schema changes except the one new `configuration` seed row noted in §5.
+Scope: `bookings` and `pricing` modules. Builds on tables already migrated in Phase 2 (`bookings`, `booking_events`, `ride_offers`, `pricing_rules` — `V5__pricing.sql`, `V6__bookings_events_offers.sql`) and the entities/repositories already written there, including `BookingRepository.findByCustomerIdOrderByCreatedAtDesc` (ride history, already built) and `PricingRuleRepository.findActive` (already built, exactly the lookup fare calculation needs). Schema changes in this version: `V13` adds `bookings.idempotency_key` (B3); no other schema changes.
 
 **Explicit scope boundary**: this phase delivers booking creation, the state machine, cancellation, and history. It does **not** deliver driver matching (Phase 6) — there is no `MatchingService` yet, no driver search, no offers sent. A Phase 4 booking reaches `SEARCHING_DRIVER` and stays there until Phase 6 ships a listener that actually looks for a driver. This is intentional, not an oversight (§4).
 
@@ -22,10 +22,10 @@ POST /api/v1/bookings/estimate
 }
 ```
 
-1. Resolve the serving city from the **pickup point**, not the customer's `default_city_id` — a customer travelling outside their home city should still get a real estimate for where they actually are. `SELECT id FROM cities WHERE active AND ST_Contains(service_area, :pickupPoint)`. If no city's `service_area` contains the point: `422` `OUT_OF_SERVICE_AREA` (new error code, §5) — not a generic `VALIDATION_FAILED`, so clients can show a specific "we don't operate here yet" message instead of a form-validation-style error.
-2. `MapsService.calculateRoute(pickup, destination)` for real distance/duration (not straight-line — see `docs/api/maps-service.md` §4, this is exactly the "fare estimate" call ADR-011 earmarks for the Routes API).
-3. `ride.max.distance.m` (already seeded, Phase 2) caps trip distance — over the limit is `422` `VALIDATION_FAILED` with a clear message, not silently truncated.
-4. `PricingRuleRepository.findActive(cityId, vehicleType, now)` — `404` `RESOURCE_NOT_FOUND` if no rule is configured for that city+vehicle type yet (an operational gap, not a customer error, but still needs a clean response).
+1. Resolve the serving city from the **pickup point**, not the customer's `default_city_id` — a customer travelling outside their home city should still get a real estimate for where they actually are. `SELECT id FROM cities WHERE active AND ST_Contains(service_area, :pickupPoint)`. If no city's `service_area` contains the point: `422` `OUT_OF_SERVICE_AREA` (new error code, §8).
+2. `MapsService.calculateRoute(pickup, destination)` for real distance/duration. **B1/M3**: if the Maps provider is unavailable, this degrades to `calculateDistanceMeters` (straight-line) + an assumed average speed, and the response is marked `"approximate": true` (`docs/api/maps-service.md` §5) — this endpoint never hard-fails just because the provider is briefly down.
+3. `ride.max.distance.m` (already seeded, Phase 2) caps trip distance — over the limit is `422` `VALIDATION_FAILED`.
+4. `PricingRuleRepository.findActive(cityId, vehicleType, now)` — `404` `RESOURCE_NOT_FOUND` if no rule is configured for that city+vehicle type yet.
 5. `FareCalculator.estimate(rule, distanceM, durationS)`:
 
 ```
@@ -36,21 +36,19 @@ serviceFee   = subtotal * (rule.serviceFeePct / 100) + rule.serviceFeeFlat
 total        = max(rule.minimumFare, subtotal) + serviceFee
 ```
 
-All money in minor units (ADR-007), rounded to the nearest minor unit at each step the way `docs/database/database-design.md` conventions imply (no floating-point fare ever reaches a response body).
+All money in minor units (ADR-007), rounded to the nearest minor unit at each step.
 
-Response:
+Response — **B1, decided: breakdown *and* total**:
 
 ```json
 {
   "cityId": "...", "vehicleType": "CAB", "currency": "INR",
-  "distanceMeters": 7400, "durationSeconds": 1140,
+  "distanceMeters": 7400, "durationSeconds": 1140, "approximate": false,
   "estimatedFare": 18500,
   "breakdown": { "baseFare": 5000, "distanceFare": 8880, "timeFare": 3800, "serviceFee": 820 },
   "pricingRuleId": "..."
 }
 ```
-
-The breakdown is returned for transparency (`docs/product/requirements.md` FR-BKG-1 just says "fare estimate," the breakdown is a judgment call, OQ-B1) but **nothing from this response is trusted back from the client** — see §2.
 
 ## 2. Create a booking
 
@@ -59,33 +57,63 @@ POST /api/v1/bookings
 Idempotency-Key: <client-generated UUID>
 ```
 
-`ROLE_CUSTOMER`. Request carries only what the customer chose, never any number the server already computed:
+`ROLE_CUSTOMER`. Request carries what the customer chose **plus the fare they last saw**, used only as a staleness check, never as the number that gets charged:
 
 ```json
 {
   "pickupLatitude": 34.08, "pickupLongitude": 74.80, "pickupAddress": "...",
   "destinationLatitude": 34.13, "destinationLongitude": 74.87, "destinationAddress": "...",
-  "vehicleType": "CAB", "paymentMethod": "CASH", "scheduledAt": null
+  "vehicleType": "CAB", "paymentMethod": "CASH", "scheduledAt": null,
+  "expectedFare": 18500
 }
 ```
 
-No `estimatedFare`, `distanceMeters`, `pricingRuleId`, or anything else from the `/estimate` response is accepted here — the server repeats exactly the §1 computation (city resolution, route, active pricing rule, fare) itself and persists *that* result. This closes the entire "client sends a stale or edited fare" problem by construction, at the cost of the fare shown at booking time possibly differing very slightly from the estimate shown a few seconds earlier (traffic conditions moved) — the same tradeoff every real ride-hailing app makes, and simpler than reconciling a client-supplied estimate against a tolerance (OQ-B2 if you'd rather accept the client's `pricingRuleId` as a hint and only reject if it's no longer active, saving a few API calls).
+**B2, decided**: the server always recomputes the fare from scratch — fresh city resolution, fresh `MapsService.calculateRoute` call (no fallback here — see §1 vs. `docs/api/maps-service.md` §5: this endpoint **fails closed** with `503 MAPS_UNAVAILABLE` on a Maps outage, it does not approximate a real booking), fresh active `PricingRule` lookup, fresh `FareCalculator` run. The client's `expectedFare` is never trusted as the charged amount — it is compared against the freshly-computed total:
 
-`scheduledAt`: accepted and persisted (the column exists), but Phase 4 does not act on it differently from an immediate booking — scheduled-ride handling (don't search for a driver until close to the scheduled time) is explicitly post-MVP (`docs/product/requirements.md` §4.2). A non-null value just gets stored for whenever that ships.
+```
+delta = abs(freshFare - expectedFare) / expectedFare
+if delta > booking.fare.change.tolerance.pct / 100:
+    reject 422 FARE_CHANGED, body = the fresh estimate (same shape as section 1's response)
+else:
+    proceed, persist the FRESH fare (not expectedFare)
+```
 
-`Idempotency-Key`: required (per `docs/architecture/backend-architecture.md` §2, booking creation is one of the two endpoints that must have it). First request with a given key creates the booking; a repeat with the same key and the same customer returns the original booking (`200`, not `201`) rather than creating a duplicate — needs a small lookup table or a unique index on `(customer_id, idempotency_key)`; **this is a schema addition** (no such column exists on `bookings` today) and is flagged as OQ-B3 rather than silently added, since schema changes are the one thing this document was told not to make unilaterally.
+`booking.fare.change.tolerance.pct` is a new `configuration` key (GLOBAL, DECIMAL, seeded by `V14`) — proposed default **5** (5%), loose enough to absorb normal traffic-condition drift between the `/estimate` call and booking creation a few seconds later, tight enough to catch a genuinely stale quote (pricing rule changed, route recalculated very differently) before the customer is surprised by the charged fare. On `FARE_CHANGED`, the client is expected to show the new quote and let the customer re-confirm with a fresh `POST /bookings` carrying the new `expectedFare` — no auto-retry loop, since that would just be the client silently accepting whatever price the server names.
+
+`scheduledAt`: accepted and persisted (the column exists), but Phase 4 does not act on it differently from an immediate booking — scheduled-ride handling is explicitly post-MVP (`docs/product/requirements.md` §4.2).
+
+**B3, decided**: `Idempotency-Key` is required and durable. `V13` adds `bookings.idempotency_key varchar(100) NOT NULL` plus `UNIQUE (customer_id, idempotency_key)`. First request with a given key creates the booking (`201`); a repeat with the same key and customer returns the *original* booking (`200`, not `201`, and does not recompute or re-check the fare — it's the same request, not a new one). Concurrent identical requests racing past the initial lookup are handled by catching the unique-constraint violation on insert and re-reading the winning row, rather than trusting a check-then-act lookup to be race-free.
 
 On success: insert `bookings` row at `REQUESTED`, write the first `booking_events` row (`from_status = NULL`, `to_status = 'REQUESTED'`, `actor_type = 'CUSTOMER'`), then immediately run the state machine's `REQUESTED → SEARCHING_DRIVER` transition (§4) in the same transaction and write the second `booking_events` row (`actor_type = 'SYSTEM'`, `reason = 'awaiting_matching'`). Response is the booking detail shape (§6) at `SEARCHING_DRIVER`, plus the ride PIN (§3).
 
 Eligibility (D5) is checked here, through the placeholder interface — §7.
 
-## 3. The ride PIN problem
+## 3. The ride PIN — B4, decided: derived, not stored
 
-`bookings.ride_pin_hash` is one-way (Phase 2's naming and the `docs/database/database-design.md` convention of hashing exactly the way OTP codes are hashed). But the customer needs to **see** the plaintext PIN (to read it out to the driver at pickup), potentially more than once — if they background the app and come back, the PIN must still be visible until the ride actually starts. A one-way hash can't be un-hashed to show them again.
+**No cache, no extra storage of any kind.** The PIN is computed on demand:
 
-Proposed mechanism: a short-lived, in-process cache (`RidePinCache`, same Caffeine mechanism as `docs/api/maps-service.md` §4's geocode cache) holding the **plaintext** PIN keyed by `bookingId`, generated at booking creation, with a TTL generous enough to cover a realistic search-to-pickup window (proposed 60 minutes, OQ-B4). `GET /bookings/{id}` includes a `ridePin` field, populated from this cache, only when: the caller is the booking's own customer, the booking's status is before `RIDE_STARTED`, and the cache still holds it (cache miss after TTL or instance restart simply means the field is omitted — acceptable since a PIN that's been sitting unused for an hour on a still-searching booking is an edge case, not the common path). The driver-side PIN check (Phase 5) only ever compares against `ride_pin_hash`; this cache is purely a customer-display convenience and never consulted for verification.
+```
+pin = HMAC-SHA256(LADYGO_RIDE_PIN_SECRET, bookingId.toString())  →  take as an unsigned integer  →  mod 10000  →  zero-pad to 4 digits
+```
 
-This is a real design decision, not a trivial detail — flagged explicitly (OQ-B4) because the alternative (store it encrypted-and-reversible instead of hashed, like Phase 3's `MfaSecretCipher` pattern) would mean revisiting the Phase 2 column's one-way semantics, which is out of this document's mandate to change unilaterally.
+Deterministic and stateless: given the same `bookingId` and the same server secret, the same 4-digit PIN comes out every time, so it can be recomputed on every request that needs it — nothing to cache, nothing to expire, nothing to lose on a restart. `bookings.ride_pin_hash` (the Phase 2 column) is **not populated** by this design — it becomes unused going forward; it is not dropped (that would be a schema change this phase wasn't asked to make), just left `NULL`. This is called out explicitly rather than left as a silent oddity for whoever reads the schema next.
+
+`GET /bookings/{id}` includes `ridePin` (the derived value) whenever the caller is the booking's own customer and status is before `RIDE_STARTED` — always available, not time-limited by a cache TTL, for as long as the booking itself exists in that state.
+
+**Verification, rate-limited and lockable per ride** (for Phase 5's driver-side "enter the PIN" flow to call — no HTTP endpoint ships in Phase 4, since ride-start is Phase 5's ride-lifecycle scope per the roadmap, but the service method is built and tested now):
+
+```java
+public boolean verify(UUID bookingId, String candidatePin) {
+    if (!rateLimiter.tryConsume("ride_pin:" + bookingId, maxAttempts, lockoutWindow)) {
+        throw new RateLimitExceededException();   // locked for this ride, not globally
+    }
+    return deriveDisplayPin(bookingId).equals(candidatePin);
+}
+```
+
+Reuses Phase 3's `RateLimiter`/`DatabaseRateLimiter` (`docs/security/auth-design.md` §8) rather than inventing a second rate-limiting mechanism — one bucket per `bookingId`, so a brute-force attempt against one ride's 10,000 possible PINs is bounded the same way a login brute-force is, and doesn't touch any other ride's budget. `ride.pin.max.attempts` and `ride.pin.lockout.window.minutes` are new `configuration` keys (seeded by `V14`) — proposed defaults **5 attempts / 15 minutes**, matching the admin-login lockout shape already established.
+
+New secret: `LADYGO_RIDE_PIN_SECRET` (env only, ≥32 bytes, never committed — same treatment as every Phase 3 secret; added to the secrets list in `docs/security/auth-design.md` §10 and the local runbook).
 
 ## 4. Booking state machine
 
@@ -109,11 +137,11 @@ private static final Map<BookingStatus, Set<BookingStatus>> ALLOWED = Map.of(
 
 `transition(bookingId, to, actor, reason)`:
 1. Load the `Booking` (optimistic lock via the existing `@Version` column — a concurrent transition attempt fails fast with a clear conflict rather than silently clobbering).
-2. `to` must be in `ALLOWED.get(booking.status)`, else `BookingStateException` (`409`, `BOOKING_INVALID_STATE` — error code already exists from Phase 1/2, nothing new needed).
-3. Authorise the actor against the transition: a `CUSTOMER` may only ever *initiate* a transition to `CANCELLED` (from an allowed pre-`RIDE_STARTED` state) — every other transition is driven by `SYSTEM` (matching, Phase 6) or `DRIVER`/`ADMIN` in later phases. Phase 4 only ever exercises `REQUESTED→SEARCHING_DRIVER` (system) and `*→CANCELLED` (customer); the rest of the table exists now so Phase 5/6/8 don't need to touch this service, matching the architecture doc's intent that the whole graph lives in one place from the start.
-4. Persist the new status, write one `booking_events` row (append-only, already enforced by a DB trigger — `prevent_update` — so there's no way to silently rewrite history even from a bug), publish a `BookingStatusChangedEvent` (Spring `ApplicationEvent`, in-process; nothing subscribes to it yet in Phase 4 except whatever minimal logging/audit hook is useful, and `MatchingService` in Phase 6 is the first real subscriber).
+2. `to` must be in `ALLOWED.get(booking.status)`, else `BookingStateException` (`409`, `BOOKING_INVALID_STATE` — error code already exists, nothing new needed).
+3. Authorise the actor against the transition: a `CUSTOMER` may only ever *initiate* a transition to `CANCELLED` (from an allowed pre-`RIDE_STARTED` state) — every other transition is driven by `SYSTEM` (matching, Phase 6) or `DRIVER`/`ADMIN` in later phases. Phase 4 only ever exercises `REQUESTED→SEARCHING_DRIVER` (system) and `*→CANCELLED` (customer); the rest of the table exists now so Phase 5/6/8 don't need to touch this service.
+4. Persist the new status, write one `booking_events` row (append-only, already enforced by a DB trigger — `prevent_update`), publish a `BookingStatusChangedEvent` (Spring `ApplicationEvent`, in-process; nothing subscribes to it yet in Phase 4, and `MatchingService` in Phase 6 is the first real subscriber).
 
-**Why `RIDE_STARTED` has no `CANCELLED` edge**: `docs/product/user-flows.md` §1 is explicit — "After `RIDE_STARTED` a customer cannot cancel; they can only end the ride via the support/safety path." Phase 4 enforces this by simply not having the edge in the table; the support/safety path (Phase 10) will use a different, admin/support-authorised transition, not the customer cancellation endpoint.
+**Why `RIDE_STARTED` has no `CANCELLED` edge**: `docs/product/user-flows.md` §1 is explicit — "After `RIDE_STARTED` a customer cannot cancel; they can only end the ride via the support/safety path." Phase 4 enforces this by simply not having the edge in the table.
 
 ## 5. Cancellation
 
@@ -124,9 +152,9 @@ POST /api/v1/bookings/{id}/cancel
 `ROLE_CUSTOMER`, body `{ "reason": "..." }` (free text, required). Calls `BookingStateMachine.transition(id, CANCELLED, CUSTOMER, reason)`. Fee logic (D7 default: "free grace window, then flat fee"):
 
 - `REQUESTED` / `SEARCHING_DRIVER`: always free (no driver committed yet).
-- `DRIVER_ASSIGNED` through `DRIVER_ARRIVED`: free if cancelled within `cancellation.grace.seconds` (already seeded, Phase 2) of the `DRIVER_ACCEPTED` transition timestamp (read from that `booking_events` row — the append-only log is the source of truth for "when did the driver accept," not a new column); otherwise the active `pricing_rules.cancellation_fee` for the booking's city+vehicle type applies.
+- `DRIVER_ASSIGNED` through `DRIVER_ARRIVED`: free if cancelled within `cancellation.grace.seconds` (already seeded, Phase 2) of the `DRIVER_ACCEPTED` transition timestamp (read from that `booking_events` row); otherwise the active `pricing_rules.cancellation_fee` for the booking's city+vehicle type applies.
 
-There is no column on `bookings` to hold an assessed-but-not-yet-charged cancellation fee (Phase 2 didn't add one, and this document doesn't add schema). The assessed fee is recorded in the `CANCELLED` `booking_events` row's `metadata` jsonb (`{"cancellationFee": 5000, "currency": "INR"}`) — that table exists exactly for this kind of transition-specific detail, and Phase 8 (Payments) reads it from there when it actually charges anything; Phase 4 never charges money, only records what *would* be owed.
+There is no column on `bookings` for an assessed-but-not-yet-charged cancellation fee. The assessed fee is recorded in the `CANCELLED` `booking_events` row's `metadata` jsonb (`{"cancellationFee": 5000, "currency": "INR"}`); Phase 8 (Payments) reads it from there when it actually charges anything. Phase 4 never charges money, only records what *would* be owed.
 
 ## 6. Booking detail and history
 
@@ -149,38 +177,41 @@ Detail response:
 }
 ```
 
-`driver` is `null` until `status` reaches `DRIVER_ASSIGNED` or later, then populated from `Driver` + `User` + `Vehicle` (name, photo key, rating average, vehicle make/model/colour/registration) — per `docs/product/user-flows.md` §2.2 step 6. `ridePin` per §3. History list items are the same shape minus `ridePin` and `driver` detail (a summary list doesn't need either) — exact trimmed fields are an implementation detail, not a design question.
+`driver` is `null` until `status` reaches `DRIVER_ASSIGNED` or later, then populated from `Driver` + `User` + `Vehicle` (name, photo key, rating average, vehicle make/model/colour/registration) — per `docs/product/user-flows.md` §2.2 step 6. `ridePin` per §3. History list items are the same shape minus `ridePin` and `driver` detail.
 
-Ownership check on `GET /bookings/{id}`: `404`, not `403`, for a booking that exists but belongs to a different customer (same reasoning as saved locations in `docs/api/customer-profile.md` §3 — don't confirm existence to someone who shouldn't see it).
+Ownership check on `GET /bookings/{id}`: `404`, not `403`, for a booking that exists but belongs to a different customer.
 
-## 7. Eligibility (D5) — placeholder only, per instruction
+## 7. Eligibility (D5) — placeholder only, with a startup guard
 
-D5's roadmap default — "women riders and women drivers; accompanied minors allowed" — is **not** implemented as an enforced rule in Phase 4, because enforcing it would need data Phase 2's schema doesn't have (no gender field anywhere on `users` or `customers`) and a verification process nobody has designed. Building real enforcement now would mean inventing both the data model and the verification UX unilaterally, which is exactly what was ruled out.
-
-Instead, a clearly marked seam:
+D5 itself is **still undecided** — not invented here. The roadmap's default ("women riders and women drivers; accompanied minors allowed") is not implemented as an enforced rule, because enforcing it would need data the schema doesn't have (no gender field on `users`/`customers`) and a verification process nobody has designed.
 
 ```java
 public interface EligibilityPolicy {
     EligibilityDecision checkCustomerEligibility(Customer customer);
-    EligibilityDecision checkCompanions(BookingRequest request);   // minors/companions riding along
+    EligibilityDecision checkCompanions(BookingRequest request);
 }
 
 record EligibilityDecision(boolean eligible, String reasonIfIneligible) {}
 ```
 
-`DefaultEligibilityPolicy` — the only implementation Phase 4 ships — returns `eligible = true` unconditionally from both methods, with a comment stating plainly that this is a placeholder and real gender/age verification is not implemented. It's wired into booking creation (§2, called right after loading the customer, before the state machine starts) so the call site exists and later phases implement real policy behind the same interface without touching booking logic again. `BookingRequest` carries a `companionCount`/`travelingWithMinor` field already, so the interface has something to check once a real policy exists, even though `DefaultEligibilityPolicy` ignores it today.
+`DefaultEligibilityPolicy` — `@Profile({"dev", "test"})`, same restriction pattern as `MockSmsService` — returns `eligible = true` unconditionally from both methods, commented plainly as a placeholder. It's wired into booking creation (§2, right after loading the customer, before the state machine starts).
 
-## 8. New error code
+**New**: `EligibilityPolicyStartupGuard`, mirroring `SmsStartupGuard` exactly — if `staging`/`prod` is active and no real (non-default) `EligibilityPolicy` bean is configured, startup fails fast with a clear message, the same way staging/prod already refuse to start with the mock SMS provider. This means staging/prod **cannot start at all** once this ships, until D5 is actually decided and a real policy is built — intentional: it keeps "we haven't decided this yet" from silently becoming "we shipped with no eligibility check in a real environment."
 
-`ErrorCode.OUT_OF_SERVICE_AREA` (`422 UNPROCESSABLE_ENTITY`, default message *"Lady Go is not available in this area yet."*) — distinct from `VALIDATION_FAILED` so clients can show a specific message rather than a generic form error.
+## 8. New error codes
 
-## 9. Open questions
+- `ErrorCode.OUT_OF_SERVICE_AREA` (`422`, *"Lady Go is not available in this area yet."*)
+- `ErrorCode.FARE_CHANGED` (`422`, *"The fare has changed since your estimate."* — response body carries the fresh estimate, handled by a controller-local exception handler rather than the generic one, since this is the one error that must return data alongside the failure)
+- `ErrorCode.MAPS_UNAVAILABLE` (`503`, *"Maps service is temporarily unavailable."*)
+- `ErrorCode.LIMIT_EXCEEDED` (`422`, shared with `docs/api/customer-profile.md` §5)
 
-| # | Question | Default if unanswered |
-|---|----------|------------------------|
-| OQ-B1 | Return a fare breakdown (base/distance/time/service fee) or just the total? | Return the breakdown |
-| OQ-B2 | Booking creation: always recompute fare server-side from scratch (simpler, zero tamper surface), or accept the `/estimate` response's `pricingRuleId` as a hint to skip one lookup, still re-validating it's still active? | Always recompute from scratch |
-| OQ-B3 | Idempotent booking creation needs a schema addition (`(customer_id, idempotency_key)` uniqueness) — approve that one addition, or handle idempotency a different way (e.g. a short-lived cache of recent booking-creation requests, no schema change, but weaker guarantees across restarts)? | Schema addition (durable, correct across restarts) — but not added without your sign-off since it wasn't pre-approved |
-| OQ-B4 | Ride PIN customer-visibility cache: in-process Caffeine with a 60-minute TTL, as described in §3, or a different mechanism/duration? | As described, 60 minutes |
+## 9. Decisions (2026-10-04)
 
-No code has been written for this phase yet.
+| # | Decision |
+|---|----------|
+| B1 | Fare estimate response returns the breakdown *and* the total. |
+| B2 | Booking creation always recomputes the fare server-side; the client's `expectedFare` is a staleness check only, rejected with `FARE_CHANGED` + fresh quote beyond a configurable tolerance (`booking.fare.change.tolerance.pct`, default 5%). |
+| B3 | `V13` adds `bookings.idempotency_key` + `UNIQUE (customer_id, idempotency_key)`, with constraint tests. |
+| B4 | Ride PIN is derived via `HMAC(LADYGO_RIDE_PIN_SECRET, bookingId)`, never stored; verification is rate-limited and lockable per ride via Phase 3's `RateLimiter`. |
+
+Implementation follows; see `docs/development/roadmap.md` Phase 4 for exit criteria.

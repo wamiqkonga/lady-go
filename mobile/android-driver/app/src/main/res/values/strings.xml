@@ -2,4 +2,228 @@
     <string name="app_name">Lady Go Driver</string>
     <string name="home_title">Lady Go Driver</string>
     <string name="home_subtitle">Drive with Lady Go.</string>
+
+    <string name="location_sharing_notification_channel_name">Location sharing</string>
+    <string name="location_sharing_notification_title">Lady Go Driver</string>
+    <string name="location_sharing_notification_text">Sharing your location while you\'re online.</string>
+
+    <string name="fine_location_rationale">Lady Go uses your location while you are online to match you with nearby riders and to share your live position with your rider during a trip. Location sharing stops when you go offline.</string>
+    <string name="notification_permission_rationale">We use notifications to alert you to new ride requests.</string>
+
+    <string name="offer_notification_channel_name">Ride offers</string>
+    <string name="offer_notification_title">New ride request</string>
+    <string name="offer_notification_text_with_fare">Estimated fare %1$s</string>
+    <string name="offer_notification_text_generic">Tap to view this ride request</string>
+
+    <string name="offer_screen_title">New ride request</string>
+    <string name="offer_accept_action">Accept</string>
+    <string name="offer_decline_action">Decline</string>
+    <string name="offer_expired_message">This offer has expired.</string>
+    <string name="offer_no_longer_available_message">This offer is no longer available.</string>
+
+    <string name="ride_title_to_pickup">Head to pickup</string>
+    <string name="ride_title_arrived">Rider meeting</string>
+    <string name="ride_title_in_trip">Trip in progress</string>
+    <string name="ride_title_payment">Trip complete</string>
+    <string name="ride_title_finished">All done</string>
+    <string name="ride_title_ended">Ride ended</string>
+
+    <string name="ride_pickup_label">Pickup</string>
+    <string name="ride_destination_label">Destination</string>
+    <string name="ride_fare_label">Fare</string>
+    <string name="ride_payment_cash">Payment: cash</string>
+    <string name="ride_payment_online">Payment: online</string>
+
+    <string name="ride_navigate_action">Navigate</string>
+    <string name="ride_arrived_action">I\'ve arrived</string>
+    <string name="ride_call_112_action">Call 112</string>
+    <string name="ride_pin_label">Ride PIN</string>
+    <string name="ride_pin_hint">Ask the rider to read out her PIN.</string>
+    <string name="ride_start_action">Start ride</string>
+    <string name="ride_complete_action">Complete ride</string>
+    <string name="ride_end_early_action">End ride early</string>
+    <string name="ride_end_early_title">End the ride early?</string>
+    <string name="ride_end_early_reason_label">Reason</string>
+    <string name="ride_end_early_safety_label">I don\'t feel safe</string>
+    <string name="ride_end_early_confirm">End ride</string>
+    <string name="ride_end_early_cancel">Keep riding</string>
+    <string name="ride_confirm_cash_action">Cash collected</string>
+    <string name="ride_cash_confirmed_note">Cash confirmed. Your rider has a short window to raise any problem before this closes.</string>
+    <string name="ride_payment_online_note">Online payment is not available yet.</string>
+    <string name="ride_finished_note">This ride is complete.</string>
+    <string name="ride_ended_note">This ride is no longer active.</string>
+    <string name="ride_done_action">Back to home</string>
+    <string name="ride_selfie_title">Rider photo</string>
+    <string name="ride_selfie_loading">Loading photo...</string>
+    <string name="ride_selfie_unavailable">Photo unavailable.</string>
+    <string name="ride_selfie_retry">Try again</string>
+    <string name="ride_selfie_content_description">Photo of your rider</string>
+    <string name="ride_no_navigation_app">No maps app found.</string>
+    <string name="ride_dialer_failed">Could not open the dialer - dial 112 now.</string>
+    <string name="ride_cant_complete_action">I can\'t complete this ride</string>
+    <string name="ride_cant_complete_title">Can\'t complete this ride?</string>
+    <string name="ride_cant_complete_body">Use this if you cannot take this rider, for example if she does not match the profile you were shown. The ride is cancelled without a penalty and reported to Lady Go.</string>
+    <string name="ride_cant_complete_reason_label">What happened?</string>
+    <string name="ride_cant_complete_confirm">Cancel ride</string>
+    <string name="ride_cant_complete_keep">Keep ride</string>
+
+    <string name="login_hero_title">Lady Go Driver</string>
+    <string name="login_hero_subtitle">Drive with confidence. Earn on your terms.</string>
+    <string name="login_phone_title">Welcome back</string>
+    <string name="login_phone_body">Enter your phone number and we will send you a code to sign in.</string>
+    <string name="login_phone_helper">Include your country code, for example +91.</string>
+    <string name="login_code_title">Check your messages</string>
+    <string name="login_privacy_note">We only use your number to sign you in and keep your account safe.</string>
+
+    <string name="home_chip_online">Online</string>
+    <string name="home_chip_offline">Offline</string>
+    <string name="home_online_body">Ride requests will appear here. Keep the app open and your phone charged for the best results.</string>
+    <string name="home_offline_body">Go online when you are ready to receive ride requests.</string>
+    <string name="home_tips_title">Good to know</string>
+    <string name="home_tip_location">Your location is shared only while you are online.</string>
+    <string name="home_tip_pin">Riders share a private PIN with you in person to start a trip.</string>
+    <string name="home_tip_112">Call 112 is one tap away during any ride.</string>
+
+    <string name="offer_time_left">to respond</string>
+    <string name="offer_fare_label">Estimated fare</string>
+    <string name="offer_cash_caption">Paid in cash by the rider.</string>
+    <string name="offer_distance">About %1$.1f km to the pickup area</string>
+    <string name="offer_privacy_note">You will see the exact pickup point once you accept.</string>
+
+    <string name="ride_steps_caption">Pickup  \u2022  Meet  \u2022  Trip  \u2022  Payment</string>
+    <string name="ride_collect_label">Collect from rider</string>
+    <string name="ride_finished_title">Well done</string>
+    <string name="ride_ended_title">This ride has ended</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_back">Back</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_earnings">Earnings</string>
+    <string name="nav_rides">Rides</string>
+    <string name="nav_me">Me</string>
+
+    <string name="me_title">Me</string>
+    <string name="me_loading">Loading your details...</string>
+    <string name="me_error_title">Could not load your details</string>
+    <string name="me_refresh_failed">Could not refresh. Showing what we loaded earlier.</string>
+    <string name="me_help">Help and support</string>
+    <string name="me_rating_title">Your rating</string>
+    <string name="me_rating_none">No ratings yet. Riders can rate you after a ride.</string>
+    <string name="me_rating_distribution_later">Distribution appears after 5 ratings</string>
+    <string name="me_rating_tags_title">What riders said recently</string>
+    <plurals name="me_rating_count">
+        <item quantity="one">From %1$d rating</item>
+        <item quantity="other">From %1$d ratings</item>
+    </plurals>
+    <plurals name="me_rating_stars">
+        <item quantity="one">%1$d star</item>
+        <item quantity="other">%1$d stars</item>
+    </plurals>
+    <string name="me_tag_polite">Polite</string>
+    <string name="me_tag_safe_driving">Safe driving</string>
+    <string name="me_tag_clean_vehicle">Clean vehicle</string>
+    <string name="me_tag_on_time">On time</string>
+    <string name="me_documents_title">Documents</string>
+    <string name="me_documents_none">No documents uploaded yet.</string>
+    <string name="me_vehicle_title">Vehicle</string>
+    <string name="me_vehicle_none">No vehicle added yet.</string>
+    <string name="me_vehicle_unnamed">Your vehicle</string>
+    <string name="me_changes_note">To change a document or your vehicle, continue on the Lady Go website.</string>
+    <string name="me_website_action">Continue on the Lady Go website</string>
+    <string name="me_status_approved">Approved</string>
+    <string name="me_status_pending">Under review</string>
+    <string name="me_status_rejected">Rejected</string>
+    <string name="me_status_suspended">Suspended</string>
+    <string name="me_status_unknown">Unknown</string>
+    <string name="doc_government_id">Government ID</string>
+    <string name="doc_license">Driving licence</string>
+    <string name="doc_vehicle_registration">Vehicle registration</string>
+    <string name="doc_vehicle_photo">Vehicle photo</string>
+    <string name="doc_insurance">Insurance</string>
+    <string name="doc_fitness_certificate">Fitness certificate</string>
+    <string name="doc_pollution_certificate">Pollution certificate</string>
+    <string name="doc_police_verification">Police verification</string>
+    <string name="doc_permit">Permit</string>
+    <string name="doc_photo">Profile photo</string>
+    <string name="doc_selfie">Selfie</string>
+    <string name="doc_other">Other document</string>
+
+    <string name="help_title">Help and support</string>
+    <string name="help_support_title">Talk to support</string>
+    <string name="help_loading">Loading support details...</string>
+    <string name="help_load_failed">Could not load the support details.</string>
+    <string name="help_coming_soon">Support details coming soon</string>
+    <string name="help_call_support">Call support</string>
+    <string name="help_whatsapp">Message on WhatsApp</string>
+    <string name="help_whatsapp_failed">WhatsApp is not installed or could not be opened.</string>
+    <string name="help_diagnostics_title">Something not working?</string>
+    <string name="help_diagnostics_body">Copy the app and phone details so support can help faster. They hold no password, phone number or location.</string>
+    <string name="help_copy_diagnostics">Copy diagnostics</string>
+    <string name="help_diagnostics_copied">Diagnostics copied</string>
+
+    <string name="rate_title">Rate your rider</string>
+    <string name="rate_prompt">How was this rider? You can skip this.</string>
+    <plurals name="rate_star_description">
+        <item quantity="one">%1$d star</item>
+        <item quantity="other">%1$d stars</item>
+    </plurals>
+    <string name="rate_tag_respectful">Respectful</string>
+    <string name="rate_tag_on_time">On time</string>
+    <string name="rate_submit">Submit rating</string>
+    <string name="rate_skip">Skip</string>
+    <string name="rate_close">Close</string>
+    <string name="rate_thanks">Thanks for rating your rider.</string>
+    <string name="rate_already_rated">You already rated this ride</string>
+    <string name="rate_network_failure">Could not reach the server. Retry, or skip for now.</string>
+    <string name="rides_detail_rating_value">%1$d / 5</string>
+    <string name="common_no_browser">No browser app found. Open the Lady Go website on another device.</string>
+    <string name="help_copy_failed">Could not copy. Try again.</string>
+    <string name="rides_rate_action">Rate the rider</string>
+    <string name="me_log_out">Log out</string>
+
+    <string name="earnings_title">Earnings</string>
+    <string name="earnings_this_week">This week</string>
+    <string name="earnings_last_week">Last week</string>
+    <string name="earnings_net_label">You earned</string>
+    <string name="earnings_gross_label">Fares collected</string>
+    <string name="earnings_commission_label">Lady Go commission</string>
+    <string name="earnings_commission_unset">Commission not set yet</string>
+    <string name="earnings_rides_label">Rides</string>
+    <string name="earnings_cash_label">Cash collected</string>
+    <string name="earnings_online_label">Paid online</string>
+    <string name="earnings_by_day">By day</string>
+    <string name="earnings_empty_title">No earnings yet</string>
+    <string name="earnings_empty_body">Go online to get your first ride.</string>
+    <string name="earnings_error_title">Could not load your earnings</string>
+    <string name="earnings_refresh_failed">Could not refresh. Showing the last numbers we loaded.</string>
+    <string name="earnings_loading">Loading your earnings...</string>
+    <string name="earnings_range">%1$s to %2$s</string>
+    <plurals name="earnings_ride_count">
+        <item quantity="one">%1$d ride</item>
+        <item quantity="other">%1$d rides</item>
+    </plurals>
+
+    <string name="rides_title">Rides</string>
+    <string name="rides_empty_title">No rides yet</string>
+    <string name="rides_empty_body">Go online to get your first ride.</string>
+    <string name="rides_error_title">Could not load your rides</string>
+    <string name="rides_refresh_failed">Could not refresh. Showing the rides we loaded earlier.</string>
+    <string name="rides_loading">Loading your rides...</string>
+    <string name="rides_loading_more">Loading more rides...</string>
+    <string name="rides_load_more_failed">Could not load more rides.</string>
+    <string name="rides_status_completed">Completed</string>
+    <string name="rides_status_cancelled">Cancelled</string>
+    <string name="rides_status_ended_early">Ended early</string>
+    <string name="rides_status_other">Other</string>
+    <string name="rides_address_hidden">Address hidden for this ride</string>
+    <string name="rides_rider_rated">Rider has rated</string>
+    <string name="rides_my_rating">You rated %1$d</string>
+    <string name="rides_date_unknown">Date unavailable</string>
+    <string name="rides_detail_title">Ride details</string>
+    <string name="rides_detail_not_found">This ride is not available any more.</string>
+    <string name="rides_detail_payment_label">Payment</string>
+    <string name="rides_detail_rating_label">Your rating</string>
+    <string name="rides_payment_cash">Cash</string>
+    <string name="rides_payment_online">Online</string>
+    <string name="rides_payment_unknown">Not recorded</string>
 </resources>

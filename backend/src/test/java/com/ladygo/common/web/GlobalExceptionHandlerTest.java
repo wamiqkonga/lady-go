@@ -19,12 +19,14 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 class GlobalExceptionHandlerTest {
@@ -108,6 +110,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void mapsConcurrentUpdateToAConflictNotAServerError() throws Exception {
+        mockMvc.perform(get("/t/concurrent-update"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("CONCURRENT_UPDATE"));
+    }
+
+    @Test
+    void missingRequiredHeaderIsABadRequestNotAServerError() throws Exception {
+        mockMvc.perform(get("/t/required-header"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
     void unexpectedErrorsNeverLeakInternalDetails() throws Exception {
         mockMvc.perform(get("/t/boom"))
                 .andExpect(status().isInternalServerError())
@@ -160,6 +176,15 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/t/boom")
         void boom() {
             throw new RuntimeException("secret-internal-detail");
+        }
+
+        @GetMapping("/t/concurrent-update")
+        void concurrentUpdate() {
+            throw new OptimisticLockingFailureException("stale version");
+        }
+
+        @GetMapping("/t/required-header")
+        void requiredHeader(@RequestHeader("X-Required") String header) {
         }
 
         @PostMapping("/t/body")

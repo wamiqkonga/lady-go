@@ -41,8 +41,24 @@ public class Driver extends AuditedEntity {
     @Column(name = "current_location", columnDefinition = "geography(Point,4326)")
     private Point currentLocation;
 
+    /** Server receive time of the last accepted location update - freshness is judged against THIS,
+     *  never the device's own clock (docs: a skewed device clock must not get every update rejected
+     *  as stale just because it disagrees with real time). */
     @Column(name = "current_location_at")
     private Instant currentLocationAt;
+
+    /** The device's own claimed timestamp for that same last update - kept ONLY to order consecutive
+     *  updates relative to each other (the teleport-speed check's elapsed-time denominator), never
+     *  compared against server time. */
+    @Column(name = "current_location_device_recorded_at")
+    private Instant currentLocationDeviceRecordedAt;
+
+    /** Device-reported GPS accuracy (metres) for that same last update - widens, within a configured
+     *  cap, the proximity radius the ride-lifecycle arrived/start gate checks against
+     *  (docs/api/ride-lifecycle.md section 3). Mandatory in the API contract; a driver app that omits
+     *  it (outside the dev-only bypass) has its location update rejected before this is ever set. */
+    @Column(name = "current_location_accuracy_m")
+    private Double currentLocationAccuracyM;
 
     @Column(name = "rating_avg", precision = 3, scale = 2, nullable = false)
     private BigDecimal ratingAvg = BigDecimal.ZERO;
@@ -75,6 +91,16 @@ public class Driver extends AuditedEntity {
 
     @Column(name = "rejection_reason", columnDefinition = "text")
     private String rejectionReason;
+
+    @Column(name = "reverification_requested_at")
+    private Instant reverificationRequestedAt;
+
+    @Column(name = "reverification_blocks_online_at")
+    private Instant reverificationBlocksOnlineAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reverification_reason", length = 30)
+    private ReverificationReason reverificationReason;
 
     @Version
     @Column(name = "version", nullable = false)

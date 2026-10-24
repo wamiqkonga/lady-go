@@ -6,9 +6,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.ladygo.auth.domain.OtpPurpose;
 import com.ladygo.auth.domain.OtpRequest;
 import com.ladygo.auth.repository.OtpRequestRepository;
-import com.ladygo.auth.sms.MockSmsService;
+import com.ladygo.notifications.sms.LoggingSmsSender;
 import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ValidationException;
+import com.ladygo.customers.repository.CustomerRepository;
 import com.ladygo.security.crypto.OtpHasher;
 import com.ladygo.testsupport.IntegrationTest;
 import com.ladygo.users.domain.User;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 @IntegrationTest
@@ -37,6 +39,10 @@ class OtpLoginServiceIntegrationTest {
     private OtpHasher otpHasher;
     @Autowired
     private UserRepository users;
+    @Autowired
+    private JdbcTemplate jdbc;
+    @Autowired
+    private CustomerRepository customers;
 
     private static String nextPhone() {
         return "+9194" + String.format("%08d", SEQ.incrementAndGet());
@@ -63,7 +69,7 @@ class OtpLoginServiceIntegrationTest {
     void phoneVerifyDoesNotIssueTokens() {
         String phone = nextPhone();
         otpLoginService.requestOtp(phone, OtpPurpose.PHONE_VERIFY, UserRole.CUSTOMER);
-        String code = MockSmsService.lastCodeFor(phone);
+        String code = LoggingSmsSender.lastCodeFor(phone);
 
         Optional<TokenPair> result = otpLoginService.verifyOtp(
                 phone, code, OtpPurpose.PHONE_VERIFY, UserRole.CUSTOMER, "device-1");
@@ -75,7 +81,7 @@ class OtpLoginServiceIntegrationTest {
     void loginIssuesTokensAndCreatesTheUserOnFirstSignIn() {
         String phone = nextPhone();
         otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER);
-        String code = MockSmsService.lastCodeFor(phone);
+        String code = LoggingSmsSender.lastCodeFor(phone);
 
         Optional<TokenPair> result = otpLoginService.verifyOtp(
                 phone, code, OtpPurpose.LOGIN, UserRole.DRIVER, "device-1");
@@ -86,11 +92,35 @@ class OtpLoginServiceIntegrationTest {
     }
 
     @Test
+    void firstCustomerSignInAlsoCreatesTheCustomerRow() {
+        String phone = nextPhone();
+        otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.CUSTOMER);
+        String code = LoggingSmsSender.lastCodeFor(phone);
+
+        otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.CUSTOMER, "device-1");
+
+        User user = users.findByPhone(phone).orElseThrow();
+        assertThat(customers.findByUserId(user.getId())).isPresent();
+    }
+
+    @Test
+    void firstDriverSignInDoesNotCreateACustomerRow() {
+        String phone = nextPhone();
+        otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER);
+        String code = LoggingSmsSender.lastCodeFor(phone);
+
+        otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.DRIVER, "device-1");
+
+        User user = users.findByPhone(phone).orElseThrow();
+        assertThat(customers.findByUserId(user.getId())).isEmpty();
+    }
+
+    @Test
     void existingUserOfADifferentRoleIsRejectedNotSwitched() {
         String phone = nextPhone();
         // First sign-up as a DRIVER.
         otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER);
-        String firstCode = MockSmsService.lastCodeFor(phone);
+        String firstCode = LoggingSmsSender.lastCodeFor(phone);
         otpLoginService.verifyOtp(phone, firstCode, OtpPurpose.LOGIN, UserRole.DRIVER, "device-1");
 
         // Now the same phone tries to log in as a CUSTOMER (seeded directly: a real second requestOtp
@@ -134,5 +164,27 @@ class OtpLoginServiceIntegrationTest {
 
         assertThatThrownBy(() -> otpLoginService.verifyOtp(phone, code, OtpPurpose.LOGIN, UserRole.DRIVER, "d1"))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void otpRequestIgnoresTheChallengeHookWhenDisabled() {
+        // Default off - a blank/missing challengeToken must not block anything.
+        otpLoginService.requestOtp(nextPhone(), OtpPurpose.LOGIN, UserRole.CUSTOMER, "203.0.113.1", null);
+    }
+
+    @Test
+    void otpRequestIsBlockedWhenTheChallengeIsEnabledAndTheTokenIsMissing() {
+        jdbc.update("UPDATE configuration SET value = 'true' WHERE key = 'otp.challenge.enabled'");
+
+        assertThatThrownBy(() -> otpLoginService.requestOtp(
+                nextPhone(), OtpPurpose.LOGIN, UserRole.CUSTOMER, "203.0.113.1", null))
+                .isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void otpRequestSucceedsWhenTheChallengeIsEnabledAndATokenIsPresent() {
+        jdbc.update("UPDATE configuration SET value = 'true' WHERE key = 'otp.challenge.enabled'");
+
+        otpLoginService.requestOtp(nextPhone(), OtpPurpose.LOGIN, UserRole.CUSTOMER, "203.0.113.1", "some-token");
     }
 }

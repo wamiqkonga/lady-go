@@ -22,13 +22,23 @@
     <java.version>21</java.version>
     <springdoc.version>2.8.13</springdoc.version>
     <jjwt.version>0.12.6</jjwt.version>
+    <awssdk.version>2.29.52</awssdk.version>
   </properties>
 
-  <!--
-    Dependencies are added only when first used, each with a reason.
-    Added in later phases (with justification at that time):
-      - spring-boot-starter-data-redis                                       -> Phase 6/7 (matching, real-time)
-  -->
+  <!-- AWS SDK v2 BOM: pins consistent versions across the S3 client and presigner (Phase 5 FileStorage, ADR-009). -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${awssdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <!-- Dependencies are added only when first used, each with a reason (see the comment above each one). -->
   <dependencies>
     <!-- REST API -->
     <dependency>
@@ -50,10 +60,17 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
-    <!-- WebSocket/STOMP for real-time tracking (used from Phase 7) -->
+    <!-- WebSocket/STOMP for real-time offer delivery and booking pushes (Phase 6) -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+    <!-- Cross-node WebSocket pub/sub fan-out only (Phase 6, docs/api/matching.md section 4/7) - never
+         the source of truth for offer/booking state, which stays in Postgres; gated behind
+         ladygo.realtime.redis.enabled so dev/test never need a running Redis. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
     <!-- OpenAPI/Swagger documentation (spec requirement) -->
     <dependency>
@@ -110,6 +127,32 @@
       <version>${jjwt.version}</version>
       <scope>runtime</scope>
     </dependency>
+    <!-- Phase 4: in-process geocode/route caching (docs/api/maps-service.md section 4) - version
+         managed by the Spring Boot BOM, no Redis needed for this yet (see that doc for why). -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+    <!-- Phase 5: FileStorage (ADR-009) staging/prod implementation - S3 client + presigner for
+         short-lived download URLs. Version managed by the AWS SDK BOM above. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+    </dependency>
+
+    <!-- MVP 1 email OTP: Amazon SES v2 client (only wired when ladygo.otp.channel=email under
+         staging/prod). Version managed by the AWS SDK BOM above. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sesv2</artifactId>
+    </dependency>
+
+    <!-- Provider-neutral SMTP email sender (SmtpEmailSender): Resend, Brevo, Gmail or any SMTP relay.
+         Version managed by the Spring Boot parent. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
 
     <!-- Tests -->
     <dependency>
@@ -138,6 +181,23 @@
       <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- S3-compatible server for testing S3FileStorage/StorageConfig against something real (adversarial
+         review finding, HIGH: that code path had never been exercised by any test, mocked or real, and
+         is the only FileStorage wired in staging/prod). docker pull minio/minio is access-denied in this
+         environment (docs/api/driver-onboarding.md section 1); localstack/localstack pulls cleanly. -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>localstack</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Architecture tests (e.g. banning .ordinal() on status/security-relevant enums, adversarial
+         review finding, CRITICAL - see ArchitectureTest) - not DB/container-backed, pure bytecode checks. -->
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <version>1.3.0</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -145,6 +205,13 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>build-info</goal>
+            </goals>
+          </execution>
+        </executions>
         <configuration>
           <excludes>
             <exclude>

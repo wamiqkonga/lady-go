@@ -1,0 +1,134 @@
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import ThemeToggle from '../../components/ThemeToggle'
+import { requestOtp, verifyOtp, AuthError } from '../lib/auth'
+
+export default function Login() {
+  const navigate = useNavigate()
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [stage, setStage] = useState<'phone' | 'code'>('phone')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [cooldown, setCooldown] = useState(0)
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setTimeout(() => setCooldown(cooldown - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [cooldown])
+
+  async function sendCode() {
+    setBusy(true)
+    setError(null)
+    try {
+      await requestOtp(phone, email.trim())
+      setStage('code')
+      setCode('')
+      setCooldown(30)
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : 'Failed to send the code.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmCode() {
+    setBusy(true)
+    setError(null)
+    try {
+      await verifyOtp(phone, code)
+      navigate('/driver/register', { replace: true })
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : 'Incorrect code.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <div className="topbar">
+        <Link to="/driver" className="brand">Lady Go — Drive with us</Link>
+        <ThemeToggle />
+      </div>
+      <div className="content login">
+        <h1>Driver registration</h1>
+        <p className="muted">
+          {stage === 'phone' ? 'Step 1 of 2 · Tell us how to reach you' : 'Step 2 of 2 · Confirm your code'}
+        </p>
+        {stage === 'phone' ? (
+          <form
+            className="form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              sendCode()
+            }}
+          >
+            <label htmlFor="phone">Phone number</label>
+            <input
+              id="phone"
+              type="tel"
+              inputMode="tel"
+              placeholder="+919900000000"
+              autoComplete="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              autoFocus
+            />
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <p className="muted">
+              Include your country code, for example +91. We email your sign-in code to this address, so use the
+              same email each time you sign in.
+            </p>
+            {error && <p role="alert" className="error">{error}</p>}
+            <button type="submit" disabled={busy || !phone.trim() || !email.trim()}>
+              Send code
+            </button>
+          </form>
+        ) : (
+          <form
+            className="form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              confirmCode()
+            }}
+          >
+            <p className="muted">Enter the 6-digit code we emailed to {email}. It can take a minute. Check your spam folder too.</p>
+            <label htmlFor="code">Code</label>
+            <input
+              id="code"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              autoFocus
+            />
+            {error && <p role="alert" className="error">{error}</p>}
+            <button type="submit" disabled={busy || code.length !== 6}>
+              Continue
+            </button>
+            <button type="button" className="quiet" onClick={sendCode} disabled={busy || cooldown > 0}>
+              {cooldown > 0 ? `Send a new code in ${cooldown}s` : 'Send a new code'}
+            </button>
+            <button type="button" className="quiet" onClick={() => setStage('phone')} disabled={busy}>
+              Use different details
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}

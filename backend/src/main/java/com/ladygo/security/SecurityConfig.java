@@ -39,6 +39,10 @@ public class SecurityConfig {
             "/api/v1/auth/otp/verify",
             "/api/v1/auth/refresh",
             "/api/v1/auth/admin/login",
+            "/api/v1/auth/admin/refresh",
+            "/api/v1/auth/admin/logout",
+            "/api/v1/trip-shares/lookup",
+            "/internal/files",
             "/actuator/health",
             "/actuator/health/**",
             "/actuator/info",
@@ -52,7 +56,13 @@ public class SecurityConfig {
             HttpSecurity http, JsonSecurityErrorHandler errorHandler, JwtAuthenticationFilter jwtFilter)
             throws Exception {
         http
-                // Stateless token API (no cookies/sessions), so CSRF protection is not applicable.
+                // Spring's own CsrfFilter is for session-cookie-authenticated apps; the great majority
+                // of this API is stateless Bearer-token auth, immune to CSRF by construction (a
+                // cross-site request cannot forge an Authorization header), so that filter is disabled
+                // here. The two admin-web endpoints that DO rely on an ambient cookie
+                // (AdminAuthCookies.REFRESH_TOKEN, for /auth/admin/refresh and /auth/admin/logout) are
+                // instead protected by the purpose-built AdminCsrfGuard (double-submit token + Origin/
+                // Referer allow-list) called explicitly from AdminAuthController - not by this filter.
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -84,9 +94,16 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(props.allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id", "Idempotency-Key"));
+        // X-CSRF-Token: admin-web's double-submit header (com.ladygo.auth.web.AdminAuthCookies.CSRF_HEADER
+        // - not referenced directly here to avoid a security<->auth package cycle; keep both in sync).
+        config.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "X-Request-Id", "Idempotency-Key", "X-CSRF-Token"));
         config.setExposedHeaders(List.of("X-Request-Id"));
-        config.setAllowCredentials(false);
+        // true only because the admin web's refresh-token cookie needs it to be sent/received
+        // cross-origin at all (docs/product/admin-web-design.md section 7) - every origin on the list
+        // is already explicit and never "*", so this does not widen who can call the API, only
+        // whether a cookie travels with an already-allowed origin's request.
+        config.setAllowCredentials(true);
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
