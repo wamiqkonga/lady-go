@@ -166,6 +166,12 @@ class HttpSmsSenderTest {
 
         assertThat(result.accepted()).isFalse();
         assertThat(result.errorCode()).isEqualTo("TIMEOUT");
+        // The sender gives up after its own 100 ms read timeout, which on a slow CI runner can be before the
+        // server thread has even started handling the retry; wait for it instead of reading the count at once.
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(3);
+        while (requests.get() < 2 && System.nanoTime() < deadline) {
+            Thread.sleep(20);
+        }
         assertThat(requests.get()).isEqualTo(2); // 1 initial + 1 retry (maxRetries=1)
     }
 
