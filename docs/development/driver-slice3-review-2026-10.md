@@ -43,3 +43,7 @@ Double taps guarded; stale responses cannot move the screen backwards; late resp
 
 ## Status after step 1
 Fixed: F1, F2 (client), F3, review items 1, 2, 3, 4, 10, 12, 13 (PIN body; note the signed selfie download URL is still logged at URL level in debug builds), 14. Deferred: 5-9, 11, 15, 16 and the backend items above. Verified on the emulator: F1, F3, item 1, the full ride loop. Unit-tested only: F2 handling, items 2, 3, 4, 10, 12, 13, 14.
+
+## Follow-ups noted during step 2
+- Admin web (`frontend/admin`, step 8): `RideOversight.tsx` keeps a fixed `FLAG_TYPES` filter list and `lib/api-types.ts` is generated; add `LOW_RATING` and `REPEATED_LOW_RATING` to the filter and regenerate the types.
+- `docs/api/ride-lifecycle.md` needs a short section pointing at the earnings snapshot and ratings rules.
