@@ -20,3 +20,8 @@ Notes for future runs
 - Pressing Call 112 opens the dialer pre-filled with 112; it never dials by itself. A mistaken tap while scripting only opened the dialer.
 - Driver OTP limit is 5 per hour per phone and a 30 s cooldown; plan logins accordingly.
 - Not covered here: swipe-away of the rate sheet, a 409 on re-rating, process death during the sheet (unit tested only); rating from ride detail in history; support numbers set (unit tested only).
+
+## Re-check after the layout fix (same emulator, 360dp wide, 200 percent font)
+- Bottom bar: all four labels on one line ("Earnings" no longer breaks).
+- Earnings: labels stack above their values with whole words ("Lady Go commission" then "Commission not set yet"); per-day cards stack too.
+- Open item (minor, step 9 accessibility pass): on Home at 200 percent the Good to know bullets sit under the pinned Go online and Log out buttons until the screen is scrolled.

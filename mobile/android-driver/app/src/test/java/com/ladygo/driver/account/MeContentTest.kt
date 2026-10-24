@@ -6,11 +6,15 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.ladygo.driver.api.generated.models.DriverDocumentResponse
+import com.ladygo.driver.testing.WithFontScale
+import com.ladygo.driver.testing.assertNoMidWordBreak
+import com.ladygo.driver.testing.assertStackedAbove
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.math.BigDecimal
 
 @RunWith(RobolectricTestRunner::class)
@@ -171,5 +175,39 @@ class MeContentTest {
         assertEquals(1, taps.website)
         assertEquals(1, taps.help)
         assertEquals(1, taps.logout)
+    }
+
+    @Test
+    @Config(qualifiers = "w360dp-h640dp")
+    fun atTwoHundredPercentADocumentNameAndItsStatusStackWithoutSplittingWords() {
+        composeRule.setContent {
+            WithFontScale(2f) {
+                MeContent(
+                    state =
+                        MeUiState(
+                            isLoading = false,
+                            overview =
+                                overview(
+                                    documents =
+                                        Part.Loaded(
+                                            listOf(
+                                                DocumentItem(DriverDocumentResponse.Type.POLLUTION_CERTIFICATE, ReviewStatus.PENDING, null),
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    onRefresh = {},
+                    onRetry = {},
+                    onOpenWebsite = {},
+                    onOpenHelp = {},
+                    onLogout = {},
+                )
+            }
+        }
+
+        val name = composeRule.onNodeWithText("Pollution certificate")
+        name.performScrollTo()
+        name.assertNoMidWordBreak()
+        name.assertStackedAbove(composeRule.onNodeWithText("Under review"))
     }
 }

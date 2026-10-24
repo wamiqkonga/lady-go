@@ -13,10 +13,15 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.navigation.NavHostController
 import com.ladygo.driver.R
 
@@ -56,16 +61,26 @@ fun AppBottomBar(
     onSelect: (MainTab) -> Unit,
 ) {
     if (!showsBottomBar(currentRoute)) return
-    NavigationBar(modifier = Modifier.testTag(BOTTOM_BAR_TAG)) {
-        MainTab.entries.forEach { tab ->
-            NavigationBarItem(
-                selected = tab.route == currentRoute,
-                onClick = { onSelect(tab) },
-                icon = { Icon(tab.icon, contentDescription = null) },
-                label = { Text(stringResource(tab.label)) },
-            )
+    // Four labels share a phone's width, so the bar's text is capped at 1.3x however large the system font is
+    // (the bar stays readable; the page content above it still scales fully).
+    val density = LocalDensity.current
+    val capped = Density(density.density, fontScale = minOf(density.fontScale, BAR_MAX_FONT_SCALE))
+    CompositionLocalProvider(LocalDensity provides capped) {
+        NavigationBar(modifier = Modifier.testTag(BOTTOM_BAR_TAG)) {
+            MainTab.entries.forEach { tab ->
+                val label = stringResource(tab.label)
+                NavigationBarItem(
+                    selected = tab.route == currentRoute,
+                    onClick = { onSelect(tab) },
+                    icon = { Icon(tab.icon, contentDescription = null) },
+                    label = { Text(label, maxLines = 1, softWrap = false) },
+                    modifier = Modifier.semantics { contentDescription = label },
+                )
+            }
         }
     }
 }
+
+private const val BAR_MAX_FONT_SCALE = 1.3f
 
 const val BOTTOM_BAR_TAG = "bottom_bar"

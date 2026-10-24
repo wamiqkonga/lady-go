@@ -43,6 +43,7 @@ import com.ladygo.driver.ui.components.QuietButton
 import com.ladygo.driver.ui.components.SecondaryButton
 import com.ladygo.driver.ui.components.StateIllustration
 import com.ladygo.driver.ui.components.StatusChip
+import com.ladygo.driver.ui.components.isLargeFontScale
 
 @Composable
 fun MeScreen(
@@ -163,14 +164,16 @@ private fun RatingBody(summary: RatingSummary) {
     }
     val most = distribution.values.maxOrNull()?.coerceAtLeast(1L) ?: 1L
     distribution.forEach { (stars, number) ->
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                pluralStringResource(R.plurals.me_rating_stars, stars, stars),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.weight(1f),
-            )
-            LinearProgressIndicator(progress = { number.toFloat() / most }, modifier = Modifier.weight(1f))
-            Text(number.toString(), style = MaterialTheme.typography.titleSmall)
+        val starsLabel = pluralStringResource(R.plurals.me_rating_stars, stars, stars)
+        if (isLargeFontScale()) {
+            LabelValueRow(starsLabel, number.toString())
+            LinearProgressIndicator(progress = { number.toFloat() / most }, modifier = Modifier.fillMaxWidth())
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(starsLabel, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                LinearProgressIndicator(progress = { number.toFloat() / most }, modifier = Modifier.weight(1f))
+                Text(number.toString(), style = MaterialTheme.typography.titleSmall)
+            }
         }
     }
     if (summary.tags.isNotEmpty()) {
@@ -218,9 +221,15 @@ private fun DocumentsCard(
 @Composable
 private fun DocumentRow(item: DocumentItem) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(documentLabel(item.type)), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        val label = stringResource(documentLabel(item.type))
+        if (isLargeFontScale()) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
             ReviewChip(item.status)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                ReviewChip(item.status)
+            }
         }
         item.note?.let { InfoBanner(text = it, kind = BannerKind.WARNING) }
     }
@@ -232,12 +241,20 @@ private fun VehicleRow(vehicle: VehicleInfo?) {
         Text(stringResource(R.string.me_vehicle_none), style = MaterialTheme.typography.bodyMedium)
         return
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    val details: @Composable (Modifier) -> Unit = { modifier ->
+        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(vehicle.makeAndModel ?: stringResource(R.string.me_vehicle_unnamed), style = MaterialTheme.typography.bodyLarge)
             vehicle.plate?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
         }
+    }
+    if (isLargeFontScale()) {
+        details(Modifier)
         ReviewChip(vehicle.status)
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            details(Modifier.weight(1f))
+            ReviewChip(vehicle.status)
+        }
     }
 }
 

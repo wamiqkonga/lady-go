@@ -41,6 +41,7 @@ import com.ladygo.driver.ui.components.Money
 import com.ladygo.driver.ui.components.PrimaryButton
 import com.ladygo.driver.ui.components.SectionLabel
 import com.ladygo.driver.ui.components.StateIllustration
+import com.ladygo.driver.ui.components.isLargeFontScale
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -182,8 +183,8 @@ private fun DayRow(
     val rides = (day.rides ?: 0L).toInt()
     val net = if (day.commissionConfigured == true) day.net ?: day.gross ?: 0L else day.gross ?: 0L
     LadyGoCard(modifier = Modifier.fillMaxWidth()) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(modifier = Modifier.weight(1f)) {
+        val dayAndRides: @Composable (Modifier) -> Unit = { modifier ->
+            Column(modifier = modifier) {
                 Text(formatDay(day.date), style = MaterialTheme.typography.titleSmall)
                 Text(
                     pluralStringResource(R.plurals.earnings_ride_count, rides, rides),
@@ -191,7 +192,15 @@ private fun DayRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        if (isLargeFontScale()) {
+            dayAndRides(Modifier)
             Text(Money.format(net, currency), style = MaterialTheme.typography.titleMedium)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                dayAndRides(Modifier.weight(1f))
+                Text(Money.format(net, currency), style = MaterialTheme.typography.titleMedium)
+            }
         }
     }
 }
