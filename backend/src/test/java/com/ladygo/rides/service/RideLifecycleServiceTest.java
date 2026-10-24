@@ -358,7 +358,7 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         ride.setStartedAt(Instant.now()); // started just now - zero progress.
         rides.saveAndFlush(ride);
 
-        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
+        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop", false);
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
         Booking ended = bookings.findById(booking.getId()).orElseThrow();
@@ -385,7 +385,7 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         ride.setStartedAt(Instant.now().minusSeconds(200)); // past the 120s threshold, but zero distance.
         rides.saveAndFlush(ride);
 
-        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
+        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop", false);
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
         Booking ended = bookings.findById(booking.getId()).orElseThrow();
@@ -417,7 +417,7 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
                 + "VALUES (?, ?, CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography), ?)",
                 ride.getId(), driver.getId(), 74.806, 34.08, java.sql.Timestamp.from(t0.plusSeconds(60)));
 
-        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
+        BookingDetailResponse response = service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop", false);
 
         assertThat(response.status()).isEqualTo(BookingStatus.PAYMENT_PENDING);
         Booking ended = bookings.findById(booking.getId()).orElseThrow();
@@ -513,7 +513,7 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         PricingRule rule = newPricingRule(city, VehicleType.CAB);
         Booking booking = acceptedBooking(customer, city, driver, rule); // not RIDE_STARTED yet.
 
-        assertThatThrownBy(() -> service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "x"))
+        assertThatThrownBy(() -> service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "x", false))
                 .isInstanceOf(BookingStateException.class);
     }
 
@@ -588,7 +588,7 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
                 + "VALUES (?, ?, CAST(ST_SetSRID(ST_MakePoint(?, ?), 4326) AS geography), ?)",
                 ride.getId(), driver.getId(), 74.806, 34.08, java.sql.Timestamp.from(t0.plusSeconds(60)));
 
-        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop");
+        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop", false);
 
         long finalFare = bookings.findById(booking.getId()).orElseThrow().getFinalFare();
         assertThat(finalFare).isEqualTo(100L); // capped at the estimate, not the ~6649 raw recompute.
@@ -691,7 +691,7 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         Driver driver = driverAcceptedFor(city);
         PricingRule rule = newPricingRule(city, VehicleType.CAB);
         Booking booking = rideStartedBooking(customer, city, driver, rule);
-        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "stop requested");
+        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "stop requested", false);
         RideFlag flag = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END).get(0);
 
         service.respondToFlag(customer.getUserId(), booking.getId(), flag.getId(), RideFlagRiderResponse.ACKNOWLEDGED);
@@ -708,7 +708,7 @@ class RideLifecycleServiceTest extends PersistenceTestSupport {
         Driver driver = driverAcceptedFor(city);
         PricingRule rule = newPricingRule(city, VehicleType.CAB);
         Booking booking = rideStartedBooking(customer, city, driver, rule);
-        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "stop requested");
+        service.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "stop requested", false);
         RideFlag flag = rideFlags.findByBookingIdAndType(booking.getId(), RideFlagType.EARLY_END).get(0);
 
         assertThatThrownBy(() -> service.respondToFlag(

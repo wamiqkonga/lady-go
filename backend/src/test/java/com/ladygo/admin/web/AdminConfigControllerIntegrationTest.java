@@ -117,6 +117,39 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void theCommissionRateCanBeSetAndThenClearedBackToUnsetButNoOtherKeyMayBeBlank() throws Exception {
+        ConfigEntry commission = seededEntry("earnings.commission.bps");
+        UUID superAdminId = newUser(UserRole.SUPER_ADMIN).getId();
+        String auth = "Bearer " + tokenFor(superAdminId, UserRole.SUPER_ADMIN);
+
+        mockMvc.perform(put("/api/v1/admin/config/" + commission.getId()).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("1500", "set rate"))))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/api/v1/admin/config/" + commission.getId()).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("", "unset again"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.configValue").value(""));
+        assertThat(configEntries.findById(commission.getId()).orElseThrow().getConfigValue()).isEmpty();
+
+        // the bounds on that key are unchanged
+        mockMvc.perform(put("/api/v1/admin/config/" + commission.getId()).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("10001", "too high"))))
+                .andExpect(status().isBadRequest());
+        // any other key still rejects blank
+        mockMvc.perform(put("/api/v1/admin/config/" + seededEntry().getId()).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("", "blank"))))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/v1/admin/config/" + seededEntry().getId()).header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new AdminConfigUpdateRequest("   ", "blank"))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void updatingWithANonNumericValueForAnIntegerEntryIsRejected() throws Exception {
         ConfigEntry entry = seededEntry();
         UUID superAdminId = newUser(UserRole.SUPER_ADMIN).getId();

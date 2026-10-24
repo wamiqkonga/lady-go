@@ -17,6 +17,10 @@ public interface RideFlagRepository extends JpaRepository<RideFlag, UUID>, JpaSp
     long countByCustomerIdAndDriverIdAndTypeAndCreatedAtAfter(
             UUID customerId, UUID driverId, RideFlagType type, Instant createdAtAfter);
 
+    /** True when an unreviewed flag of this type already exists for the pair since the given time. */
+    boolean existsByCustomerIdAndDriverIdAndTypeAndAdminReviewedAtIsNullAndCreatedAtAfter(
+            UUID customerId, UUID driverId, RideFlagType type, Instant createdAtAfter);
+
     /** Undisputed cash-dispute flags block the auto-complete sweep (docs/api/ride-lifecycle.md section 8). */
     List<RideFlag> findByBookingIdAndType(UUID bookingId, RideFlagType type);
 

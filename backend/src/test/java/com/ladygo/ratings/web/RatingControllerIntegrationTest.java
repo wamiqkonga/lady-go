@@ -231,6 +231,28 @@ class RatingControllerIntegrationTest extends RideScenarioSupport {
     }
 
     @Test
+    void furtherOneStarsDoNotRaiseAnotherRepeatFlagWhileOneIsUnreviewed() throws Exception {
+        people();
+        Ride[] rs = {finishedRide(), finishedRide(), finishedRide(), finishedRide(), finishedRide()};
+        for (Ride r : rs) {
+            riderRates(customer, r, "{\"score\":1}").andExpect(status().isOk());
+        }
+        long repeated = java.util.Arrays.stream(rs)
+                .mapToLong(r -> rideFlags.findByBookingIdAndType(r.getBookingId(), RideFlagType.REPEATED_LOW_RATING).size())
+                .sum();
+        assertThat(repeated).isEqualTo(1);
+
+        // once ops has reviewed it, a new one may be raised again
+        rideFlags.findByBookingIdAndType(rs[2].getBookingId(), RideFlagType.REPEATED_LOW_RATING).forEach(f -> {
+            f.setAdminReviewedAt(Instant.now());
+            rideFlags.saveAndFlush(f);
+        });
+        Ride next = finishedRide();
+        riderRates(customer, next, "{\"score\":1}").andExpect(status().isOk());
+        assertThat(rideFlags.findByBookingIdAndType(next.getBookingId(), RideFlagType.REPEATED_LOW_RATING)).hasSize(1);
+    }
+
+    @Test
     void ratingSubmissionsAreRateLimitedPerUser() throws Exception {
         people();
         setConfig("ratings.submit.max_per_hour", "2");
@@ -252,13 +274,17 @@ class RatingControllerIntegrationTest extends RideScenarioSupport {
         riderRates(customer, finishedRide(), "{\"score\":5,\"tags\":[\"POLITE\"]}").andExpect(status().isOk());
         riderRates(customer, finishedRide(), "{\"score\":2,\"comment\":\"" + secret + "\",\"tags\":[\"POLITE\",\"ON_TIME\"]}")
                 .andExpect(status().isOk());
+        riderRates(customer, finishedRide(), "{\"score\":5}").andExpect(status().isOk());
+        riderRates(customer, finishedRide(), "{\"score\":5}").andExpect(status().isOk());
+        riderRates(customer, finishedRide(), "{\"score\":3}").andExpect(status().isOk());
 
         String body = mockMvc.perform(get("/api/v1/drivers/me/ratings/summary")
                         .header("Authorization", token(driver.getUserId(), UserRole.DRIVER)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.count").value(2))
-                .andExpect(jsonPath("$.data.avg").value(3.5))
-                .andExpect(jsonPath("$.data.distribution.5").value(1))
+                .andExpect(jsonPath("$.data.count").value(5))
+                .andExpect(jsonPath("$.data.avg").value(4.0))
+                .andExpect(jsonPath("$.data.distribution.5").value(3))
+                .andExpect(jsonPath("$.data.distribution.3").value(1))
                 .andExpect(jsonPath("$.data.distribution.2").value(1))
                 .andExpect(jsonPath("$.data.distribution.1").value(0))
                 .andExpect(jsonPath("$.data.recentTagCounts.POLITE").value(2))
@@ -267,6 +293,44 @@ class RatingControllerIntegrationTest extends RideScenarioSupport {
 
         assertThat(body).doesNotContain(secret).doesNotContain("comment");
         assertThat(output.getAll()).doesNotContain(secret);
+    }
+
+    @Test
+    void belowFiveRatingsTheSummaryHidesTheDistributionAndTagsButKeepsAvgAndCount() throws Exception {
+        people();
+        riderRates(customer, finishedRide(), "{\"score\":5,\"tags\":[\"POLITE\"]}").andExpect(status().isOk());
+        riderRates(customer, finishedRide(), "{\"score\":2,\"tags\":[\"ON_TIME\"]}").andExpect(status().isOk());
+        riderRates(customer, finishedRide(), "{\"score\":5}").andExpect(status().isOk());
+        riderRates(customer, finishedRide(), "{\"score\":4}").andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/drivers/me/ratings/summary")
+                        .header("Authorization", token(driver.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(4))
+                .andExpect(jsonPath("$.data.avg").value(4.0))
+                .andExpect(jsonPath("$.data.distribution.1").value(0))
+                .andExpect(jsonPath("$.data.distribution.2").value(0))
+                .andExpect(jsonPath("$.data.distribution.3").value(0))
+                .andExpect(jsonPath("$.data.distribution.4").value(0))
+                .andExpect(jsonPath("$.data.distribution.5").value(0))
+                .andExpect(jsonPath("$.data.recentTagCounts").isEmpty());
+    }
+
+    @Test
+    void anUnknownStoredTagNameIsSkippedInsteadOfBreakingTheSummary() throws Exception {
+        people();
+        for (int i = 0; i < 5; i++) {
+            riderRates(customer, finishedRide(), "{\"score\":5,\"tags\":[\"POLITE\"]}").andExpect(status().isOk());
+        }
+        flushAndClear();
+        jdbc.update("UPDATE ratings SET tags = ARRAY['POLITE', 'REMOVED_LONG_AGO'] "
+                + "WHERE id = (SELECT id FROM ratings WHERE ratee_id = ? LIMIT 1)", driver.getUserId());
+
+        mockMvc.perform(get("/api/v1/drivers/me/ratings/summary")
+                        .header("Authorization", token(driver.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recentTagCounts.POLITE").value(5))
+                .andExpect(jsonPath("$.data.recentTagCounts.REMOVED_LONG_AGO").doesNotExist());
     }
 
     @Test

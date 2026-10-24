@@ -22,7 +22,7 @@ Drivers stay on a platform that shows them what they earned and treats them fair
 
 ### 4.1 Ride history (driver)
 `GET /drivers/me/rides?page=0&size=20` returns newest first.
-Item: `bookingId`, `rideId`, `status` (COMPLETED, CANCELLED, ENDED_EARLY), `completedAt`, `pickupAddress`, `destinationAddress`, `finalFare`, `currency`, `paymentMethod`, `myRating` (the score the driver gave, or null), `ratedByRider` (score the rider gave, or null once both rated, see 4.3).
+Item: `bookingId`, `rideId`, `status` (COMPLETED, CANCELLED, ENDED_EARLY), `completedAt`, `pickupAddress`, `destinationAddress`, `finalFare`, `currency`, `paymentMethod`, `myRating` (the score the driver gave, or null), `ratedByRider` (boolean, never the score: true only once both parties have rated or the rating window has closed, otherwise false, see 4.3). `pickupAddress` and `destinationAddress` follow the booking visibility policy: they are null for a CANCELLED booking.
 Never returned: rider name, phone, selfie, exact coordinates. Only the caller's own rides (403/empty otherwise).
 
 ### 4.2 Earnings (driver)
@@ -33,8 +33,8 @@ Rule: a ride earns only when COMPLETED with a confirmed final fare. Early ends a
 ### 4.3 Ratings
 - `POST /bookings/{bookingId}/rating` (rider rates driver) and `POST /drivers/me/bookings/{bookingId}/rating` (driver rates rider). Body: `score` 1-5, optional `comment` (max 500 chars, trimmed, no URLs checked server side beyond length), optional `tags[]` from a fixed list (e.g. POLITE, SAFE_DRIVING, CLEAN_VEHICLE, ON_TIME; for riders RESPECTFUL, ON_TIME).
 - Rules: only the two people on that ride; only after status COMPLETED; once per rater (409 on repeat, idempotent for an identical resubmit); window 7 days after completion; `ratee` is derived server side, never taken from the request.
-- Effect, in the same transaction: update `drivers.rating_avg`/`rating_count` (recompute from the ratings table for that driver, numeric(3,2), correct under concurrency). A score of 1 or 2 raises an admin ride flag for review (reuses `ride_flags`).
-- `GET /drivers/me/ratings/summary` returns `avg`, `count`, distribution 1-5, last 10 tags counts. Comments are **not** shown to the driver in v1 (avoids retaliation); admins can read them.
+- Effect, in the same transaction: update `drivers.rating_avg`/`rating_count` (recompute from the ratings table for that driver, numeric(3,2), correct under concurrency). A score of 1 or 2 raises an admin ride flag for review (reuses `ride_flags`). A `REPEATED_LOW_RATING` flag (third 1-star from one rider to one driver in 7 days) is raised once: no new one while an unreviewed one exists for that pair in the window. Locking: status and window are checked first without locks; then the driver row, then the ride row are locked and refreshed.
+- `GET /drivers/me/ratings/summary` returns `avg`, `count`, `distribution` (1-5) and `recentTagCounts` (last 10 ratings). To stop a driver inferring one rider's score, `distribution` and `recentTagCounts` are only filled when `count` >= 5; below that `distribution` still has keys "1" to "5" but all zero, `recentTagCounts` is `{}`, and `avg` and `count` are still returned. Unknown stored tag names are ignored. Comments are **not** shown to the driver in v1 (avoids retaliation); admins can read them.
 - Rider rating of a driver is visible to that driver only as aggregates. Driver rating of a rider is never shown to riders.
 
 ## 5. Data model (one new Flyway migration, additive)

@@ -10,9 +10,15 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import com.ladygo.bookings.domain.BookingStatus;
+import com.ladygo.bookings.service.BookingField;
+import com.ladygo.bookings.service.BookingViewerRole;
+import com.ladygo.bookings.service.BookingVisibilityPolicy;
 import com.ladygo.common.api.PageResponse;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
@@ -51,12 +57,14 @@ public class DriverEarningsService {
             """;
 
     private static final String HISTORY_SELECT = """
-            SELECT b.id AS booking_id, r.id AS ride_id, r.status AS ride_status,
+            SELECT b.id AS booking_id, r.id AS ride_id, r.status AS ride_status, b.status AS booking_status,
                    COALESCE(r.completed_at, r.created_at) AS ended_at,
                    b.pickup_address, b.destination_address, b.final_fare, b.currency, b.payment_method,
                    EXISTS (SELECT 1 FROM ride_flags f WHERE f.booking_id = b.id AND f.type = 'EARLY_END') AS ended_early,
                    (SELECT mr.score FROM ratings mr WHERE mr.ride_id = r.id AND mr.rater_id = ?) AS my_rating,
-                   EXISTS (SELECT 1 FROM ratings rr WHERE rr.ride_id = r.id AND rr.rater_role = 'CUSTOMER') AS rated_by_rider
+                   EXISTS (SELECT 1 FROM ratings rr WHERE rr.ride_id = r.id AND rr.rater_role = 'CUSTOMER')
+                       AND (EXISTS (SELECT 1 FROM ratings dr WHERE dr.ride_id = r.id AND dr.rater_role = 'DRIVER')
+                            OR COALESCE(r.completed_at, r.created_at) + make_interval(days => ?) < now()) AS rated_by_rider
             """ + HISTORY_FROM_WHERE + """
             ORDER BY COALESCE(r.completed_at, r.created_at) DESC, r.id DESC
             LIMIT ? OFFSET ?
@@ -67,7 +75,9 @@ public class DriverEarningsService {
                    count(*) AS rides, COALESCE(sum(gross), 0) AS gross, COALESCE(sum(commission), 0) AS commission,
                    COALESCE(sum(net), 0) AS net,
                    COALESCE(sum(gross) FILTER (WHERE payment_method = 'CASH'), 0) AS cash,
-                   COALESCE(sum(gross) FILTER (WHERE payment_method = 'ONLINE'), 0) AS online
+                   COALESCE(sum(gross) FILTER (WHERE payment_method = 'ONLINE'), 0) AS online,
+                   bool_or(commission_bps > 0) AS commissioned,
+                   min(currency) AS currency, count(DISTINCT currency) AS currency_count
             FROM ride_earnings
             WHERE driver_id = ? AND earned_at >= ? AND earned_at < ?
             GROUP BY local_day
@@ -92,23 +102,33 @@ public class DriverEarningsService {
         Pageable pageable = PageRequest.of(
                 Math.max(requested.getPageNumber(), 0), Math.min(Math.max(requested.getPageSize(), 1), MAX_PAGE_SIZE));
         Timestamp cutoff = Timestamp.from(Instant.now().minus(Duration.ofDays(HISTORY_DAYS)));
+        int windowDays = config.getInt("ratings.window.days", 7);
 
         Long total = jdbc.queryForObject("SELECT count(*) " + HISTORY_FROM_WHERE, Long.class, driver.getId(), cutoff);
         List<DriverRideHistoryItemResponse> items = jdbc.query(
                 HISTORY_SELECT,
-                (rs, i) -> new DriverRideHistoryItemResponse(
-                        rs.getObject("booking_id", UUID.class),
-                        rs.getObject("ride_id", UUID.class),
-                        historyStatus(rs.getString("ride_status"), rs.getBoolean("ended_early")),
-                        rs.getTimestamp("ended_at").toInstant(),
-                        rs.getString("pickup_address"),
-                        rs.getString("destination_address"),
-                        rs.getObject("final_fare", Long.class),
-                        rs.getString("currency"),
-                        rs.getString("payment_method"),
-                        rs.getObject("my_rating", Short.class),
-                        rs.getBoolean("rated_by_rider")),
-                driverUserId, driver.getId(), cutoff, pageable.getPageSize(), pageable.getOffset());
+                (rs, i) -> {
+                    // Exact addresses follow the same per-status rule as every other driver read
+                    // (a CANCELLED booking never shows them), so history cannot bypass the policy.
+                    BookingStatus bookingStatus = BookingStatus.valueOf(rs.getString("booking_status"));
+                    boolean pickupVisible = BookingVisibilityPolicy.isVisible(
+                            BookingViewerRole.DRIVER, bookingStatus, BookingField.PICKUP_ADDRESS_EXACT);
+                    boolean destinationVisible = BookingVisibilityPolicy.isVisible(
+                            BookingViewerRole.DRIVER, bookingStatus, BookingField.DESTINATION_ADDRESS_EXACT);
+                    return new DriverRideHistoryItemResponse(
+                            rs.getObject("booking_id", UUID.class),
+                            rs.getObject("ride_id", UUID.class),
+                            historyStatus(rs.getString("ride_status"), rs.getBoolean("ended_early")),
+                            rs.getTimestamp("ended_at").toInstant(),
+                            pickupVisible ? rs.getString("pickup_address") : null,
+                            destinationVisible ? rs.getString("destination_address") : null,
+                            rs.getObject("final_fare", Long.class),
+                            rs.getString("currency"),
+                            rs.getString("payment_method"),
+                            rs.getObject("my_rating", Short.class),
+                            rs.getBoolean("rated_by_rider"));
+                },
+                driverUserId, windowDays, driver.getId(), cutoff, pageable.getPageSize(), pageable.getOffset());
         return PageResponse.of(new PageImpl<>(items, pageable, total == null ? 0 : total));
     }
 
@@ -141,14 +161,28 @@ public class DriverEarningsService {
         Instant lower = start.atStartOfDay(zone).toInstant();
         Instant upper = end.plusDays(1).atStartOfDay(zone).toInstant();
         Map<LocalDate, long[]> byDay = new HashMap<>();
+        Map<LocalDate, Boolean> commissionedByDay = new HashMap<>();
+        Map<LocalDate, String> currencyByDay = new HashMap<>();
         jdbc.query(EARNINGS_BY_LOCAL_DAY, rs -> {
-            byDay.put(rs.getObject("local_day", LocalDate.class), new long[] {
+            LocalDate localDay = rs.getObject("local_day", LocalDate.class);
+            if (rs.getLong("currency_count") > 1) {
+                throw new IllegalStateException("Earnings for one driver and day span more than one currency.");
+            }
+            byDay.put(localDay, new long[] {
                 rs.getLong("rides"), rs.getLong("gross"), rs.getLong("commission"), rs.getLong("net"),
                 rs.getLong("cash"), rs.getLong("online")});
+            commissionedByDay.put(localDay, rs.getBoolean("commissioned"));
+            currencyByDay.put(localDay, rs.getString("currency"));
         }, zone.getId(), driver.getId(), Timestamp.from(lower), Timestamp.from(upper));
 
-        boolean commissionConfigured = config.findInt(EarningsRecorder.COMMISSION_BPS_KEY).isPresent();
-        String currency = city.getCurrency();
+        // Currency and commissionConfigured come from the stored rows (a snapshot per ride), never from
+        // today's config or city: changing the rate later must not rewrite the history shown.
+        Set<String> currencies = new HashSet<>(currencyByDay.values());
+        if (currencies.size() > 1) {
+            throw new IllegalStateException("Earnings for one driver span more than one currency.");
+        }
+        String totalsCurrency = currencies.isEmpty() ? city.getCurrency() : currencies.iterator().next();
+        boolean totalsCommissioned = commissionedByDay.containsValue(Boolean.TRUE);
         List<EarningsDayResponse> days = new ArrayList<>();
         long[] sum = new long[6];
         for (LocalDate day = start; !day.isAfter(end); day = day.plusDays(1)) {
@@ -156,10 +190,12 @@ public class DriverEarningsService {
             for (int i = 0; i < sum.length; i++) {
                 sum[i] += v[i];
             }
-            days.add(new EarningsDayResponse(day, v[0], v[1], v[2], v[3], currency, v[4], v[5], commissionConfigured));
+            days.add(new EarningsDayResponse(day, v[0], v[1], v[2], v[3],
+                    currencyByDay.getOrDefault(day, city.getCurrency()), v[4], v[5],
+                    commissionedByDay.getOrDefault(day, false)));
         }
         EarningsTotalsResponse totals = new EarningsTotalsResponse(
-                sum[0], sum[1], sum[2], sum[3], currency, sum[4], sum[5], commissionConfigured);
+                sum[0], sum[1], sum[2], sum[3], totalsCurrency, sum[4], sum[5], totalsCommissioned);
         return new DriverEarningsResponse(start, end, zone.getId(), totals, days);
     }
 

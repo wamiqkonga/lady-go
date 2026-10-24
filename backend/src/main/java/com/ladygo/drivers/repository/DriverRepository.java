@@ -3,13 +3,11 @@ package com.ladygo.drivers.repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import jakarta.persistence.LockModeType;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.drivers.domain.DriverVerificationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -67,10 +65,4 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     @Query("UPDATE Driver d SET d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.ONLINE "
             + "WHERE d.id = :id AND d.availabilityStatus = com.ladygo.drivers.domain.DriverAvailability.BUSY")
     int releaseFromOffer(@Param("id") UUID id);
-
-    /** Serialises rating-aggregate recomputes for one driver (docs/api/driver-earnings-ratings.md 4.3):
-     *  concurrent ratings queue on this row lock, each recomputing from committed ratings after the previous commits. */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select d from Driver d where d.id = :id")
-    Optional<Driver> lockById(@Param("id") UUID id);
 }

@@ -1,6 +1,10 @@
 package com.ladygo.ratings.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.sql.Connection;
+import javax.sql.DataSource;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -11,11 +15,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import com.ladygo.common.exception.BookingStateException;
 import com.ladygo.customers.domain.Customer;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.locations.domain.City;
 import com.ladygo.ratings.web.dto.SubmitRatingRequest;
 import com.ladygo.rides.domain.Ride;
+import com.ladygo.rides.domain.RideStatus;
 import com.ladygo.testsupport.RideScenarioSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 class RatingConcurrencyIntegrationTest extends RideScenarioSupport {
 
     @Autowired private RatingService ratingService;
+    @Autowired private DataSource dataSource;
 
     private final List<Customer> customersCreated = new ArrayList<>();
     private Driver driver;
@@ -95,5 +102,42 @@ class RatingConcurrencyIntegrationTest extends RideScenarioSupport {
         Driver d = drivers.findById(driver.getId()).orElseThrow();
         assertThat(d.getRatingCount()).isEqualTo(n);
         assertThat(d.getRatingAvg()).isEqualByComparingTo(RatingService.average(expectedSum, n));
+    }
+
+    /**
+     * A rating attempt on a ride that is not completed yet must be rejected before any row lock is
+     * requested (otherwise it could queue behind, or deadlock with, ride completion). Proved by behaviour:
+     * another connection holds FOR UPDATE locks on the driver and ride rows, and the attempt still returns
+     * its conflict immediately instead of blocking.
+     */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void ratingARideThatIsNotCompletedYetTakesNoRowLocks() throws Exception {
+        city = newCity();
+        driver = newDriver(city);
+        Customer c = newCustomer();
+        customersCreated.add(c);
+        Ride ride = completedRide(city, c, driver, 1_000, Instant.now());
+        ride.setStatus(RideStatus.STARTED);
+        ride.setCompletedAt(null);
+        rides.saveAndFlush(ride);
+
+        try (Connection holder = dataSource.getConnection()) {
+            holder.setAutoCommit(false);
+            try (var st = holder.createStatement()) {
+                st.execute("SELECT 1 FROM drivers WHERE id = '" + driver.getId() + "' FOR UPDATE");
+                st.execute("SELECT 1 FROM rides WHERE id = '" + ride.getId() + "' FOR UPDATE");
+            }
+            ExecutorService pool = Executors.newSingleThreadExecutor();
+            try {
+                Future<?> attempt = pool.submit(() -> ratingService.rateDriver(
+                        c.getUserId(), ride.getBookingId(), new SubmitRatingRequest(5, null, null)));
+                assertThatThrownBy(() -> attempt.get(10, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(BookingStateException.class); // a timeout here would mean it blocked on a lock
+            } finally {
+                holder.rollback();
+                pool.shutdownNow();
+            }
+        }
     }
 }

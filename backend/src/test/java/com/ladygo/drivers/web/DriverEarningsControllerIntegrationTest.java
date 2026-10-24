@@ -164,9 +164,81 @@ class DriverEarningsControllerIntegrationTest extends RideScenarioSupport {
                 .andExpect(jsonPath("$.data.content[1].ratedByRider").value(true))
                 .andExpect(jsonPath("$.data.content[2].status").value("CANCELLED"))
                 .andExpect(jsonPath("$.data.content[2].myRating").doesNotExist())
+                // a CANCELLED booking never shows exact addresses to the driver (BookingVisibilityPolicy)
+                .andExpect(jsonPath("$.data.content[2].pickupAddress").doesNotExist())
+                .andExpect(jsonPath("$.data.content[2].destinationAddress").doesNotExist())
+                .andExpect(jsonPath("$.data.content[1].pickupAddress").value("Lal Chowk"))
+                .andExpect(jsonPath("$.data.content[1].destinationAddress").value("Hazratbal"))
                 .andReturn().getResponse().getContentAsString();
         // the rider's actual score (2) is never exposed to the driver as a per-ride value
         assertThat(body).doesNotContain("\"ratedByRider\":2");
+    }
+
+    @Test
+    void aRiderSafetyCancelledRideShowsNoAddressesButACompletedOneDoes() throws Exception {
+        setUpPeople();
+        Ride completed = ride(driver, Instant.now().minus(Duration.ofMinutes(5)));
+        Booking cancelledBooking = newBooking(customer, city, BookingStatus.CANCELLED, driver.getId());
+        Ride cancelled = newRide(cancelledBooking, driver);
+        cancelled.setStatus(RideStatus.CANCELLED);
+        cancelled.setCompletedAt(Instant.now().minus(Duration.ofMinutes(1)));
+        rides.saveAndFlush(cancelled);
+        RideFlag flag = new RideFlag();
+        flag.setRideId(cancelled.getId());
+        flag.setBookingId(cancelledBooking.getId());
+        flag.setCustomerId(customer.getId());
+        flag.setDriverId(driver.getId());
+        flag.setType(RideFlagType.RIDER_SAFETY_CANCEL);
+        flag.setRaisedBy(ActorType.CUSTOMER);
+        rideFlags.saveAndFlush(flag);
+
+        mockMvc.perform(get("/api/v1/drivers/me/rides")
+                        .header("Authorization", token(driver.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].status").value("CANCELLED"))
+                .andExpect(jsonPath("$.data.content[0].pickupAddress").doesNotExist())
+                .andExpect(jsonPath("$.data.content[0].destinationAddress").doesNotExist())
+                .andExpect(jsonPath("$.data.content[1].rideId").value(completed.getId().toString()))
+                .andExpect(jsonPath("$.data.content[1].pickupAddress").value("Lal Chowk"))
+                .andExpect(jsonPath("$.data.content[1].destinationAddress").value("Hazratbal"));
+    }
+
+    private void riderRated(Ride r) {
+        Rating theirs = new Rating();
+        theirs.setRideId(r.getId());
+        theirs.setRaterId(customer.getUserId());
+        theirs.setRateeId(driver.getUserId());
+        theirs.setRaterRole(RaterRole.CUSTOMER);
+        theirs.setScore((short) 1);
+        ratings.saveAndFlush(theirs);
+    }
+
+    @Test
+    void ratedByRiderStaysFalseUntilBothHaveRatedOrTheWindowHasClosed() throws Exception {
+        setUpPeople();
+        // newest first: fresh+rider only, fresh+both, old(window closed)+rider only, old+nobody
+        Ride freshRiderOnly = ride(driver, Instant.now().minus(Duration.ofMinutes(1)));
+        riderRated(freshRiderOnly);
+        Ride freshBoth = ride(driver, Instant.now().minus(Duration.ofMinutes(2)));
+        riderRated(freshBoth);
+        Rating mine = new Rating();
+        mine.setRideId(freshBoth.getId());
+        mine.setRaterId(driver.getUserId());
+        mine.setRateeId(customer.getUserId());
+        mine.setRaterRole(RaterRole.DRIVER);
+        mine.setScore((short) 5);
+        ratings.saveAndFlush(mine);
+        Ride oldRiderOnly = ride(driver, Instant.now().minus(Duration.ofDays(8)));
+        riderRated(oldRiderOnly);
+        ride(driver, Instant.now().minus(Duration.ofDays(9)));
+
+        mockMvc.perform(get("/api/v1/drivers/me/rides")
+                        .header("Authorization", token(driver.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].ratedByRider").value(false))
+                .andExpect(jsonPath("$.data.content[1].ratedByRider").value(true))
+                .andExpect(jsonPath("$.data.content[2].ratedByRider").value(true))
+                .andExpect(jsonPath("$.data.content[3].ratedByRider").value(false));
     }
 
     @Test
@@ -217,13 +289,37 @@ class DriverEarningsControllerIntegrationTest extends RideScenarioSupport {
     }
 
     @Test
-    void commissionConfiguredFlagFollowsTheConfigKey() throws Exception {
+    void commissionConfiguredAndCurrencyComeFromTheStoredRowsAcrossARateChange() throws Exception {
         setUpPeople();
+        // Day 1 earned before any rate was set (bps 0); day 2 earned at 15% (USD rows prove the
+        // currency is read from the rows, not the city); day 3 has no rows at all.
+        Instant day1 = Instant.parse("2026-10-01T10:00:00Z");
+        Instant day2 = Instant.parse("2026-10-02T10:00:00Z");
+        Ride r1 = ride(driver, day1);
+        earnings.insertIfAbsent(r1.getId(), driver.getId(), 10_000, 0, 0, 10_000, "USD", "CASH", day1);
+        Ride r2 = ride(driver, day2);
+        earnings.insertIfAbsent(r2.getId(), driver.getId(), 10_000, 1500, 1_500, 8_500, "USD", "CASH", day2);
+        // the CURRENT config must not influence what history shows
+        setConfig("earnings.commission.bps", "");
+
+        mockMvc.perform(get("/api/v1/drivers/me/earnings?from=2026-10-01&to=2026-10-03")
+                        .header("Authorization", token(driver.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.days[0].commissionConfigured").value(false))
+                .andExpect(jsonPath("$.data.days[0].currency").value("USD"))
+                .andExpect(jsonPath("$.data.days[1].commissionConfigured").value(true))
+                .andExpect(jsonPath("$.data.days[1].currency").value("USD"))
+                .andExpect(jsonPath("$.data.days[2].commissionConfigured").value(false))
+                .andExpect(jsonPath("$.data.days[2].currency").value("INR")) // empty bucket: city currency
+                .andExpect(jsonPath("$.data.totals.commissionConfigured").value(true));
+
+        // a range holding only the pre-rate day is not "configured", even though the config is set now
         setConfig("earnings.commission.bps", "1500");
         mockMvc.perform(get("/api/v1/drivers/me/earnings?from=2026-10-01&to=2026-10-01")
                         .header("Authorization", token(driver.getUserId(), UserRole.DRIVER)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.totals.commissionConfigured").value(true));
+                .andExpect(jsonPath("$.data.totals.commissionConfigured").value(false))
+                .andExpect(jsonPath("$.data.totals.currency").value("USD"));
     }
 
     @Test

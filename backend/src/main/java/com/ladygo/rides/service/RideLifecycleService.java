@@ -206,12 +206,9 @@ public class RideLifecycleService {
     }
 
     /** Either party may end a started ride early - fare is recomputed with the minimum-fare floor,
-     *  and it's always flagged. A driver-initiated end far from the destination also prompts the rider. */
-    public BookingDetailResponse endRideEarlyAsDriver(UUID driverUserId, UUID bookingId, String reason) {
-        return endRideEarlyAsDriver(driverUserId, bookingId, reason, false);
-    }
-
-    /** {@code safetyConcern} (docs/api/driver-earnings-ratings.md section 6, B5) additionally opens one HIGH
+     *  and it's always flagged. A driver-initiated end far from the destination also prompts the rider.
+     *
+     *  <p>{@code safetyConcern} (docs/api/driver-earnings-ratings.md section 6, B5) additionally opens one HIGH
      *  REPORT_CUSTOMER safety incident for ops; it never changes the fee-waived early end itself and a
      *  problem creating the incident never fails the end. */
     @Transactional

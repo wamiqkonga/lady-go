@@ -41,6 +41,9 @@ import com.ladygo.rides.repository.RideFlagRepository;
 import com.ladygo.rides.repository.RideRepository;
 import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.security.ratelimit.RateLimiter;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -52,9 +55,18 @@ import org.springframework.transaction.annotation.Transactional;
  * derived from the ride, never from the request. Ownership failures are 404 (not 403) so another user's
  * ride id reveals nothing. Comments are stored but never logged and never returned to the rated person.
  *
- * <p>Concurrency: each submission takes a row lock on the ride (serialises the once-per-rater check) and,
- * for rider-to-driver ratings, on the driver (serialises the aggregate recompute, which then reads
- * committed ratings plus its own). Lock order is always ride, then driver.
+ * <p>Concurrency: a submission first runs every check that needs no lock (ride completed, window open for
+ * a first rating) and rejects without touching a row lock. Only then does it lock, in this order: the
+ * driver row (rider-to-driver ratings only; serialises the aggregate recompute, which then reads committed
+ * ratings plus its own), then the ride row (serialises the once-per-rater check). Deadlock freedom comes
+ * from the early status check: ride completion writes the ride row and then the driver row (the opposite
+ * order), but it does so while the ride is still not COMPLETED as far as any other transaction can see, so a
+ * rater is rejected before it locks anything and can never be one side of a lock cycle; once completion has
+ * committed it holds no locks. Both entities are refreshed under their lock so no stale state is acted on.
+ *
+ * <p>Privacy (retaliation): a driver must not be able to work out one rider's score. The aggregate
+ * breakdown (distribution, tag counts) is therefore only released once at least
+ * {@link #MIN_RATINGS_FOR_BREAKDOWN} ratings exist.
  */
 @Service
 public class RatingService {
@@ -65,6 +77,8 @@ public class RatingService {
     static final int REPEAT_WINDOW_DAYS = 7;
     static final int REPEAT_ONE_STAR_LIMIT = 2;
     static final int RECENT_TAG_SAMPLE = 10;
+    /** Below this many rider ratings the summary shows only avg and count (no distribution, no tags). */
+    static final int MIN_RATINGS_FOR_BREAKDOWN = 5;
 
     private static final Logger log = LoggerFactory.getLogger(RatingService.class);
 
@@ -76,6 +90,9 @@ public class RatingService {
     private final RideFlagRepository rideFlags;
     private final ConfigurationService config;
     private final RateLimiter rateLimiter;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public RatingService(
             RatingRepository ratings, BookingRepository bookings, RideRepository rides, CustomerRepository customers,
@@ -119,11 +136,24 @@ public class RatingService {
         Set<RatingTag> tags = normaliseTags(request.tags(), raterRole);
         short score = request.score().shortValue();
 
-        // Serialise everything below for this ride (and, for rider ratings, this driver).
-        Ride lockedRide = rides.lockById(ride.getId()).orElseThrow(ResourceNotFoundException::new);
-        Driver driver = (raterRole == RaterRole.CUSTOMER
-                ? drivers.lockById(lockedRide.getDriverId()) : drivers.findById(lockedRide.getDriverId()))
-                .orElseThrow(ResourceNotFoundException::new);
+        // Checks that need no lock come first, so a doomed attempt never queues behind ride completion.
+        if (ride.getStatus() != RideStatus.COMPLETED) {
+            throw new BookingStateException("This ride has not been completed yet.");
+        }
+        if (!ratings.existsByRideIdAndRaterId(ride.getId(), raterUserId)) {
+            requireWindowOpen(ride);
+        }
+
+        // Serialise everything below for this ride (and, for rider ratings, this driver). Lock order:
+        // driver, then ride - the same order ride completion uses. Refresh under the lock: the entities
+        // may already be in the persistence context with stale state.
+        entityManager.flush(); // a refresh must never discard this transaction's own pending changes
+        Driver driver = drivers.findById(ride.getDriverId()).orElseThrow(ResourceNotFoundException::new);
+        if (raterRole == RaterRole.CUSTOMER) {
+            entityManager.refresh(driver, LockModeType.PESSIMISTIC_WRITE);
+        }
+        Ride lockedRide = rides.findById(ride.getId()).orElseThrow(ResourceNotFoundException::new);
+        entityManager.refresh(lockedRide, LockModeType.PESSIMISTIC_WRITE);
         Customer customer = customers.findById(lockedRide.getCustomerId()).orElseThrow(ResourceNotFoundException::new);
 
         Rating existing = ratings.findByRideIdAndRaterId(lockedRide.getId(), raterUserId).orElse(null);
@@ -137,11 +167,7 @@ public class RatingService {
         if (lockedRide.getStatus() != RideStatus.COMPLETED) {
             throw new BookingStateException("This ride has not been completed yet.");
         }
-        Instant completedAt = lockedRide.getCompletedAt() != null ? lockedRide.getCompletedAt() : lockedRide.getUpdatedAt();
-        Duration window = Duration.ofDays(config.getInt("ratings.window.days", 7));
-        if (Instant.now().isAfter(completedAt.plus(window))) {
-            throw new BookingStateException("The rating window for this ride has closed.");
-        }
+        requireWindowOpen(lockedRide);
         enforceRateLimit(raterUserId);
 
         UUID rateeUserId = raterRole == RaterRole.CUSTOMER ? driver.getUserId() : customer.getUserId();
@@ -161,6 +187,14 @@ public class RatingService {
         raiseFlagsIfLow(raterRole, booking, lockedRide, score, raterUserId, rateeUserId);
         log.info("operation=rating_submitted rideId={} raterRole={} result=created", lockedRide.getId(), raterRole);
         return toResponse(booking.getId(), saved);
+    }
+
+    private void requireWindowOpen(Ride ride) {
+        Instant completedAt = ride.getCompletedAt() != null ? ride.getCompletedAt() : ride.getUpdatedAt();
+        Duration window = Duration.ofDays(config.getInt("ratings.window.days", 7));
+        if (Instant.now().isAfter(completedAt.plus(window))) {
+            throw new BookingStateException("The rating window for this ride has closed.");
+        }
     }
 
     private void recomputeDriverAggregate(Driver driver) {
@@ -188,7 +222,11 @@ public class RatingService {
         if (raterRole == RaterRole.CUSTOMER && score == 1) {
             long oneStars = ratings.countByRaterIdAndRateeIdAndScoreAndCreatedAtAfter(
                     raterUserId, rateeUserId, (short) 1, Instant.now().minus(Duration.ofDays(REPEAT_WINDOW_DAYS)));
-            if (oneStars > REPEAT_ONE_STAR_LIMIT) {
+            // One open flag per rider/driver pair per window: further 1-stars add nothing for ops to review.
+            boolean alreadyOpen = rideFlags.existsByCustomerIdAndDriverIdAndTypeAndAdminReviewedAtIsNullAndCreatedAtAfter(
+                    ride.getCustomerId(), ride.getDriverId(), RideFlagType.REPEATED_LOW_RATING,
+                    Instant.now().minus(Duration.ofDays(REPEAT_WINDOW_DAYS)));
+            if (oneStars > REPEAT_ONE_STAR_LIMIT && !alreadyOpen) {
                 raiseFlag(booking, ride, RideFlagType.REPEATED_LOW_RATING, raisedBy);
             }
         }
@@ -212,25 +250,46 @@ public class RatingService {
         }
     }
 
-    /** The driver's own aggregate view: totals, 1-5 distribution and tag counts from the latest 10 ratings. */
+    /**
+     * The driver's own aggregate view. {@code avg} and {@code count} are always returned. The 1-5
+     * {@code distribution} and {@code recentTagCounts} are only returned once the driver has at least
+     * {@link #MIN_RATINGS_FOR_BREAKDOWN} rider ratings; below that, {@code distribution} still has keys
+     * "1" to "5" but all zero, and {@code recentTagCounts} is empty, so a single rider's score or tags
+     * cannot be read off the breakdown (retaliation risk).
+     */
     @Transactional(readOnly = true)
     public DriverRatingSummaryResponse summaryForDriver(UUID driverUserId) {
         Driver driver = drivers.findByUserId(driverUserId).orElseThrow(ResourceNotFoundException::new);
         Map<String, Long> distribution = new LinkedHashMap<>();
-        for (short s = 1; s <= 5; s++) {
-            distribution.put(String.valueOf(s),
-                    ratings.countByRateeIdAndRaterRoleAndScore(driverUserId, RaterRole.CUSTOMER, s));
-        }
-        Map<RatingTag, Long> tagCounts = new EnumMap<>(RatingTag.class);
-        for (Rating r : ratings.findByRateeIdAndRaterRoleOrderByCreatedAtDesc(
-                driverUserId, RaterRole.CUSTOMER, PageRequest.of(0, RECENT_TAG_SAMPLE))) {
-            for (String name : r.getTags()) {
-                tagCounts.merge(RatingTag.valueOf(name), 1L, Long::sum);
-            }
-        }
         Map<String, Long> recentTags = new LinkedHashMap<>();
-        tagCounts.forEach((tag, n) -> recentTags.put(tag.name(), n));
+        boolean enough = driver.getRatingCount() >= MIN_RATINGS_FOR_BREAKDOWN;
+        for (short sc = 1; sc <= 5; sc++) {
+            distribution.put(String.valueOf(sc),
+                    enough ? ratings.countByRateeIdAndRaterRoleAndScore(driverUserId, RaterRole.CUSTOMER, sc) : 0L);
+        }
+        if (enough) {
+            Map<RatingTag, Long> tagCounts = new EnumMap<>(RatingTag.class);
+            for (Rating r : ratings.findByRateeIdAndRaterRoleOrderByCreatedAtDesc(
+                    driverUserId, RaterRole.CUSTOMER, PageRequest.of(0, RECENT_TAG_SAMPLE))) {
+                for (String name : r.getTags()) {
+                    RatingTag tag = parseTag(name);
+                    if (tag != null) {
+                        tagCounts.merge(tag, 1L, Long::sum);
+                    }
+                }
+            }
+            tagCounts.forEach((tag, n) -> recentTags.put(tag.name(), n));
+        }
         return new DriverRatingSummaryResponse(driver.getRatingAvg(), driver.getRatingCount(), distribution, recentTags);
+    }
+
+    /** Stored tag names outlive code: an unknown one (renamed or removed tag) is skipped, never a 500. */
+    private static RatingTag parseTag(String name) {
+        try {
+            return RatingTag.valueOf(name);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     static String normaliseComment(String raw) {

@@ -3562,8 +3562,7 @@
         "type": "object",
         "properties": {
           "value": {
-            "type": "string",
-            "minLength": 1
+            "type": "string"
           },
           "reason": {
             "type": "string",

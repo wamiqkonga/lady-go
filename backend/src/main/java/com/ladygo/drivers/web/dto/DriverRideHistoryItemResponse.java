@@ -8,7 +8,10 @@ import java.util.UUID;
  * no rider name, phone, selfie or coordinates. {@code status} is COMPLETED, CANCELLED or ENDED_EARLY.
  * {@code myRating} is the score this driver gave the rider (null if not rated yet). {@code ratedByRider} is
  * only whether the rider has rated - the score itself is never shown to the driver (section 4.3: rider
- * ratings are visible to the driver as aggregates only). {@code finalFare} is null when the ride never
+ * ratings are visible to the driver as aggregates only) - and it stays false until both parties have rated
+ * or the rating window has closed, so a driver cannot link a fresh rider rating to a score change.
+ * {@code pickupAddress}/{@code destinationAddress} are null when the booking's status does not allow a
+ * driver to see exact addresses (for example CANCELLED). {@code finalFare} is null when the ride never
  * reached a confirmed fare.
  */
 public record DriverRideHistoryItemResponse(

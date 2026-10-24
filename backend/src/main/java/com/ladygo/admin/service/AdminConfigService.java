@@ -3,6 +3,7 @@ package com.ladygo.admin.service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import com.ladygo.admin.domain.AuditLog;
 import com.ladygo.admin.repository.AuditLogRepository;
@@ -77,6 +78,9 @@ public class AdminConfigService {
             Map.entry("ratings.window.days", new long[] {1, 90}),
             Map.entry("ratings.submit.max_per_hour", new long[] {1, 1_000}));
 
+    /** Keys whose empty value means "not configured" and may be restored by an admin. */
+    private static final Set<String> OPTIONAL_UNSET_KEYS = Set.of("earnings.commission.bps");
+
     private static final Map<String, BigDecimal[]> DECIMAL_BOUNDS = Map.of(
             "booking.fare.change.tolerance.pct", new BigDecimal[] {BigDecimal.ZERO, new BigDecimal("100")});
 
@@ -99,6 +103,12 @@ public class AdminConfigService {
             throw new ValidationException("A reason is required to change a config value.");
         }
         ConfigEntry entry = entries.findById(id).orElseThrow(ResourceNotFoundException::new);
+        if (newValue == null || (newValue.isBlank() && !OPTIONAL_UNSET_KEYS.contains(entry.getConfigKey()))) {
+            throw new ValidationException("A value is required.");
+        }
+        if (newValue.isBlank()) {
+            newValue = ""; // normalised "unset"
+        }
         validate(entry.getConfigKey(), entry.getValueType(), newValue);
 
         String oldValue = entry.getConfigValue();
@@ -124,6 +134,9 @@ public class AdminConfigService {
      *  javac desugars an enum switch into exactly that (see {@code ArchitectureTest}). Plain
      *  {@code ==} comparisons instead, same as every other enum-dispatch in this codebase. */
     private static void validate(String key, ConfigValueType type, String value) {
+        if (value.isEmpty() && OPTIONAL_UNSET_KEYS.contains(key)) {
+            return; // deliberately unset (e.g. no commission configured) - the only key allowed to be blank.
+        }
         try {
             if (type == ConfigValueType.INTEGER) {
                 long parsed = Integer.parseInt(value);
