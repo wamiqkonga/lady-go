@@ -31,6 +31,7 @@ jobs:
   test:
     if: ${{ inputs.rollback_sha == '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
@@ -53,6 +54,7 @@ jobs:
     # pass, or on its own for a manual rollback (the test job is skipped then).
     if: ${{ always() && github.ref == 'refs/heads/main' && (needs.test.result == 'success' || (needs.test.result == 'skipped' && inputs.rollback_sha != '')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     # Never two deploys at once; a second one waits. GitHub keeps only one waiting run, so start a manual
     # rollback when nothing else is queued. The host also refuses overlapping deploys (flock in deploy.sh).
     concurrency:

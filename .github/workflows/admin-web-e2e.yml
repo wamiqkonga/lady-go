@@ -1,10 +1,13 @@
 name: Admin web E2E
 
 on:
+  # Heavy (database, backend and browser). Pull requests into main and pushes to main only; the free plan
+  # has 2,000 Actions minutes a month. Run it by hand from the Actions tab for a feature branch.
   push:
-    branches: [main, develop]
+    branches: [main]
     paths: ["backend/**", "frontend/admin/**", "scripts/ci/**", ".github/workflows/admin-web-e2e.yml"]
   pull_request:
+    branches: [main]
     paths: ["backend/**", "frontend/admin/**", "scripts/ci/**", ".github/workflows/admin-web-e2e.yml"]
   workflow_dispatch:
     inputs:
@@ -16,12 +19,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Only runs anything on a manual dispatch - computes [1..repeat] so the e2e job below can fan out
   # into that many parallel, independent matrix runs. A plain push/PR keeps the normal single run.
   setup:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       matrix: ${{ steps.gen.outputs.matrix }}
     steps:
@@ -39,6 +47,7 @@ jobs:
       matrix:
         iteration: ${{ github.event_name == 'workflow_dispatch' && fromJson(needs.setup.outputs.matrix) || fromJson('[1]') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgis/postgis:16-3.4
