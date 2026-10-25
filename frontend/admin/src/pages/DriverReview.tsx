@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { client, unwrap, ApiCallError } from '../lib/client'
+import { client, unwrap, expectOk, ApiCallError } from '../lib/client'
 import type { components } from '../lib/api-types'
 
 type Review = components['schemas']['DriverReviewSummaryResponse']
 type DocumentRow = components['schemas']['DriverDocumentAdminResponse']
+
+/** Asks for a rejection reason; null when cancelled or left blank. */
+function askReason(subject: string): string | null {
+  const note = window.prompt(`Reason for rejecting this ${subject}:`)?.trim()
+  return note ? note : null
+}
 
 function DocumentViewer({ documentId }: { documentId: string }) {
   const [url, setUrl] = useState<string | null>(null)
@@ -41,7 +47,7 @@ function DocumentRowView({ doc, onReviewed }: { doc: DocumentRow; onReviewed: ()
     setBusy(true)
     setError(null)
     try {
-      await client.POST('/api/v1/admin/driver-documents/{id}/approve', { params: { path: { id: doc.id } } })
+      expectOk(await client.POST('/api/v1/admin/driver-documents/{id}/approve', { params: { path: { id: doc.id } } }))
       onReviewed()
     } catch (err) {
       setError(err instanceof ApiCallError ? err.message : 'Failed to approve.')
@@ -52,15 +58,17 @@ function DocumentRowView({ doc, onReviewed }: { doc: DocumentRow; onReviewed: ()
 
   async function reject() {
     if (!doc.id) return
-    const note = window.prompt('Reason for rejecting this document:')
+    const note = askReason('document')
     if (!note) return
     setBusy(true)
     setError(null)
     try {
-      await client.POST('/api/v1/admin/driver-documents/{id}/reject', {
-        params: { path: { id: doc.id } },
-        body: { note },
-      })
+      expectOk(
+        await client.POST('/api/v1/admin/driver-documents/{id}/reject', {
+          params: { path: { id: doc.id } },
+          body: { note },
+        }),
+      )
       onReviewed()
     } catch (err) {
       setError(err instanceof ApiCallError ? err.message : 'Failed to reject.')
@@ -103,7 +111,10 @@ function DocumentRowView({ doc, onReviewed }: { doc: DocumentRow; onReviewed: ()
 export default function DriverReview() {
   const { driverId } = useParams<{ driverId: string }>()
   const [review, setReview] = useState<Review | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // loadError replaces the page (nothing to show); actionError is a failed approve/reject and must
+  // leave the review on screen so the reviewer can read it and retry.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(() => {
@@ -111,54 +122,57 @@ export default function DriverReview() {
     client
       .GET('/api/v1/admin/drivers/{id}/review', { params: { path: { id: driverId } } })
       .then((result) => setReview(unwrap(result)))
-      .catch((err: unknown) => setError(err instanceof ApiCallError ? err.message : 'Failed to load.'))
+      .catch((err: unknown) => setLoadError(err instanceof ApiCallError ? err.message : 'Failed to load.'))
   }, [driverId])
 
   useEffect(() => load(), [load])
 
-  async function approveVehicle(vehicleId: string) {
-    await client.POST('/api/v1/admin/vehicles/{id}/approve', { params: { path: { id: vehicleId } } })
-    load()
-  }
-
-  async function rejectVehicle(vehicleId: string) {
-    const note = window.prompt('Reason for rejecting this vehicle:')
-    if (!note) return
-    await client.POST('/api/v1/admin/vehicles/{id}/reject', { params: { path: { id: vehicleId } }, body: { note } })
-    load()
-  }
-
-  async function approveDriver() {
-    if (!driverId) return
+  async function runAction(failureMessage: string, action: () => Promise<void>) {
     setBusy(true)
-    setError(null)
+    setActionError(null)
     try {
-      await client.POST('/api/v1/admin/drivers/{id}/approve', { params: { path: { id: driverId } } })
+      await action()
       load()
     } catch (err) {
-      setError(err instanceof ApiCallError ? err.message : 'Failed to approve driver.')
+      setActionError(err instanceof ApiCallError ? err.message : failureMessage)
     } finally {
       setBusy(false)
     }
   }
 
-  async function rejectDriver() {
-    if (!driverId) return
-    const note = window.prompt('Reason for rejecting this driver:')
-    if (!note) return
-    setBusy(true)
-    setError(null)
-    try {
-      await client.POST('/api/v1/admin/drivers/{id}/reject', { params: { path: { id: driverId } }, body: { note } })
-      load()
-    } catch (err) {
-      setError(err instanceof ApiCallError ? err.message : 'Failed to reject driver.')
-    } finally {
-      setBusy(false)
-    }
+  function approveVehicle(vehicleId: string) {
+    return runAction('Failed to approve vehicle.', async () => {
+      expectOk(await client.POST('/api/v1/admin/vehicles/{id}/approve', { params: { path: { id: vehicleId } } }))
+    })
   }
 
-  if (error) return <p role="alert">{error}</p>
+  function rejectVehicle(vehicleId: string) {
+    const note = askReason('vehicle')
+    if (!note) return
+    return runAction('Failed to reject vehicle.', async () => {
+      expectOk(
+        await client.POST('/api/v1/admin/vehicles/{id}/reject', { params: { path: { id: vehicleId } }, body: { note } }),
+      )
+    })
+  }
+
+  function approveDriver() {
+    if (!driverId) return
+    return runAction('Failed to approve driver.', async () => {
+      expectOk(await client.POST('/api/v1/admin/drivers/{id}/approve', { params: { path: { id: driverId } } }))
+    })
+  }
+
+  function rejectDriver() {
+    if (!driverId) return
+    const note = askReason('driver')
+    if (!note) return
+    return runAction('Failed to reject driver.', async () => {
+      expectOk(await client.POST('/api/v1/admin/drivers/{id}/reject', { params: { path: { id: driverId } }, body: { note } }))
+    })
+  }
+
+  if (loadError) return <p role="alert">{loadError}</p>
   if (!review) return <p className="muted">Loading…</p>
 
   return (
@@ -168,6 +182,7 @@ export default function DriverReview() {
         {review.driverName ?? review.driverId} {review.driverPhoneMasked ? `· ${review.driverPhoneMasked}` : ''} ·{' '}
         {review.verificationStatus}
       </p>
+      {actionError && <p role="alert">{actionError}</p>}
 
       {review.vehicle && (
         <div className="panel">
@@ -177,10 +192,10 @@ export default function DriverReview() {
           </p>
           {review.vehicle.verificationStatus === 'PENDING' && review.vehicle.id && (
             <div className="row-actions">
-              <button type="button" onClick={() => approveVehicle(review.vehicle!.id!)}>
+              <button type="button" onClick={() => approveVehicle(review.vehicle!.id!)} disabled={busy}>
                 Approve vehicle
               </button>
-              <button type="button" onClick={() => rejectVehicle(review.vehicle!.id!)}>
+              <button type="button" onClick={() => rejectVehicle(review.vehicle!.id!)} disabled={busy}>
                 Reject vehicle
               </button>
             </div>

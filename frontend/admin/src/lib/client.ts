@@ -76,3 +76,14 @@ export function unwrap<T>(result: { data?: Envelope<T>; error?: Envelope<T>; res
   const error = result.data?.error ?? result.error?.error
   throw new ApiCallError(error?.code ?? 'UNKNOWN_ERROR', error?.message ?? 'Request failed.', result.response.status)
 }
+
+/**
+ * For endpoints whose success body carries nothing to read (approve/reject/review actions): openapi-fetch
+ * never throws on an HTTP error, so a caller that just awaits `client.POST(...)` would treat a 4xx/5xx as
+ * success. This throws the backend's own code/message instead.
+ */
+export function expectOk(result: { data?: Envelope<unknown>; error?: Envelope<unknown>; response: Response }): void {
+  if (result.response.ok) return
+  const error = result.error?.error ?? result.data?.error
+  throw new ApiCallError(error?.code ?? 'UNKNOWN_ERROR', error?.message ?? 'Request failed.', result.response.status)
+}

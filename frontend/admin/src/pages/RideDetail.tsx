@@ -116,28 +116,30 @@ export default function RideDetail() {
         {!detail.timeline || detail.timeline.length === 0 ? (
           <p className="muted">No events recorded.</p>
         ) : (
-          <table className="list-table">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Actor</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.timeline.map((event, i) => (
-                <tr key={i}>
-                  <td>{event.createdAt ? new Date(event.createdAt).toLocaleString() : '—'}</td>
-                  <td>{event.fromStatus ?? '—'}</td>
-                  <td>{event.toStatus ?? '—'}</td>
-                  <td>{event.actorType ?? '—'}</td>
-                  <td>{event.reason ?? '—'}</td>
+          <div className="table-scroll">
+            <table className="list-table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Actor</th>
+                  <th>Reason</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {detail.timeline.map((event, i) => (
+                  <tr key={i}>
+                    <td>{event.createdAt ? new Date(event.createdAt).toLocaleString() : '—'}</td>
+                    <td>{event.fromStatus ?? '—'}</td>
+                    <td>{event.toStatus ?? '—'}</td>
+                    <td>{event.actorType ?? '—'}</td>
+                    <td>{event.reason ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </section>
