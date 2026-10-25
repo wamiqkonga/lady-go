@@ -5,7 +5,7 @@ export async function loginAs(page: Page, creds: Credentials): Promise<void> {
   await page.goto('/login')
   await page.getByLabel('Email').fill(creds.email)
   await page.getByLabel('Password').fill(creds.password)
-  await page.getByRole('button', { name: 'Sign in' }).click()
+  // The code field is on screen from the start when the app is built with VITE_ADMIN_MFA_REQUIRED=true.
   await expect(page.getByLabel('Authenticator code')).toBeVisible()
   await page.getByLabel('Authenticator code').fill(currentTotpCode(creds.totpSecret))
   await page.getByRole('button', { name: 'Sign in' }).click()

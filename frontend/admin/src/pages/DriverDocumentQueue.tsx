@@ -33,40 +33,42 @@ export default function DriverDocumentQueue() {
   return (
     <section>
       <h1>Driver verification</h1>
-      <table className="list-table">
-        <thead>
-          <tr>
-            <th>Submitted</th>
-            <th>Driver</th>
-            <th>Phone</th>
-            <th>Document type</th>
-            <th>Status</th>
-            <th>Expires</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const expired = Boolean(row.expiresAt) && new Date(row.expiresAt!) < new Date()
-            return (
-              <tr key={row.id}>
-                <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
-                <td>
-                  <Link to={`/driver-verification/${row.driverId}`}>
-                    {row.driverName ?? `${row.driverId?.slice(0, 8)}…`}
-                  </Link>
-                </td>
-                <td>{row.driverPhoneMasked ?? '—'}</td>
-                <td>{row.type}</td>
-                <td>{row.status}</td>
-                <td>
-                  {row.expiresAt ?? '—'}
-                  {expired && <span className="badge-expired"> expired</span>}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <div className="table-scroll">
+        <table className="list-table">
+          <thead>
+            <tr>
+              <th>Submitted</th>
+              <th>Driver</th>
+              <th>Phone</th>
+              <th>Document type</th>
+              <th>Status</th>
+              <th>Expires</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const expired = Boolean(row.expiresAt) && new Date(row.expiresAt!) < new Date()
+              return (
+                <tr key={row.id}>
+                  <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
+                  <td>
+                    <Link to={`/driver-verification/${row.driverId}`}>
+                      {row.driverName ?? `${row.driverId?.slice(0, 8)}…`}
+                    </Link>
+                  </td>
+                  <td>{row.driverPhoneMasked ?? '—'}</td>
+                  <td>{row.type}</td>
+                  <td>{row.status}</td>
+                  <td>
+                    {row.expiresAt ?? '—'}
+                    {expired && <span className="badge-expired"> expired</span>}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   )
 }

@@ -82,4 +82,56 @@ describe('DriverReview', () => {
 
     await waitFor(() => expect(screen.getByRole('img')).toHaveAttribute('src', expect.stringContaining('derivatives')))
   })
+  describe('when the server rejects a review action', () => {
+    const conflict = {
+      success: false,
+      data: null,
+      error: { code: 'CONFLICT', message: 'This document was already reviewed.' },
+    }
+
+    it('shows the server message for a failed document approval instead of treating it as success', async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(reviewBody))
+        .mockResolvedValueOnce(jsonResponse(conflict, 409))
+      vi.stubGlobal('fetch', fetchMock)
+
+      renderReview()
+      await waitFor(() => expect(screen.getAllByRole('button', { name: 'Approve' })).toHaveLength(1))
+      await userEvent.click(screen.getByRole('button', { name: 'Approve' }))
+
+      expect(await screen.findByText('This document was already reviewed.')).toBeInTheDocument()
+      // No reload was triggered: the only fetches were the page load and the approve call.
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('keeps the review page on screen when approving the driver fails', async () => {
+      const ready = { ...reviewBody, data: { ...reviewBody.data, readyForApproval: true, missingRequirements: [] } }
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(ready))
+        .mockResolvedValueOnce(jsonResponse({ ...conflict, error: { code: 'CONFLICT', message: 'Driver is not ready.' } }, 409))
+      vi.stubGlobal('fetch', fetchMock)
+
+      renderReview()
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Approve driver' })).toBeEnabled())
+      await userEvent.click(screen.getByRole('button', { name: 'Approve driver' }))
+
+      expect(await screen.findByText('Driver is not ready.')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Driver review' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Approve driver' })).toBeEnabled()
+    })
+
+    it('does not send a blank rejection reason', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse(reviewBody))
+      vi.stubGlobal('fetch', fetchMock)
+      vi.spyOn(window, 'prompt').mockReturnValue('   ')
+
+      renderReview()
+      await waitFor(() => expect(screen.getAllByRole('button', { name: 'Reject' })).toHaveLength(1))
+      await userEvent.click(screen.getByRole('button', { name: 'Reject' }))
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+  })
 })
