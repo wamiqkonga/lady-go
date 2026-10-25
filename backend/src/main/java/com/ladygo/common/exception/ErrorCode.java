@@ -22,6 +22,9 @@ public enum ErrorCode {
     CONCURRENT_UPDATE(HttpStatus.CONFLICT, "This was just updated by someone else. Please retry."),
     PAYMENT_METHOD_UNAVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "This payment method is not available yet."),
     ALREADY_RATED(HttpStatus.CONFLICT, "This ride has already been rated."),
+    OTP_EMAIL_MISMATCH(HttpStatus.CONFLICT,
+            "This phone number and email do not go together. Use the same phone number and email you signed up with. "
+                    + "A new phone number needs a new email."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

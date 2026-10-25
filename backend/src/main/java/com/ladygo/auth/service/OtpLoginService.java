@@ -71,7 +71,8 @@ public class OtpLoginService {
      * bound to the user on first successful LOGIN. The phone number is NOT verified in this mode, so to
      * stop anyone who merely knows a number from taking over an already-existing account, a request whose
      * email differs from the one bound to that phone, for an existing account with no bound email, or
-     * already bound to another user is silently dropped - same generic response as success, nothing sent, logged for support.
+     * already bound to another user is rejected with {@link OtpEmailMismatchException} (HTTP 409), nothing
+     * sent, logged for support. The message does not say which side is already registered.
      */
     public void requestOtp(String phone, OtpPurpose purpose, UserRole intendedRole, String ip,
             String challengeToken, String email) {
@@ -87,8 +88,8 @@ public class OtpLoginService {
                 throw new ValidationException("Email is required.");
             }
             if (emailConflictsWithAccount(phone, email)) {
-                log.info("operation=otp_email_conflict phone_suffix={} result=dropped", suffix(phone));
-                return;
+                log.info("operation=otp_email_conflict phone_suffix={} result=rejected", suffix(phone));
+                throw new OtpEmailMismatchException();
             }
         }
         otpService.requestOtp(phone, purpose, ip, email);

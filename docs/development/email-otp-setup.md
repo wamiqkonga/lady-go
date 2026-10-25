@@ -12,8 +12,14 @@ SMS/WhatsApp. Switch: `LADYGO_OTP_CHANNEL=email` (default `sms`, which keeps the
   `users.email`.
 - **The phone number is not verified in this mode** (`users.phone_verified_at` stays null). Phone is still
   the account identity. To stop someone who merely knows a number from taking over a claimed account, a
-  request is silently dropped (same generic response, nothing sent, logged as `otp_email_conflict`) when the
-  email differs from the one bound to that phone, or is already bound to another user.
+  request is **rejected with HTTP 409 and `error.code = OTP_EMAIL_MISMATCH`** (nothing sent, logged as
+  `otp_email_conflict result=rejected`) when the email differs from the one bound to that phone, the phone has
+  an account with no email, or the email is already bound to another user. One message covers all three, so
+  the response does not say which side is registered: "Use the same phone number and email you signed up
+  with. A new phone number needs a new email." The website shows it as is.
+  **Trade-off:** this tells someone probing a phone number or email that it is already registered. It was
+  silent before. The existing per-phone, per-IP and per-address send caps limit how fast that can be probed;
+  the phone itself is not verified in this mode either way (see the first-claim note below).
 - First claim is still first-come: an attacker could register someone else's phone with their own email
   before the real owner does. Admin document review is the backstop for the pilot; verify phones by call
   before approving drivers.

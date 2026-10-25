@@ -3,6 +3,7 @@ package com.ladygo.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+
 import com.ladygo.auth.domain.OtpPurpose;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.notifications.email.LoggingEmailSender;
@@ -89,7 +90,9 @@ class OtpEmailChannelIntegrationTest {
         int rowsBefore = otpRowsFor(phone);
 
         String attacker = nextEmail();
-        otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER, "5.6.7.8", null, attacker);
+        assertThatThrownBy(() -> otpLoginService.requestOtp(
+                phone, OtpPurpose.LOGIN, UserRole.DRIVER, "5.6.7.8", null, attacker))
+                .isInstanceOf(OtpEmailMismatchException.class);
 
         assertThat(otpRowsFor(phone)).as("no code created for the mismatching email").isEqualTo(rowsBefore);
         assertThat(LoggingEmailSender.lastCodeFor(attacker)).isNull();
@@ -104,7 +107,9 @@ class OtpEmailChannelIntegrationTest {
                 UserRole.DRIVER, "device-1");
 
         String phoneB = nextPhone();
-        otpLoginService.requestOtp(phoneB, OtpPurpose.LOGIN, UserRole.DRIVER, "1.2.3.4", null, email);
+        assertThatThrownBy(() -> otpLoginService.requestOtp(
+                phoneB, OtpPurpose.LOGIN, UserRole.DRIVER, "1.2.3.4", null, email))
+                .isInstanceOf(OtpEmailMismatchException.class);
 
         assertThat(otpRowsFor(phoneB)).isZero();
     }
@@ -118,10 +123,42 @@ class OtpEmailChannelIntegrationTest {
         users.saveAndFlush(legacy);
 
         String attacker = nextEmail();
-        otpLoginService.requestOtp(phone, OtpPurpose.LOGIN, UserRole.DRIVER, "5.6.7.8", null, attacker);
+        assertThatThrownBy(() -> otpLoginService.requestOtp(
+                phone, OtpPurpose.LOGIN, UserRole.DRIVER, "5.6.7.8", null, attacker))
+                .isInstanceOf(OtpEmailMismatchException.class);
 
         assertThat(otpRowsFor(phone)).isZero();
         assertThat(LoggingEmailSender.lastCodeFor(attacker)).isNull();
+    }
+
+    @Test
+    void theMismatchErrorTellsTheDriverWhatToDoAndIsTheSameForEveryKindOfMismatch() {
+        String phoneA = nextPhone();
+        String emailA = nextEmail();
+        otpLoginService.requestOtp(phoneA, OtpPurpose.LOGIN, UserRole.DRIVER, "1.2.3.4", null, emailA);
+        otpLoginService.verifyOtp(phoneA, LoggingEmailSender.lastCodeFor(emailA), OtpPurpose.LOGIN,
+                UserRole.DRIVER, "device-1");
+
+        // Known phone with another email, and known email with another phone: one message, so the
+        // response does not say WHICH of the two is already registered.
+        String otherEmail = nextEmail();
+        String otherPhone = nextPhone();
+        String phoneSide = catchMessage(() -> otpLoginService.requestOtp(
+                phoneA, OtpPurpose.LOGIN, UserRole.DRIVER, "1.2.3.4", null, otherEmail));
+        String emailSide = catchMessage(() -> otpLoginService.requestOtp(
+                otherPhone, OtpPurpose.LOGIN, UserRole.DRIVER, "1.2.3.4", null, emailA));
+
+        assertThat(phoneSide).isEqualTo(emailSide);
+        assertThat(phoneSide).contains("same phone number and email");
+    }
+
+    private static String catchMessage(Runnable action) {
+        try {
+            action.run();
+        } catch (OtpEmailMismatchException ex) {
+            return ex.getMessage();
+        }
+        throw new AssertionError("expected OtpEmailMismatchException");
     }
 
     @Test
