@@ -96,6 +96,7 @@ ladygo:
       password: ${LADYGO_SMTP_PASSWORD:}
       from: ${LADYGO_EMAIL_FROM:}
   mfa:
+    required: ${LADYGO_ADMIN_MFA_REQUIRED:false}
     enc-key: ${LADYGO_MFA_ENC_KEY:DevInsecureMfaEncKeyChangeMe1234}
   ride:
     pin-secret: ${LADYGO_RIDE_PIN_SECRET:dev-only-insecure-ride-pin-secret-CHANGE-ME-0123456789}

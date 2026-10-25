@@ -4,6 +4,9 @@ import { AuthError, login } from '../lib/auth'
 
 import ThemeToggle from '../components/ThemeToggle'
 
+// Mirrors the backend LADYGO_ADMIN_MFA_REQUIRED. Off for the pilot: sign-in is email + password only.
+const MFA_REQUIRED = import.meta.env.VITE_ADMIN_MFA_REQUIRED === 'true'
+
 export default function Login() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
@@ -18,7 +21,7 @@ export default function Login() {
     setError(null)
     setSubmitting(true)
     try {
-      const result = await login(email, password, needsTotp ? totpCode : undefined)
+      const result = await login(email, password, MFA_REQUIRED && needsTotp ? totpCode : undefined)
       if (result.kind === 'authenticated') {
         navigate('/dashboard', { replace: true })
         return
@@ -27,7 +30,7 @@ export default function Login() {
       // with MFA already confirmed, so this is a defensive message, not a built flow.
       setError('This account still needs to finish MFA enrolment. Contact another admin.')
     } catch (err) {
-      if (err instanceof AuthError && err.code === 'UNAUTHORIZED' && !needsTotp && password) {
+      if (err instanceof AuthError && MFA_REQUIRED && err.code === 'UNAUTHORIZED' && !needsTotp && password) {
         // Password was accepted-shaped but the account has MFA enabled - ask for the code.
         // (The backend gives an identical UNAUTHORIZED for bad password vs missing TOTP by
         // design, so this is a UX nicety, not a security signal: wrong TOTP also lands here.)
@@ -66,7 +69,7 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {needsTotp && (
+        {MFA_REQUIRED && needsTotp && (
           <>
             <label htmlFor="totp">Authenticator code</label>
             <input
