@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Clock
-import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 
@@ -120,5 +119,5 @@ class EarningsViewModel
                 }
         }
 
-        private fun rangeFor(week: WeekChoice): DateRange = weekRange(LocalDate.ofInstant(clock.instant(), cityZone ?: clock.zone), week)
+        private fun rangeFor(week: WeekChoice): DateRange = weekRange(clock.instant().atZone(cityZone ?: clock.zone).toLocalDate(), week)
     }
