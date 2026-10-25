@@ -1,18 +1,23 @@
 name: Backend
 
 on:
-  push:
-    branches: [main, develop]
-    paths: ["backend/**", ".github/workflows/backend.yml"]
+  # Pull requests only: a push to main is tested by the "Deploy backend" workflow, so running this too
+  # would just repeat the same tests and spend minutes twice.
   pull_request:
     paths: ["backend/**", ".github/workflows/backend.yml"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend

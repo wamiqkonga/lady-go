@@ -1,18 +1,23 @@
 name: iOS
 
 on:
+  # macOS minutes count 10x against the free allowance, so this only runs on pushes to main and by hand.
   push:
-    branches: [main, develop]
+    branches: [main]
     paths: ["mobile/ios-*/**", ".github/workflows/ios.yml"]
-  pull_request:
-    paths: ["mobile/ios-*/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: macos-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
