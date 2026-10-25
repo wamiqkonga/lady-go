@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ThemeToggle from '../../components/ThemeToggle'
 import { requestOtp, verifyOtp, AuthError } from '../lib/auth'
+import { normalizePhone } from '../lib/phone'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -20,10 +21,17 @@ export default function Login() {
   }, [cooldown])
 
   async function sendCode() {
+    // The API needs "+<country code><number>"; a driver usually types her plain 10-digit mobile number.
+    const normalized = normalizePhone(phone)
+    if ('error' in normalized) {
+      setError(normalized.error)
+      return
+    }
+    setPhone(normalized.phone)
     setBusy(true)
     setError(null)
     try {
-      await requestOtp(phone, email.trim())
+      await requestOtp(normalized.phone, email.trim())
       setStage('code')
       setCode('')
       setCooldown(30)
@@ -71,7 +79,7 @@ export default function Login() {
               id="phone"
               type="tel"
               inputMode="tel"
-              placeholder="+919900000000"
+              placeholder="9900000000"
               autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -88,8 +96,9 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
             />
             <p className="muted">
-              Include your country code, for example +91. We email your sign-in code to this address, so use the
-              same email each time you sign in.
+              Your 10-digit mobile number is enough; we add +91 for you. For a number outside India, include the
+              country code, for example +44. We email your sign-in code to this address, so use the same email each
+              time you sign in.
             </p>
             {error && <p role="alert" className="error">{error}</p>}
             <button type="submit" disabled={busy || !phone.trim() || !email.trim()}>
