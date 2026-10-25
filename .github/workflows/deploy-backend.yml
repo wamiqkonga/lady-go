@@ -84,19 +84,24 @@ jobs:
 
       - name: Log in to ECR
         id: ecr
+        env:
+          SHA: ${{ steps.version.outputs.sha }}
         run: |
           REGISTRY="$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com"
           aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY"
-          echo "image=$REGISTRY/$ECR_REPOSITORY:${{ steps.version.outputs.sha }}" >> "$GITHUB_OUTPUT"
+          echo "image=$REGISTRY/$ECR_REPOSITORY:$SHA" >> "$GITHUB_OUTPUT"
 
       # Tags are immutable, so a re-run of a failed deploy must reuse the image that is already in ECR.
       - name: Check whether this commit's image is already in ECR
         id: exists
+        env:
+          SHA: ${{ steps.version.outputs.sha }}
+          ROLLBACK_SHA: ${{ inputs.rollback_sha }}
         run: |
-          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="${{ steps.version.outputs.sha }}" >/dev/null 2>&1; then
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" --image-ids imageTag="$SHA" >/dev/null 2>&1; then
             echo "found=true" >> "$GITHUB_OUTPUT"
-          elif [ -n "${{ inputs.rollback_sha }}" ]; then
-            echo "No image for ${{ steps.version.outputs.sha }} in ECR (only the newest 20 are kept)"; exit 1
+          elif [ -n "$ROLLBACK_SHA" ]; then
+            echo "No image for $SHA in ECR (only the newest 20 are kept)"; exit 1
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
@@ -157,10 +162,12 @@ jobs:
           echo "Live version: $SHA"
 
       - name: Confirm from the outside
+        env:
+          SHA: ${{ steps.version.outputs.sha }}
         run: |
           for _ in $(seq 1 10); do
-            if curl -fsS https://api.ladygoride.com/actuator/info | grep -q "\"commit\":\"${{ steps.version.outputs.sha }}\""; then
-              echo "api.ladygoride.com is serving ${{ steps.version.outputs.sha }}"; exit 0
+            if curl -fsS https://api.ladygoride.com/actuator/info | grep -q "\"commit\":\"$SHA\""; then
+              echo "api.ladygoride.com is serving $SHA"; exit 0
             fi
             sleep 6
           done
