@@ -40,6 +40,50 @@ describe('Login', () => {
     expect(verifyCall).toMatchObject({ phone: '+919900000001', code: '123456', purpose: 'LOGIN', intendedRole: 'DRIVER' })
   })
 
+  it('adds +91 to a plain 10-digit number before asking for the code, and uses it for verifying too', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: { message: 'sent' }, error: null }))
+      .mockResolvedValueOnce(jsonResponse({ success: true, data: { accessToken: 'at-1', refreshToken: 'rt-1' }, error: null }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>,
+    )
+
+    await userEvent.type(screen.getByLabelText('Phone number'), '90866 60267')
+    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ phone: '+919086660267' })
+
+    await userEvent.type(screen.getByLabelText('Code'), '123456')
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ phone: '+919086660267' })
+  })
+
+  it('explains a number that cannot be right without calling the server', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <MemoryRouter>
+        <Login />
+      </MemoryRouter>,
+    )
+
+    await userEvent.type(screen.getByLabelText('Phone number'), '12345')
+    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('10-digit mobile number')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('shows a clear error for a wrong code and lets the driver retry', async () => {
     const fetchMock = vi
       .fn()

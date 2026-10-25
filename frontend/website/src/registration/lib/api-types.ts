@@ -27,7 +27,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["getAvailability"];
         put: operations["setAvailability"];
         post?: never;
         delete?: never;
@@ -324,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drivers/me/bookings/{bookingId}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rateRider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/customers/me/saved-locations": {
         parameters: {
             query?: never;
@@ -558,6 +574,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["cancelForSafetyConcern"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{bookingId}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rateDriver"];
         delete?: never;
         options?: never;
         head?: never;
@@ -948,6 +980,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support/contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSupportContact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/me/rides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMyRides"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/me/ratings/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMyRatingSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drivers/me/offers/current": {
         parameters: {
             query?: never;
@@ -956,6 +1036,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["currentOffer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/me/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMyEarnings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1454,6 +1550,8 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             scheduledAt?: string;
+            /** Format: date-time */
+            cashConfirmedAt?: string;
         };
         DriverSummaryResponse: {
             /** Format: uuid */
@@ -1512,6 +1610,29 @@ export interface components {
         };
         CancelBookingRequest: {
             reason: string;
+        };
+        SubmitRatingRequest: {
+            /** Format: int32 */
+            score: number;
+            comment?: string;
+            tags?: ("POLITE" | "SAFE_DRIVING" | "CLEAN_VEHICLE" | "RESPECTFUL" | "ON_TIME")[];
+        };
+        ApiResponseRatingResponse: {
+            success?: boolean;
+            data?: components["schemas"]["RatingResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        RatingResponse: {
+            /** Format: uuid */
+            bookingId?: string;
+            /** Format: int32 */
+            score?: number;
+            tags?: string[];
+            /** Format: date-time */
+            createdAt?: string;
         };
         ApiResponseRideSelfieResponse: {
             success?: boolean;
@@ -1768,7 +1889,7 @@ export interface components {
             customer?: components["schemas"]["AdminPersonRefResponse"];
             driver?: components["schemas"]["AdminPersonRefResponse"];
             /** @enum {string} */
-            type?: "EARLY_END" | "COMPLETION_FAR_FROM_DESTINATION" | "PIN_LOCKOUT" | "CASH_DISPUTE" | "RIDER_SAFETY_CANCEL" | "RIDER_CONFIRMED_ARRIVAL";
+            type?: "EARLY_END" | "COMPLETION_FAR_FROM_DESTINATION" | "PIN_LOCKOUT" | "CASH_DISPUTE" | "RIDER_SAFETY_CANCEL" | "RIDER_CONFIRMED_ARRIVAL" | "LOW_RATING" | "REPEATED_LOW_RATING";
             /** @enum {string} */
             raisedBy?: "CUSTOMER" | "DRIVER" | "ADMIN" | "SYSTEM";
             /** Format: int32 */
@@ -1885,6 +2006,81 @@ export interface components {
             /** Format: date-time */
             timestamp?: string;
         };
+        ApiResponseSupportContactResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SupportContactResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        SupportContactResponse: {
+            phone?: string;
+            whatsapp?: string;
+        };
+        Pageable: {
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            sort?: string[];
+        };
+        ApiResponsePageResponseDriverRideHistoryItemResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseDriverRideHistoryItemResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverRideHistoryItemResponse: {
+            /** Format: uuid */
+            bookingId?: string;
+            /** Format: uuid */
+            rideId?: string;
+            status?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            pickupAddress?: string;
+            destinationAddress?: string;
+            /** Format: int64 */
+            finalFare?: number;
+            currency?: string;
+            paymentMethod?: string;
+            /** Format: int32 */
+            myRating?: number;
+            ratedByRider?: boolean;
+        };
+        PageResponseDriverRideHistoryItemResponse: {
+            content?: components["schemas"]["DriverRideHistoryItemResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        ApiResponseDriverRatingSummaryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverRatingSummaryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverRatingSummaryResponse: {
+            avg?: number;
+            /** Format: int32 */
+            count?: number;
+            distribution?: {
+                [key: string]: number;
+            };
+            recentTagCounts?: {
+                [key: string]: number;
+            };
+        };
         ApiResponseOfferResponse: {
             success?: boolean;
             data?: components["schemas"]["OfferResponse"];
@@ -1911,6 +2107,57 @@ export interface components {
             distanceMeters?: number;
             /** Format: date-time */
             expiresAt?: string;
+        };
+        ApiResponseDriverEarningsResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverEarningsResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverEarningsResponse: {
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            timeZone?: string;
+            totals?: components["schemas"]["EarningsTotalsResponse"];
+            days?: components["schemas"]["EarningsDayResponse"][];
+        };
+        EarningsDayResponse: {
+            /** Format: date */
+            date?: string;
+            /** Format: int64 */
+            rides?: number;
+            /** Format: int64 */
+            gross?: number;
+            /** Format: int64 */
+            commission?: number;
+            /** Format: int64 */
+            net?: number;
+            currency?: string;
+            /** Format: int64 */
+            cashCollected?: number;
+            /** Format: int64 */
+            onlineCollected?: number;
+            commissionConfigured?: boolean;
+        };
+        EarningsTotalsResponse: {
+            /** Format: int64 */
+            rides?: number;
+            /** Format: int64 */
+            gross?: number;
+            /** Format: int64 */
+            commission?: number;
+            /** Format: int64 */
+            net?: number;
+            currency?: string;
+            /** Format: int64 */
+            cashCollected?: number;
+            /** Format: int64 */
+            onlineCollected?: number;
+            commissionConfigured?: boolean;
         };
         ApiResponseListDriverDocumentResponse: {
             success?: boolean;
@@ -1952,13 +2199,6 @@ export interface components {
             error?: components["schemas"]["ApiError"];
             /** Format: date-time */
             timestamp?: string;
-        };
-        Pageable: {
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-            sort?: string[];
         };
         ApiResponsePageResponseBookingDetailResponse: {
             success?: boolean;
@@ -2285,6 +2525,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVehicleResponse"];
+                };
+            };
+        };
+    };
+    getAvailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverAvailabilityResponse"];
                 };
             };
         };
@@ -2883,6 +3143,32 @@ export interface operations {
             };
         };
     };
+    rateRider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitRatingRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRatingResponse"];
+                };
+            };
+        };
+    };
     listSavedLocations: {
         parameters: {
             query?: never;
@@ -3339,6 +3625,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    rateDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookingId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitRatingRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRatingResponse"];
                 };
             };
         };
@@ -3911,6 +4223,68 @@ export interface operations {
             };
         };
     };
+    getSupportContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSupportContactResponse"];
+                };
+            };
+        };
+    };
+    listMyRides: {
+        parameters: {
+            query: {
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseDriverRideHistoryItemResponse"];
+                };
+            };
+        };
+    };
+    getMyRatingSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverRatingSummaryResponse"];
+                };
+            };
+        };
+    };
     currentOffer: {
         parameters: {
             query?: never;
@@ -3927,6 +4301,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseOfferResponse"];
+                };
+            };
+        };
+    };
+    getMyEarnings: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverEarningsResponse"];
                 };
             };
         };
@@ -4092,7 +4489,7 @@ export interface operations {
     listFlags: {
         parameters: {
             query: {
-                type?: "EARLY_END" | "COMPLETION_FAR_FROM_DESTINATION" | "PIN_LOCKOUT" | "CASH_DISPUTE" | "RIDER_SAFETY_CANCEL" | "RIDER_CONFIRMED_ARRIVAL";
+                type?: "EARLY_END" | "COMPLETION_FAR_FROM_DESTINATION" | "PIN_LOCKOUT" | "CASH_DISPUTE" | "RIDER_SAFETY_CANCEL" | "RIDER_CONFIRMED_ARRIVAL" | "LOW_RATING" | "REPEATED_LOW_RATING";
                 reviewed?: boolean;
                 pageable: components["schemas"]["Pageable"];
             };
