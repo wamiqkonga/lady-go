@@ -131,12 +131,13 @@ jobs:
           SHA: ${{ steps.version.outputs.sha }}
         run: |
           # Ship the current deploy script and compose file with the command, so the host never drifts from the repo.
+          # SSM runs these lines with the host's plain sh (dash on Ubuntu), which has no "pipefail"; deploy.sh itself runs under bash.
           # deploy.sh validates the compose file and swaps it in only after the database backup.
           DEPLOY_B64="$(base64 -w0 infrastructure/prod/deploy.sh)"
           COMPOSE_B64="$(base64 -w0 infrastructure/prod/docker-compose.yml)"
           jq -n --arg d "$DEPLOY_B64" --arg c "$COMPOSE_B64" --arg image "$IMAGE" --arg sha "$SHA" '{
             commands: [
-              "set -euo pipefail",
+              "set -eu",
               "echo \($d) | base64 -d > /opt/ladygo/deploy.sh.new && chmod 755 /opt/ladygo/deploy.sh.new && mv /opt/ladygo/deploy.sh.new /opt/ladygo/deploy.sh",
               "echo \($c) | base64 -d > /opt/ladygo/stack/docker-compose.yml.new",
               "/opt/ladygo/deploy.sh \($image) \($sha)"
