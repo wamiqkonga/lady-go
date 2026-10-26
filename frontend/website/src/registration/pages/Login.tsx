@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import Icon from '../../components/Icons'
+import { DriverScene } from '../../components/Illustrations'
 import ThemeToggle from '../../components/ThemeToggle'
 import { requestOtp, verifyOtp, AuthError } from '../lib/auth'
 import { normalizePhone } from '../lib/phone'
@@ -62,6 +64,20 @@ export default function Login() {
         <ThemeToggle />
       </div>
       <div className="content login">
+        <div className="auth-layout">
+          <aside className="welcome">
+            <DriverScene className="welcome-scene" />
+            <div className="welcome-copy">
+              <p className="welcome-title">Welcome, driver</p>
+              <p>Register in a few minutes. Your progress is saved, so you can stop and come back.</p>
+              <ul className="welcome-points">
+                <li><Icon name="check" size={18} /> Everything from your phone, no office visit</li>
+                <li><Icon name="check" size={18} /> Our team reviews your documents</li>
+                <li><Icon name="check" size={18} /> Check your status any time</li>
+              </ul>
+            </div>
+          </aside>
+          <div className="auth-card">
         <h1>Driver registration</h1>
         <p className="muted">
           {stage === 'phone' ? 'Step 1 of 2 · Tell us how to reach you' : 'Step 2 of 2 · Confirm your code'}
@@ -137,6 +153,8 @@ export default function Login() {
             </button>
           </form>
         )}
+          </div>
+        </div>
       </div>
     </div>
   )
