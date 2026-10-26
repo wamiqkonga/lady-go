@@ -47,6 +47,7 @@ class BookRideViewModelTest {
     private val repository = mockk<BookingRepository>()
     private val location = mockk<LocationProvider>()
     private val resolver = mockk<AddressResolver>()
+    private val pinLookup = mockk<PinLookup>()
     private val clock = MutableClock()
     private val here = GeoPoint(34.08, 74.80)
     private val there = Place("Dal Gate, Srinagar", GeoPoint(34.10, 74.83))
@@ -58,7 +59,7 @@ class BookRideViewModelTest {
         coEvery { resolver.reverse(here) } returns "Lal Chowk, Srinagar"
         // After a lost create response the VM asks the server whether the booking landed; default: it did not.
         coEvery { repository.findActiveBooking() } returns ActiveBookingOutcome.None
-        val vm = BookRideViewModel(repository, location, resolver, clock)
+        val vm = BookRideViewModel(repository, location, resolver, pinLookup, clock)
         vm.locate()
         advanceUntilIdle()
         return vm
@@ -83,7 +84,7 @@ class BookRideViewModelTest {
         runTest {
             coEvery { location.current() } returns CurrentLocation.Found(here)
             coEvery { resolver.reverse(here) } returns null
-            val vm = BookRideViewModel(repository, location, resolver, clock)
+            val vm = BookRideViewModel(repository, location, resolver, pinLookup, clock)
 
             vm.locate()
             advanceUntilIdle()
@@ -95,7 +96,7 @@ class BookRideViewModelTest {
     fun noPermissionOrNoFixAreDistinctStatesAndNeverGuessAPickup() =
         runTest {
             coEvery { location.current() } returns CurrentLocation.PermissionDenied
-            val vm = BookRideViewModel(repository, location, resolver, clock)
+            val vm = BookRideViewModel(repository, location, resolver, pinLookup, clock)
             vm.locate()
             advanceUntilIdle()
             assertEquals(PickupState.NeedsPermission, vm.uiState.value.pickup)
@@ -389,5 +390,147 @@ class BookRideViewModelTest {
             assertEquals(PickupState.Ready(Place("Lal Chowk, Srinagar", here)), vm.uiState.value.pickup)
             assertEquals(BookStep.ESTIMATE, vm.uiState.value.step)
             assertNotNull(vm.uiState.value.estimate)
+        }
+
+    // --- map pin (docs/product/map-design.md section 3) ---
+
+    private val pinPoint = GeoPoint(34.09, 74.81)
+
+    @Test
+    fun aSettledPinShowsTheServersAddressAndServiceAreaVerdict() =
+        runTest {
+            val vm = viewModel()
+            coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Resolved("Dal Gate, Srinagar", true, "Srinagar")
+
+            vm.onPinSettled(pinPoint)
+            assertEquals(PinState.Resolving, vm.uiState.value.pin)
+            advanceUntilIdle()
+
+            assertEquals(PinState.Resolved(Place("Dal Gate, Srinagar", pinPoint), true), vm.uiState.value.pin)
+        }
+
+    @Test
+    fun whenTheServerIsUnreachableThePinFallsBackToTheDeviceGeocoderWithAnUnknownAreaVerdict() =
+        runTest {
+            val vm = viewModel()
+            coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Unavailable
+            coEvery { resolver.reverse(pinPoint) } returns "Near Dal Lake"
+
+            vm.onPinSettled(pinPoint)
+            advanceUntilIdle()
+
+            assertEquals(PinState.Resolved(Place("Near Dal Lake", pinPoint), null), vm.uiState.value.pin)
+        }
+
+    @Test
+    fun aPinWithNoAddressAnywhereStillKeepsItsRealCoordinates() =
+        runTest {
+            val vm = viewModel()
+            coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Unavailable
+            coEvery { resolver.reverse(pinPoint) } returns null
+
+            vm.onPinSettled(pinPoint)
+            advanceUntilIdle()
+
+            assertEquals(pinPoint, (vm.uiState.value.pin as PinState.Resolved).place.point)
+        }
+
+    @Test
+    fun confirmingTheDestinationPinAsksForTheFareToThatPoint() =
+        runTest {
+            val vm = viewModel()
+            coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Resolved("Dal Gate, Srinagar", true, "Srinagar")
+            coEvery { repository.estimate(here, pinPoint) } returns EstimateOutcome.Success(quote)
+            vm.onPinSettled(pinPoint)
+            advanceUntilIdle()
+
+            vm.onConfirmPin()
+            advanceUntilIdle()
+
+            assertEquals(BookStep.ESTIMATE, vm.uiState.value.step)
+            assertEquals(
+                pinPoint,
+                vm.uiState.value.destination
+                    ?.point,
+            )
+            coVerify(exactly = 1) { repository.estimate(here, pinPoint) }
+        }
+
+    @Test
+    fun aPinOutsideTheServiceAreaCannotBeConfirmedAndNoFareIsRequested() =
+        runTest {
+            val vm = viewModel()
+            coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Resolved("Delhi", false, null)
+            vm.onPinSettled(pinPoint)
+            advanceUntilIdle()
+
+            vm.onConfirmPin()
+            advanceUntilIdle()
+
+            assertEquals(BookStep.DESTINATION, vm.uiState.value.step)
+            assertNotNull(vm.uiState.value.error)
+            coVerify(exactly = 0) { repository.estimate(any(), any()) }
+        }
+
+    @Test
+    fun confirmingBeforeAnAddressHasSettledDoesNothing() =
+        runTest {
+            val vm = viewModel()
+
+            vm.onConfirmPin()
+            advanceUntilIdle()
+
+            assertEquals(PinState.Idle, vm.uiState.value.pin)
+            assertEquals(BookStep.DESTINATION, vm.uiState.value.step)
+        }
+
+    @Test
+    fun movingThePickupPinReplacesThePickupAndStaysOnTheDestinationStep() =
+        runTest {
+            val vm = viewModel()
+            val moved = GeoPoint(34.07, 74.79)
+            coEvery { pinLookup.lookup(moved) } returns PinLookupOutcome.Resolved("Rajbagh, Srinagar", true, "Srinagar")
+
+            vm.onEditPickup()
+            assertTrue(vm.uiState.value.editingPickup)
+            vm.onPinSettled(moved)
+            advanceUntilIdle()
+            vm.onConfirmPin()
+            advanceUntilIdle()
+
+            assertEquals(PickupState.Ready(Place("Rajbagh, Srinagar", moved)), vm.uiState.value.pickup)
+            assertFalse(vm.uiState.value.editingPickup)
+            assertEquals(BookStep.DESTINATION, vm.uiState.value.step)
+            coVerify(exactly = 0) { repository.estimate(any(), any()) }
+        }
+
+    @Test
+    fun cancellingAPickupEditKeepsTheOriginalPickup() =
+        runTest {
+            val vm = viewModel()
+            vm.onEditPickup()
+
+            vm.onCancelEditPickup()
+
+            assertFalse(vm.uiState.value.editingPickup)
+            assertEquals(PickupState.Ready(Place("Lal Chowk, Srinagar", here)), vm.uiState.value.pickup)
+        }
+
+    @Test
+    fun aSlowLookupForAnEarlierPositionNeverLabelsTheLaterOne() =
+        runTest {
+            val vm = viewModel()
+            val first = GeoPoint(34.20, 74.90)
+            val slow = kotlinx.coroutines.CompletableDeferred<PinLookupOutcome>()
+            coEvery { pinLookup.lookup(first) } coAnswers { slow.await() }
+            coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Resolved("Dal Gate, Srinagar", true, "Srinagar")
+
+            vm.onPinSettled(first)
+            vm.onPinSettled(pinPoint)
+            advanceUntilIdle()
+            slow.complete(PinLookupOutcome.Resolved("Somewhere else", true, "Srinagar"))
+            advanceUntilIdle()
+
+            assertEquals(PinState.Resolved(Place("Dal Gate, Srinagar", pinPoint), true), vm.uiState.value.pin)
         }
 }

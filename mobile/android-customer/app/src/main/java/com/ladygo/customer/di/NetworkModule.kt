@@ -5,6 +5,7 @@ import com.ladygo.customer.api.generated.apis.AuthControllerApi
 import com.ladygo.customer.api.generated.apis.BookingControllerApi
 import com.ladygo.customer.api.generated.apis.CityControllerApi
 import com.ladygo.customer.api.generated.apis.CustomerControllerApi
+import com.ladygo.customer.api.generated.apis.MapsControllerApi
 import com.ladygo.customer.api.generated.apis.SystemControllerApi
 import com.ladygo.customer.api.generated.infrastructure.Serializer
 import com.ladygo.customer.auth.AuthInterceptor
@@ -140,6 +141,12 @@ object NetworkModule {
     fun provideRideSelfieApi(
         @AuthenticatedClient retrofit: Retrofit,
     ): RideSelfieApi = retrofit.create(RideSelfieApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideMapsControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): MapsControllerApi = retrofit.create(MapsControllerApi::class.java)
 
     // Public (the service-area list is needed before any booking) but harmless to authenticate.
     @Provides

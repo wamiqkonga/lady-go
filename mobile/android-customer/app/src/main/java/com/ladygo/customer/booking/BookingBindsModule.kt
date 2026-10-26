@@ -16,6 +16,10 @@ abstract class BookingBindsModule {
     @Binds
     @Singleton
     abstract fun bindAddressResolver(impl: PlatformAddressResolver): AddressResolver
+
+    @Binds
+    @Singleton
+    abstract fun bindPinLookup(impl: ServerPinLookup): PinLookup
 }
 
 @Module
