@@ -533,4 +533,71 @@ class BookRideViewModelTest {
 
             assertEquals(PinState.Resolved(Place("Dal Gate, Srinagar", pinPoint), true), vm.uiState.value.pin)
         }
+
+    @Test
+    fun movingTheMapDropsTheResolvedPinSoConfirmCannotUseTheOldAddress() =
+        runTest {
+            val vm = viewModel()
+            coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Resolved("Dal Gate, Srinagar", true, "Srinagar")
+            vm.onPinSettled(pinPoint)
+            advanceUntilIdle()
+
+            vm.onPinMoving()
+            vm.onConfirmPin()
+            advanceUntilIdle()
+
+            assertEquals(PinState.Idle, vm.uiState.value.pin)
+            assertNull(vm.uiState.value.estimate)
+            coVerify(exactly = 0) { repository.estimate(any(), any()) }
+        }
+
+    @Test
+    fun movingTheMapCancelsALookupStillInFlightForTheOldPosition() =
+        runTest {
+            val vm = viewModel()
+            val slow = kotlinx.coroutines.CompletableDeferred<PinLookupOutcome>()
+            coEvery { pinLookup.lookup(pinPoint) } coAnswers { slow.await() }
+            vm.onPinSettled(pinPoint)
+
+            vm.onPinMoving()
+            slow.complete(PinLookupOutcome.Resolved("Dal Gate, Srinagar", true, "Srinagar"))
+            advanceUntilIdle()
+
+            assertEquals(PinState.Idle, vm.uiState.value.pin)
+        }
+
+    @Test
+    fun aPinSettlingWhileASearchIsRunningIsStillResolved() =
+        runTest {
+            val vm = viewModel()
+            val slowSearch = kotlinx.coroutines.CompletableDeferred<List<Place>>()
+            coEvery { resolver.search(any(), any()) } coAnswers { slowSearch.await() }
+            coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Resolved("Dal Gate, Srinagar", true, "Srinagar")
+            vm.onQueryChanged("dal gate")
+            vm.onSearch()
+            assertTrue(vm.uiState.value.isBusy)
+
+            vm.onPinSettled(pinPoint)
+            advanceUntilIdle()
+
+            assertEquals(PinState.Resolved(Place("Dal Gate, Srinagar", pinPoint), true), vm.uiState.value.pin)
+            slowSearch.complete(emptyList())
+        }
+
+    @Test
+    fun aDestinationPinOnTopOfThePickupIsRefusedAndNoFareIsRequested() =
+        runTest {
+            val vm = viewModel()
+            val almostHere = GeoPoint(here.latitude + 0.00005, here.longitude)
+            coEvery { pinLookup.lookup(almostHere) } returns PinLookupOutcome.Resolved("Lal Chowk, Srinagar", true, "Srinagar")
+            vm.onPinSettled(almostHere)
+            advanceUntilIdle()
+
+            vm.onConfirmPin()
+            advanceUntilIdle()
+
+            assertNotNull(vm.uiState.value.error)
+            assertEquals(BookStep.DESTINATION, vm.uiState.value.step)
+            coVerify(exactly = 0) { repository.estimate(any(), any()) }
+        }
 }

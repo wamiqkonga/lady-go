@@ -16,8 +16,8 @@ import org.springframework.stereotype.Service;
 /**
  * docs/product/map-design.md section 5.1. Turns a settled map pin into an address. The "only call this
  * when the pin stops moving" rule is enforced by the apps; this class bounds a single user's calls with
- * the same per-user bucket the booking estimate uses, because both reach the same paid provider
- * (ADR-011), and reports whether the point is inside a city Lady Go serves.
+ * its own per-user bucket (ADR-011), separate from the booking estimate's, so a rider panning the map can
+ * never use up the calls the fare estimate needs, and reports whether the point is inside a city Lady Go serves.
  */
 @Service
 public class ReverseGeocodeService {
@@ -48,9 +48,9 @@ public class ReverseGeocodeService {
     }
 
     private void enforceRateLimit(UUID userId) {
-        int maxAttempts = config.getInt("bookings.maps.rate.max.attempts", 20);
-        Duration window = config.getMinutes("bookings.maps.rate.window.minutes", Duration.ofMinutes(1));
-        if (!rateLimiter.tryConsume("maps_calls:" + userId, maxAttempts, window)) {
+        int maxAttempts = config.getInt("maps.pin.rate.max.attempts", 30);
+        Duration window = config.getMinutes("maps.pin.rate.window.minutes", Duration.ofMinutes(1));
+        if (!rateLimiter.tryConsume("maps_pin:" + userId, maxAttempts, window)) {
             throw new RateLimitExceededException();
         }
     }

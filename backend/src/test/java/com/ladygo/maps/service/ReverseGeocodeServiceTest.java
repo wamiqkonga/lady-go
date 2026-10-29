@@ -67,13 +67,15 @@ class ReverseGeocodeServiceTest {
     }
 
     @Test
-    void sharesTheBookingEstimateRateBucketForTheSameUser() {
+    void usesItsOwnRateBucketSoPanningCannotUseUpTheFareEstimateQuota() {
         when(mapsService.reverseGeocode(anyDouble(), anyDouble()))
                 .thenReturn(new GeocodeResult(new Coordinate(1, 1), "x"));
 
         service.reverseGeocode(userId, 1, 1);
 
-        verify(rateLimiter).tryConsume(org.mockito.ArgumentMatchers.eq("maps_calls:" + userId), anyInt(), any(Duration.class));
+        verify(rateLimiter).tryConsume(org.mockito.ArgumentMatchers.eq("maps_pin:" + userId), anyInt(), any(Duration.class));
+        verify(rateLimiter, never())
+                .tryConsume(org.mockito.ArgumentMatchers.eq("maps_calls:" + userId), anyInt(), any(Duration.class));
     }
 
     /**

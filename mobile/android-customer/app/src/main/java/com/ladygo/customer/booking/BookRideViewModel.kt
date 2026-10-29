@@ -121,11 +121,20 @@ class BookRideViewModel
             }
         }
 
+        /** The rider started moving the map: the pin that was resolved no longer matches the crosshair, so drop it
+         *  (and any lookup still in flight) until the map settles again. Without this, Confirm stays live on the
+         *  old address while the map is under her finger. */
+        fun onPinMoving() {
+            if (_uiState.value.step != BookStep.DESTINATION) return
+            pinJob?.cancel()
+            _uiState.update { if (it.pin == PinState.Idle) it else it.copy(pin = PinState.Idle) }
+        }
+
         /** The map stopped moving at [point]: look up its address (once, when it settles - ADR-011). Cancels any
-         *  lookup for an earlier position so a slow answer can never label the wrong spot. */
+         *  lookup for an earlier position so a slow answer can never label the wrong spot. Not blocked by a search
+         *  or fare request in flight: the settle fires once, so dropping it would leave the pin stuck on Idle. */
         fun onPinSettled(point: GeoPoint) {
-            val state = _uiState.value
-            if (state.step != BookStep.DESTINATION || state.isBusy) return
+            if (_uiState.value.step != BookStep.DESTINATION) return
             pinJob?.cancel()
             _uiState.update { it.copy(pin = PinState.Resolving, error = null) }
             pinJob =
@@ -137,7 +146,8 @@ class BookRideViewModel
                             PinLookupOutcome.Unavailable ->
                                 PinState.Resolved(Place(addressResolver.reverse(point) ?: FALLBACK_PIN_ADDRESS, point), null)
                         }
-                    _uiState.update { it.copy(pin = resolved) }
+                    // The fare may have been requested while this was resolving; do not repaint the pin over it.
+                    _uiState.update { if (it.step == BookStep.DESTINATION) it.copy(pin = resolved) else it }
                 }
         }
 
@@ -153,6 +163,11 @@ class BookRideViewModel
             if (state.editingPickup) {
                 _uiState.update { it.copy(pickup = PickupState.Ready(pin.place), editingPickup = false, pin = PinState.Idle, error = null) }
             } else {
+                val pickupPoint = (state.pickup as? PickupState.Ready)?.place?.point
+                if (pickupPoint != null && isSameSpot(pickupPoint, pin.place.point)) {
+                    _uiState.update { it.copy(error = SAME_SPOT_MESSAGE) }
+                    return
+                }
                 onDestinationPicked(pin.place)
             }
         }
@@ -299,6 +314,15 @@ class BookRideViewModel
             }
         }
 
+        private fun isSameSpot(
+            a: GeoPoint,
+            b: GeoPoint,
+        ): Boolean {
+            val closeInLatitude = kotlin.math.abs(a.latitude - b.latitude) < SAME_SPOT_DEGREES
+            val closeInLongitude = kotlin.math.abs(a.longitude - b.longitude) < SAME_SPOT_DEGREES
+            return closeInLatitude && closeInLongitude
+        }
+
         private fun selfieIsFresh(): Boolean = selfieId != null && clock.millis() - selfieCapturedAt < SELFIE_REUSE_LIMIT_MILLIS
 
         private fun failToDestination(message: String) = _uiState.update { it.copy(isBusy = false, error = message, destination = null) }
@@ -312,6 +336,10 @@ class BookRideViewModel
             const val MIN_QUERY_LENGTH = 3
             const val FALLBACK_PICKUP_ADDRESS = "My current location"
             const val FALLBACK_PIN_ADDRESS = "Pinned location"
+            const val SAME_SPOT_MESSAGE = "Your pickup and destination are the same place. Move the pin to where you are going."
+
+            // About 22 m: closer than this is the same doorstep, not a ride.
+            const val SAME_SPOT_DEGREES = 0.0002
             const val OUT_OF_AREA_MESSAGE = "Lady Go does not serve this area yet. Move the pin inside the service area."
         }
     }

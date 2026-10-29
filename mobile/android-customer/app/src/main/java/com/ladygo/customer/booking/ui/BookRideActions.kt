@@ -13,6 +13,7 @@ data class BookRideActions(
     val onPickDestination: (Place) -> Unit = {},
     val onChangeDestination: () -> Unit = {},
     val onBook: () -> Unit = {},
+    val onPinMoving: () -> Unit = {},
     val onPinSettled: (GeoPoint) -> Unit = {},
     val onConfirmPin: () -> Unit = {},
     val onEditPickup: () -> Unit = {},

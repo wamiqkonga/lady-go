@@ -39,7 +39,9 @@ import kotlinx.coroutines.flow.collectLatest
 /**
  * The map the rider moves under a fixed centre pin (docs/product/map-design.md section 3). The address is
  * only looked up once the map has been still for [SETTLE_MILLIS], so dragging never fires a lookup per frame
- * (the "pin is the source of truth, geocode when it settles" cost rule, ADR-011).
+ * (the "pin is the source of truth, geocode when it settles" cost rule, ADR-011). [onMoveStart] fires when a
+ * drag begins so the caller can drop the pin it was holding; nothing is looked up until the rider has actually
+ * moved the map, so merely opening it does not spend a paid lookup or pre-confirm the starting point.
  *
  * [start] is where the map opens; [markerAt] draws a fixed marker, e.g. the pickup while she picks a destination.
  * Key the composable on whatever should re-centre it (pickup edit mode), since [start] is read once.
@@ -49,6 +51,7 @@ import kotlinx.coroutines.flow.collectLatest
 fun MapPinPicker(
     start: GeoPoint,
     pinDescription: String,
+    onMoveStart: () -> Unit,
     onSettled: (GeoPoint) -> Unit,
     modifier: Modifier = Modifier,
     markerAt: GeoPoint? = null,
@@ -58,9 +61,14 @@ fun MapPinPicker(
             position = CameraPosition.fromLatLngZoom(LatLng(start.latitude, start.longitude), INITIAL_ZOOM)
         }
     val latestOnSettled by rememberUpdatedState(onSettled)
+    val latestOnMoveStart by rememberUpdatedState(onMoveStart)
     LaunchedEffect(cameraPositionState) {
+        var hasMoved = false
         snapshotFlow { cameraPositionState.isMoving }.collectLatest { moving ->
-            if (!moving) {
+            if (moving) {
+                hasMoved = true
+                latestOnMoveStart()
+            } else if (hasMoved) {
                 delay(SETTLE_MILLIS)
                 val target = cameraPositionState.position.target
                 latestOnSettled(GeoPoint(target.latitude, target.longitude))

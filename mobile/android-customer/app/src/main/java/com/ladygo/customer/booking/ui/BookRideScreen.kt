@@ -117,6 +117,7 @@ fun BookRideScreen(
                     onPickDestination = viewModel::onDestinationPicked,
                     onChangeDestination = viewModel::onChangeDestination,
                     onBook = viewModel::onBookTapped,
+                    onPinMoving = viewModel::onPinMoving,
                     onPinSettled = viewModel::onPinSettled,
                     onConfirmPin = viewModel::onConfirmPin,
                     onEditPickup = viewModel::onEditPickup,
@@ -134,6 +135,7 @@ fun BookRideScreen(
                         MapPinPicker(
                             start = pickupPlace.point,
                             pinDescription = pinDescription,
+                            onMoveStart = viewModel::onPinMoving,
                             onSettled = viewModel::onPinSettled,
                             markerAt = if (st.editingPickup) null else pickupPlace.point,
                             modifier = Modifier.fillMaxSize(),
