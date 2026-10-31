@@ -108,8 +108,10 @@ function ProgressHeader({ index, done }: { index: number; done: number }) {
 }
 
 function StepList({ data, current, onGo }: { data: RegistrationData; current: number; onGo: (index: number) => void }) {
+  // Open by default on wide screens, where the list sits in a side column; collapsed on phones.
+  const [open, setOpen] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(min-width: 960px)').matches)
   return (
-    <details className="step-list">
+    <details className="step-list" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary>All steps</summary>
       <ol>
         {STEPS.map((step, i) => {
@@ -471,11 +473,13 @@ export default function Dashboard() {
             {!ready ? (
               <p className="muted">Loading…</p>
             ) : (
-              <>
-                <ProgressHeader index={stepIndex} done={done} />
-                <StepList data={data} current={stepIndex} onGo={setStepIndex} />
-                {renderStep()}
-              </>
+              <div className="reg-grid">
+                <div className="reg-side">
+                  <ProgressHeader index={stepIndex} done={done} />
+                  <StepList data={data} current={stepIndex} onGo={setStepIndex} />
+                </div>
+                <div className="reg-main">{renderStep()}</div>
+              </div>
             )}
           </>
         )}

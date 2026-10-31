@@ -1,16 +1,21 @@
 package com.ladygo.customer.booking.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.ladygo.customer.api.generated.models.FareEstimateResponse
 import com.ladygo.customer.booking.BookRideUiState
 import com.ladygo.customer.booking.BookStep
 import com.ladygo.customer.booking.GeoPoint
 import com.ladygo.customer.booking.PickupState
+import com.ladygo.customer.booking.PinState
 import com.ladygo.customer.booking.Place
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -69,7 +74,8 @@ class BookRideContentTest {
         )
 
         composeRule.onNodeWithTag("book_destination_field").performTextInput("x")
-        composeRule.onNodeWithText("Dal Gate, Srinagar").performClick()
+        // The map sits above the results, so the list is below the first screenful.
+        composeRule.onNodeWithText("Dal Gate, Srinagar").performScrollTo().performClick()
 
         assertTrue(typed.orEmpty().contains("x") && typed.orEmpty().contains("Dal"))
         assertEquals(dalGate, picked)
@@ -117,5 +123,67 @@ class BookRideContentTest {
 
         composeRule.onNodeWithText("Book ride").assertIsNotEnabled()
         composeRule.onNodeWithTag("book_error").assertExists()
+    }
+
+    // --- map pin (docs/product/map-design.md section 3) ---
+
+    @Test
+    fun theMapSlotIsShownAboveTheSearchShortcutOnTheDestinationStep() {
+        composeRule.setContent {
+            BookRideContent(
+                state = BookRideUiState(pickup = PickupState.Ready(pickup)),
+                actions = BookRideActions(),
+                map = { androidx.compose.material3.Text("fake map") },
+            )
+        }
+
+        composeRule.onNodeWithTag("book_map").assertExists()
+        composeRule.onNodeWithText("fake map").assertExists()
+        // Search is a folded-away shortcut: closed until she asks for it.
+        composeRule.onNodeWithTag("book_destination_field").assertDoesNotExist()
+        composeRule.onNodeWithTag("book_open_search").performClick()
+        composeRule.onNodeWithTag("book_destination_field").assertExists()
+    }
+
+    @Test
+    fun confirmIsDisabledUntilAnAddressHasSettledThenRaisesTheCallback() {
+        var confirmed = 0
+        val pin = PinState.Resolved(dalGate, inServiceArea = true)
+        var state by androidx.compose.runtime.mutableStateOf(BookRideUiState(pickup = PickupState.Ready(pickup), pin = PinState.Resolving))
+        composeRule.setContent { BookRideContent(state, BookRideActions(onConfirmPin = { confirmed++ })) }
+        composeRule.onNodeWithTag("book_confirm_pin").assertIsNotEnabled()
+
+        composeRule.runOnIdle { state = state.copy(pin = pin) }
+        composeRule.onNodeWithTag("book_pin_address").assertExists()
+        composeRule.onNodeWithTag("book_confirm_pin").assertIsEnabled().performClick()
+
+        assertEquals(1, confirmed)
+    }
+
+    @Test
+    fun aPinOutsideTheServiceAreaSaysSoAndCannotBeConfirmed() {
+        show(BookRideUiState(pickup = PickupState.Ready(pickup), pin = PinState.Resolved(dalGate, inServiceArea = false)))
+
+        composeRule.onNodeWithTag("book_pin_out_of_area").assertExists()
+        composeRule.onNodeWithTag("book_confirm_pin").assertIsNotEnabled()
+    }
+
+    @Test
+    fun changingThePickupSwitchesTheConfirmLabelAndOffersToKeepTheCurrentOne() {
+        var edit = 0
+        var cancel = 0
+        var state by androidx.compose.runtime.mutableStateOf(BookRideUiState(pickup = PickupState.Ready(pickup)))
+        composeRule.setContent {
+            BookRideContent(state, BookRideActions(onEditPickup = { edit++ }, onCancelEditPickup = { cancel++ }))
+        }
+
+        composeRule.onNodeWithTag("book_change_pickup").performClick()
+        assertEquals(1, edit)
+
+        composeRule.runOnIdle { state = state.copy(editingPickup = true) }
+        composeRule.onNodeWithText("Confirm pickup").assertExists()
+        composeRule.onNodeWithTag("book_change_pickup").assertDoesNotExist()
+        composeRule.onNodeWithText("Keep current pickup").performClick()
+        assertEquals(1, cancel)
     }
 }

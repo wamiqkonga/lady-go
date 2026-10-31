@@ -49,6 +49,19 @@
     <string name="book_confirm_action">Book ride</string>
     <string name="book_change_destination_action">Change destination</string>
     <string name="book_back_action">Back</string>
+    <string name="book_confirm_destination_action">Confirm destination</string>
+    <string name="book_confirm_pickup_action">Confirm pickup</string>
+    <string name="book_change_pickup_action">Change pickup</string>
+    <string name="book_keep_pickup_action">Keep current pickup</string>
+    <string name="book_pin_resolving">Finding address...</string>
+    <string name="book_pin_hint_destination">Move the map to put the pin on your destination.</string>
+    <string name="book_pin_hint_pickup">Move the map to put the pin on your pickup point.</string>
+    <string name="book_pin_out_of_area">We do not serve this area yet. Move the pin inside the service area.</string>
+    <string name="book_pin_unverified_area">We will check this area when we price your ride.</string>
+    <string name="book_map_description">Map. Move it to place the pin.</string>
+    <string name="book_pin_description">Pin: %1$s</string>
+    <string name="book_search_shortcut_label">Or search for a place</string>
+
 
     <string name="selfie_title">Quick selfie</string>
     <string name="selfie_hint">For everyone\'s safety, take a selfie before each ride. Your driver sees it when she meets you.</string>

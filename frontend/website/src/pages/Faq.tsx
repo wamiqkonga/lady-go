@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import Page from '../components/Page'
 
 const faqs = [
@@ -9,13 +10,18 @@ const faqs = [
 
 export default function Faq() {
   return (
-    <Page title="Frequently asked questions">
-      {faqs.map((f) => (
-        <details key={f.q}>
-          <summary>{f.q}</summary>
-          <p>{f.a}</p>
-        </details>
-      ))}
+    <Page title="Frequently asked questions" icon="support" lead="Quick answers about riding and driving with Lady Go.">
+      <div className="faq-list">
+        {faqs.map((f) => (
+          <details key={f.q}>
+            <summary>{f.q}</summary>
+            <p>{f.a}</p>
+          </details>
+        ))}
+      </div>
+      <p className="callout">
+        Want to drive with us? See <Link to="/driver">how driver registration works</Link>.
+      </p>
     </Page>
   )
 }
