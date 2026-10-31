@@ -10,7 +10,7 @@ function allDocs(overrides: Record<string, object> = {}) {
 }
 
 describe('steps', () => {
-  it('starts at the vehicle step for a brand-new driver', () => {
+  it('starts at the vehicle step for a brand-new captain', () => {
     expect(firstIncompleteIndex({ vehicle: null, documents: [], declaration: null })).toBe(0)
     expect(countDone({ vehicle: null, documents: [], declaration: null })).toBe(0)
   })

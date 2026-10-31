@@ -62,14 +62,14 @@ export function stepState(step: Step, data: RegistrationData): StepState {
   }
 }
 
-/** Steps a driver has to finish (everything except the closing review screen). */
+/** Steps a captain has to finish (everything except the closing review screen). */
 export const WORK_STEPS = STEPS.filter((s) => s.kind !== 'review')
 
 export function countDone(data: RegistrationData): number {
   return WORK_STEPS.filter((s) => stepState(s, data) === 'done').length
 }
 
-/** Index in STEPS of the first step still needing the driver, else the review screen. */
+/** Index in STEPS of the first step still needing the captain, else the review screen. */
 export function firstIncompleteIndex(data: RegistrationData): number {
   const index = STEPS.findIndex((s) => s.kind !== 'review' && stepState(s, data) !== 'done')
   return index === -1 ? STEPS.length - 1 : index

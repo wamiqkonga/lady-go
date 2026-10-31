@@ -9,7 +9,7 @@ import type { components } from '../lib/api-types'
 type DocumentType = NonNullable<components['schemas']['DriverDocumentResponse']['type']>
 type DriverDocumentResponse = components['schemas']['DriverDocumentResponse']
 
-/** Today's date in the driver's own timezone as YYYY-MM-DD (toISOString would give the UTC date). */
+/** Today's date in the captain's own timezone as YYYY-MM-DD (toISOString would give the UTC date). */
 function localToday(): string {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')

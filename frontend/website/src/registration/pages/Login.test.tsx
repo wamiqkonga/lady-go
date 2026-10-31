@@ -25,12 +25,12 @@ describe('Login', () => {
     )
 
     await userEvent.type(screen.getByLabelText('Phone number'), '+919900000001')
-    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
 
     await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
     const requestCall = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(requestCall).toMatchObject({ phone: '+919900000001', email: 'driver@example.com', purpose: 'LOGIN', intendedRole: 'DRIVER' })
+    expect(requestCall).toMatchObject({ phone: '+919900000001', email: 'captain@example.com', purpose: 'LOGIN', intendedRole: 'DRIVER' })
 
     await userEvent.type(screen.getByLabelText('Code'), '123456')
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
@@ -54,7 +54,7 @@ describe('Login', () => {
     )
 
     await userEvent.type(screen.getByLabelText('Phone number'), '90866 60267')
-    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
 
     await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
@@ -77,14 +77,14 @@ describe('Login', () => {
     )
 
     await userEvent.type(screen.getByLabelText('Phone number'), '12345')
-    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('10-digit mobile number')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('shows a clear error for a wrong code and lets the driver retry', async () => {
+  it('shows a clear error for a wrong code and lets the captain retry', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ success: true, data: { message: 'sent' }, error: null }))
@@ -98,7 +98,7 @@ describe('Login', () => {
     )
 
     await userEvent.type(screen.getByLabelText('Phone number'), '+919900000002')
-    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
     await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
 
@@ -119,7 +119,7 @@ describe('Login', () => {
     )
 
     await userEvent.type(screen.getByLabelText('Phone number'), '+919900000003')
-    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
@@ -132,7 +132,7 @@ describe('Login', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ success: true, data: { message: 'sent' }, error: null })))
     render(<MemoryRouter><Login /></MemoryRouter>)
     await userEvent.type(screen.getByLabelText('Phone number'), '+919900000001')
-    await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+    await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
     await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
     await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
 
@@ -141,14 +141,14 @@ describe('Login', () => {
     expect(screen.getByLabelText('Code')).toHaveValue('123456')
   })
 
-  it('lets the driver request a new code only after the 30 second countdown', async () => {
+  it('lets the captain request a new code only after the 30 second countdown', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
       const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, data: { message: 'sent' }, error: null }))
       vi.stubGlobal('fetch', fetchMock)
       render(<MemoryRouter><Login /></MemoryRouter>)
       await userEvent.type(screen.getByLabelText('Phone number'), '+919900000001')
-      await userEvent.type(screen.getByLabelText('Email'), 'driver@example.com')
+      await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
       await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
 
       const resend = await screen.findByRole('button', { name: /Send a new code in \d+s/ })

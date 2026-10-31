@@ -16,7 +16,7 @@ function section(page: import('@playwright/test').Page, label: string) {
 }
 
 /** The wizard shows one step at a time; jump to a step through the "All steps" list, the way a
- *  driver revisiting a step would. */
+ *  captain revisiting a step would. */
 async function goToStep(page: import('@playwright/test').Page, title: string) {
   const list = page.locator('details.step-list')
   if (!(await list.evaluate((el) => (el as HTMLDetailsElement).open))) {
@@ -36,7 +36,7 @@ async function next(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Continue' }).click()
 }
 
-test.describe('driver registration - full flow', () => {
+test.describe('captain registration - full flow', () => {
   test.skip(!env, 'DRIVER_REG_E2E_* env vars not set - see scripts/ci/driver-registration-e2e-seed.sh')
 
   test('happy path: login, city, vehicle, every document, selfie, declaration reach the done screen', async ({ page }) => {
@@ -153,7 +153,7 @@ test.describe('driver registration - full flow', () => {
   test('a rejected document shows the reviewer note and can be resubmitted', async ({ page }) => {
     await loginAs(page, env!.phones.REJECT_RESUBMIT, env!.backendLog)
 
-    // The seeded driver has no vehicle yet, so the wizard resumes on the first unfinished step.
+    // The seeded captain has no vehicle yet, so the wizard resumes on the first unfinished step.
     await expect(page.getByRole('heading', { name: 'Your vehicle' })).toBeVisible()
     await goToStep(page, 'Driving licence')
 

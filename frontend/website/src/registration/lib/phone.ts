@@ -4,7 +4,7 @@ const INVALID =
   'Enter your 10-digit mobile number, for example 9900000000. For a number outside India, include the country code, for example +44 7911 123456.'
 
 /**
- * Turns what a driver typed into the international format the API requires ("+" and a country code, 8 to
+ * Turns what a captain typed into the international format the API requires ("+" and a country code, 8 to
  * 15 digits in all). A plain 10-digit Indian mobile number is the common case, so it gets "+91" added;
  * spaces, dashes and brackets are ignored. Anything else must already carry a country code.
  */

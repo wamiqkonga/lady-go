@@ -16,9 +16,9 @@ export default function Contact() {
           <span><strong>Read the FAQ</strong><small>Answers to common questions</small></span>
           <Icon name="arrow" size={20} />
         </Link>
-        <Link className="cta-card" to="/driver/login">
+        <Link className="cta-card" to="/captain/registration">
           <span className="tile-icon"><Icon name="id" size={24} /></span>
-          <span><strong>Check my application</strong><small>For drivers who have registered</small></span>
+          <span><strong>Check my application</strong><small>For captains who have registered</small></span>
           <Icon name="arrow" size={20} />
         </Link>
       </div>

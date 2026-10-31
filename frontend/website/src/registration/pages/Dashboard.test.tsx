@@ -19,8 +19,8 @@ function renderDashboard() {
 }
 
 describe('Dashboard', () => {
-  it('shows a city picker for a brand-new driver with no profile yet', async () => {
-    // GET /drivers/me 404s for a driver with no Driver row at all - confirmed against the real
+  it('shows a city picker for a brand-new captain with no profile yet', async () => {
+    // GET /drivers/me 404s for a captain with no Captain row at all - confirmed against the real
     // backend (DriverService.resolveDriver throws ResourceNotFoundException), not a 200 with
     // verificationStatus "NOT_SUBMITTED". This mock matches that, not an assumption.
     const fetchMock = vi
@@ -175,7 +175,7 @@ describe('Dashboard', () => {
     expect(screen.queryByLabelText('Registration number')).not.toBeInTheDocument()
   })
 
-  it('does not say "Application received" to a rejected driver', async () => {
+  it('does not say "Application received" to a rejected captain', async () => {
     const rejectedProfile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'REJECTED' }, error: null }
     const accepted = { success: true, data: { currentVersion: 'v1', currentText: 'x', accepted: true, acceptedVersion: 'v1', acceptedAt: 'x' }, error: null }
     vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
