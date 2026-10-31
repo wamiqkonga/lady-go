@@ -8,7 +8,7 @@ export default function NotFound() {
         <Link className="button" to="/">
           Go to the home page
         </Link>
-        <Link className="button button-outline" to="/driver">
+        <Link className="button button-outline" to="/captain">
           Drive with us
         </Link>
       </div>

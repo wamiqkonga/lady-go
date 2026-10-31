@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { client, unwrap, ApiCallError } from '../lib/client'
-import ThemeToggle from '../../components/ThemeToggle'
 import { useSession } from '../lib/sessionContext'
 import DocumentUploadSection from '../components/DocumentUploadSection'
 import SelfieCapture from '../components/SelfieCapture'
@@ -23,7 +22,7 @@ const VEHICLE_TYPES = [
   { value: 'BIKE', label: 'Bike' },
 ] as const
 
-/** Overall status. The backend moves a driver to PENDING_REVIEW on their first upload, long before
+/** Overall status. The backend moves a captain to PENDING_REVIEW on their first upload, long before
  *  the application is complete, so "Under review" is only shown once every step is actually in. */
 function statusBadge(status: string | undefined, allDone: boolean) {
   if (status === 'APPROVED') return <span className="badge badge-ok">Approved</span>
@@ -149,9 +148,9 @@ export default function Dashboard() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [stepIndex, setStepIndex] = useState(0)
   const positioned = useRef(false)
-  // A driver who has never called bootstrapProfile has no Driver row at all - GET /drivers/me 404s,
+  // A captain who has never called bootstrapProfile has no Captain row at all - GET /drivers/me 404s,
   // not "NOT_SUBMITTED" - so this is a distinct, expected state from a real load failure, not an
-  // error. Caught by actually running the app and logging in as a brand-new driver (no mocked test
+  // error. Caught by actually running the app and logging in as a brand-new captain (no mocked test
   // ever exercises a real 404 here); every mocked component test stubs a profile response and so
   // never reaches this path.
   const [noProfileYet, setNoProfileYet] = useState(false)
@@ -175,7 +174,7 @@ export default function Dashboard() {
   const loadRest = useCallback(() => {
     setLoadError(null)
     // 404 means "no vehicle saved yet" (an expected state); any other failure is a real load error and
-    // must not look like an empty vehicle form, or the driver could overwrite a vehicle they already have.
+    // must not look like an empty vehicle form, or the captain could overwrite a vehicle they already have.
     client.GET('/api/v1/drivers/me/vehicle').then((result) => {
       try {
         setVehicle(unwrap(result))
@@ -198,8 +197,8 @@ export default function Dashboard() {
   const data: RegistrationData = { vehicle, documents: documents ?? [], declaration }
   const ready = profile !== null && vehicleLoaded && documents !== null && declaration !== null
 
-  // Resume: once everything has loaded, jump to the first step the driver still has to do. Runs once,
-  // so later edits never yank the driver to a different screen.
+  // Resume: once everything has loaded, jump to the first step the captain still has to do. Runs once,
+  // so later edits never yank the captain to a different screen.
   useEffect(() => {
     if (ready && !positioned.current) {
       positioned.current = true
@@ -207,7 +206,7 @@ export default function Dashboard() {
     }
   }, [ready, vehicle, documents, declaration])
 
-  /** The backend flips verificationStatus to PENDING_REVIEW on a driver's first meaningful action
+  /** The backend flips verificationStatus to PENDING_REVIEW on a captain's first meaningful action
    *  (vehicle/document/declaration - DriverService.markPendingReviewIfNotSubmitted), so the status
    *  banner has to be re-fetched after any of them, not just once at bootstrap - caught by actually
    *  uploading a document in a real browser and watching the banner stay stuck on "Not submitted"
@@ -374,7 +373,7 @@ export default function Dashboard() {
             <p>{statusBadge(profile.verificationStatus, allDone)}</p>
             <p>
               {profile.verificationStatus === 'APPROVED'
-                ? 'Your application has been approved. Open the Lady Go driver app to start driving.'
+                ? 'Your application has been approved. Open the Lady Go captain app to start driving.'
                 : 'Your application is not active. Check the notes on each document below, or contact support.'}
             </p>
           </>
@@ -449,9 +448,8 @@ export default function Dashboard() {
   return (
     <div className="app-shell">
       <div className="topbar">
-        <span className="brand">Driver registration</span>
+        <span className="brand">Captain registration</span>
         <span className="topbar-actions">
-          <ThemeToggle />
           <button type="button" onClick={signOut}>Sign out</button>
         </span>
       </div>

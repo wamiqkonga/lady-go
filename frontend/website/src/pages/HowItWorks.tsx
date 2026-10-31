@@ -4,9 +4,9 @@ import Page from '../components/Page'
 const steps: Array<{ icon: IconName; title: string; body: string }> = [
   { icon: 'pin', title: 'Choose your route', body: 'Open the app and choose your pickup point and destination.' },
   { icon: 'wallet', title: 'See the fare first', body: 'See the estimated distance, time and fare before you book.' },
-  { icon: 'car', title: 'We find a driver', body: 'Confirm your ride and we find a driver nearby.' },
-  { icon: 'id', title: 'Know who is coming', body: 'See your driver’s details and follow them on the map.' },
-  { icon: 'lock', title: 'Share the PIN', body: 'Share your ride PIN with the driver to start the trip.' },
+  { icon: 'car', title: 'We find a captain', body: 'Confirm your ride and we find a captain nearby.' },
+  { icon: 'id', title: 'Know who is coming', body: 'See your captain’s details and follow them on the map.' },
+  { icon: 'lock', title: 'Share the PIN', body: 'Share your ride PIN with the captain to start the trip.' },
   { icon: 'star', title: 'Arrive and rate', body: 'Arrive, pay and rate your ride.' },
 ]
 

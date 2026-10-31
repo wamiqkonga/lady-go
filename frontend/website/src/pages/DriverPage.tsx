@@ -4,7 +4,7 @@ import { DriverScene } from '../components/Illustrations'
 
 const perks: Array<{ icon: IconName; title: string; body: string }> = [
   { icon: 'clock', title: 'Choose your own hours', body: 'Go online when it suits you. No shifts and no minimum hours.' },
-  { icon: 'users', title: 'Women riders only', body: 'Drive a women-focused service built around rider and driver safety.' },
+  { icon: 'users', title: 'Women riders only', body: 'Drive a women-focused service built around rider and captain safety.' },
   { icon: 'wallet', title: 'Cash in hand', body: 'Riders pay cash today, and your earnings are clear on every trip.' },
   { icon: 'route', title: 'See your earnings', body: 'Your earnings, ride history and ratings are in the app, in one place.' },
   { icon: 'shield', title: 'Safety backup', body: 'Ride PIN, live trip sharing and a one-tap call to 112 come with every ride.' },
@@ -14,7 +14,7 @@ const perks: Array<{ icon: IconName; title: string; body: string }> = [
 const documentGroups: Array<{ icon: IconName; title: string; items: string[] }> = [
   {
     icon: 'id',
-    title: 'Driver documents',
+    title: 'Captain documents',
     items: ['Driving licence', 'A clear selfie', 'Self-declaration, accepted in the app'],
   },
   {
@@ -30,10 +30,10 @@ const documentGroups: Array<{ icon: IconName; title: string; items: string[] }> 
 ]
 
 const steps = [
-  { title: 'Sign in', body: 'Enter your phone number and email. We email you a six-digit code.' },
+  { title: 'Register', body: 'Enter your phone number and email. We email you a six-digit code.' },
   { title: 'Add your vehicle', body: 'Tell us the registration number, type, make, model and colour.' },
   { title: 'Upload your documents', body: 'Photograph each document and add your selfie, right from your phone.' },
-  { title: 'Accept the declaration', body: 'Read and accept the driver declaration.' },
+  { title: 'Accept the declaration', body: 'Read and accept the captain declaration.' },
   { title: 'Wait for the review', body: 'Our team checks everything. The result appears in the same place, with a note if we need a fix.' },
 ]
 
@@ -41,14 +41,14 @@ const tips = [
   'Use good light and a flat surface. All four corners and the text must be sharp.',
   'Photos must be JPEG or PNG, up to 8 MB each.',
   'Expired documents cannot be approved, so check the dates first.',
-  'Use the same phone number and email each time you sign in.',
+  'Use the same phone number and email each time you register.',
 ]
 
 const faqs = [
   { q: 'Do I need to visit an office?', a: 'No. Registration is fully online, from your phone, with no agent involved.' },
-  { q: 'How long does the review take?', a: 'Our team reviews each application. You can check your status any time by signing in.' },
+  { q: 'How long does the review take?', a: 'Our team reviews each application. You can check your status any time by opening your registration.' },
   { q: 'What if a document is rejected?', a: 'You see a note on that document explaining why. Upload a new photo and it goes back into review.' },
-  { q: 'Can I stop and continue later?', a: 'Yes. Your progress is saved, so sign in again and carry on where you left off.' },
+  { q: 'Can I stop and continue later?', a: 'Yes. Your progress is saved, so come back and carry on where you left off.' },
   { q: 'Do I need my own vehicle?', a: 'Yes. You need a vehicle registered with valid insurance, fitness and pollution certificates.' },
 ]
 
@@ -64,20 +64,20 @@ export default function DriverPage() {
                 Earn <span className="earn-amount">₹30,000+</span> a month with us
               </h1>
               <p className="lead">
-                Women drivers wanted. Register yourself in a few minutes from your phone, no agent and no
+                Women captains wanted. Register yourself in a few minutes from your phone, no agent and no
                 office visit.
               </p>
               <div className="actions">
-                <Link className="button button-light" to="/driver/login">
+                <Link className="button button-light" to="/captain/registration">
                   Register now
                 </Link>
-                <Link className="button button-ghost" to="/driver/login">
+                <Link className="button button-ghost" to="/captain/registration">
                   Check my application
                 </Link>
               </div>
               <p className="note">
                 Earnings depend on city, hours driven and demand; ₹30,000+ is an indicative monthly figure for
-                active drivers, not a guarantee.
+                active captains, not a guarantee.
               </p>
             </div>
             <div className="hero-side">
@@ -92,7 +92,7 @@ export default function DriverPage() {
                   </li>
                 ))}
               </ul>
-              <Link className="button button-sm" to="/driver/login">
+              <Link className="button button-sm" to="/captain/registration">
                 Start now
               </Link>
               </aside>
@@ -185,7 +185,7 @@ export default function DriverPage() {
       <section className="section section-tint" aria-labelledby="faq-title">
         <div className="container narrow">
           <div className="section-head">
-            <h2 id="faq-title">Driver questions</h2>
+            <h2 id="faq-title">Captain questions</h2>
           </div>
           <div className="faq-list">
             {faqs.map((f) => (
@@ -205,7 +205,7 @@ export default function DriverPage() {
               <h2>Ready to start earning?</h2>
               <p>It takes a few minutes, and you can save and come back.</p>
             </div>
-            <Link className="button button-light" to="/driver/login">
+            <Link className="button button-light" to="/captain/registration">
               Start your registration
             </Link>
           </div>

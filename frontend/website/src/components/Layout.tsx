@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import Icon from './Icons'
 import Logo from './Logo'
-import ThemeToggle from './ThemeToggle'
 
 const links = [
   { to: '/about', label: 'About' },
   { to: '/how-it-works', label: 'How it works' },
   { to: '/safety', label: 'Safety' },
-  { to: '/driver', label: 'Drive with us' },
+  { to: '/captain', label: 'Drive with us' },
   { to: '/faq', label: 'FAQ' },
   { to: '/contact', label: 'Contact' },
 ]
@@ -65,9 +64,8 @@ export default function Layout() {
               ))}
             </ul>
             <div className="nav-actions">
-              <ThemeToggle />
-              <Link to="/driver/login" className="button button-sm" onClick={() => setOpen(false)}>
-                Driver login
+              <Link to="/captain/registration" className="button button-sm" onClick={() => setOpen(false)}>
+                Captain registration
               </Link>
             </div>
           </nav>
@@ -93,11 +91,11 @@ export default function Layout() {
               <li><Link to="/faq">FAQ</Link></li>
             </ul>
           </nav>
-          <nav aria-label="Drivers">
-            <h2 className="footer-title">Drivers</h2>
+          <nav aria-label="Captains">
+            <h2 className="footer-title">Captains</h2>
             <ul>
-              <li><Link to="/driver">Drive with Lady Go</Link></li>
-              <li><Link to="/driver/login">Register or check status</Link></li>
+              <li><Link to="/captain">Drive with Lady Go</Link></li>
+              <li><Link to="/captain/registration">Register or check status</Link></li>
             </ul>
           </nav>
           <nav aria-label="Company">
