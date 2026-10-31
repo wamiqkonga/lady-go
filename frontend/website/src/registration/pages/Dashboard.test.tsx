@@ -36,13 +36,13 @@ describe('Dashboard', () => {
 
     renderDashboard()
 
-    await waitFor(() => expect(screen.getByText('Which city will you drive in?')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Which city will you ride in?')).toBeInTheDocument())
     await waitFor(() => expect(screen.getByRole('option', { name: 'Srinagar' })).toBeInTheDocument())
   })
 
-  const ALL_TYPES = ['LICENSE', 'VEHICLE_REGISTRATION', 'VEHICLE_PHOTO', 'INSURANCE', 'FITNESS_CERTIFICATE', 'POLLUTION_CERTIFICATE', 'SELFIE']
+  const ALL_TYPES = ['LICENSE', 'VEHICLE_REGISTRATION', 'FITNESS_CERTIFICATE', 'SELFIE']
   const profile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'PENDING_REVIEW' }, error: null }
-  const vehicle = { success: true, data: { id: 'v-1', registrationNumber: 'JK01AB1234', vehicleType: 'CAB', verificationStatus: 'PENDING' }, error: null }
+  const vehicle = { success: true, data: { id: 'v-1', registrationNumber: 'JK01AB1234', vehicleType: 'BIKE', verificationStatus: 'PENDING' }, error: null }
   const notFound = { success: false, data: null, error: { code: 'NOT_FOUND', message: 'not found' } }
   const pendingDeclaration = { success: true, data: { currentVersion: 'v1', currentText: 'I declare that...', accepted: false, acceptedVersion: null, acceptedAt: null }, error: null }
 
@@ -57,7 +57,7 @@ describe('Dashboard', () => {
   }
 
   it('resumes on a rejected document and shows the reviewer note as plain text', async () => {
-    const documents = docs({ LICENSE: { status: 'REJECTED', reviewNote: 'Photo is blurry' } })
+    const documents = docs({ VEHICLE_REGISTRATION: { status: 'REJECTED', reviewNote: 'Photo is blurry' } })
     vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
       const url = input.url
       if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse(vehicle))
@@ -68,9 +68,10 @@ describe('Dashboard', () => {
 
     renderDashboard()
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Driving licence' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Vehicle registration (RC) photo' })).toBeInTheDocument())
     expect(screen.getByText('Photo is blurry')).toBeInTheDocument()
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '7')
+    // Required steps done: selfie only (the RC needs a new photo, the declaration is pending).
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
     // A rejection note renders as plain text, never markup - no element created from it.
     expect(document.querySelector('.review-note')?.innerHTML).not.toContain('<')
@@ -87,7 +88,7 @@ describe('Dashboard', () => {
 
     renderDashboard()
 
-    await waitFor(() => expect(screen.getByLabelText('Registration number')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Vehicle number')).toBeInTheDocument())
     expect(screen.getByText('In progress')).toBeInTheDocument()
     expect(screen.queryByText('Under review')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
@@ -147,15 +148,19 @@ describe('Dashboard', () => {
       if (url.endsWith('/api/v1/drivers/me/vehicle')) {
         return new Promise((resolve) => setTimeout(() => resolve(jsonResponse(vehicle)), 150))
       }
-      if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse({ success: true, data: [], error: null }))
+      if (url.endsWith('/api/v1/drivers/me/documents')) {
+        return Promise.resolve(jsonResponse({ success: true, error: null, data: [
+          { id: 'rc', type: 'VEHICLE_REGISTRATION', status: 'PENDING', createdAt: '2026-01-01T00:00:00Z' },
+        ] }))
+      }
       if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(pendingDeclaration))
       return Promise.resolve(jsonResponse(profile))
     }))
 
     renderDashboard()
 
-    // Vehicle exists, documents do not: first unfinished step is the licence, not the vehicle.
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Driving licence' })).toBeInTheDocument())
+    // Vehicle and RC exist, the selfie does not: first unfinished step is the selfie, not the vehicle.
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Selfie' })).toBeInTheDocument())
   })
 
   it('does not treat a failed vehicle load as "no vehicle yet"', async () => {
@@ -172,7 +177,7 @@ describe('Dashboard', () => {
     renderDashboard()
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Could not load your vehicle.'))
-    expect(screen.queryByLabelText('Registration number')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Vehicle number')).not.toBeInTheDocument()
   })
 
   it('does not say "Application received" to a rejected captain', async () => {

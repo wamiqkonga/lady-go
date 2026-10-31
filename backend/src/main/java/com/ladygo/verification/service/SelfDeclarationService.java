@@ -1,6 +1,7 @@
 package com.ladygo.verification.service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
@@ -28,7 +29,7 @@ public class SelfDeclarationService {
 
     @Transactional
     public DeclarationResponse accept(SubjectType subjectType, UUID subjectId, String requestedVersion) {
-        DeclarationVersion current = currentVersion();
+        DeclarationVersion current = currentVersion(subjectType);
         if (!current.getVersion().equals(requestedVersion)) {
             throw new ValidationException(
                     "declarationVersion must be the current published version (" + current.getVersion() + ").");
@@ -50,7 +51,7 @@ public class SelfDeclarationService {
     }
 
     public boolean hasAcceptedCurrentVersion(SubjectType subjectType, UUID subjectId) {
-        DeclarationVersion current = currentVersion();
+        DeclarationVersion current = currentVersion(subjectType);
         return declarations
                 .findBySubjectTypeAndSubjectIdAndDeclarationVersion(subjectType, subjectId, current.getVersion())
                 .isPresent();
@@ -59,7 +60,7 @@ public class SelfDeclarationService {
     /** The current version's text (so a client can actually show it before asking for acceptance) plus
      *  whether this subject has already accepted it - previously nothing exposed either. */
     public DeclarationStatusResponse currentStatus(SubjectType subjectType, UUID subjectId) {
-        DeclarationVersion current = currentVersion();
+        DeclarationVersion current = currentVersion(subjectType);
         SelfDeclaration existing = declarations
                 .findBySubjectTypeAndSubjectIdAndDeclarationVersion(subjectType, subjectId, current.getVersion())
                 .orElse(null);
@@ -69,7 +70,9 @@ public class SelfDeclarationService {
                 existing != null ? existing.getAcceptedAt() : null);
     }
 
-    private DeclarationVersion currentVersion() {
-        return versions.findTopByOrderByPublishedAtDesc().orElseThrow(ResourceNotFoundException::new);
+    /** The newest version addressed to everyone or to this kind of subject (captains and riders have different wording). */
+    private DeclarationVersion currentVersion(SubjectType subjectType) {
+        return versions.findTopByAudienceInOrderByPublishedAtDesc(List.of("ALL", subjectType.name()))
+                .orElseThrow(ResourceNotFoundException::new);
     }
 }

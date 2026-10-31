@@ -226,7 +226,7 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
     void theFullApprovalPathWorksEndToEnd() {
         Driver driver = newDriver(newCity());
         Vehicle vehicle = newVehicle(driver);
-        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "v1");
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "driver-v2");
         UUID adminId = newAdminUserId();
 
         for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
@@ -254,7 +254,7 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
 
         assertThatThrownBy(() -> service.approveDriver(driver.getId(), newAdminUserId(), "ADMIN", "127.0.0.1"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("LICENSE");
+                .hasMessageContaining("VEHICLE_REGISTRATION");
 
         Driver reloaded = drivers.findById(driver.getId()).orElseThrow();
         assertThat(reloaded.getVerificationStatus()).isNotEqualTo(DriverVerificationStatus.APPROVED);
@@ -292,7 +292,7 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         jdbc.update("UPDATE configuration SET value = 'true' WHERE key = 'driver.police_verification.required'");
         Driver driver = newDriver(newCity());
         Vehicle vehicle = newVehicle(driver);
-        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "v1");
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "driver-v2");
         UUID adminId = newAdminUserId();
         for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
                 DocumentType.VEHICLE_PHOTO, DocumentType.INSURANCE, DocumentType.SELFIE)) {
@@ -315,11 +315,29 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
     /** Adversarial review finding, MEDIUM: an approved-but-now-expired document (insurance is the one
      *  type that actually carries an expiry today) previously passed approval silently - the gate only
      *  ever checked {@code status == APPROVED}, never {@code expiresAt}. */
+    /** Captains register with an RC and a selfie; licence, fitness and insurance are optional. */
+    @Test
+    void aDriverWithOnlyRcSelfieVehicleAndDeclarationIsReadyForApproval() {
+        Driver driver = newDriver(newCity());
+        Vehicle vehicle = newVehicle(driver);
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "driver-v2");
+        UUID adminId = newAdminUserId();
+
+        for (DocumentType type : List.of(DocumentType.VEHICLE_REGISTRATION, DocumentType.SELFIE)) {
+            service.approveDocument(pendingDocument(driver, type).getId(), adminId, "ADMIN", "ok", "127.0.0.1");
+        }
+        service.approveVehicle(vehicle.getId(), adminId, "ADMIN", "127.0.0.1");
+
+        var review = service.getDriverReview(driver.getId());
+        assertThat(review.missingRequirements()).isEmpty();
+        assertThat(review.readyForApproval()).isTrue();
+    }
+
     @Test
     void anApprovedButExpiredDocumentBlocksDriverApproval() {
         Driver driver = newDriver(newCity());
         Vehicle vehicle = newVehicle(driver);
-        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "v1");
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "driver-v2");
         UUID adminId = newAdminUserId();
 
         for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
@@ -366,7 +384,7 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
     void approvingADriverRecordsThePoliceVerificationRequiredFlagInTheAuditEntry() {
         Driver driver = newDriver(newCity());
         Vehicle vehicle = newVehicle(driver);
-        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "v1");
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "driver-v2");
         UUID adminId = newAdminUserId();
         for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
                 DocumentType.VEHICLE_PHOTO, DocumentType.INSURANCE, DocumentType.SELFIE)) {

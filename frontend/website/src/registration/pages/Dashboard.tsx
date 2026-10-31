@@ -4,7 +4,7 @@ import { useSession } from '../lib/sessionContext'
 import DocumentUploadSection from '../components/DocumentUploadSection'
 import SelfieCapture from '../components/SelfieCapture'
 import {
-  STEPS, WORK_STEPS, countDone, firstIncompleteIndex, latestDocument, stepState,
+  STEPS, WORK_STEPS, REQUIRED_STEPS, FITNESS_STEP, RC_STEP, countDone, firstIncompleteIndex, isOptional, latestDocument, stepState,
   type RegistrationData, type Step,
 } from '../lib/steps'
 import type { components } from '../lib/api-types'
@@ -14,13 +14,6 @@ type VehicleResponse = components['schemas']['VehicleResponse']
 type DriverDocumentResponse = components['schemas']['DriverDocumentResponse']
 type DeclarationStatusResponse = components['schemas']['DeclarationStatusResponse']
 type CityResponse = { id?: string; name?: string; country?: string }
-
-const VEHICLE_TYPES = [
-  { value: 'CAB', label: 'Cab' },
-  { value: 'SUV', label: 'SUV' },
-  { value: 'AUTO', label: 'Auto' },
-  { value: 'BIKE', label: 'Bike' },
-] as const
 
 /** Overall status. The backend moves a captain to PENDING_REVIEW on their first upload, long before
  *  the application is complete, so "Under review" is only shown once every step is actually in. */
@@ -60,8 +53,8 @@ function CityPicker({ onBootstrapped }: { onBootstrapped: (profile: DriverProfil
 
   return (
     <div className="section">
-      <h2>Which city will you drive in?</h2>
-      <p className="muted">Registration takes about 10 minutes. Keep your licence, RC, insurance and certificates nearby.</p>
+      <h2>Which city will you ride in?</h2>
+      <p className="muted">Registration takes about 5 minutes. Keep your vehicle registration (RC) handy. Your driving licence is optional.</p>
       {cities === null && !error ? (
         <p className="muted">Loading…</p>
       ) : (
@@ -84,7 +77,7 @@ function CityPicker({ onBootstrapped }: { onBootstrapped: (profile: DriverProfil
 }
 
 function ProgressHeader({ index, done }: { index: number; done: number }) {
-  const total = WORK_STEPS.length
+  const total = REQUIRED_STEPS.length
   const step = STEPS[index]
   return (
     <div className="progress">
@@ -100,7 +93,7 @@ function ProgressHeader({ index, done }: { index: number; done: number }) {
         <div className="progress-fill" style={{ width: `${(done / total) * 100}%` }} />
       </div>
       <p className="muted progress-label">
-        {step.kind === 'review' ? `All steps · ${done} of ${total} done` : `Step ${index + 1} of ${total} · ${done} done`}
+        {step.kind === 'review' ? `All steps · ${done} of ${total} done` : `Step ${index + 1} of ${WORK_STEPS.length} · ${done} of ${total} required done`}
       </p>
     </div>
   )
@@ -121,7 +114,7 @@ function StepList({ data, current, onGo }: { data: RegistrationData; current: nu
               <button type="button" className="step-link" onClick={() => onGo(i)} aria-current={i === current ? 'step' : undefined}>
                 <span className={`step-dot step-${state}`} aria-hidden="true" />
                 <span>{step.title}</span>
-                <span className="muted">{state === 'done' ? 'Done' : state === 'fix' ? 'Needs a new photo' : 'To do'}</span>
+                <span className="muted">{state === 'done' ? 'Done' : state === 'fix' ? 'Needs a new photo' : isOptional(step) ? 'Optional' : 'To do'}</span>
               </button>
             </li>
           )
@@ -138,7 +131,7 @@ export default function Dashboard() {
   const [vehicleLoaded, setVehicleLoaded] = useState(false)
   const [documents, setDocuments] = useState<DriverDocumentResponse[] | null>(null)
   const [declaration, setDeclaration] = useState<DeclarationStatusResponse | null>(null)
-  const [vehicleForm, setVehicleForm] = useState({ registrationNumber: '', vehicleType: 'CAB', make: '', model: '', color: '' })
+  const [vehicleForm, setVehicleForm] = useState({ registrationNumber: '', vehicleType: 'BIKE' })
   const [vehicleError, setVehicleError] = useState<string | null>(null)
   const [vehicleBusy, setVehicleBusy] = useState(false)
   const [declarationBusy, setDeclarationBusy] = useState(false)
@@ -222,10 +215,7 @@ export default function Dashboard() {
       const result = await client.PUT('/api/v1/drivers/me/vehicle', {
         body: {
           registrationNumber: vehicleForm.registrationNumber.trim().toUpperCase(),
-          vehicleType: vehicleForm.vehicleType as 'CAB' | 'SUV' | 'AUTO' | 'BIKE',
-          make: vehicleForm.make.trim() || undefined,
-          model: vehicleForm.model.trim() || undefined,
-          color: vehicleForm.color.trim() || undefined,
+          vehicleType: 'BIKE',
         },
       })
       setVehicle(unwrap(result))
@@ -265,74 +255,67 @@ export default function Dashboard() {
   if (!profile && !noProfileYet) return <p className="muted">Loading…</p>
 
   const done = countDone(data)
-  const allDone = done === WORK_STEPS.length
+  const allDone = done === REQUIRED_STEPS.length
   const step: Step = STEPS[stepIndex]
   const isReview = step.kind === 'review'
-  const canContinue = isReview ? false : stepState(step, data) === 'done'
+  const canContinue = isReview ? false : isOptional(step) || stepState(step, data) === 'done'
 
   function renderVehicleStep() {
-    if (vehicle) {
-      return (
-        <div className="section">
-          <h2>Your vehicle</h2>
-          <p>
-            {vehicle.registrationNumber} ({vehicle.vehicleType}){' '}
-            <span className={`badge ${vehicle.verificationStatus === 'APPROVED' ? 'badge-ok' : 'badge-warn'}`}>
-              {vehicle.verificationStatus === 'APPROVED' ? 'Approved' : 'Saved'}
-            </span>
-          </p>
-        </div>
-      )
-    }
     return (
-      <form
-        className="section form"
-        onSubmit={(e) => {
-          e.preventDefault()
-          submitVehicle()
-        }}
-      >
-        <h2>Your vehicle</h2>
-        <p className="muted">Tell us about the vehicle you will drive.</p>
-        <label htmlFor="v-reg">Registration number</label>
-        <input
-          id="v-reg"
-          type="text"
-          autoCapitalize="characters"
-          autoComplete="off"
-          placeholder="e.g. JK01AB1234"
-          value={vehicleForm.registrationNumber}
-          onChange={(e) => setVehicleForm({ ...vehicleForm, registrationNumber: e.target.value })}
+      <>
+        {vehicle ? (
+          <div className="section">
+            <h2>Your two-wheeler</h2>
+            <p>
+              {vehicle.registrationNumber} (Two-wheeler){' '}
+              <span className={`badge ${vehicle.verificationStatus === 'APPROVED' ? 'badge-ok' : 'badge-warn'}`}>
+                {vehicle.verificationStatus === 'APPROVED' ? 'Approved' : 'Saved'}
+              </span>
+            </p>
+          </div>
+        ) : (
+          <form
+            className="section form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              submitVehicle()
+            }}
+          >
+            <h2>Your two-wheeler</h2>
+            <p className="muted">Lady Go captains ride two-wheelers. Enter your vehicle number.</p>
+            <label htmlFor="v-reg">Vehicle number</label>
+            <input
+              id="v-reg"
+              type="text"
+              autoCapitalize="characters"
+              autoComplete="off"
+              placeholder="e.g. JK01AB1234"
+              value={vehicleForm.registrationNumber}
+              onChange={(e) => setVehicleForm({ ...vehicleForm, registrationNumber: e.target.value })}
+            />
+            {vehicleError && <p role="alert" className="error">{vehicleError}</p>}
+            <button type="submit" disabled={vehicleBusy || !vehicleForm.registrationNumber.trim()}>
+              {vehicleBusy ? 'Saving…' : 'Save vehicle number'}
+            </button>
+          </form>
+        )}
+        <DocumentUploadSection
+          key={RC_STEP.id}
+          type={RC_STEP.id}
+          label={RC_STEP.title}
+          tip={RC_STEP.tip}
+          existing={latestDocument(data.documents, RC_STEP.id)}
+          onUploaded={onDocumentUploaded}
         />
-        <fieldset className="type-cards">
-          <legend>Vehicle type</legend>
-          {VEHICLE_TYPES.map((t) => (
-            <label key={t.value} className={`type-card ${vehicleForm.vehicleType === t.value ? 'selected' : ''}`}>
-              <input
-                type="radio"
-                name="vehicleType"
-                value={t.value}
-                checked={vehicleForm.vehicleType === t.value}
-                onChange={() => setVehicleForm({ ...vehicleForm, vehicleType: t.value })}
-              />
-              {t.label}
-            </label>
-          ))}
-        </fieldset>
-        <label htmlFor="v-make">Make <span className="muted">(optional)</span></label>
-        <input id="v-make" type="text" placeholder="e.g. Maruti" value={vehicleForm.make}
-          onChange={(e) => setVehicleForm({ ...vehicleForm, make: e.target.value })} />
-        <label htmlFor="v-model">Model <span className="muted">(optional)</span></label>
-        <input id="v-model" type="text" placeholder="e.g. Dzire" value={vehicleForm.model}
-          onChange={(e) => setVehicleForm({ ...vehicleForm, model: e.target.value })} />
-        <label htmlFor="v-color">Colour <span className="muted">(optional)</span></label>
-        <input id="v-color" type="text" placeholder="e.g. White" value={vehicleForm.color}
-          onChange={(e) => setVehicleForm({ ...vehicleForm, color: e.target.value })} />
-        {vehicleError && <p role="alert" className="error">{vehicleError}</p>}
-        <button type="submit" disabled={vehicleBusy || !vehicleForm.registrationNumber.trim()}>
-          {vehicleBusy ? 'Saving…' : 'Save vehicle'}
-        </button>
-      </form>
+        <DocumentUploadSection
+          key={FITNESS_STEP.id}
+          type={FITNESS_STEP.id}
+          label={FITNESS_STEP.title}
+          tip={FITNESS_STEP.tip}
+          existing={latestDocument(data.documents, FITNESS_STEP.id)}
+          onUploaded={onDocumentUploaded}
+        />
+      </>
     )
   }
 
@@ -392,7 +375,7 @@ export default function Dashboard() {
           <>
             <h2>Almost there</h2>
             <p>{statusBadge(profile?.verificationStatus, allDone)}</p>
-            <p>Your application is only reviewed once every step below is done.</p>
+            <p>Your application is only reviewed once every required step below is done.</p>
           </>
         )}
         <ul className="review-list">
@@ -404,11 +387,11 @@ export default function Dashboard() {
                 <span className={`step-dot step-${state}`} aria-hidden="true" />
                 <span>{s.title}</span>
                 <span className="muted">
-                  {state === 'done' ? (doc?.status === 'APPROVED' ? 'Approved' : 'Done') : state === 'fix' ? 'Needs a new photo' : 'To do'}
+                  {state === 'done' ? (doc?.status === 'APPROVED' ? 'Approved' : 'Done') : state === 'fix' ? 'Needs a new photo' : isOptional(s) ? 'Skipped - you can add it later' : 'To do'}
                 </span>
                 {state !== 'done' && (
                   <button type="button" className="link" onClick={() => setStepIndex(STEPS.indexOf(s))}>
-                    {state === 'fix' ? 'Fix' : 'Do now'}
+                    {state === 'fix' ? 'Fix' : isOptional(s) ? 'Add' : 'Do now'}
                   </button>
                 )}
               </li>
@@ -497,7 +480,7 @@ export default function Dashboard() {
                 disabled={!canContinue}
                 aria-describedby="continue-hint"
               >
-                Continue
+                {isOptional(step) && stepState(step, data) !== 'done' ? 'Skip for now' : 'Continue'}
               </button>
             )}
           </div>
