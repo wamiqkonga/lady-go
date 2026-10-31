@@ -37,6 +37,10 @@ import com.squareup.moshi.JsonClass
  * @param createdAt 
  * @param scheduledAt 
  * @param cashConfirmedAt 
+ * @param pickupLatitude 
+ * @param pickupLongitude 
+ * @param destinationLatitude 
+ * @param destinationLongitude 
  */
 
 
@@ -82,7 +86,19 @@ data class BookingDetailResponse (
     val scheduledAt: kotlin.String? = null,
 
     @Json(name = "cashConfirmedAt")
-    val cashConfirmedAt: kotlin.String? = null
+    val cashConfirmedAt: kotlin.String? = null,
+
+    @Json(name = "pickupLatitude")
+    val pickupLatitude: kotlin.Double? = null,
+
+    @Json(name = "pickupLongitude")
+    val pickupLongitude: kotlin.Double? = null,
+
+    @Json(name = "destinationLatitude")
+    val destinationLatitude: kotlin.Double? = null,
+
+    @Json(name = "destinationLongitude")
+    val destinationLongitude: kotlin.Double? = null
 
 ) {
 

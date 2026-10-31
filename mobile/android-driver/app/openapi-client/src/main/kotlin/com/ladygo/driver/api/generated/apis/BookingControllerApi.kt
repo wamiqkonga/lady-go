@@ -7,6 +7,7 @@ import okhttp3.RequestBody
 import com.squareup.moshi.Json
 
 import com.ladygo.driver.api.generated.models.ApiResponseBookingDetailResponse
+import com.ladygo.driver.api.generated.models.ApiResponseDriverLocationForRiderResponse
 import com.ladygo.driver.api.generated.models.ApiResponseEligibilityReportResponse
 import com.ladygo.driver.api.generated.models.ApiResponseFareEstimateResponse
 import com.ladygo.driver.api.generated.models.ApiResponsePageResponseBookingDetailResponse
@@ -121,6 +122,19 @@ interface BookingControllerApi {
      */
     @POST("api/v1/bookings/{id}/dispute-cash")
     suspend fun disputeCash(@Path("id") id: java.util.UUID, @Body disputeCashRequest: DisputeCashRequest): Response<ApiResponseBookingDetailResponse>
+
+    /**
+     * GET api/v1/bookings/{id}/driver-location
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @param id 
+     * @return [ApiResponseDriverLocationForRiderResponse]
+     */
+    @GET("api/v1/bookings/{id}/driver-location")
+    suspend fun driverLocation(@Path("id") id: java.util.UUID): Response<ApiResponseDriverLocationForRiderResponse>
 
     /**
      * POST api/v1/bookings/{id}/end-early

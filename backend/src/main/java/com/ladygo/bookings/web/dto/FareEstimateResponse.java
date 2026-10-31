@@ -13,5 +13,8 @@ public record FareEstimateResponse(
         boolean approximate,
         long estimatedFare,
         FareBreakdown breakdown,
-        UUID pricingRuleId) {
+        UUID pricingRuleId,
+        /** The route to draw on the fare screen, as a Google encoded polyline. {@code null} when there is no real
+         *  route (the maps provider was unreachable and the fare was approximated); the app then draws a straight line. */
+        String routePolyline) {
 }

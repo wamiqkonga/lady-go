@@ -393,6 +393,11 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
         var response = bookingService.getForDriver(driver.getUserId(), booking.getId());
 
         assertThat(response.pickupAddress()).isEqualTo("Lal Chowk");
+        // The map needs the points, and they are exactly as visible as the addresses they belong to.
+        assertThat(response.pickupLatitude()).isEqualTo(booking.getPickupLocation().getY());
+        assertThat(response.pickupLongitude()).isEqualTo(booking.getPickupLocation().getX());
+        assertThat(response.destinationLatitude()).isEqualTo(booking.getDestinationLocation().getY());
+        assertThat(response.destinationLongitude()).isEqualTo(booking.getDestinationLocation().getX());
     }
 
     /** Adversarial review finding, CRITICAL: the previous gate was

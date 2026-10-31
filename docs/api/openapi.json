@@ -2752,6 +2752,37 @@
         }
       }
     },
+    "/api/v1/bookings/{id}/driver-location": {
+      "get": {
+        "tags": [
+          "booking-controller"
+        ],
+        "operationId": "driverLocation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverLocationForRiderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/rides": {
       "get": {
         "tags": [
@@ -3997,6 +4028,22 @@
           "cashConfirmedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "pickupLatitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "pickupLongitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "destinationLatitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "destinationLongitude": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -4501,6 +4548,9 @@
           "pricingRuleId": {
             "type": "string",
             "format": "uuid"
+          },
+          "routePolyline": {
+            "type": "string"
           }
         }
       },
@@ -5933,6 +5983,47 @@
           },
           "country": {
             "type": "string"
+          }
+        }
+      },
+      "ApiResponseDriverLocationForRiderResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DriverLocationForRiderResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DriverLocationForRiderResponse": {
+        "type": "object",
+        "properties": {
+          "live": {
+            "type": "boolean"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

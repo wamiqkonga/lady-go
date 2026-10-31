@@ -3,11 +3,13 @@ package com.ladygo.bookings.web;
 import com.ladygo.bookings.service.BookingCreationResult;
 import com.ladygo.bookings.service.BookingService;
 import com.ladygo.bookings.service.FareChangedException;
+import com.ladygo.bookings.service.RiderDriverLocationService;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
 import com.ladygo.bookings.web.dto.BookingRequest;
 import com.ladygo.bookings.web.dto.CancelBookingRequest;
 import com.ladygo.bookings.web.dto.DestinationChangeEstimateRequest;
 import com.ladygo.bookings.web.dto.DestinationChangeRequest;
+import com.ladygo.bookings.web.dto.DriverLocationForRiderResponse;
 import com.ladygo.bookings.web.dto.FareEstimateRequest;
 import com.ladygo.bookings.web.dto.FareEstimateResponse;
 import com.ladygo.common.api.ApiError;
@@ -63,14 +65,17 @@ public class BookingController {
     private final EligibilityReportService eligibilityReportService;
     private final RideLifecycleService rideLifecycleService;
     private final TripShareService tripShareService;
+    private final RiderDriverLocationService riderDriverLocationService;
 
     public BookingController(
             BookingService bookingService, EligibilityReportService eligibilityReportService,
-            RideLifecycleService rideLifecycleService, TripShareService tripShareService) {
+            RideLifecycleService rideLifecycleService, TripShareService tripShareService,
+            RiderDriverLocationService riderDriverLocationService) {
         this.bookingService = bookingService;
         this.eligibilityReportService = eligibilityReportService;
         this.rideLifecycleService = rideLifecycleService;
         this.tripShareService = tripShareService;
+        this.riderDriverLocationService = riderDriverLocationService;
     }
 
     @PostMapping("/estimate")
@@ -97,6 +102,13 @@ public class BookingController {
     public ApiResponse<BookingDetailResponse> get(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
         return ApiResponse.ok(bookingService.get(principal.userId(), id));
+    }
+
+    /** docs/product/map-design.md: where the rider's own driver is, for the live map. Polled by the app. */
+    @GetMapping("/{id}/driver-location")
+    public ApiResponse<DriverLocationForRiderResponse> driverLocation(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
+        return ApiResponse.ok(riderDriverLocationService.get(principal.userId(), id));
     }
 
     @PostMapping("/{id}/cancel")

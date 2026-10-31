@@ -21,5 +21,11 @@ public record BookingDetailResponse(
         Instant createdAt,
         Instant scheduledAt,
         /** Driver-facing only (null for riders and in history lists) - see BookingField.CASH_CONFIRMED_AT. */
-        Instant cashConfirmedAt) {
+        Instant cashConfirmedAt,
+        /** The pickup and destination points, for the maps. Each pair is present exactly when the matching exact
+         *  address is (the same {@code BookingVisibilityPolicy} fields), and null in history lists. */
+        Double pickupLatitude,
+        Double pickupLongitude,
+        Double destinationLatitude,
+        Double destinationLongitude) {
 }

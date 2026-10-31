@@ -16,6 +16,7 @@ public class MockMapsService implements MapsService {
 
     private static final double EARTH_RADIUS_METERS = 6_371_000;
     private static final double ASSUMED_AVERAGE_SPEED_KMH = 25;
+    private static final int ROUTE_STEPS = 4;
 
     @Override
     public GeocodeResult geocode(String address) {
@@ -34,7 +35,19 @@ public class MockMapsService implements MapsService {
         double distanceMeters = calculateDistanceMeters(origin, destination);
         double hours = (distanceMeters / 1000.0) / ASSUMED_AVERAGE_SPEED_KMH;
         int durationSeconds = (int) Math.round(hours * 3600);
-        return new RouteResult((int) Math.round(distanceMeters), durationSeconds, null);
+        return new RouteResult((int) Math.round(distanceMeters), durationSeconds, straightLine(origin, destination));
+    }
+
+    /** A straight line in the real provider's encoded-polyline format, so the apps can draw a route in dev. */
+    private static String straightLine(Coordinate origin, Coordinate destination) {
+        java.util.List<Coordinate> points = new java.util.ArrayList<>();
+        for (int i = 0; i <= ROUTE_STEPS; i++) {
+            double t = (double) i / ROUTE_STEPS;
+            points.add(new Coordinate(
+                    origin.latitude() + (destination.latitude() - origin.latitude()) * t,
+                    origin.longitude() + (destination.longitude() - origin.longitude()) * t));
+        }
+        return PolylineCodec.encode(points);
     }
 
     @Override
