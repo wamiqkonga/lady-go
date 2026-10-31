@@ -100,6 +100,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/maps/reverse-geocode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reverseGeocode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drivers/me": {
         parameters: {
             query?: never;
@@ -1473,6 +1489,29 @@ export interface components {
             /** Format: date-time */
             timestamp?: string;
         };
+        ReverseGeocodeRequest: {
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+        };
+        ApiResponseReverseGeocodeResponse: {
+            success?: boolean;
+            data?: components["schemas"]["ReverseGeocodeResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        ReverseGeocodeResponse: {
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+            address?: string;
+            inServiceArea?: boolean;
+            cityName?: string;
+        };
         DriverProfileRequest: {
             /** Format: uuid */
             cityId: string;
@@ -2735,6 +2774,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseAdminConfigEntryResponse"];
+                };
+            };
+        };
+    };
+    reverseGeocode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReverseGeocodeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseReverseGeocodeResponse"];
                 };
             };
         };
