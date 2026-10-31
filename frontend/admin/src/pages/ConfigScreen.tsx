@@ -101,30 +101,32 @@ export default function ConfigScreen() {
     <section>
       <h1>Pricing &amp; configuration</h1>
       {!canEdit && <p className="muted">Read-only - only a SUPER_ADMIN can change these values.</p>}
-      <table className="list-table">
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>Value</th>
-            <th>Type</th>
-            <th>Bounds</th>
-            <th>Updated</th>
-            {canEdit && <th>Action</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((entry) => (
-            <tr key={entry.id}>
-              <td>{entry.configKey}</td>
-              <td>{entry.configValue}</td>
-              <td>{entry.valueType}</td>
-              <td>{entry.minValue != null && entry.maxValue != null ? `${entry.minValue}–${entry.maxValue}` : '—'}</td>
-              <td>{entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : '—'}</td>
-              {canEdit && <td><EditRow entry={entry} onSaved={load} /></td>}
+      <div className="table-scroll">
+        <table className="list-table">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Value</th>
+              <th>Type</th>
+              <th>Bounds</th>
+              <th>Updated</th>
+              {canEdit && <th>Action</th>}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((entry) => (
+              <tr key={entry.id}>
+                <td>{entry.configKey}</td>
+                <td>{entry.configValue}</td>
+                <td>{entry.valueType}</td>
+                <td>{entry.minValue != null && entry.maxValue != null ? `${entry.minValue}–${entry.maxValue}` : '—'}</td>
+                <td>{entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : '—'}</td>
+                {canEdit && <td><EditRow entry={entry} onSaved={load} /></td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   )
 }

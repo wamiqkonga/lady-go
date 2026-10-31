@@ -106,6 +106,9 @@ jobs:
 
       - name: Start the backend (dev profile)
         working-directory: backend
+        env:
+          # The seed below enrols MFA through the API; the base default is off.
+          LADYGO_ADMIN_MFA_REQUIRED: "true"
         run: |
           nohup java -jar target/*.jar > "$BACKEND_LOG" 2>&1 &
           echo $! > "$RUNNER_TEMP/backend.pid"
@@ -131,6 +134,7 @@ jobs:
         working-directory: frontend/admin
         env:
           VITE_API_BASE_URL: http://localhost:8080
+          VITE_ADMIN_MFA_REQUIRED: "true"
           VITE_E2E_IDLE_TIMEOUT_MS: "45000"
           VITE_E2E_EXPOSE_SESSION: "true"
         run: |

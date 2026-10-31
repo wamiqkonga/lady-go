@@ -1,38 +1,48 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AuthError, login } from '../lib/auth'
 
 import ThemeToggle from '../components/ThemeToggle'
 
+// Mirrors the backend LADYGO_ADMIN_MFA_REQUIRED. Off for the pilot: sign-in is email + password only.
+const mfaRequired = () => import.meta.env.VITE_ADMIN_MFA_REQUIRED === 'true'
+
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const withCode = mfaRequired()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')
-  const [needsTotp, setNeedsTotp] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // RequireAuth remembers the page the user was sent away from; only an in-app path is honoured.
+  const from = (location.state as { from?: string } | null)?.from
+  const destination = from && from.startsWith('/') && !from.startsWith('//') && from !== '/login' ? from : '/dashboard'
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
     try {
-      const result = await login(email, password, needsTotp ? totpCode : undefined)
+      const result = await login(email, password, withCode ? totpCode.trim() : undefined)
       if (result.kind === 'authenticated') {
-        navigate('/dashboard', { replace: true })
+        navigate(destination, { replace: true })
         return
       }
       // MFA enrolment isn't yet reachable from this screen - every pilot admin is bootstrapped
       // with MFA already confirmed, so this is a defensive message, not a built flow.
       setError('This account still needs to finish MFA enrolment. Contact another admin.')
     } catch (err) {
-      if (err instanceof AuthError && err.code === 'UNAUTHORIZED' && !needsTotp && password) {
-        // Password was accepted-shaped but the account has MFA enabled - ask for the code.
-        // (The backend gives an identical UNAUTHORIZED for bad password vs missing TOTP by
-        // design, so this is a UX nicety, not a security signal: wrong TOTP also lands here.)
-        setNeedsTotp(true)
-        setError('Enter your authenticator code.')
+      if (err instanceof AuthError && err.code === 'UNAUTHORIZED') {
+        // The backend gives an identical UNAUTHORIZED for a wrong password, a wrong code and a reused
+        // code by design, so the message must not guess which one it was.
+        setError(
+          withCode
+            ? 'Sign-in failed. Check your email, password and authenticator code.'
+            : 'Sign-in failed. Check your email and password.',
+        )
       } else if (err instanceof AuthError) {
         setError(err.message)
       } else {
@@ -66,7 +76,7 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        {needsTotp && (
+        {withCode && (
           <>
             <label htmlFor="totp">Authenticator code</label>
             <input
