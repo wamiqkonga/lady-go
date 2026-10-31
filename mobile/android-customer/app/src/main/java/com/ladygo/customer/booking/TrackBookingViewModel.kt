@@ -49,6 +49,8 @@ data class TrackUiState(
     val booking: BookingDetailResponse? = null,
     val stage: TrackStage? = null,
     val isCancelling: Boolean = false,
+    /** Where her driver is right now, for the map; `null` when not shown (no driver yet, not live, or the ride is over). */
+    val driver: GeoPoint? = null,
     val error: String? = null,
     /** The booking is not this rider's / no longer exists - the nav layer leaves the screen. */
     val gone: Boolean = false,
@@ -62,6 +64,7 @@ class TrackBookingViewModel
     constructor(
         savedStateHandle: SavedStateHandle,
         private val repository: BookingRepository,
+        private val driverLocations: DriverLocationSource,
     ) : ViewModel() {
         private val bookingId: UUID = UUID.fromString(checkNotNull(savedStateHandle.get<String>(BOOKING_ID_ARG)))
 
@@ -77,12 +80,30 @@ class TrackBookingViewModel
             refreshJob =
                 viewModelScope.launch {
                     when (val outcome = repository.fetch(bookingId)) {
-                        is BookingFetchOutcome.Found -> apply(outcome.booking)
+                        is BookingFetchOutcome.Found -> {
+                            apply(outcome.booking)
+                            refreshDriverPosition()
+                        }
                         BookingFetchOutcome.NotFound -> _uiState.update { it.copy(gone = true) }
                         // Transient: keep showing the last known state; the next tick retries.
                         is BookingFetchOutcome.NetworkFailure -> _uiState.update { it.copy(error = outcome.message) }
                     }
                 }
+        }
+
+        /** The driver's position only matters while she is on her way or the trip is under way; anywhere else the car
+         *  is dropped so the map never shows a driver the ride no longer has. */
+        private suspend fun refreshDriverPosition() {
+            val stage = _uiState.value.stage
+            if (stage != TrackStage.DRIVER_COMING && stage != TrackStage.IN_TRIP) {
+                _uiState.update { it.copy(driver = null) }
+                return
+            }
+            when (val outcome = driverLocations.locate(bookingId)) {
+                is DriverLocationOutcome.Live -> _uiState.update { it.copy(driver = outcome.point) }
+                DriverLocationOutcome.NotLive -> _uiState.update { it.copy(driver = null) }
+                DriverLocationOutcome.Failed -> Unit // keep the last position; the next poll retries
+            }
         }
 
         fun onCancel(reason: String) {

@@ -186,4 +186,27 @@ class BookRideContentTest {
         composeRule.onNodeWithText("Keep current pickup").performClick()
         assertEquals(1, cancel)
     }
+
+    // --- route on the fare screen ---
+
+    @Test
+    fun theFareStepShowsTheRouteMapSlotAboveTheFare() {
+        composeRule.setContent {
+            BookRideContent(
+                state =
+                    BookRideUiState(
+                        step = BookStep.ESTIMATE,
+                        pickup = PickupState.Ready(pickup),
+                        destination = dalGate,
+                        estimate = FareEstimateResponse(estimatedFare = 18500L, currency = "INR", routePolyline = "_p~iF~ps|U_ulLnnqC"),
+                    ),
+                actions = BookRideActions(),
+                map = { androidx.compose.material3.Text("fake route map") },
+            )
+        }
+
+        composeRule.onNodeWithTag("book_route_map").assertExists()
+        composeRule.onNodeWithText("fake route map").assertExists()
+        composeRule.onNodeWithTag("book_fare").assertExists()
+    }
 }

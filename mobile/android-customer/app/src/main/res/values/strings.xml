@@ -60,6 +60,8 @@
     <string name="book_pin_unverified_area">We will check this area when we price your ride.</string>
     <string name="book_map_description">Map. Move it to place the pin.</string>
     <string name="book_pin_description">Pin: %1$s</string>
+    <string name="track_map_description">Map showing your driver on the way to you.</string>
+    <string name="book_route_map_description">Map of your route from pickup to destination.</string>
     <string name="book_search_shortcut_label">Or search for a place</string>
 
 

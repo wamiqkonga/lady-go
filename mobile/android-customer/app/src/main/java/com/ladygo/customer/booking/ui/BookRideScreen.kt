@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -48,9 +49,11 @@ import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.booking.BookRideUiState
 import com.ladygo.customer.booking.BookRideViewModel
 import com.ladygo.customer.booking.BookStep
+import com.ladygo.customer.booking.GeoPoint
 import com.ladygo.customer.booking.PickupState
 import com.ladygo.customer.booking.PinState
 import com.ladygo.customer.booking.Place
+import com.ladygo.customer.booking.decodePolyline
 import com.ladygo.customer.ui.components.BannerKind
 import com.ladygo.customer.ui.components.FareCard
 import com.ladygo.customer.ui.components.InfoBanner
@@ -123,24 +126,7 @@ fun BookRideScreen(
                     onCancelEditPickup = viewModel::onCancelEditPickup,
                     onBack = onClose,
                 ),
-            map = { st ->
-                val pickupPlace = (st.pickup as? PickupState.Ready)?.place
-                if (pickupPlace != null) {
-                    val pinDescription =
-                        (st.pin as? PinState.Resolved)?.place?.address?.let { stringResource(R.string.book_pin_description, it) }
-                            ?: stringResource(R.string.book_map_description)
-                    // Re-keyed when the rider starts/stops moving the pickup so the map opens on the right spot.
-                    androidx.compose.runtime.key(st.editingPickup) {
-                        MapPinPicker(
-                            start = pickupPlace.point,
-                            pinDescription = pinDescription,
-                            onSettled = viewModel::onPinSettled,
-                            markerAt = if (st.editingPickup) null else pickupPlace.point,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-            },
+            map = { st -> BookingMap(st, viewModel::onPinSettled) },
         )
     }
 }
@@ -184,7 +170,7 @@ fun BookRideContent(
         state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("book_error")) }
         when {
             ready == null -> PickupPending(state.pickup, actions)
-            state.step == BookStep.ESTIMATE -> EstimateSection(state, ready.place)
+            state.step == BookStep.ESTIMATE -> EstimateSection(state, ready.place, map)
             else -> DestinationSection(state, ready.place, actions, map)
         }
     }
@@ -330,7 +316,18 @@ private fun SearchShortcut(
 private fun EstimateSection(
     state: BookRideUiState,
     pickup: Place,
+    map: @Composable (BookRideUiState) -> Unit,
 ) {
+    androidx.compose.foundation.layout.Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(ROUTE_MAP_HEIGHT_DP.dp)
+                .clip(MaterialTheme.shapes.large)
+                .testTag("book_route_map"),
+    ) {
+        map(state)
+    }
     RouteCard(
         pickupLabel = stringResource(R.string.book_pickup_label),
         pickup = pickup.address,
@@ -414,7 +411,49 @@ private fun PinConfirmBar(
 }
 
 private const val MAP_MIN_HEIGHT_DP = 160
+private const val ROUTE_MAP_HEIGHT_DP = 220
 private const val SEARCH_MAX_HEIGHT_DP = 280
 private const val MIN_QUERY_LENGTH = 3
 private const val METERS_PER_KM = 1000.0
 private const val SECONDS_PER_MINUTE = 60
+
+/** The real maps for the booking flow: the route preview on the fare step, the pin-drop map on the destination step. */
+@Composable
+private fun BookingMap(
+    state: BookRideUiState,
+    onPinSettled: (GeoPoint) -> Unit,
+) {
+    val pickupPlace = (state.pickup as? PickupState.Ready)?.place
+    val destinationPlace = state.destination
+    if (state.step == BookStep.ESTIMATE) {
+        if (pickupPlace != null && destinationPlace != null) {
+            val route =
+                androidx.compose.runtime.remember(state.estimate?.routePolyline) {
+                    state.estimate
+                        ?.routePolyline
+                        ?.let(::decodePolyline)
+                        .orEmpty()
+                }
+            RouteMap(
+                pickup = pickupPlace.point,
+                destination = destinationPlace.point,
+                route = route,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    } else if (pickupPlace != null) {
+        val pinDescription =
+            (state.pin as? PinState.Resolved)?.place?.address?.let { stringResource(R.string.book_pin_description, it) }
+                ?: stringResource(R.string.book_map_description)
+        // Re-keyed when the rider starts/stops moving the pickup so the map opens on the right spot.
+        androidx.compose.runtime.key(state.editingPickup) {
+            MapPinPicker(
+                start = pickupPlace.point,
+                pinDescription = pinDescription,
+                onSettled = onPinSettled,
+                markerAt = if (state.editingPickup) null else pickupPlace.point,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}

@@ -1,8 +1,11 @@
 package com.ladygo.customer.booking.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -23,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -35,6 +39,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.ladygo.customer.R
 import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.booking.ExternalIntents
+import com.ladygo.customer.booking.GeoPoint
 import com.ladygo.customer.booking.TrackBookingViewModel
 import com.ladygo.customer.booking.TrackStage
 import com.ladygo.customer.booking.TrackUiState
@@ -56,6 +61,7 @@ import com.ladygo.customer.ui.theme.LadyGoTheme
 import kotlinx.coroutines.delay
 
 private const val POLL_INTERVAL_MILLIS = 5_000L
+private const val TRACK_MAP_HEIGHT_DP = 260
 
 @Composable
 fun TrackBookingScreen(
@@ -88,13 +94,33 @@ fun TrackBookingScreen(
                 onCall112 = { ExternalIntents.dialEmergency(context) },
                 onDone = onDone,
             ),
+        map = { st -> LiveTrackMap(st) },
     )
+}
+
+/** The real live map for the current stage: the pickup while the driver is coming, the destination during the trip. */
+@Composable
+private fun LiveTrackMap(state: TrackUiState) {
+    val booking = state.booking ?: return
+    val comingForRider = state.stage == TrackStage.DRIVER_COMING
+    val latitude = if (comingForRider) booking.pickupLatitude else booking.destinationLatitude
+    val longitude = if (comingForRider) booking.pickupLongitude else booking.destinationLongitude
+    if (latitude != null && longitude != null) {
+        TrackMap(
+            stop = GeoPoint(latitude, longitude),
+            stopIsPickup = comingForRider,
+            driver = state.driver,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
 }
 
 @Composable
 fun TrackBookingContent(
     state: TrackUiState,
     actions: TrackActions,
+    /** The live map. A slot so screen tests never need Play services; the real screen passes [TrackMap]. */
+    map: @Composable (TrackUiState) -> Unit = {},
 ) {
     // The ride PIN is shown here: no screenshots / recordings while it is on screen.
     SecureWindowEffect(enabled = state.stage == TrackStage.DRIVER_COMING)
@@ -130,6 +156,18 @@ fun TrackBookingContent(
     ) {
         state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("track_error")) }
         StageHeader(stage)
+        if (stage == TrackStage.DRIVER_COMING || stage == TrackStage.IN_TRIP) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(TRACK_MAP_HEIGHT_DP.dp)
+                        .clip(MaterialTheme.shapes.large)
+                        .testTag("track_map"),
+            ) {
+                map(state)
+            }
+        }
         StageBody(stage, booking)
     }
     if (showCancel) {

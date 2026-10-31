@@ -26,12 +26,21 @@ class TrackBookingViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = mockk<BookingRepository>()
+    private val driverLocations = mockk<DriverLocationSource>()
     private val id = UUID.randomUUID()
 
     private fun booking(status: Status) = BookingDetailResponse(id = id, status = status)
 
+    init {
+        coEvery { driverLocations.locate(any()) } returns DriverLocationOutcome.NotLive
+    }
+
     private fun viewModel() =
-        TrackBookingViewModel(SavedStateHandle(mapOf(TrackBookingViewModel.BOOKING_ID_ARG to id.toString())), repository)
+        TrackBookingViewModel(
+            SavedStateHandle(mapOf(TrackBookingViewModel.BOOKING_ID_ARG to id.toString())),
+            repository,
+            driverLocations,
+        )
 
     private fun TestScope.refreshed(
         vm: TrackBookingViewModel,
@@ -204,5 +213,72 @@ class TrackBookingViewModelTest {
             advanceUntilIdle()
 
             assertEquals(TrackStage.DRIVER_COMING, vm.uiState.value.stage)
+        }
+
+    // --- the driver on the map ---
+
+    private val carAt = GeoPoint(34.081, 74.801)
+
+    @Test
+    fun theDriverCarIsShownWhileSheIsOnHerWayAndDuringTheTrip() =
+        runTest {
+            val vm = viewModel()
+            coEvery { driverLocations.locate(id) } returns DriverLocationOutcome.Live(carAt)
+
+            refreshed(vm, Status.DRIVER_ARRIVING)
+            assertEquals(carAt, vm.uiState.value.driver)
+
+            refreshed(vm, Status.RIDE_STARTED)
+            assertEquals(carAt, vm.uiState.value.driver)
+        }
+
+    @Test
+    fun noCarWhileStillSearchingAndTheServerIsNotEvenAsked() =
+        runTest {
+            val vm = viewModel()
+            coEvery { driverLocations.locate(id) } returns DriverLocationOutcome.Live(carAt)
+
+            refreshed(vm, Status.SEARCHING_DRIVER)
+
+            assertNull(vm.uiState.value.driver)
+            coVerify(exactly = 0) { driverLocations.locate(any()) }
+        }
+
+    @Test
+    fun aDriverWhoIsNoLongerLiveIsDroppedNotLeftAsAStaleCar() =
+        runTest {
+            val vm = viewModel()
+            coEvery { driverLocations.locate(id) } returns DriverLocationOutcome.Live(carAt)
+            refreshed(vm, Status.DRIVER_ARRIVING)
+
+            coEvery { driverLocations.locate(id) } returns DriverLocationOutcome.NotLive
+            refreshed(vm, Status.DRIVER_ARRIVING)
+
+            assertNull(vm.uiState.value.driver)
+        }
+
+    @Test
+    fun aFailedPositionPollKeepsTheLastKnownCar() =
+        runTest {
+            val vm = viewModel()
+            coEvery { driverLocations.locate(id) } returns DriverLocationOutcome.Live(carAt)
+            refreshed(vm, Status.DRIVER_ARRIVING)
+
+            coEvery { driverLocations.locate(id) } returns DriverLocationOutcome.Failed
+            refreshed(vm, Status.DRIVER_ARRIVING)
+
+            assertEquals(carAt, vm.uiState.value.driver)
+        }
+
+    @Test
+    fun theCarDisappearsWhenTheRideEnds() =
+        runTest {
+            val vm = viewModel()
+            coEvery { driverLocations.locate(id) } returns DriverLocationOutcome.Live(carAt)
+            refreshed(vm, Status.RIDE_STARTED)
+
+            refreshed(vm, Status.COMPLETED)
+
+            assertNull(vm.uiState.value.driver)
         }
 }

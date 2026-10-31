@@ -20,6 +20,10 @@ abstract class BookingBindsModule {
     @Binds
     @Singleton
     abstract fun bindPinLookup(impl: ServerPinLookup): PinLookup
+
+    @Binds
+    @Singleton
+    abstract fun bindDriverLocationSource(impl: ServerDriverLocationSource): DriverLocationSource
 }
 
 @Module
