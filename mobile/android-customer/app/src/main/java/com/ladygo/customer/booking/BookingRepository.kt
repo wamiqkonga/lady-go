@@ -2,6 +2,7 @@ package com.ladygo.customer.booking
 
 import com.ladygo.customer.api.generated.apis.BookingControllerApi
 import com.ladygo.customer.api.generated.infrastructure.Serializer
+import com.ladygo.customer.api.generated.models.ApiResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.ApiResponseFareEstimateResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.api.generated.models.BookingRequest
@@ -14,6 +15,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
+import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -94,6 +96,20 @@ sealed interface CancelOutcome {
     data class NetworkFailure(
         val message: String,
     ) : CancelOutcome
+}
+
+/** What the server says cancelling right now would cost. [Failed] means "could not find out", never "free". */
+sealed interface CancelPreviewOutcome {
+    data class Ready(
+        val fee: Long,
+        val currency: String?,
+        /** Epoch millis until which cancelling is free, when the free window is still open. */
+        val freeUntilMillis: Long?,
+    ) : CancelPreviewOutcome
+
+    data object NotCancellable : CancelPreviewOutcome
+
+    data object Failed : CancelPreviewOutcome
 }
 
 /** Result of asking the server for the rider's in-progress ride. [Failed] must never be read as "none". */
@@ -200,15 +216,40 @@ class BookingRepository
         suspend fun cancel(
             bookingId: UUID,
             reason: String,
+        ): CancelOutcome = cancelWith("Could not cancel your ride.") { bookingApi.cancel(bookingId, CancelBookingRequest(reason = reason)) }
+
+        /** The fee-free cancel for a rider who feels unsafe (the server applies its own abuse caps and flags it for review). */
+        suspend fun cancelForSafety(
+            bookingId: UUID,
+            reason: String,
+        ): CancelOutcome =
+            cancelWith("Could not cancel your ride.") {
+                bookingApi.cancelForSafetyConcern(bookingId, CancelBookingRequest(reason = reason))
+            }
+
+        /** Tells the rider what cancelling would cost before she confirms. */
+        suspend fun cancellationPreview(bookingId: UUID): CancelPreviewOutcome {
+            val response = send { bookingApi.cancellationPreview(bookingId) } ?: return CancelPreviewOutcome.Failed
+            if (!response.isSuccessful) return CancelPreviewOutcome.Failed
+            val data = response.body()?.data ?: return CancelPreviewOutcome.Failed
+            if (data.cancellable == false) return CancelPreviewOutcome.NotCancellable
+            return CancelPreviewOutcome.Ready(
+                fee = data.fee ?: 0L,
+                currency = data.currency,
+                freeUntilMillis = data.freeUntil?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() },
+            )
+        }
+
+        private suspend fun cancelWith(
+            fallbackMessage: String,
+            call: suspend () -> Response<ApiResponseBookingDetailResponse>,
         ): CancelOutcome {
-            val response =
-                send { bookingApi.cancel(bookingId, CancelBookingRequest(reason = reason)) }
-                    ?: return CancelOutcome.NetworkFailure(NETWORK_ERROR_MESSAGE)
+            val response = send(call) ?: return CancelOutcome.NetworkFailure(NETWORK_ERROR_MESSAGE)
             if (response.isSuccessful) {
                 val booking = response.body()?.data ?: return CancelOutcome.NetworkFailure("Unexpected response from the server.")
                 return CancelOutcome.Cancelled(booking)
             }
-            val message = errorMessageOrDefault(response, "Could not cancel your ride.")
+            val message = errorMessageOrDefault(response, fallbackMessage)
             return if (isServerFailure(response)) CancelOutcome.NetworkFailure(message) else CancelOutcome.Rejected(message)
         }
 

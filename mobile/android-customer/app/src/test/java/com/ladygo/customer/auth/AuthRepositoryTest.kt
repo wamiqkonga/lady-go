@@ -4,6 +4,7 @@ import com.ladygo.customer.api.generated.apis.AuthControllerApi
 import com.ladygo.customer.api.generated.models.ApiResponseMessageResponse
 import com.ladygo.customer.api.generated.models.ApiResponseObject
 import com.ladygo.customer.api.generated.models.MessageResponse
+import com.ladygo.customer.push.PushTokenRegistrar
 import com.ladygo.customer.testing.FakeTokenStore
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -23,7 +24,8 @@ class AuthRepositoryTest {
     private val authApi = mockk<AuthControllerApi>()
     private val tokenStore = FakeTokenStore()
     private val sessionManager = SessionManager(tokenStore)
-    private val repository = AuthRepository(authApi, tokenStore, sessionManager)
+    private val pushTokens = mockk<PushTokenRegistrar>(relaxed = true)
+    private val repository = AuthRepository(authApi, tokenStore, sessionManager, pushTokens)
 
     private fun <T> errorResponse(
         code: Int,

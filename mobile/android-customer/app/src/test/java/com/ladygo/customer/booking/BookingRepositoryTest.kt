@@ -2,12 +2,14 @@ package com.ladygo.customer.booking
 
 import com.ladygo.customer.api.generated.apis.BookingControllerApi
 import com.ladygo.customer.api.generated.models.ApiResponseBookingDetailResponse
+import com.ladygo.customer.api.generated.models.ApiResponseCancellationPreviewResponse
 import com.ladygo.customer.api.generated.models.ApiResponseFareEstimateResponse
 import com.ladygo.customer.api.generated.models.ApiResponsePageResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.ApiResponseRideSelfieResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse.Status
 import com.ladygo.customer.api.generated.models.BookingRequest
+import com.ladygo.customer.api.generated.models.CancellationPreviewResponse
 import com.ladygo.customer.api.generated.models.FareEstimateResponse
 import com.ladygo.customer.api.generated.models.PageResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.RideSelfieResponse
@@ -205,5 +207,54 @@ class BookingRepositoryTest {
 
             coEvery { bookingApi.history(0, any(), any()) } returns error(500)
             assertEquals(ActiveBookingOutcome.Failed, repository.findActiveBooking())
+        }
+
+    @Test
+    fun theCancellationPreviewCarriesTheFeeAndTheFreeWindow() =
+        runTest {
+            val data = CancellationPreviewResponse(cancellable = true, fee = 5000L, currency = "INR", freeUntil = "2026-10-31T10:00:00Z")
+            coEvery { bookingApi.cancellationPreview(id) } returns Response.success(ApiResponseCancellationPreviewResponse(data = data))
+
+            val outcome = repository.cancellationPreview(id)
+
+            assertEquals(
+                CancelPreviewOutcome.Ready(
+                    5000L,
+                    "INR",
+                    java.time.Instant
+                        .parse("2026-10-31T10:00:00Z")
+                        .toEpochMilli(),
+                ),
+                outcome,
+            )
+        }
+
+    @Test
+    fun aFinishedRidePreviewsAsNotCancellable() =
+        runTest {
+            val data = CancellationPreviewResponse(cancellable = false, fee = 0L, currency = "INR")
+            coEvery { bookingApi.cancellationPreview(id) } returns Response.success(ApiResponseCancellationPreviewResponse(data = data))
+
+            assertEquals(CancelPreviewOutcome.NotCancellable, repository.cancellationPreview(id))
+        }
+
+    @Test
+    fun aPreviewThatFailsIsFailedNeverFree() =
+        runTest {
+            coEvery { bookingApi.cancellationPreview(id) } returns error(503)
+            assertEquals(CancelPreviewOutcome.Failed, repository.cancellationPreview(id))
+
+            coEvery { bookingApi.cancellationPreview(id) } throws java.io.IOException("offline")
+            assertEquals(CancelPreviewOutcome.Failed, repository.cancellationPreview(id))
+        }
+
+    @Test
+    fun theSafetyCancelGoesToTheSafetyEndpoint() =
+        runTest {
+            val cancelled = BookingDetailResponse(id = id, status = BookingDetailResponse.Status.CANCELLED)
+            coEvery { bookingApi.cancelForSafetyConcern(id, any()) } returns
+                Response.success(ApiResponseBookingDetailResponse(data = cancelled))
+
+            assertEquals(CancelOutcome.Cancelled(cancelled), repository.cancelForSafety(id, "Safety concern"))
         }
 }

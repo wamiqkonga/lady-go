@@ -3,6 +3,8 @@ package com.ladygo.customer.booking.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,6 +17,8 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -22,6 +26,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -38,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.ladygo.customer.R
 import com.ladygo.customer.api.generated.models.BookingDetailResponse
+import com.ladygo.customer.booking.CancelPreview
 import com.ladygo.customer.booking.ExternalIntents
 import com.ladygo.customer.booking.GeoPoint
 import com.ladygo.customer.booking.TrackBookingViewModel
@@ -90,11 +96,15 @@ fun TrackBookingScreen(
         state = state,
         actions =
             TrackActions(
-                onCancel = viewModel::onCancel,
+                onCancelRequested = viewModel::onCancelRequested,
+                onCancelDismissed = viewModel::onCancelDismissed,
+                onCancel = { reason -> viewModel.onCancel(reason) },
+                onCancelUnsafe = { reason -> viewModel.onCancel(reason, unsafe = true) },
                 onCall112 = { ExternalIntents.dialEmergency(context) },
                 onDone = onDone,
             ),
         map = { st -> LiveTrackMap(st) },
+        rating = { booking -> RateDriverCard(booking) },
     )
 }
 
@@ -121,10 +131,11 @@ fun TrackBookingContent(
     actions: TrackActions,
     /** The live map. A slot so screen tests never need Play services; the real screen passes [TrackMap]. */
     map: @Composable (TrackUiState) -> Unit = {},
+    /** The "rate your driver" card. A slot so screen tests need no view model; the real screen passes [RateDriverCard]. */
+    rating: @Composable (BookingDetailResponse) -> Unit = {},
 ) {
     // The ride PIN is shown here: no screenshots / recordings while it is on screen.
     SecureWindowEffect(enabled = state.stage == TrackStage.DRIVER_COMING)
-    var showCancel by rememberSaveable { mutableStateOf(false) }
     val stage = state.stage
     val booking = state.booking
     if (stage == null || booking == null) {
@@ -147,7 +158,7 @@ fun TrackBookingContent(
             if (stage.canCancel) {
                 QuietButton(
                     text = stringResource(R.string.track_cancel_action),
-                    onClick = { showCancel = true },
+                    onClick = actions.onCancelRequested,
                     enabled = !state.isCancelling,
                 )
             }
@@ -168,16 +179,39 @@ fun TrackBookingContent(
                 map(state)
             }
         }
+        if (stage == TrackStage.CANCELLED) CancelFeeNote(state.cancelFee, state.cancelFeeCurrency)
         StageBody(stage, booking)
+        if (stage == TrackStage.PAYMENT || stage == TrackStage.FINISHED) rating(booking)
     }
-    if (showCancel) {
+    state.cancelPreview?.let { preview ->
         CancelDialog(
-            onConfirm = { reason ->
-                showCancel = false
-                actions.onCancel(reason)
-            },
-            onDismiss = { showCancel = false },
+            preview = preview,
+            canReportUnsafe = booking.driver != null,
+            actions = actions,
         )
+    }
+}
+
+/** After a cancel: says plainly whether she was charged, when we told her the fee beforehand. */
+@Composable
+private fun CancelFeeNote(
+    fee: Long?,
+    currency: String?,
+) {
+    when {
+        fee == null -> Unit
+        fee > 0 ->
+            InfoBanner(
+                text = stringResource(R.string.track_cancelled_fee_charged, Money.format(fee, currency)),
+                kind = BannerKind.INFO,
+                modifier = Modifier.testTag("cancel_fee_note"),
+            )
+        else ->
+            InfoBanner(
+                text = stringResource(R.string.track_cancelled_no_fee),
+                kind = BannerKind.SUCCESS,
+                modifier = Modifier.testTag("cancel_fee_note"),
+            )
     }
 }
 
@@ -286,29 +320,86 @@ private fun stageTitle(stage: TrackStage): String =
         },
     )
 
+private val CANCEL_REASONS =
+    listOf(
+        R.string.track_cancel_reason_changed_mind,
+        R.string.track_cancel_reason_too_slow,
+        R.string.track_cancel_reason_mistake,
+        R.string.track_cancel_reason_other_ride,
+        R.string.track_cancel_reason_other,
+    )
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CancelDialog(
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
+    preview: CancelPreview,
+    canReportUnsafe: Boolean,
+    actions: TrackActions,
 ) {
-    var reason by rememberSaveable { mutableStateOf("") }
+    var selected by rememberSaveable { mutableIntStateOf(0) }
+    var details by rememberSaveable { mutableStateOf("") }
+    val isOther = CANCEL_REASONS[selected] == R.string.track_cancel_reason_other
+    val chosenLabel = stringResource(CANCEL_REASONS[selected])
+    val reason = if (isOther && details.isNotBlank()) details else chosenLabel
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = actions.onCancelDismissed,
         shape = MaterialTheme.shapes.extraLarge,
         title = { Text(stringResource(R.string.track_cancel_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.track_cancel_fee_note), style = MaterialTheme.typography.bodyMedium)
-                OutlinedTextField(
-                    value = reason,
-                    onValueChange = { reason = it },
-                    label = { Text(stringResource(R.string.track_cancel_reason_label)) },
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth().testTag("cancel_reason"),
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(feeText(preview), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("cancel_fee"))
+                Text(stringResource(R.string.track_cancel_reason_label), style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CANCEL_REASONS.forEachIndexed { index, label ->
+                        FilterChip(
+                            selected = selected == index,
+                            onClick = { selected = index },
+                            label = { Text(stringResource(label)) },
+                        )
+                    }
+                }
+                if (isOther) {
+                    OutlinedTextField(
+                        value = details,
+                        onValueChange = { details = it.take(MAX_REASON_LENGTH) },
+                        label = { Text(stringResource(R.string.track_cancel_details_label)) },
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.fillMaxWidth().testTag("cancel_reason"),
+                    )
+                }
+                if (canReportUnsafe) {
+                    TextButton(
+                        onClick = { actions.onCancelUnsafe("") },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.testTag("cancel_unsafe"),
+                    ) { Text(stringResource(R.string.track_cancel_unsafe)) }
+                }
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(reason) }) { Text(stringResource(R.string.track_cancel_confirm)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.track_cancel_keep)) } },
+        confirmButton = {
+            TextButton(onClick = { actions.onCancel(reason) }, enabled = preview != CancelPreview.Loading) {
+                Text(stringResource(R.string.track_cancel_confirm))
+            }
+        },
+        dismissButton = { TextButton(onClick = actions.onCancelDismissed) { Text(stringResource(R.string.track_cancel_keep)) } },
     )
 }
+
+@Composable
+private fun feeText(preview: CancelPreview): String =
+    when (preview) {
+        CancelPreview.Loading -> stringResource(R.string.track_cancel_fee_loading)
+        CancelPreview.Unavailable -> stringResource(R.string.track_cancel_fee_note)
+        is CancelPreview.Ready ->
+            when {
+                preview.fee > 0 -> stringResource(R.string.track_cancel_fee_applies, Money.format(preview.fee, preview.currency))
+                preview.freeUntilMillis != null -> {
+                    val minutes = ((preview.freeUntilMillis - System.currentTimeMillis()) / MILLIS_PER_MINUTE).coerceAtLeast(0) + 1
+                    stringResource(R.string.track_cancel_fee_free_window, minutes.toInt())
+                }
+                else -> stringResource(R.string.track_cancel_fee_free)
+            }
+    }
+
+private const val MAX_REASON_LENGTH = 200
+private const val MILLIS_PER_MINUTE = 60_000L

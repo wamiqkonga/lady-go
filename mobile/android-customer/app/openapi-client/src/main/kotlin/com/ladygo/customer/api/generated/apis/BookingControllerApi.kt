@@ -7,6 +7,7 @@ import okhttp3.RequestBody
 import com.squareup.moshi.Json
 
 import com.ladygo.customer.api.generated.models.ApiResponseBookingDetailResponse
+import com.ladygo.customer.api.generated.models.ApiResponseCancellationPreviewResponse
 import com.ladygo.customer.api.generated.models.ApiResponseDriverLocationForRiderResponse
 import com.ladygo.customer.api.generated.models.ApiResponseEligibilityReportResponse
 import com.ladygo.customer.api.generated.models.ApiResponseFareEstimateResponse
@@ -54,6 +55,19 @@ interface BookingControllerApi {
      */
     @POST("api/v1/bookings/{id}/cancel-safety-concern")
     suspend fun cancelForSafetyConcern(@Path("id") id: java.util.UUID, @Body cancelBookingRequest: CancelBookingRequest): Response<ApiResponseBookingDetailResponse>
+
+    /**
+     * GET api/v1/bookings/{id}/cancellation-preview
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @param id 
+     * @return [ApiResponseCancellationPreviewResponse]
+     */
+    @GET("api/v1/bookings/{id}/cancellation-preview")
+    suspend fun cancellationPreview(@Path("id") id: java.util.UUID): Response<ApiResponseCancellationPreviewResponse>
 
     /**
      * POST api/v1/bookings/{id}/change-destination

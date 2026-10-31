@@ -30,6 +30,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ladygo.customer.R
+import com.ladygo.customer.push.NotificationPermissionEffect
 import com.ladygo.customer.ui.components.BannerKind
 import com.ladygo.customer.ui.components.InfoBanner
 import com.ladygo.customer.ui.components.LadyGoCard
@@ -50,6 +51,7 @@ fun HomeScreen(
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    NotificationPermissionEffect()
     HomeContent(
         state = state,
         onBookRide = onBookRide,

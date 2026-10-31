@@ -24,6 +24,10 @@ abstract class BookingBindsModule {
     @Binds
     @Singleton
     abstract fun bindDriverLocationSource(impl: ServerDriverLocationSource): DriverLocationSource
+
+    @Binds
+    @Singleton
+    abstract fun bindRatingSource(impl: ServerRatingSource): RatingSource
 }
 
 @Module

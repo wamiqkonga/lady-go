@@ -5,6 +5,7 @@ import com.ladygo.customer.api.generated.models.LogoutRequest
 import com.ladygo.customer.api.generated.models.OtpRequestRequest
 import com.ladygo.customer.api.generated.models.OtpVerifyRequest
 import com.ladygo.customer.network.errorMessageOrDefault
+import com.ladygo.customer.push.PushTokenRegistrar
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,6 +42,7 @@ class AuthRepository
         private val authApi: AuthControllerApi,
         private val tokenStore: TokenStore,
         private val sessionManager: SessionManager,
+        private val pushTokens: PushTokenRegistrar,
     ) {
         /** One per process, never persisted - only distinguishes refresh-token "families" for the
          *  server's reuse detection, matching the web client's same reasoning. */
@@ -107,6 +109,7 @@ class AuthRepository
 
         /** Best-effort server-side revoke, same as the website: tokens are cleared locally either way. */
         suspend fun logout() {
+            runCatching { pushTokens.forget() } // while the access token is still valid
             val refreshToken = tokenStore.getRefreshToken()
             if (refreshToken != null) {
                 runCatching { authApi.logout(LogoutRequest(refreshToken = refreshToken, logoutAll = false)) }

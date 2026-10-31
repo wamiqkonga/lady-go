@@ -281,4 +281,97 @@ class TrackBookingViewModelTest {
 
             assertNull(vm.uiState.value.driver)
         }
+
+    @Test
+    fun requestingACancelLoadsTheFeeForTheDialog() =
+        runTest {
+            val vm = viewModel()
+            refreshed(vm, Status.DRIVER_ACCEPTED)
+            coEvery { repository.cancellationPreview(id) } returns CancelPreviewOutcome.Ready(5000L, "INR", null)
+
+            vm.onCancelRequested()
+            advanceUntilIdle()
+
+            assertEquals(CancelPreview.Ready(5000L, "INR", null), vm.uiState.value.cancelPreview)
+        }
+
+    @Test
+    fun aFeeThatCouldNotBeLoadedStillLetsHerCancel() =
+        runTest {
+            val vm = viewModel()
+            refreshed(vm, Status.SEARCHING_DRIVER)
+            coEvery { repository.cancellationPreview(id) } returns CancelPreviewOutcome.Failed
+
+            vm.onCancelRequested()
+            advanceUntilIdle()
+
+            assertEquals(CancelPreview.Unavailable, vm.uiState.value.cancelPreview)
+        }
+
+    @Test
+    fun dismissingTheDialogClosesIt() =
+        runTest {
+            val vm = viewModel()
+            refreshed(vm, Status.SEARCHING_DRIVER)
+            coEvery { repository.cancellationPreview(id) } returns CancelPreviewOutcome.Ready(0L, "INR", null)
+            vm.onCancelRequested()
+            advanceUntilIdle()
+
+            vm.onCancelDismissed()
+
+            assertNull(vm.uiState.value.cancelPreview)
+        }
+
+    @Test
+    fun aRideThatMovedOnWhileSheDecidedClosesTheDialogAndReloads() =
+        runTest {
+            val vm = viewModel()
+            refreshed(vm, Status.DRIVER_ACCEPTED)
+            coEvery { repository.cancellationPreview(id) } returns CancelPreviewOutcome.NotCancellable
+            coEvery { repository.fetch(id) } returns BookingFetchOutcome.Found(booking(Status.RIDE_STARTED))
+
+            vm.onCancelRequested()
+            advanceUntilIdle()
+
+            assertNull(vm.uiState.value.cancelPreview)
+            assertEquals(TrackStage.IN_TRIP, vm.uiState.value.stage)
+        }
+
+    @Test
+    fun aCancelRepeatsTheFeeSheWasToldOnTheCancelledScreen() =
+        runTest {
+            val vm = viewModel()
+            refreshed(vm, Status.DRIVER_ACCEPTED)
+            coEvery { repository.cancellationPreview(id) } returns CancelPreviewOutcome.Ready(5000L, "INR", null)
+            coEvery { repository.cancel(id, "Booked by mistake") } returns CancelOutcome.Cancelled(booking(Status.CANCELLED))
+            vm.onCancelRequested()
+            advanceUntilIdle()
+
+            vm.onCancel("Booked by mistake")
+            advanceUntilIdle()
+
+            val state = vm.uiState.value
+            assertEquals(TrackStage.CANCELLED, state.stage)
+            assertEquals(5000L, state.cancelFee)
+            assertEquals("INR", state.cancelFeeCurrency)
+            assertNull(state.cancelPreview)
+        }
+
+    @Test
+    fun theSafetyCancelUsesTheSafetyEndpointAndNeverPromisesAFee() =
+        runTest {
+            val vm = viewModel()
+            refreshed(vm, Status.DRIVER_ACCEPTED)
+            coEvery { repository.cancellationPreview(id) } returns CancelPreviewOutcome.Ready(5000L, "INR", null)
+            coEvery { repository.cancelForSafety(id, "Safety concern") } returns CancelOutcome.Cancelled(booking(Status.CANCELLED))
+            vm.onCancelRequested()
+            advanceUntilIdle()
+
+            vm.onCancel("", unsafe = true)
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { repository.cancelForSafety(id, "Safety concern") }
+            coVerify(exactly = 0) { repository.cancel(any(), any()) }
+            assertNull(vm.uiState.value.cancelFee)
+        }
 }

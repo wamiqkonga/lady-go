@@ -1,6 +1,7 @@
 package com.ladygo.customer.booking.ui
 
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -11,9 +12,11 @@ import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse.PaymentMethod
 import com.ladygo.customer.api.generated.models.BookingDetailResponse.Status
 import com.ladygo.customer.api.generated.models.DriverSummaryResponse
+import com.ladygo.customer.booking.CancelPreview
 import com.ladygo.customer.booking.TrackUiState
 import com.ladygo.customer.booking.stageFor
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -96,16 +99,117 @@ class TrackBookingContentTest {
         composeRule.onNodeWithTag("track_pin").assertDoesNotExist()
     }
 
+    private fun withDialog(
+        status: Status,
+        preview: CancelPreview,
+        driver: DriverSummaryResponse? = null,
+    ) = state(status, driver = driver).copy(cancelPreview = preview)
+
     @Test
-    fun cancelAsksForConfirmationAndPassesTheReason() {
-        var reason: String? = null
-        show(state(Status.SEARCHING_DRIVER), TrackActions(onCancel = { reason = it }))
+    fun theCancelButtonAsksTheViewModelToLoadTheFee() {
+        var requested = false
+        show(state(Status.SEARCHING_DRIVER), TrackActions(onCancelRequested = { requested = true }))
 
         composeRule.onNodeWithText("Cancel ride").performClick()
-        composeRule.onNodeWithTag("cancel_reason").performTextInput("Plans changed")
+
+        assertTrue(requested)
+    }
+
+    @Test
+    fun theDialogTellsHerTheFeeBeforeSheConfirms() {
+        show(withDialog(Status.DRIVER_ACCEPTED, CancelPreview.Ready(fee = 5000L, currency = "INR", freeUntilMillis = null)))
+        composeRule.onNodeWithTag("cancel_fee").assertTextContains("₹50", substring = true)
+    }
+
+    @Test
+    fun theDialogSaysWhenCancellingIsFree() {
+        show(withDialog(Status.SEARCHING_DRIVER, CancelPreview.Ready(fee = 0L, currency = "INR", freeUntilMillis = null)))
+        composeRule.onNodeWithTag("cancel_fee").assertTextContains("no fee", substring = true)
+    }
+
+    @Test
+    fun whileTheFeeLoadsTheConfirmButtonIsDisabled() {
+        show(withDialog(Status.SEARCHING_DRIVER, CancelPreview.Loading))
+        composeRule.onAllNodesWithText("Cancel ride")[1].assertIsNotEnabled()
+    }
+
+    @Test
+    fun aPickedReasonIsPassedOn() {
+        var reason: String? = null
+        show(
+            withDialog(Status.SEARCHING_DRIVER, CancelPreview.Unavailable),
+            TrackActions(onCancel = { reason = it }),
+        )
+
+        composeRule.onNodeWithText("Booked by mistake").performClick()
         composeRule.onAllNodesWithText("Cancel ride")[1].performClick() // [0] is the screen button, [1] the dialog confirm
 
+        assertEquals("Booked by mistake", reason)
+    }
+
+    @Test
+    fun somethingElseLetsHerTypeHerOwnReason() {
+        var reason: String? = null
+        show(
+            withDialog(Status.SEARCHING_DRIVER, CancelPreview.Unavailable),
+            TrackActions(onCancel = { reason = it }),
+        )
+
+        composeRule.onNodeWithText("Something else").performClick()
+        composeRule.onNodeWithTag("cancel_reason").performTextInput("Plans changed")
+        composeRule.onAllNodesWithText("Cancel ride")[1].performClick()
+
         assertEquals("Plans changed", reason)
+    }
+
+    @Test
+    fun theSafetyCancelIsOfferedOnlyOnceADriverIsAssigned() {
+        var unsafe = false
+        val driver = DriverSummaryResponse(name = "Asha")
+        show(
+            withDialog(Status.DRIVER_ACCEPTED, CancelPreview.Unavailable, driver),
+            TrackActions(onCancelUnsafe = { unsafe = true }),
+        )
+        composeRule.onNodeWithTag("cancel_unsafe").performClick()
+        assertTrue(unsafe)
+    }
+
+    @Test
+    fun noSafetyCancelWhileStillSearching() {
+        show(withDialog(Status.SEARCHING_DRIVER, CancelPreview.Unavailable))
+        composeRule.onNodeWithTag("cancel_unsafe").assertDoesNotExist()
+    }
+
+    @Test
+    fun afterACancelTheRideSaysWhetherSheWasCharged() {
+        show(state(Status.CANCELLED).copy(cancelFee = 0L, cancelFeeCurrency = "INR"))
+        composeRule.onNodeWithText("You were not charged a cancellation fee.").assertExists()
+    }
+
+    @Test
+    fun afterAChargedCancelTheRideNamesTheFee() {
+        show(state(Status.CANCELLED).copy(cancelFee = 5000L, cancelFeeCurrency = "INR"))
+        composeRule.onNodeWithText("A cancellation fee of ₹50 applies.").assertExists()
+    }
+
+    @Test
+    fun theRatingCardAppearsOnAFinishedRideWithADriver() {
+        composeRule.setContent {
+            TrackBookingContent(state(Status.COMPLETED, driver = DriverSummaryResponse(name = "Asha")), TrackActions(), rating = {
+                androidx.compose.material3.Text("rating-slot")
+            })
+        }
+        composeRule.onNodeWithText("rating-slot").assertExists()
+    }
+
+    @Test
+    fun noRatingCardWhileTheRideIsStillUnderway() {
+        composeRule.setContent {
+            TrackBookingContent(state(Status.RIDE_STARTED, driver = DriverSummaryResponse(name = "Asha")), TrackActions(), rating = {
+                androidx.compose.material3.Text("rating-slot")
+            })
+        }
+        composeRule.onNodeWithText("rating-slot").assertDoesNotExist()
     }
 
     @Test
