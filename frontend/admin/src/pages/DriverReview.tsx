@@ -6,6 +6,14 @@ import type { components } from '../lib/api-types'
 type Review = components['schemas']['DriverReviewSummaryResponse']
 type DocumentRow = components['schemas']['DriverDocumentAdminResponse']
 
+/** Captains register with an RC and a selfie; licence and fitness certificate are optional. */
+const EXPECTED_DOCUMENTS: { type: string; optional: boolean }[] = [
+  { type: 'VEHICLE_REGISTRATION', optional: false },
+  { type: 'SELFIE', optional: false },
+  { type: 'LICENSE', optional: true },
+  { type: 'FITNESS_CERTIFICATE', optional: true },
+]
+
 function DocumentViewer({ documentId }: { documentId: string }) {
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -192,6 +200,13 @@ export default function DriverReview() {
         <h2>Documents</h2>
         <ul className="document-list">
           {review.documents?.map((doc) => <DocumentRowView key={doc.id} doc={doc} onReviewed={load} />)}
+          {EXPECTED_DOCUMENTS.filter((e) => !review.documents?.some((d) => d.type === e.type)).map((e) => (
+            <li key={e.type} className="document-row">
+              <div>
+                <strong>{e.type}</strong> <span className="muted">(not provided{e.optional ? ' - optional' : ''})</span>
+              </div>
+            </li>
+          ))}
         </ul>
       </div>
 

@@ -188,8 +188,9 @@ public abstract class PersistenceTestSupport {
     /** Accepts the current self-declaration for a subject - docs/api/driver-onboarding.md section 2. */
     protected void acceptCurrentDeclaration(SubjectType subjectType, UUID subjectId) {
         jdbc.update("INSERT INTO self_declarations (subject_type, subject_id, declaration_version) "
-                        + "VALUES (?, ?, (SELECT version FROM declaration_versions ORDER BY published_at DESC LIMIT 1))",
-                subjectType.name(), subjectId);
+                        + "VALUES (?, ?, (SELECT version FROM declaration_versions WHERE audience IN ('ALL', ?) "
+                        + "ORDER BY published_at DESC LIMIT 1))",
+                subjectType.name(), subjectId, subjectType.name());
     }
 
     /** A real, tiny, decodable JPEG - {@link com.ladygo.storage.UploadValidator} now actually decodes

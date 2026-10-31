@@ -47,6 +47,17 @@ describe('DriverReview', () => {
     return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
   }
 
+  it('shows documents the captain did not provide, marking the optional ones', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(reviewBody)))
+
+    renderReview()
+
+    await waitFor(() => expect(screen.getByText(/JK01AB1234/)).toBeInTheDocument())
+    // Required but missing: the RC and the selfie. Optional and missing: the fitness certificate.
+    expect(screen.getAllByText(/not provided/)).toHaveLength(3)
+    expect(screen.getByText('(not provided - optional)')).toBeInTheDocument()
+  })
+
   it('shows the vehicle, documents and missing requirements', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(reviewBody)))
 

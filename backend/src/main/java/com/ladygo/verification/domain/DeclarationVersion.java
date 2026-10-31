@@ -20,6 +20,10 @@ public class DeclarationVersion {
     @Column(name = "version", length = 20, nullable = false)
     private String version;
 
+    /** ALL, CUSTOMER or DRIVER: which subjects this wording is shown to. */
+    @Column(name = "audience", length = 10, nullable = false)
+    private String audience = "ALL";
+
     @Column(name = "text", columnDefinition = "text", nullable = false)
     private String text;
 

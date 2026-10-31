@@ -58,9 +58,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AdminVerificationService {
 
+    /** Captains are two-wheeler only and register with an RC and a selfie; every other document (licence,
+     *  fitness, insurance, ...) is optional because the captain's own declaration carries that responsibility. */
     private static final List<DocumentType> ALWAYS_REQUIRED = List.of(
-            DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION, DocumentType.VEHICLE_PHOTO,
-            DocumentType.INSURANCE, DocumentType.SELFIE);
+            DocumentType.VEHICLE_REGISTRATION, DocumentType.SELFIE);
+
+    private static final List<DocumentType> OPTIONAL_EXPIRING = List.of(
+            DocumentType.LICENSE, DocumentType.INSURANCE, DocumentType.FITNESS_CERTIFICATE,
+            DocumentType.POLLUTION_CERTIFICATE);
 
     private final DriverDocumentRepository documents;
     private final EligibilityReportRepository reports;
@@ -213,7 +218,8 @@ public class AdminVerificationService {
         boolean declarationAccepted = selfDeclarations.hasAcceptedCurrentVersion(SubjectType.DRIVER, driverId);
 
         DriverContact contact = driverContact(driverId);
-        List<DriverDocumentAdminResponse> latestPerType = requiredTypes().stream()
+        // Everything the captain uploaded, required or optional - an admin must see a provided licence too.
+        List<DriverDocumentAdminResponse> latestPerType = reviewedTypes().stream()
                 .map(type -> documents.findFirstByDriverIdAndTypeOrderByCreatedAtDesc(driverId, type))
                 .filter(java.util.Optional::isPresent)
                 .map(java.util.Optional::get)
@@ -303,6 +309,16 @@ public class AdminVerificationService {
                 missing.add(type.name() + " has expired");
             }
         }
+        // An optional document that WAS provided and approved must not be past its expiry date.
+        for (DocumentType type : OPTIONAL_EXPIRING) {
+            if (requiredTypes().contains(type)) {
+                continue;
+            }
+            documents.findFirstByDriverIdAndTypeOrderByCreatedAtDesc(driverId, type)
+                    .filter(d -> d.getStatus() == DocumentStatus.APPROVED && d.getExpiresAt() != null
+                            && d.getExpiresAt().isBefore(LocalDate.now()))
+                    .ifPresent(d -> missing.add(type.name() + " has expired"));
+        }
         if (vehicle == null) {
             missing.add("no vehicle submitted");
         } else if (vehicle.getVerificationStatus() != VehicleVerificationStatus.APPROVED) {
@@ -312,6 +328,19 @@ public class AdminVerificationService {
             missing.add("self-declaration not accepted");
         }
         return missing;
+    }
+
+    private List<DocumentType> reviewedTypes() {
+        List<DocumentType> all = new ArrayList<>(requiredTypes());
+        for (DocumentType type : OPTIONAL_EXPIRING) {
+            if (!all.contains(type)) {
+                all.add(type);
+            }
+        }
+        if (!all.contains(DocumentType.VEHICLE_PHOTO)) {
+            all.add(DocumentType.VEHICLE_PHOTO);
+        }
+        return all;
     }
 
     /** Police verification is only required once flipped on before public launch (docs/api/driver-onboarding.md section 3). */

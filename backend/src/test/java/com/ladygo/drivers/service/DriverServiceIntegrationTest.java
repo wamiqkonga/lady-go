@@ -101,9 +101,9 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         City city = newCity();
         UUID userId = newDriverUserId(city);
 
-        var response = service.acceptDeclaration(userId, "v1");
+        var response = service.acceptDeclaration(userId, "driver-v2");
 
-        assertThat(response.declarationVersion()).isEqualTo("v1");
+        assertThat(response.declarationVersion()).isEqualTo("driver-v2");
     }
 
     /** The actual gap this closes: previously nothing exposed the current version's text at all, so a
@@ -115,7 +115,7 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
 
         var status = service.getDeclarationStatus(userId);
 
-        assertThat(status.currentVersion()).isEqualTo("v1");
+        assertThat(status.currentVersion()).isEqualTo("driver-v2");
         assertThat(status.currentText()).isNotBlank();
         assertThat(status.accepted()).isFalse();
         assertThat(status.acceptedAt()).isNull();
@@ -125,12 +125,12 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
     void declarationStatusReflectsAcceptance() {
         City city = newCity();
         UUID userId = newDriverUserId(city);
-        service.acceptDeclaration(userId, "v1");
+        service.acceptDeclaration(userId, "driver-v2");
 
         var status = service.getDeclarationStatus(userId);
 
         assertThat(status.accepted()).isTrue();
-        assertThat(status.acceptedVersion()).isEqualTo("v1");
+        assertThat(status.acceptedVersion()).isEqualTo("driver-v2");
         assertThat(status.acceptedAt()).isNotNull();
     }
 
@@ -201,7 +201,7 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         City city = newCity();
         UUID userId = newDriverUserId(city);
         VehicleRequest request = new VehicleRequest(
-                "JK01AB" + System.nanoTime() % 10000, VehicleType.CAB, "Maruti", "Dzire", "White",
+                "JK01AB" + System.nanoTime() % 10000, VehicleType.BIKE, "Maruti", "Dzire", "White",
                 (short) (Year.now().getValue() - 2));
 
         VehicleResponse created = service.upsertVehicle(userId, request);
@@ -210,11 +210,24 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void upsertVehicleRejectsAnythingButATwoWheeler() {
+        City city = newCity();
+        UUID userId = newDriverUserId(city);
+        VehicleRequest request = new VehicleRequest(
+                "JK01GH" + System.nanoTime() % 10000, VehicleType.CAB, "Maruti", "Dzire", "White",
+                (short) (Year.now().getValue() - 2));
+
+        assertThatThrownBy(() -> service.upsertVehicle(userId, request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("two-wheeler");
+    }
+
+    @Test
     void upsertVehicleRejectsAVehicleOlderThanTheConfiguredMaxAge() {
         City city = newCity();
         UUID userId = newDriverUserId(city);
         VehicleRequest request = new VehicleRequest(
-                "JK01CD" + System.nanoTime() % 10000, VehicleType.CAB, "Maruti", "Dzire", "White",
+                "JK01CD" + System.nanoTime() % 10000, VehicleType.BIKE, "Maruti", "Dzire", "White",
                 (short) (Year.now().getValue() - 20));
 
         assertThatThrownBy(() -> service.upsertVehicle(userId, request)).isInstanceOf(ValidationException.class);
@@ -227,10 +240,10 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         UUID secondUserId = newDriverUserId(city);
         String registration = "JK01EF" + System.nanoTime() % 10000;
         service.upsertVehicle(firstUserId, new VehicleRequest(
-                registration, VehicleType.CAB, "Maruti", "Dzire", "White", (short) (Year.now().getValue() - 1)));
+                registration, VehicleType.BIKE, "Maruti", "Dzire", "White", (short) (Year.now().getValue() - 1)));
 
         assertThatThrownBy(() -> service.upsertVehicle(secondUserId, new VehicleRequest(
-                registration, VehicleType.CAB, "Hyundai", "i10", "Black", (short) (Year.now().getValue() - 1))))
+                registration, VehicleType.BIKE, "Hyundai", "i10", "Black", (short) (Year.now().getValue() - 1))))
                 .isInstanceOf(ValidationException.class);
     }
 

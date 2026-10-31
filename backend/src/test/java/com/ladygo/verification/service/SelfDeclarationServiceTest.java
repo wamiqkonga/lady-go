@@ -26,6 +26,19 @@ class SelfDeclarationServiceTest extends PersistenceTestSupport {
         assertThat(service.hasAcceptedCurrentVersion(SubjectType.CUSTOMER, subjectId)).isTrue();
     }
 
+    /** Captains accept their own wording (driver-v2); riders keep v1 and cannot accept the captain text. */
+    @Test
+    void captainsAndRidersGetDifferentCurrentVersions() {
+        UUID subjectId = UUID.randomUUID();
+
+        assertThat(service.currentStatus(SubjectType.DRIVER, subjectId).currentVersion()).isEqualTo("driver-v2");
+        assertThat(service.currentStatus(SubjectType.DRIVER, subjectId).currentText())
+                .contains("solely and fully responsible");
+        assertThat(service.currentStatus(SubjectType.CUSTOMER, subjectId).currentVersion()).isEqualTo("v1");
+        assertThatThrownBy(() -> service.accept(SubjectType.CUSTOMER, subjectId, "driver-v2"))
+                .isInstanceOf(ValidationException.class);
+    }
+
     @Test
     void acceptingAnUnknownVersionIsRejected() {
         UUID subjectId = UUID.randomUUID();
