@@ -22,6 +22,9 @@ public enum ErrorCode {
     CONCURRENT_UPDATE(HttpStatus.CONFLICT, "This was just updated by someone else. Please retry."),
     PAYMENT_METHOD_UNAVAILABLE(HttpStatus.UNPROCESSABLE_ENTITY, "This payment method is not available yet."),
     ALREADY_RATED(HttpStatus.CONFLICT, "This ride has already been rated."),
+    STEP_UP_REQUIRED(HttpStatus.FORBIDDEN, "Confirm your identity with a fresh authenticator code to continue."),
+    MFA_ENROLMENT_REQUIRED(HttpStatus.FORBIDDEN,
+            "Set up an authenticator app on the Security page before doing this."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

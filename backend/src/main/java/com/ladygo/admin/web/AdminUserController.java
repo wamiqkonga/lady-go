@@ -24,16 +24,20 @@ public class AdminUserController {
 
     private final AdminAuthService adminAuthService;
     private final ClientIpResolver clientIpResolver;
+    private final com.ladygo.auth.service.StepUpGuard stepUpGuard;
 
-    public AdminUserController(AdminAuthService adminAuthService, ClientIpResolver clientIpResolver) {
+    public AdminUserController(AdminAuthService adminAuthService, ClientIpResolver clientIpResolver,
+            com.ladygo.auth.service.StepUpGuard stepUpGuard) {
         this.adminAuthService = adminAuthService;
         this.clientIpResolver = clientIpResolver;
+        this.stepUpGuard = stepUpGuard;
     }
 
     @PostMapping("/{id}/mfa/reset")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ApiResponse<Void> resetMfa(
             @PathVariable UUID id, @AuthenticationPrincipal AuthPrincipal principal, HttpServletRequest request) {
+        stepUpGuard.require(principal);
         adminAuthService.resetMfa(principal.userId(), principal.role(), id, clientIpResolver.resolve(request));
         return ApiResponse.ok(null);
     }
