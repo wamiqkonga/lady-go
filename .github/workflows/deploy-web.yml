@@ -1,0 +1,143 @@
+name: Deploy websites
+
+# Merge to main -> build and test the website and the admin panel -> upload them to MilesWeb over HTTPS (cPanel Web Disk) ->
+# check the live site serves exactly what was built; put the old page back if it does not.
+#
+# Two jobs on purpose:
+#   build   installs packages and runs the checks. It runs third-party package code, so it has NO secrets and no
+#           environment. It hands the finished files to the next job as an artifact.
+#   deploy  holds the Web Disk passwords (environment "website-production", limited to main) and runs ONLY the upload
+#           script from a fresh checkout. No npm, no third-party code.
+# Every push to the site folders deploys BOTH sites: uploads are repeatable and a skipped run can never lose a change.
+# The Web Disk accounts are locked to one site folder each (cPanel); the host's FTP has no encryption, so it is not used. Setup: docs/development/plans/2026-10-25-website-auto-deploy.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/website/**"
+      - "frontend/admin/**"
+      - "scripts/ci/deploy-web.sh"
+      - ".github/workflows/deploy-web.yml"
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "Which site to deploy"
+        required: true
+        default: both
+        type: choice
+        options: [website, admin, both]
+
+permissions:
+  contents: read
+
+# One website deploy at a time. A run waiting behind another may be replaced by a newer one; that is safe because every
+# run builds and deploys the current main for the chosen sites.
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: ${{ github.repository == 'wamiqkonga/lady-go' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sites: ${{ steps.pick.outputs.sites }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Test the upload script
+        run: bash scripts/ci/deploy-web.test.sh
+      - name: Decide which sites to deploy
+        id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          CHOICE: ${{ inputs.site }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$CHOICE" = "website" ]; then sites='["website"]'
+          elif [ "$EVENT" = "workflow_dispatch" ] && [ "$CHOICE" = "admin" ]; then sites='["admin"]'
+          else sites='["website","admin"]'
+          fi
+          echo "sites=$sites" >> "$GITHUB_OUTPUT"
+          echo "Sites to deploy: $sites"
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        site: ${{ fromJson(needs.plan.outputs.sites) }}
+    defaults:
+      run:
+        working-directory: frontend/${{ matrix.site }}
+    env:
+      # The real API address; the build and the upload script both refuse anything pointing at localhost.
+      VITE_API_BASE_URL: https://api.ladygoride.com
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/${{ matrix.site }}/package-lock.json
+      - run: npm ci
+      - name: Check generated API client is up to date
+        run: npm run openapi:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - name: Check production CSP has no unsafe-inline/unsafe-eval/third-party sources
+        run: npm run csp:check
+      - run: npm run build
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dist-${{ matrix.site }}
+          path: frontend/${{ matrix.site }}/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The environment holds the Web Disk passwords and only lets the main branch use them.
+    environment: website-production
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        site: ${{ fromJson(needs.plan.outputs.sites) }}
+    steps:
+      # A fresh checkout of trusted code only: nothing from the build job except the finished files.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dist-${{ matrix.site }}
+          path: dist
+      - name: Upload to MilesWeb and check the live site
+        env:
+          SITE: ${{ matrix.site }}
+          DAV_HOST: ${{ secrets.WEBDAV_HOST }}
+          WEB_USER: ${{ secrets.WEBDAV_WEB_USER }}
+          WEB_PASSWORD: ${{ secrets.WEBDAV_WEB_PASSWORD }}
+          ADMIN_USER: ${{ secrets.WEBDAV_ADMIN_USER }}
+          ADMIN_PASSWORD: ${{ secrets.WEBDAV_ADMIN_PASSWORD }}
+        run: |
+          # Each site uses only its own account; a missing secret must stop the run, never fall back to the other one.
+          case "$SITE" in
+            website) live="https://ladygoride.com"; user="$WEB_USER"; pass="$WEB_PASSWORD" ;;
+            admin)   live="https://admin.ladygoride.com"; user="$ADMIN_USER"; pass="$ADMIN_PASSWORD" ;;
+            *) echo "unknown site: $SITE"; exit 1 ;;
+          esac
+          if [ -z "$DAV_HOST" ] || [ -z "$user" ] || [ -z "$pass" ]; then
+            echo "The Web Disk secrets for the $SITE site are not all set in the website-production environment."; exit 1
+          fi
+          WEBDAV_HOST="$DAV_HOST" WEBDAV_USER="$user" WEBDAV_PASSWORD="$pass" bash scripts/ci/deploy-web.sh dist "$live"

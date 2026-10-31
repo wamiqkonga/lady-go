@@ -34,3 +34,36 @@ pushed to ECR, then `deploy.sh` runs on this host through AWS SSM. `deploy.sh` b
   rename in the same release). To restore data, use the pre-deploy dump in the backups bucket.
 - Test the script without a server: `bash infrastructure/prod/deploy.test.sh`.
 - One-time AWS and GitHub setup: `docs/development/plans/2026-10-24-main-to-production-deploy.md` (T1-T6).
+
+## Websites (MilesWeb, automatic)
+
+`ladygoride.com` (from `frontend/website`) and `admin.ladygoride.com` (from `frontend/admin`) run on MilesWeb shared
+hosting (cPanel account `mruptzat`, which also hosts other businesses' sites). `.github/workflows/deploy-web.yml`
+deploys them when their code changes on `main`. Every such push deploys **both** sites (uploads are repeatable, and a
+skipped run can then never lose a change). Two jobs: **build** (tests and a production build with
+`VITE_API_BASE_URL=https://api.ladygoride.com`; it runs third-party packages, so it has no secrets) and **deploy**
+(a fresh checkout that only downloads the built files and runs the upload script: HTTPS to cPanel Web Disk, then a byte-for-byte check
+that the live site serves exactly the built files).
+
+- **Order of the upload** (`scripts/ci/deploy-web.sh`): supporting files and assets first (old ones are never deleted),
+  the previous `index.html` saved as `index.html.prev`, `index.html` last. If the live check fails, the old page is put back.
+- **Never touched:** `.htaccess`, `.user.ini`, `php.ini`, `.well-known`, `cgi-bin`, and every other site on the account.
+  The script refuses a build that contains dotfiles, `*.ini` or `*.php`, so these cannot be overwritten by mistake.
+- **Accounts:** one cPanel **Web Disk** account per site (WebDAV over HTTPS on port 2078), with its directory set to that
+  site's folder (`public_html/ladygoride.com`, `public_html/admin.ladygoride.com`), so a leaked password can change only one
+  site. The host's plain FTP has **no encryption** (it refuses `AUTH TLS`) and SFTP is closed, so FTP is not used.
+  The passwords are secrets of the GitHub environment `website-production` (limited to `main`):
+  `WEBDAV_HOST` (`emphasis.herosite.pro`), `WEBDAV_WEB_USER`, `WEBDAV_WEB_PASSWORD`, `WEBDAV_ADMIN_USER`, `WEBDAV_ADMIN_PASSWORD`. Only the upload step of the
+  deploy job sees them, and each site uses only its own account (a missing secret stops the run; it never falls back
+  to the other site's account).
+- **Run by hand:** GitHub, Actions, "Deploy websites", Run workflow, pick `website`, `admin` or `both`.
+- **Roll back:** revert the change on `main`; that push deploys the old code by itself. For an immediate fix, put
+  `index.html.prev` back over `index.html` in cPanel File Manager (old assets are never deleted). `index.html.prev` is
+  rewritten on every deploy, so after re-running the same build it equals the current page; roll back before re-running.
+- **If a live check fails** the script puts the old page back and says whether the old page is live again; if it logs a
+  WARNING or "RESTORE FAILED", open the site and check by hand.
+- **Rotate a password:** change it in cPanel, Web Disk, then update the matching secret
+  (`gh secret set WEBDAV_WEB_PASSWORD --env website-production --repo wamiqkonga/lady-go`).
+- **`driver.ladygoride.com`** is a permanent redirect (301) to `ladygoride.com/driver`, set in that folder's `.htaccess`.
+- Test the upload script without a server: `bash scripts/ci/deploy-web.test.sh`.
+
