@@ -25,6 +25,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LadyGo"
         android:usesCleartextTraffic="false">
+        <!-- Google Maps key, injected at build time (see app/build.gradle.kts); never committed. -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
         <!-- False positive: this is the app's MAIN/LAUNCHER activity, not a general exported
              component - Android REQUIRES exported="true" here (API 31+ build-fails without it for
              any activity with a MAIN/LAUNCHER intent-filter), and it accepts no deep-link data, no

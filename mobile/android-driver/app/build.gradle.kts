@@ -41,6 +41,9 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // The Google Maps key is a build-time secret: set MAPS_API_KEY in ~/.gradle/gradle.properties or pass
+        // -PMAPS_API_KEY=... in CI. It is never committed; without it the map renders blank but the app builds.
+        manifestPlaceholders["MAPS_API_KEY"] = (project.findProperty("MAPS_API_KEY") as String?) ?: ""
     }
 
     buildTypes {
@@ -307,6 +310,8 @@ dependencies {
 
     implementation(libs.androidx.security.crypto)
     implementation(libs.play.services.location)
+    implementation(libs.play.services.maps)
+    implementation(libs.maps.compose)
 
     // STOMP-over-WebSocket client for ride offers (slice 2b) - verified before adding: MIT licensed,
     // actively maintained (github.com/joffrey-bion/krossbow, last push within days of this commit),

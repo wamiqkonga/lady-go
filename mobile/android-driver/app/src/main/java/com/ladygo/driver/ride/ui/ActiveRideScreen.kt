@@ -9,8 +9,10 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -50,8 +52,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.maps.model.LatLng
 import com.ladygo.driver.R
 import com.ladygo.driver.api.generated.models.BookingDetailResponse
+import com.ladygo.driver.map.RideFocus
+import com.ladygo.driver.map.RideMap
 import com.ladygo.driver.ride.ActiveRideUiState
 import com.ladygo.driver.ride.ActiveRideViewModel
 import com.ladygo.driver.ride.ExternalIntents
@@ -114,6 +119,16 @@ fun ActiveRideScreen(
                     onFinished()
                 },
             ),
+        map = { booking, stage ->
+            val pickup = latLngOrNull(booking.pickupLatitude, booking.pickupLongitude)
+            val destination = latLngOrNull(booking.destinationLatitude, booking.destinationLongitude)
+            RideMap(
+                pickup = pickup,
+                destination = destination,
+                focus = if (stage == RideStage.IN_TRIP) RideFocus.DESTINATION else RideFocus.PICKUP,
+                modifier = Modifier.fillMaxSize(),
+            )
+        },
     )
 }
 
@@ -121,6 +136,8 @@ fun ActiveRideScreen(
 fun ActiveRideContent(
     state: ActiveRideUiState,
     actions: ActiveRideActions,
+    /** The ride map. A slot so screen tests never need Play services; the real screen passes [RideMap]. */
+    map: @Composable (BookingDetailResponse, RideStage) -> Unit = { _, _ -> },
 ) {
     val booking = state.booking ?: return
     val stage = state.stage ?: return
@@ -134,6 +151,18 @@ fun ActiveRideContent(
         bottomBar = { BottomActions(state, stage, actions) },
     ) {
         StageProgress(stage)
+        if (stage == RideStage.TO_PICKUP || stage == RideStage.IN_TRIP) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(RIDE_MAP_HEIGHT_DP.dp)
+                        .clip(MaterialTheme.shapes.large)
+                        .testTag("ride_map"),
+            ) {
+                map(booking, stage)
+            }
+        }
         state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("ride_error")) }
         StageContent(state, stage, booking, actions)
     }
@@ -501,3 +530,10 @@ private tailrec fun Context.findActivity(): Activity? =
 
 private const val MAX_PIN_INPUT_LENGTH = 6
 private val SELFIE_HEIGHT = 240.dp
+
+private fun latLngOrNull(
+    latitude: Double?,
+    longitude: Double?,
+): LatLng? = if (latitude != null && longitude != null) LatLng(latitude, longitude) else null
+
+private const val RIDE_MAP_HEIGHT_DP = 220
