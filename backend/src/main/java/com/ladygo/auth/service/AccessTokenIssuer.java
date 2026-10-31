@@ -24,10 +24,14 @@ public class AccessTokenIssuer {
     }
 
     public String issue(UUID userId, UserRole role) {
+        return issue(userId, role, null);
+    }
+
+    public String issue(UUID userId, UserRole role, java.time.Instant stepUpAt) {
         Duration ttl = isStaff(role)
                 ? config.getMinutes("admin.access.token.ttl.minutes", Duration.ofMinutes(10))
                 : config.getMinutes("access.token.ttl.minutes", Duration.ofMinutes(15));
-        return jwtService.issueAccessToken(userId, role, ttl);
+        return jwtService.issueAccessToken(userId, role, ttl, stepUpAt);
     }
 
     private boolean isStaff(UserRole role) {

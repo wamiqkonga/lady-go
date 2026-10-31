@@ -3,6 +3,7 @@ package com.ladygo.admin.web;
 import java.util.List;
 import java.util.UUID;
 import com.ladygo.admin.service.AdminConfigService;
+import com.ladygo.auth.service.StepUpGuard;
 import com.ladygo.admin.web.dto.AdminConfigEntryResponse;
 import com.ladygo.admin.web.dto.AdminConfigUpdateRequest;
 import com.ladygo.common.api.ApiResponse;
@@ -31,10 +32,13 @@ public class AdminConfigController {
 
     private final AdminConfigService service;
     private final ClientIpResolver clientIpResolver;
+    private final StepUpGuard stepUpGuard;
 
-    public AdminConfigController(AdminConfigService service, ClientIpResolver clientIpResolver) {
+    public AdminConfigController(
+            AdminConfigService service, ClientIpResolver clientIpResolver, StepUpGuard stepUpGuard) {
         this.service = service;
         this.clientIpResolver = clientIpResolver;
+        this.stepUpGuard = stepUpGuard;
     }
 
     @GetMapping
@@ -48,6 +52,7 @@ public class AdminConfigController {
     public ApiResponse<AdminConfigEntryResponse> update(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
             @Valid @RequestBody AdminConfigUpdateRequest request, HttpServletRequest httpRequest) {
+        stepUpGuard.require(principal);
         return ApiResponse.ok(service.update(
                 id, request.value(), request.reason(), principal.userId(), principal.role().name(),
                 clientIpResolver.resolve(httpRequest)));
