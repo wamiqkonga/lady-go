@@ -336,6 +336,64 @@
         }
       }
     },
+    "/api/v1/notifications/devices": {
+      "post": {
+        "tags": [
+          "device-controller"
+        ],
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDeviceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "device-controller"
+        ],
+        "operationId": "unregister",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnregisterDeviceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/maps/reverse-geocode": {
       "post": {
         "tags": [
@@ -2783,6 +2841,37 @@
         }
       }
     },
+    "/api/v1/bookings/{id}/cancellation-preview": {
+      "get": {
+        "tags": [
+          "booking-controller"
+        ],
+        "operationId": "cancellationPreview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseCancellationPreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/rides": {
       "get": {
         "tags": [
@@ -3729,6 +3818,46 @@
           }
         }
       },
+      "RegisterDeviceRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "ANDROID",
+              "IOS"
+            ]
+          }
+        },
+        "required": [
+          "platform",
+          "token"
+        ]
+      },
+      "ApiResponseVoid": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {},
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ReverseGeocodeRequest": {
         "type": "object",
         "properties": {
@@ -4097,25 +4226,6 @@
         "properties": {
           "reason": {
             "type": "string"
-          }
-        }
-      },
-      "ApiResponseVoid": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "data": {},
-          "message": {
-            "type": "string"
-          },
-          "error": {
-            "$ref": "#/components/schemas/ApiError"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },
@@ -6027,6 +6137,46 @@
           }
         }
       },
+      "ApiResponseCancellationPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CancellationPreviewResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CancellationPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "cancellable": {
+            "type": "boolean"
+          },
+          "fee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "freeUntil": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "AdminRideSummaryResponse": {
         "type": "object",
         "properties": {
@@ -6687,6 +6837,19 @@
             "format": "int32"
           }
         }
+      },
+      "UnregisterDeviceRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "token"
+        ]
       }
     }
   }

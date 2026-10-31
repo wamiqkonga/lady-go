@@ -14,6 +14,7 @@ import com.ladygo.bookings.domain.BookingStatus;
 import com.ladygo.bookings.repository.BookingEventRepository;
 import com.ladygo.bookings.repository.BookingRepository;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
+import com.ladygo.bookings.web.dto.CancellationPreviewResponse;
 import com.ladygo.bookings.web.dto.BookingRequest;
 import com.ladygo.bookings.web.dto.DestinationChangeEstimateRequest;
 import com.ladygo.bookings.web.dto.DestinationChangeRequest;
@@ -434,8 +435,16 @@ public class BookingService {
      * append-only {@code booking_events} table (a real bug caught by the DB's own append-only trigger).
      */
     private Map<String, Object> assessCancellationFee(Booking booking) {
+        return Map.of("cancellationFee", cancellationFeeNow(booking).fee(), "currency", booking.getCurrency());
+    }
+
+    /** The fee a rider would pay to cancel at this moment, and until when it is waived (if it is). */
+    private record CancellationAssessment(int fee, Instant freeUntil) {
+    }
+
+    private CancellationAssessment cancellationFeeNow(Booking booking) {
         if (booking.getStatus() == BookingStatus.REQUESTED || booking.getStatus() == BookingStatus.SEARCHING_DRIVER) {
-            return Map.of("cancellationFee", 0, "currency", booking.getCurrency());
+            return new CancellationAssessment(0, null);
         }
 
         Instant driverAcceptedAt = bookingEvents.findByBookingIdOrderByCreatedAtAsc(booking.getId()).stream()
@@ -445,16 +454,29 @@ public class BookingService {
                 .orElse(null);
 
         int graceSeconds = config.getInt("cancellation.grace.seconds", 120);
-        boolean withinGrace = driverAcceptedAt != null
-                && Instant.now().isBefore(driverAcceptedAt.plusSeconds(graceSeconds));
-        if (withinGrace) {
-            return Map.of("cancellationFee", 0, "currency", booking.getCurrency());
+        Instant freeUntil = driverAcceptedAt == null ? null : driverAcceptedAt.plusSeconds(graceSeconds);
+        if (freeUntil != null && Instant.now().isBefore(freeUntil)) {
+            return new CancellationAssessment(0, freeUntil);
         }
 
         int fee = pricingRules.findActive(booking.getCityId(), booking.getVehicleType(), Instant.now())
                 .map(rule -> (int) rule.getCancellationFee())
                 .orElse(0);
-        return Map.of("cancellationFee", fee, "currency", booking.getCurrency());
+        return new CancellationAssessment(fee, null);
+    }
+
+    /** docs/api/booking.md section 5: the rider sees the fee before confirming a cancel. Own booking only. */
+    @Transactional(readOnly = true)
+    public CancellationPreviewResponse cancellationPreview(UUID userId, UUID bookingId) {
+        Customer customer = resolveCustomer(userId);
+        Booking booking = bookings.findById(bookingId)
+                .filter(b -> b.getCustomerId().equals(customer.getId()))
+                .orElseThrow(ResourceNotFoundException::new);
+        if (!BookingStateMachine.isCancellable(booking.getStatus())) {
+            return new CancellationPreviewResponse(false, 0, booking.getCurrency(), null);
+        }
+        CancellationAssessment assessment = cancellationFeeNow(booking);
+        return new CancellationPreviewResponse(true, assessment.fee(), booking.getCurrency(), assessment.freeUntil());
     }
 
     private City resolveCity(double latitude, double longitude) {

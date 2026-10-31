@@ -284,6 +284,44 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void theCancellationPreviewMatchesWhatCancellingWouldCharge() {
+        City city = srinagar();
+        newPricingRule(city, VehicleType.CAB);
+        Customer customer = newCustomer();
+        Driver driver = newDriver(city);
+
+        Booking searching = newBooking(customer, city, BookingStatus.SEARCHING_DRIVER, null);
+        assertThat(bookingService.cancellationPreview(customer.getUserId(), searching.getId()).fee()).isZero();
+
+        Booking justAccepted = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+        stateMachineAccept(justAccepted);
+        var free = bookingService.cancellationPreview(customer.getUserId(), justAccepted.getId());
+        assertThat(free.cancellable()).isTrue();
+        assertThat(free.fee()).isZero();
+        assertThat(free.freeUntil()).isAfter(Instant.now());
+
+        Booking waited = newBooking(customer, city, BookingStatus.DRIVER_ASSIGNED, driver.getId());
+        insertDriverAcceptedEventAt(waited, Instant.now().minusSeconds(600));
+        var charged = bookingService.cancellationPreview(customer.getUserId(), waited.getId());
+        assertThat(charged.fee()).isEqualTo(5000L);
+        assertThat(charged.currency()).isEqualTo(waited.getCurrency());
+        assertThat(charged.freeUntil()).isNull();
+    }
+
+    @Test
+    void aFinishedRideCannotBeCancelledAndSomeoneElsesBookingIsNotFound() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Booking completed = newBooking(customer, city, BookingStatus.COMPLETED, null);
+
+        assertThat(bookingService.cancellationPreview(customer.getUserId(), completed.getId()).cancellable()).isFalse();
+        Customer stranger = newCustomer();
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> bookingService.cancellationPreview(stranger.getUserId(), completed.getId()))
+                .isInstanceOf(com.ladygo.common.exception.ResourceNotFoundException.class);
+    }
+
+    @Test
     void historyIsPaginatedNewestFirstAndOmitsRidePinAndDriver() {
         City city = srinagar();
         Customer customer = newCustomer();

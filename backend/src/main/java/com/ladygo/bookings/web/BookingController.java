@@ -5,6 +5,7 @@ import com.ladygo.bookings.service.BookingService;
 import com.ladygo.bookings.service.FareChangedException;
 import com.ladygo.bookings.service.RiderDriverLocationService;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
+import com.ladygo.bookings.web.dto.CancellationPreviewResponse;
 import com.ladygo.bookings.web.dto.BookingRequest;
 import com.ladygo.bookings.web.dto.CancelBookingRequest;
 import com.ladygo.bookings.web.dto.DestinationChangeEstimateRequest;
@@ -109,6 +110,12 @@ public class BookingController {
     public ApiResponse<DriverLocationForRiderResponse> driverLocation(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
         return ApiResponse.ok(riderDriverLocationService.get(principal.userId(), id));
+    }
+
+    @GetMapping("/{id}/cancellation-preview")
+    public ApiResponse<CancellationPreviewResponse> cancellationPreview(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
+        return ApiResponse.ok(bookingService.cancellationPreview(principal.userId(), id));
     }
 
     @PostMapping("/{id}/cancel")

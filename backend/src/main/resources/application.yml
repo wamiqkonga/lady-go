@@ -104,6 +104,11 @@ ladygo:
       directory: ${LADYGO_LOCAL_STORAGE_DIR:./target/local-storage}
       secret: ${LADYGO_LOCAL_STORAGE_SECRET:dev-only-insecure-local-storage-secret-CHANGE-ME-01234}
       base-url: ${LADYGO_LOCAL_STORAGE_BASE_URL:http://localhost:8080}
+  push:
+    # logging (dev/test), fcm (set the two LADYGO_FCM_* variables), or disabled (no push yet). The logging sender is refused under staging/prod.
+    provider: ${LADYGO_PUSH_PROVIDER:logging}
+    fcm-project-id: ${LADYGO_FCM_PROJECT_ID:}
+    fcm-service-account-json: ${LADYGO_FCM_SERVICE_ACCOUNT_JSON:}
   sms:
     # HttpSmsSender isn't even wired as a bean in dev/test (LoggingSmsSender is - see its @Profile),
     # so these blank defaults are never actually used there; staging/prod override every one with no

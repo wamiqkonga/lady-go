@@ -16,6 +16,11 @@ logging:
     com.ladygo: INFO
 
 ladygo:
+  push:
+    # logging (dev/test), fcm (set the two LADYGO_FCM_* variables), or disabled (no push yet). The logging sender is refused under staging/prod.
+    provider: ${LADYGO_PUSH_PROVIDER:disabled}
+    fcm-project-id: ${LADYGO_FCM_PROJECT_ID:}
+    fcm-service-account-json: ${LADYGO_FCM_SERVICE_ACCOUNT_JSON:}
   cors:
     allowed-origins: ${LADYGO_CORS_ALLOWED_ORIGINS}
   websocket:
