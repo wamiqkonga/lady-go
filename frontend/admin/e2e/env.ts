@@ -154,3 +154,10 @@ export function readE2eEnvOrThrowInCi(): E2eEnv | null {
 export function currentTotpCode(secret: string): string {
   return generateSync({ secret })
 }
+
+/** The code for the NEXT 30s step. Login already consumed the current step, and the backend's replay guard only
+ *  accepts a strictly newer one for a step-up; its +/-1 step window accepts the next step immediately, so a test
+ *  does not have to wait up to 30s. */
+export function nextTotpCode(secret: string): string {
+  return generateSync({ secret, epoch: Math.floor(Date.now() / 1000) + 30 })
+}

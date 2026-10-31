@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readE2eEnvOrThrowInCi } from './env.js'
-import { loginAs } from './helpers.js'
+import { confirmStepUp, loginAs } from './helpers.js'
 
 const env = readE2eEnvOrThrowInCi()
 
@@ -102,6 +102,9 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
 
     await editPanel.getByPlaceholder(/Reason for this change/).fill('e2e oversight-flow test')
     await confirmButton.click()
+
+    // Login does not count as a step-up: the save is refused until a fresh authenticator code is given.
+    await confirmStepUp(page, env!.superAdmins.CONFIGEDIT)
 
     await expect(row.getByRole('cell').nth(1)).toHaveText('7500')
   })
