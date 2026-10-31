@@ -2,6 +2,7 @@ package com.ladygo.driver
 
 import android.app.Application
 import com.ladygo.driver.offer.OfferCoordinator
+import com.ladygo.driver.push.RideNotifications
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -15,4 +16,10 @@ class LadyGoDriverApplication : Application() {
     // review finding, CRITICAL - see OfferCoordinator's own doc comment).
     @Inject
     lateinit var offerCoordinator: OfferCoordinator
+
+    override fun onCreate() {
+        super.onCreate()
+        // FCM shows background notifications into this channel, so it must exist before any push arrives.
+        RideNotifications.ensureChannel(this)
+    }
 }

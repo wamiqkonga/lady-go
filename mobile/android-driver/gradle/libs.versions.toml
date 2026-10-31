@@ -27,6 +27,8 @@ robolectric = "4.17"
 playServicesLocation = "21.4.0"
 playServicesMaps = "19.2.0"
 mapsCompose = "6.7.0"
+firebaseBom = "34.4.0"
+googleServices = "4.4.3"
 krossbow = "9.3.0"
 
 [libraries]
@@ -70,6 +72,9 @@ maps-compose = { group = "com.google.maps.android", name = "maps-compose", versi
 krossbow-stomp-core = { group = "org.hildan.krossbow", name = "krossbow-stomp-core", version.ref = "krossbow" }
 krossbow-websocket-okhttp = { group = "org.hildan.krossbow", name = "krossbow-websocket-okhttp", version.ref = "krossbow" }
 
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -78,3 +83,4 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }

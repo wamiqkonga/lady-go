@@ -2,6 +2,7 @@ package com.ladygo.driver.di
 
 import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
+import com.ladygo.driver.api.generated.apis.DeviceControllerApi
 import com.ladygo.driver.api.generated.apis.DriverBookingControllerApi
 import com.ladygo.driver.api.generated.apis.DriverControllerApi
 import com.ladygo.driver.api.generated.apis.DriverEarningsControllerApi
@@ -169,6 +170,12 @@ object NetworkModule {
     fun provideAuthControllerApi(
         @PlainClient retrofit: Retrofit,
     ): AuthControllerApi = retrofit.create(AuthControllerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDeviceControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): DeviceControllerApi = retrofit.create(DeviceControllerApi::class.java)
 
     @Provides
     @Singleton

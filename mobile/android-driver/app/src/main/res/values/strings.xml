@@ -229,4 +229,6 @@
     <string name="map_offer_description">Map of the area where the rider is waiting.</string>
     <string name="map_ride_description">Map showing your position, the pickup and the destination.</string>
     <string name="map_home_description">Map showing where you are.</string>
+    <string name="notification_channel_ride_updates">Ride updates</string>
+    <string name="notification_channel_ride_updates_description">Your driver, pickup and ride status.</string>
 </resources>

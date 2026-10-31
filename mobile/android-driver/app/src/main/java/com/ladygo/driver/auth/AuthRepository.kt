@@ -7,6 +7,7 @@ import com.ladygo.driver.api.generated.models.OtpVerifyRequest
 import com.ladygo.driver.location.AppPreferences
 import com.ladygo.driver.location.AvailabilityRepository
 import com.ladygo.driver.network.errorMessageOrDefault
+import com.ladygo.driver.push.PushTokenRegistrar
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import javax.inject.Inject
@@ -46,6 +47,7 @@ class AuthRepository
         private val sessionManager: SessionManager,
         private val availabilityRepository: AvailabilityRepository,
         private val appPreferences: AppPreferences,
+        private val pushTokens: PushTokenRegistrar,
     ) {
         /** One per process, never persisted - only distinguishes refresh-token "families" for the
          *  server's reuse detection, matching the web client's same reasoning. */
@@ -118,6 +120,7 @@ class AuthRepository
         suspend fun logout() {
             withTimeoutOrNull(GO_OFFLINE_TIMEOUT_MILLIS) { runCatching { availabilityRepository.goOffline() } }
             appPreferences.setActiveBookingId(null)
+            runCatching { pushTokens.forget() } // while the access token is still valid
             val refreshToken = tokenStore.getRefreshToken()
             if (refreshToken != null) {
                 runCatching { authApi.logout(LogoutRequest(refreshToken = refreshToken, logoutAll = false)) }

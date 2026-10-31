@@ -26,6 +26,12 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.google.services) apply false
+}
+
+// Without the Firebase config file the app still builds and runs, with push switched off.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 apply(plugin = "org.openapi.generator")
@@ -312,6 +318,9 @@ dependencies {
     implementation(libs.play.services.location)
     implementation(libs.play.services.maps)
     implementation(libs.maps.compose)
+    // Push (FCM). Delivery needs app/google-services.json, which is not committed (see docs/development/push-notifications-setup.md).
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     // STOMP-over-WebSocket client for ride offers (slice 2b) - verified before adding: MIT licensed,
     // actively maintained (github.com/joffrey-bion/krossbow, last push within days of this commit),

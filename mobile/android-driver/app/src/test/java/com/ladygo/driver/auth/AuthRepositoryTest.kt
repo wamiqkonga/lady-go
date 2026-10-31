@@ -7,6 +7,7 @@ import com.ladygo.driver.api.generated.models.MessageResponse
 import com.ladygo.driver.location.AppPreferences
 import com.ladygo.driver.location.AvailabilityRepository
 import com.ladygo.driver.location.SetAvailabilityOutcome
+import com.ladygo.driver.push.PushTokenRegistrar
 import com.ladygo.driver.testing.FakeTokenStore
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -29,7 +30,8 @@ class AuthRepositoryTest {
     private val sessionManager = SessionManager(tokenStore)
     private val availabilityRepository = mockk<AvailabilityRepository>()
     private val appPreferences = mockk<AppPreferences>(relaxed = true)
-    private val repository = AuthRepository(authApi, tokenStore, sessionManager, availabilityRepository, appPreferences)
+    private val pushTokens = mockk<PushTokenRegistrar>(relaxed = true)
+    private val repository = AuthRepository(authApi, tokenStore, sessionManager, availabilityRepository, appPreferences, pushTokens)
 
     @Before
     fun goOfflineSucceeds() {
