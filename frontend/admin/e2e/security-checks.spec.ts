@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { currentTotpCode, readE2eEnvOrThrowInCi } from './env.js'
+import { currentTotpCode, nextTotpCode, readE2eEnvOrThrowInCi } from './env.js'
 import { loginAs } from './helpers.js'
 
 const env = readE2eEnvOrThrowInCi()
@@ -130,7 +130,7 @@ test.describe('negative security checks', () => {
     expect(dialogFired).toBe(false)
   })
 
-  test('a plain ADMIN cannot update config; SUPER_ADMIN can', async ({ page }) => {
+  test('a plain ADMIN cannot update config; SUPER_ADMIN can only after a step-up', async ({ page }) => {
     await loginAs(page, env!.admin)
     const adminAttempt = await page.evaluate(async (apiBaseUrl: string) => {
       const token = (window as unknown as { __ladygoAccessToken: () => string | null }).__ladygoAccessToken()
@@ -154,18 +154,42 @@ test.describe('negative security checks', () => {
 
     await page.context().clearCookies()
     await loginAs(page, env!.superAdmins.ROLECHECK)
-    const superAdminStatus = await page.evaluate(
-      async ({ apiBaseUrl, entryId }: { apiBaseUrl: string; entryId: string }) => {
+    // Role alone is not enough any more: a SUPER_ADMIN straight after login has no step-up, so the server refuses
+    // with STEP_UP_REQUIRED; after a fresh authenticator code through /auth/admin/step-up the same call succeeds.
+    const superAdmin = await page.evaluate(
+      async ({ apiBaseUrl, entryId, code }: { apiBaseUrl: string; entryId: string; code: string }) => {
         const token = (window as unknown as { __ladygoAccessToken: () => string | null }).__ladygoAccessToken()
-        const response = await fetch(`${apiBaseUrl}/api/v1/admin/config/${entryId}`, {
-          method: 'PUT',
+        const put = (bearer: string | null) =>
+          fetch(`${apiBaseUrl}/api/v1/admin/config/${entryId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${bearer}` },
+            body: JSON.stringify({ value: '500', reason: 'e2e role check' }),
+          })
+        const withoutStepUp = await put(token)
+        const withoutStepUpBody = (await withoutStepUp.json()) as { error?: { code?: string } }
+        const stepUp = await fetch(`${apiBaseUrl}/api/v1/auth/admin/step-up`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ value: '500', reason: 'e2e role check' }),
+          body: JSON.stringify({ code }),
         })
-        return response.status
+        const stepUpBody = (await stepUp.json()) as { data?: { accessToken?: string } }
+        const withStepUp = await put(stepUpBody.data?.accessToken ?? null)
+        return {
+          withoutStepUpStatus: withoutStepUp.status,
+          withoutStepUpCode: withoutStepUpBody.error?.code,
+          stepUpStatus: stepUp.status,
+          withStepUpStatus: withStepUp.status,
+        }
       },
-      { apiBaseUrl: env!.apiBaseUrl, entryId: adminAttempt.entryId },
+      {
+        apiBaseUrl: env!.apiBaseUrl,
+        entryId: adminAttempt.entryId,
+        code: nextTotpCode(env!.superAdmins.ROLECHECK.totpSecret),
+      },
     )
-    expect(superAdminStatus).toBe(200)
+    expect(superAdmin.withoutStepUpStatus).toBe(403)
+    expect(superAdmin.withoutStepUpCode).toBe('STEP_UP_REQUIRED')
+    expect(superAdmin.stepUpStatus).toBe(200)
+    expect(superAdmin.withStepUpStatus).toBe(200)
   })
 })

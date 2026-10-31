@@ -13,6 +13,7 @@ const nav = [
   { to: '/safety', label: 'Safety' },
   { to: '/pricing', label: 'Pricing' },
   { to: '/audit-logs', label: 'Audit log' },
+  { to: '/security', label: 'Security' },
 ]
 
 export default function Layout() {

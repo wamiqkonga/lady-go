@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { client, unwrap, ApiCallError } from '../lib/client'
 import type { components } from '../lib/api-types'
+import { Link } from 'react-router-dom'
 import { useSession } from '../lib/sessionContext'
+import { useStepUp } from '../lib/stepUpContext'
 
 type Entry = components['schemas']['AdminConfigEntryResponse']
 
@@ -12,22 +14,28 @@ function EditRow({ entry, onSaved }: { entry: Entry; onSaved: () => void }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [needsSetup, setNeedsSetup] = useState(false)
+  const { runWithStepUp } = useStepUp()
 
   async function save() {
     if (!entry.id || !reason.trim()) return
     setBusy(true)
     setError(null)
+    setNeedsSetup(false)
     try {
-      const result = await client.PUT('/api/v1/admin/config/{id}', {
-        params: { path: { id: entry.id } },
-        body: { value, reason },
+      await runWithStepUp(async () => {
+        const result = await client.PUT('/api/v1/admin/config/{id}', {
+          params: { path: { id: entry.id! } },
+          body: { value, reason },
+        })
+        return unwrap(result)
       })
-      unwrap(result)
       setEditing(false)
       setConfirming(false)
       setReason('')
       onSaved()
     } catch (err) {
+      if (err instanceof ApiCallError && err.code === 'MFA_ENROLMENT_REQUIRED') setNeedsSetup(true)
       setError(err instanceof ApiCallError ? err.message : 'Failed to update this value.')
     } finally {
       setBusy(false)
@@ -74,6 +82,7 @@ function EditRow({ entry, onSaved }: { entry: Entry; onSaved: () => void }) {
         </>
       )}
       {error && <p role="alert">{error}</p>}
+      {needsSetup && <Link to="/security">Go to Security to set up an authenticator</Link>}
     </div>
   )
 }

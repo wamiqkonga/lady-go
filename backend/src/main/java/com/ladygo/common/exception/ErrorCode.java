@@ -25,6 +25,9 @@ public enum ErrorCode {
     OTP_EMAIL_MISMATCH(HttpStatus.CONFLICT,
             "This phone number and email do not go together. Use the same phone number and email you signed up with. "
                     + "A new phone number needs a new email."),
+    STEP_UP_REQUIRED(HttpStatus.FORBIDDEN, "Confirm your identity with a fresh authenticator code to continue."),
+    MFA_ENROLMENT_REQUIRED(HttpStatus.FORBIDDEN,
+            "Set up an authenticator app on the Security page before doing this."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

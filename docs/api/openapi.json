@@ -1826,6 +1826,36 @@
         }
       }
     },
+    "/api/v1/auth/admin/step-up": {
+      "post": {
+        "tags": [
+          "admin-auth-controller"
+        ],
+        "operationId": "stepUp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaEnrollConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminAccessTokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/admin/refresh": {
       "post": {
         "tags": [
@@ -1887,6 +1917,56 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/admin/mfa/self/enroll": {
+      "post": {
+        "tags": [
+          "admin-auth-controller"
+        ],
+        "operationId": "startSelfMfaEnrollment",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMfaEnrollResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/admin/mfa/self/enroll/confirm": {
+      "post": {
+        "tags": [
+          "admin-auth-controller"
+        ],
+        "operationId": "confirmSelfMfaEnrollment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaEnrollConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminAccessTokenResponse"
                 }
               }
             }
@@ -4827,6 +4907,19 @@
           "refreshToken"
         ]
       },
+      "MfaEnrollConfirmRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[0-9]{6}$"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
       "AdminAccessTokenResponse": {
         "type": "object",
         "properties": {
@@ -4905,19 +4998,6 @@
             "type": "string"
           }
         }
-      },
-      "MfaEnrollConfirmRequest": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^[0-9]{6}$"
-          }
-        },
-        "required": [
-          "code"
-        ]
       },
       "AdminLoginRequest": {
         "type": "object",

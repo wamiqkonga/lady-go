@@ -68,6 +68,7 @@ public class AdminConfigService {
             Map.entry("verification.rider_selfie.view_url.ttl.seconds", new long[] {10, 600}),
             Map.entry("access.token.ttl.minutes", new long[] {1, 60}),
             Map.entry("admin.access.token.ttl.minutes", new long[] {1, 60}),
+            Map.entry("admin.stepup.window.minutes", new long[] {1, 15}),
             Map.entry("refresh.token.ttl.days", new long[] {1, 90}),
             Map.entry("otp.expiry.seconds", new long[] {30, 900}),
             Map.entry("otp.max.attempts", new long[] {1, 20}),

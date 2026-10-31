@@ -171,6 +171,85 @@ public class AdminAuthService {
         }
     }
 
+    /**
+     * Step-up MFA (docs/security/admin-stepup-lockout-recovery-design.md section 2): a signed-in admin re-proves a
+     * TOTP code and gets back a fresh access token carrying the step-up time. The same replay guard as login
+     * applies, so a code already used for login or a previous step-up must be replaced by the next one.
+     */
+    @Transactional
+    public String stepUp(AuthPrincipal principal, String code) {
+        requireSignedInStaff(principal);
+        String bucket = stepUpBucket(principal.userId());
+        Duration window = config.getMinutes("admin.login.window.minutes", Duration.ofMinutes(15));
+        if (!rateLimiter.tryConsume(bucket, config.getInt("admin.login.max.attempts", 5), window)) {
+            throw new RateLimitExceededException();
+        }
+        User user = users.findById(principal.userId()).orElseThrow(UnauthorizedException::new);
+        if (user.getStatus() != UserStatus.ACTIVE || !user.isMfaEnabled()) {
+            throw new UnauthorizedException();
+        }
+        long acceptedStep = verifyTotpOrThrow(user, code);
+        if (users.updateMfaLastUsedStepIfNewer(user.getId(), acceptedStep) == 0) {
+            log.warn("operation=totp_replay_rejected userId={}", user.getId());
+            throw new UnauthorizedException();
+        }
+        rateLimiter.release(bucket);
+        return accessTokenIssuer.issue(user.getId(), user.getRole(), Instant.now());
+    }
+
+    /**
+     * Self-service MFA setup for an already signed-in admin who has none (the pilot runs with login MFA off, so
+     * the forced-enrolment login path is never reached). Refused once an authenticator exists, so a stolen
+     * session cannot swap in the attacker's authenticator; replacing one is the SUPER_ADMIN MFA reset.
+     */
+    @Transactional
+    public MfaEnrollStart startSelfMfaEnrollment(AuthPrincipal principal) {
+        requireSignedInStaff(principal);
+        User user = users.findById(principal.userId()).orElseThrow(UnauthorizedException::new);
+        if (user.isMfaEnabled()) {
+            throw new ForbiddenException("An authenticator is already set up for this account.");
+        }
+        String secret = totpService.generateSecret();
+        user.setMfaPendingSecretEnc(mfaSecretCipher.encrypt(secret));
+        users.save(user);
+        return new MfaEnrollStart(secret, totpService.provisioningUri(user.getEmail(), secret));
+    }
+
+    /** Confirms the pending secret with a code and returns a token that already counts as a step-up. */
+    @Transactional
+    public String confirmSelfMfaEnrollment(AuthPrincipal principal, String code) {
+        requireSignedInStaff(principal);
+        User user = users.findById(principal.userId()).orElseThrow(UnauthorizedException::new);
+        if (user.isMfaEnabled()) {
+            throw new ForbiddenException("An authenticator is already set up for this account.");
+        }
+        if (user.getMfaPendingSecretEnc() == null) {
+            throw new UnauthorizedException();
+        }
+        OptionalLong step = totpService.verify(mfaSecretCipher.decrypt(user.getMfaPendingSecretEnc()), code, Instant.now());
+        if (step.isEmpty()) {
+            throw new UnauthorizedException();
+        }
+        user.setMfaSecretEnc(user.getMfaPendingSecretEnc());
+        user.setMfaPendingSecretEnc(null);
+        user.setMfaEnabled(true);
+        users.save(user);
+        if (users.updateMfaLastUsedStepIfNewer(user.getId(), step.getAsLong()) == 0) {
+            throw new UnauthorizedException();
+        }
+        return accessTokenIssuer.issue(user.getId(), user.getRole(), Instant.now());
+    }
+
+    private void requireSignedInStaff(AuthPrincipal principal) {
+        if (principal == null || principal.enrolment() || principal.role() == null) {
+            throw new UnauthorizedException();
+        }
+    }
+
+    private String stepUpBucket(UUID userId) {
+        return "admin_stepup:" + userId;
+    }
+
     /** SUPER_ADMIN-only lost-device recovery for another staff member (section 3.3). Never self-service. */
     @Transactional
     public void resetMfa(UUID actorId, UserRole actorRole, UUID targetUserId, String ip) {

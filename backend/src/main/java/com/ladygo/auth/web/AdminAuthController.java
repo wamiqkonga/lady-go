@@ -129,6 +129,28 @@ public class AdminAuthController {
         return ApiResponse.ok(null);
     }
 
+    @PostMapping("/step-up")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'SUPPORT')")
+    public ApiResponse<AdminAccessTokenResponse> stepUp(
+            @Valid @RequestBody MfaEnrollConfirmRequest request, @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(new AdminAccessTokenResponse(adminAuthService.stepUp(principal, request.code())));
+    }
+
+    @PostMapping("/mfa/self/enroll")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'SUPPORT')")
+    public ApiResponse<MfaEnrollResponse> startSelfMfaEnrollment(@AuthenticationPrincipal AuthPrincipal principal) {
+        var result = adminAuthService.startSelfMfaEnrollment(principal);
+        return ApiResponse.ok(new MfaEnrollResponse(result.secret(), result.provisioningUri()));
+    }
+
+    @PostMapping("/mfa/self/enroll/confirm")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'SUPPORT')")
+    public ApiResponse<AdminAccessTokenResponse> confirmSelfMfaEnrollment(
+            @Valid @RequestBody MfaEnrollConfirmRequest request, @AuthenticationPrincipal AuthPrincipal principal) {
+        return ApiResponse.ok(new AdminAccessTokenResponse(
+                adminAuthService.confirmSelfMfaEnrollment(principal, request.code())));
+    }
+
     @PostMapping("/mfa/enroll")
     @PreAuthorize("hasAuthority('SCOPE_ENROLMENT')")
     public ApiResponse<MfaEnrollResponse> startMfaEnrollment(@AuthenticationPrincipal AuthPrincipal principal) {

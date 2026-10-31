@@ -15,8 +15,10 @@ import com.ladygo.config.domain.ConfigScope;
 import com.ladygo.config.repository.ConfigEntryRepository;
 import com.ladygo.security.jwt.JwtService;
 import com.ladygo.testsupport.PersistenceTestSupport;
+import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,8 +44,16 @@ class AdminConfigControllerIntegrationTest extends PersistenceTestSupport {
     @Autowired
     private ObjectMapper objectMapper;
 
+    /** A SUPER_ADMIN token here models a fully authenticated session: the account has an authenticator enrolled and
+     *  has just passed a step-up, which config edits now require (AdminStepUpIntegrationTest covers the rejections). */
     private String tokenFor(UUID userId, UserRole role) {
-        return jwtService.issueAccessToken(userId, role, Duration.ofMinutes(15));
+        if (role != UserRole.SUPER_ADMIN) {
+            return jwtService.issueAccessToken(userId, role, Duration.ofMinutes(15));
+        }
+        User user = users.findById(userId).orElseThrow();
+        user.setMfaEnabled(true);
+        users.saveAndFlush(user);
+        return jwtService.issueAccessToken(userId, role, Duration.ofMinutes(15), Instant.now());
     }
 
     private ConfigEntry seededEntry() {
