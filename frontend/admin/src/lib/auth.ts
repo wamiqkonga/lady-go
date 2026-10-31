@@ -142,6 +142,18 @@ export async function confirmMfaSetup(code: string): Promise<void> {
   setAccessToken(data.accessToken)
 }
 
+/** Asks for a password-reset email. The server answers the same way whether or not the address is an admin, so
+ *  this never tells the caller which it was - and neither does the UI. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await postJson<void>('/api/v1/auth/admin/password/forgot', { email })
+}
+
+/** Completes a reset with the emailed token. `totpCode` is sent only when given; the server requires it when the
+ *  account has an authenticator. A bad/expired/used token and a wrong code are deliberately indistinguishable. */
+export async function resetPassword(token: string, newPassword: string, totpCode?: string): Promise<void> {
+  await postJson<void>('/api/v1/auth/admin/password/reset', { token, newPassword, totpCode: totpCode || undefined })
+}
+
 let bootstrapInFlight: Promise<boolean> | null = null
 
 /** Silent session restore on app load - the refresh cookie may still be valid even though the

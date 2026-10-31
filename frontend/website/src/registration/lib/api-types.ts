@@ -724,6 +724,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/admin/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/admin/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/admin/password/change": {
         parameters: {
             query?: never;
@@ -1928,6 +1960,15 @@ export interface components {
             error?: components["schemas"]["ApiError"];
             /** Format: date-time */
             timestamp?: string;
+        };
+        AdminPasswordResetRequest: {
+            token: string;
+            newPassword: string;
+            totpCode?: string;
+        };
+        AdminPasswordForgotRequest: {
+            /** Format: email */
+            email: string;
         };
         AdminPasswordChangeRequest: {
             currentPassword: string;
@@ -3929,6 +3970,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseAdminAccessTokenResponse"];
+                };
+            };
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPasswordForgotRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };

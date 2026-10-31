@@ -5,7 +5,9 @@ import ConfigScreen from './pages/ConfigScreen'
 import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
 import DriverReview from './pages/DriverReview'
+import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import Placeholder from './pages/Placeholder'
 import RideDetail from './pages/RideDetail'
 import RideOversight from './pages/RideOversight'
@@ -20,6 +22,8 @@ export default function App() {
       <StepUpProvider>
       <Routes>
         <Route path="login" element={<Login />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
+        <Route path="reset-password" element={<ResetPassword />} />
         <Route
           element={
             <RequireAuth>

@@ -3,9 +3,12 @@ package com.ladygo.auth.web;
 import com.ladygo.auth.service.AccessTokenIssuer;
 import com.ladygo.auth.service.AdminAuthService;
 import com.ladygo.auth.service.AdminLoginOutcome;
+import com.ladygo.auth.service.AdminPasswordResetService;
 import com.ladygo.auth.service.RefreshTokenService;
 import com.ladygo.auth.web.dto.AdminAccessTokenResponse;
 import com.ladygo.auth.web.dto.AdminLoginRequest;
+import com.ladygo.auth.web.dto.AdminPasswordForgotRequest;
+import com.ladygo.auth.web.dto.AdminPasswordResetRequest;
 import com.ladygo.auth.web.dto.AdminPasswordChangeRequest;
 import com.ladygo.auth.web.dto.EnrolmentResponse;
 import com.ladygo.auth.web.dto.MfaEnrollConfirmRequest;
@@ -46,6 +49,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminAuthController {
 
     private final AdminAuthService adminAuthService;
+    private final AdminPasswordResetService passwordResetService;
     private final ClientIpResolver clientIpResolver;
     private final RefreshTokenService refreshTokenService;
     private final AccessTokenIssuer accessTokenIssuer;
@@ -54,10 +58,12 @@ public class AdminAuthController {
     private final AdminCsrfGuard csrfGuard;
 
     public AdminAuthController(
-            AdminAuthService adminAuthService, ClientIpResolver clientIpResolver,
+            AdminAuthService adminAuthService, AdminPasswordResetService passwordResetService,
+            ClientIpResolver clientIpResolver,
             RefreshTokenService refreshTokenService, AccessTokenIssuer accessTokenIssuer, UserRepository users,
             ConfigurationService config, AdminCsrfGuard csrfGuard) {
         this.adminAuthService = adminAuthService;
+        this.passwordResetService = passwordResetService;
         this.clientIpResolver = clientIpResolver;
         this.refreshTokenService = refreshTokenService;
         this.accessTokenIssuer = accessTokenIssuer;
@@ -118,6 +124,23 @@ public class AdminAuthController {
                 .header(HttpHeaders.SET_COOKIE,
                         AdminAuthCookies.csrfTokenCookie(AdminAuthCookies.newCsrfToken(), maxAge).toString())
                 .body(body);
+    }
+
+    /** Public. Always the same reply, whether or not the address belongs to an admin. */
+    @PostMapping("/password/forgot")
+    public ApiResponse<Void> forgotPassword(
+            @Valid @RequestBody AdminPasswordForgotRequest request, HttpServletRequest httpRequest) {
+        passwordResetService.requestReset(request.email(), clientIpResolver.resolve(httpRequest));
+        return ApiResponse.ok(null);
+    }
+
+    /** Public: the emailed single-use token is the credential, plus a TOTP code when MFA is enrolled. */
+    @PostMapping("/password/reset")
+    public ApiResponse<Void> resetPassword(
+            @Valid @RequestBody AdminPasswordResetRequest request, HttpServletRequest httpRequest) {
+        passwordResetService.resetPassword(
+                request.token(), request.newPassword(), request.totpCode(), clientIpResolver.resolve(httpRequest));
+        return ApiResponse.ok(null);
     }
 
     @PostMapping("/password/change")

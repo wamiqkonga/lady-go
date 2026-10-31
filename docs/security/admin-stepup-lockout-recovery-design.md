@@ -72,15 +72,27 @@ Email link (`POST /auth/admin/password/forgot`, `POST /auth/admin/password/reset
 - The link points to the admin portal over HTTPS only. The token is in the URL fragment, not a query string, so it
   does not reach server logs or Referer headers.
 
-Break-glass script `scripts/ops/admin-set-password.sh`:
-- Runs on the server by the owner only. Prompts for the password (never as a command argument, so it is not
-  in shell history), writes the hash through the app's own encoder, sets `must_change_password`, revokes sessions,
-  clears lockout, writes an audit entry. Refuses to run without an explicit `--confirm <email>`.
+Break-glass script `scripts/ops/admin-reset-link.sh` (built; changed from the original "set a password" idea):
+- Runs on the server by the owner only. It issues a normal one-time reset link straight into `admin_password_resets`
+  (hash only, 30 minutes, older open links closed) and prints it, plus an audit entry
+  `ADMIN_PASSWORD_RESET_LINK_ISSUED`. Nobody's password or hash ever passes through the script, and the link goes
+  through the same `/reset-password` page, so a TOTP code is still required if the account has an authenticator.
+- Refuses to run without `--confirm <same email>`, refuses anything that is not a plain email address, and only acts on
+  an ACTIVE admin-role account. A lost authenticator is a separate case: another SUPER_ADMIN resets MFA first.
+- Why: a script that wrote a password hash would need the app's password encoder in shell and would put a password on
+  the command line or in history; issuing a link reuses the one reviewed code path.
+
+Known limitation: an admin with no authenticator (the pilot setting `LADYGO_ADMIN_MFA_REQUIRED=false`) can reset with
+the emailed link alone, so access to that mailbox is access to the admin account. Mitigation: set up the authenticator on
+the Security page, which also makes resets require a code. Reset links go only to the address stored on the account.
+Config: `LADYGO_ADMIN_WEB_BASE_URL` (https, or localhost for dev) decides where the link points; blank turns the email off
+and logs a warning at startup instead of failing the deploy. The email send is asynchronous so response time does not
+reveal whether an address exists.
 
 ## 5. Migrations (additive only)
 
-1. `admin_password_resets` table.
-2. Session step-up column (or `users.stepup_verified_at` fallback).
+1. `admin_password_resets` table (V36, built).
+2. (Dropped: the step-up time travels in the access token, so no column is needed.)
 3. Config rows: `admin.stepup.window.minutes`, `admin.login.progressive.enabled`,
    progressive delay settings. No change to existing rows.
 
