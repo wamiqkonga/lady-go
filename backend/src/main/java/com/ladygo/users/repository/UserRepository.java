@@ -49,4 +49,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT u FROM User u WHERE u.role = :role AND u.status = :status ORDER BY u.id")
     List<User> lockByRoleAndStatus(@Param("role") UserRole role, @Param("status") UserStatus status);
+    /**
+     * Admin customer suspend/activate: a bounded transition of one CUSTOMER row, guarded on the status
+     * the caller just saw so a concurrent change (or a DELETED account) affects 0 rows rather than being
+     * overwritten.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE User u SET u.status = :to, u.statusChangedAt = :now WHERE u.id = :id "
+            + "AND u.role = com.ladygo.users.domain.UserRole.CUSTOMER AND u.status = :from")
+    int transitionCustomerStatus(@Param("id") UUID id, @Param("from") UserStatus from, @Param("to") UserStatus to,
+            @Param("now") java.time.Instant now);
 }
