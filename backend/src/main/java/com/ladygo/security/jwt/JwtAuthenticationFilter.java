@@ -5,9 +5,13 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import com.ladygo.users.domain.UserRole;
+import com.ladygo.users.domain.UserStatus;
+import com.ladygo.users.repository.UserRepository;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -38,8 +42,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    private static final Set<UserRole> STAFF = EnumSet.of(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.SUPPORT);
+
+    private final UserRepository users;
+
+    public JwtAuthenticationFilter(JwtService jwtService, UserRepository users) {
         this.jwtService = jwtService;
+        this.users = users;
+    }
+
+    /** A staff access token is only as good as the account behind it: deactivating or re-roling someone must take
+     *  effect now, not when their (up to minutes-long) token expires. One primary-key lookup per staff request. */
+    private boolean staffAccountStillMatches(AuthPrincipal p) {
+        if (p.role() == null || !STAFF.contains(p.role())) {
+            return true;
+        }
+        return users.findById(p.userId())
+                .map(u -> u.getStatus() == UserStatus.ACTIVE && u.getRole() == p.role())
+                .orElse(false);
     }
 
     @Override
@@ -51,6 +71,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Optional<AuthPrincipal> principal = jwtService.parse(token);
             principal.ifPresent(p -> {
                 if (p.enrolment() && !ENROLMENT_ALLOWED_PATHS.contains(request.getRequestURI())) {
+                    return;
+                }
+                if (!p.enrolment() && !staffAccountStillMatches(p)) {
                     return;
                 }
                 SecurityContextHolder.getContext().setAuthentication(
