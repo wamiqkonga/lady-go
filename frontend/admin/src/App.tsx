@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
 import DriverReview from './pages/DriverReview'
 import ForgotPassword from './pages/ForgotPassword'
+import LiveMap from './pages/LiveMap'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 import Placeholder from './pages/Placeholder'
@@ -38,10 +39,7 @@ export default function App() {
         >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route
-          path="live-map"
-          element={<Placeholder title="Live map" phase="Phase 7 (real-time) and Phase 9" description="Online drivers, active rides, pickup/destination and ride status in real time." />}
-        />
+        <Route path="live-map" element={<LiveMap />} />
         <Route path="rides" element={<RideOversight />} />
         <Route path="rides/:bookingId" element={<RideDetail />} />
         <Route
