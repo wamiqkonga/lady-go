@@ -2224,6 +2224,47 @@
         }
       }
     },
+    "/api/v1/admin/users/{id}/unlock": {
+      "post": {
+        "tags": [
+          "admin-user-controller"
+        ],
+        "operationId": "unlock",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/users/{id}/mfa/reset": {
       "post": {
         "tags": [
@@ -5127,6 +5168,19 @@
             "type": "string"
           }
         }
+      },
+      "AdminUnlockRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "AdminRideFlagReviewRequest": {
         "type": "object",
