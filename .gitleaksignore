@@ -1,0 +1,9 @@
+# Reviewed false positives. Each line is a gitleaks fingerprint (commit:file:rule:line), so only these exact
+# findings are ignored; the same kind of value anywhere else is still reported.
+
+# A made-up reset token ("abcDEF_123-xyz") in a unit test, not a credential.
+e1b096247a7beda305e65d63b59b83622af76092:frontend/admin/src/pages/PasswordRecovery.test.tsx:generic-api-key:56
+e1b096247a7beda305e65d63b59b83622af76092:frontend/admin/src/pages/PasswordRecovery.test.tsx:generic-api-key:75
+
+# The test builds a throwaway RSA key at run time; only the "BEGIN PRIVATE KEY" marker is in the source.
+c3309f10243eed13f77ea54b15a55c2ab536e7ef:backend/src/test/java/com/ladygo/notifications/push/FcmPushSenderTest.java:private-key:24

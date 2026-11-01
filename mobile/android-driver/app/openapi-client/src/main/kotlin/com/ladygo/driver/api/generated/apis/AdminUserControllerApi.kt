@@ -6,6 +6,7 @@ import retrofit2.Response
 import okhttp3.RequestBody
 import com.squareup.moshi.Json
 
+import com.ladygo.driver.api.generated.models.AdminUnlockRequest
 import com.ladygo.driver.api.generated.models.ApiResponseVoid
 
 interface AdminUserControllerApi {
@@ -21,5 +22,19 @@ interface AdminUserControllerApi {
      */
     @POST("api/v1/admin/users/{id}/mfa/reset")
     suspend fun resetMfa(@Path("id") id: java.util.UUID): Response<ApiResponseVoid>
+
+    /**
+     * POST api/v1/admin/users/{id}/unlock
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @param id 
+     * @param adminUnlockRequest 
+     * @return [ApiResponseVoid]
+     */
+    @POST("api/v1/admin/users/{id}/unlock")
+    suspend fun unlock(@Path("id") id: java.util.UUID, @Body adminUnlockRequest: AdminUnlockRequest): Response<ApiResponseVoid>
 
 }
