@@ -32,7 +32,7 @@ export default function ForgotPassword() {
       <h1>Reset your password</h1>
       {sent ? (
         <p role="status">
-          If that email belongs to an admin account, a reset link is on its way. It works for 30 minutes and only once.
+          If that email belongs to an admin account, a reset link is on its way. It expires soon and works only once.
           Check your spam folder if it does not arrive.
         </p>
       ) : (

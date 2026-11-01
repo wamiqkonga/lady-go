@@ -54,7 +54,7 @@ Replace the hard block with a progressive delay and visibility:
 - Alert: log a structured `admin_login_failures_high` event at N failures in M minutes (defaults 10 in 10).
   Real alerting channel is a later ticket; the log line is the hook.
 - SUPER_ADMIN unlock: `POST /api/v1/admin/users/{id}/unlock`, step-up required, audit entry, reason mandatory.
-- Break-glass: if the only SUPER_ADMIN is locked, the server script in section 4 also clears the counter.
+- Break-glass: if the only SUPER_ADMIN is locked, the server script in section 4 will also clear the counter (planned with this step; the script does not do it yet).
 - Rollout safety: new behaviour behind `admin.login.progressive.enabled` (default true on staging, flipped on in
   production after UAT). Old hard lockout stays available for one release.
 
@@ -64,17 +64,17 @@ Email link (`POST /auth/admin/password/forgot`, `POST /auth/admin/password/reset
 - `forgot` always returns the same message and takes the same time, whether or not the email exists. Rate limited
   per email and per IP. Only ACTIVE admin-role users receive a link.
 - Token: 32 random bytes, only its SHA-256 stored (table `admin_password_resets`: user_id, token_hash, expires_at,
-  used_at). Expires in 30 minutes, single use, newest token invalidates older ones.
+  used_at). Expires in 30 minutes (configurable, 5 to 120), single use. A new request does not cancel an earlier open link (otherwise anyone knowing an address could keep its owner from using the link they were sent); a successful reset closes every open link.
 - `reset` needs token + new password + current TOTP code if MFA is enrolled. If MFA is not enrolled the reset
   works with the token alone, and the admin must enrol MFA at next login (matches today's forced-enrolment).
-- On success: password policy checked, password hash replaced, ALL refresh tokens revoked (`revokeAll`), login
-  counters cleared, audit entry `ADMIN_PASSWORD_RESET`, a "your password was changed" email sent to the account.
+- On success: password policy checked, password hash replaced, an unfinished authenticator enrolment cleared, ALL refresh
+  tokens revoked (`revokeAll`), audit entry `ADMIN_PASSWORD_RESET`, a "your password was changed" email sent to the account.
 - The link points to the admin portal over HTTPS only. The token is in the URL fragment, not a query string, so it
   does not reach server logs or Referer headers.
 
 Break-glass script `scripts/ops/admin-reset-link.sh` (built; changed from the original "set a password" idea):
 - Runs on the server by the owner only. It issues a normal one-time reset link straight into `admin_password_resets`
-  (hash only, 30 minutes, older open links closed) and prints it, plus an audit entry
+  (hash only, 30 minutes, older open links closed, operator and host recorded in the audit entry) and prints it, plus an audit entry
   `ADMIN_PASSWORD_RESET_LINK_ISSUED`. Nobody's password or hash ever passes through the script, and the link goes
   through the same `/reset-password` page, so a TOTP code is still required if the account has an authenticator.
 - Refuses to run without `--confirm <same email>`, refuses anything that is not a plain email address, and only acts on

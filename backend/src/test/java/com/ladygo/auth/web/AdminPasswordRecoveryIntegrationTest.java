@@ -22,8 +22,12 @@ import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
 import com.ladygo.users.domain.UserStatus;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,11 +37,16 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /** docs/security/admin-stepup-lockout-recovery-design.md section 4: an emailed, single-use, short-lived reset link
  *  that never reveals whether an address belongs to an admin, still needs a TOTP code when MFA is enrolled, and
  *  signs every existing session out. */
+/** Deliberately NOT wrapped in a test transaction: the attempt limits only count if they are committed even when a
+ *  request is rejected, and a surrounding transaction would hide exactly that. Rows are removed in {@link #cleanUp}. */
 @AutoConfigureMockMvc
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
 
     private static final Pattern LINK_TOKEN = Pattern.compile("#token=([A-Za-z0-9_-]{40,})");
@@ -55,6 +64,19 @@ class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
     @MockitoBean private EmailSender emailSender;
 
     private String totpSecret;
+    private final List<UUID> createdUsers = new ArrayList<>();
+
+    @AfterEach
+    void cleanUp() {
+        for (UUID id : createdUsers) {
+            jdbc.update("DELETE FROM admin_password_resets WHERE user_id = ?", id);
+            jdbc.update("DELETE FROM refresh_tokens WHERE user_id = ?", id);
+            jdbc.update("DELETE FROM audit_logs WHERE actor_id = ? OR target_id = ?", id, id.toString());
+            jdbc.update("DELETE FROM users WHERE id = ?", id);
+        }
+        createdUsers.clear();
+        jdbc.update("DELETE FROM auth_rate_limits WHERE bucket_key LIKE 'admin_pwreset%'");
+    }
 
     private User admin(String email, boolean withMfa) {
         User user = newUser(UserRole.SUPER_ADMIN);
@@ -65,7 +87,18 @@ class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
             user.setMfaSecretEnc(mfaSecretCipher.encrypt(totpSecret));
             user.setMfaEnabled(true);
         }
-        return users.saveAndFlush(user);
+        User saved = users.saveAndFlush(user);
+        createdUsers.add(saved.getId());
+        return saved;
+    }
+
+    /** Waits until the worker has dealt with every earlier request: it is a single FIFO thread, so once this known
+     *  admin's email arrives, anything requested before it has already been decided. */
+    private void awaitWorker() throws Exception {
+        String control = "control-" + UUID.randomUUID() + "@example.test";
+        admin(control, false);
+        forgot(control);
+        verify(emailSender, timeout(5000)).send(eq(control), anyString(), anyString());
     }
 
     private void forgot(String email) throws Exception {
@@ -100,13 +133,15 @@ class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
     @Test
     void anUnknownEmailGetsTheSameReplyAndNoEmailIsSent() throws Exception {
         forgot("nobody@example.test");
+        awaitWorker();
 
-        verify(emailSender, never()).send(anyString(), anyString(), anyString());
+        verify(emailSender, never()).send(eq("nobody@example.test"), anyString(), anyString());
     }
 
     @Test
     void aCustomerOrSuspendedAdminNeverReceivesALink() throws Exception {
         User customer = newUser(UserRole.CUSTOMER);
+        createdUsers.add(customer.getId());
         customer.setEmail("rider@example.test");
         users.saveAndFlush(customer);
         User suspended = admin("suspended@example.test", false);
@@ -115,8 +150,10 @@ class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
 
         forgot("rider@example.test");
         forgot("suspended@example.test");
+        awaitWorker();
 
-        verify(emailSender, never()).send(anyString(), anyString(), anyString());
+        verify(emailSender, never()).send(eq("rider@example.test"), anyString(), anyString());
+        verify(emailSender, never()).send(eq("suspended@example.test"), anyString(), anyString());
     }
 
     @Test
@@ -125,7 +162,6 @@ class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
 
         String token = requestToken("owner@example.test");
 
-        flushAndClear();
         String stored = jdbc.queryForObject("SELECT token_hash FROM admin_password_resets", String.class);
         assertThat(stored).hasSize(64).isNotEqualTo(token);
         Long minutes = jdbc.queryForObject(
@@ -163,11 +199,12 @@ class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
         reset(token, "Another-passphrase-77", null).andExpect(status().isUnauthorized());
     }
 
+    /** Asking again must not cancel the link the owner already has (anyone could otherwise keep them locked out by
+     *  submitting their address), but using either link closes every other open one. */
     @Test
-    void aNewLinkInvalidatesTheEarlierOne() throws Exception {
+    void aNewRequestKeepsTheEarlierLinkAndUsingOneClosesTheRest() throws Exception {
         admin("owner@example.test", false);
         String first = requestToken("owner@example.test");
-        // second request: the mock keeps both calls, so read the newest body.
         forgot("owner@example.test");
         ArgumentCaptor<String> bodies = ArgumentCaptor.forClass(String.class);
         verify(emailSender, timeout(3000).times(2)).send(eq("owner@example.test"), anyString(), bodies.capture());
@@ -175,15 +212,40 @@ class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
         assertThat(matcher.find()).isTrue();
         String second = matcher.group(1);
 
-        reset(first, NEW_PASSWORD, null).andExpect(status().isUnauthorized());
         reset(second, NEW_PASSWORD, null).andExpect(status().isOk());
+        reset(first, "Another-passphrase-77", null).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void theEmailStatesTheConfiguredLifetime() throws Exception {
+        admin("owner@example.test", false);
+        jdbc.update("UPDATE configuration SET value = '10' WHERE key = 'admin.password_reset.ttl.minutes'");
+        try {
+            forgot("owner@example.test");
+            ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+            verify(emailSender, timeout(3000)).send(eq("owner@example.test"), anyString(), body.capture());
+            assertThat(body.getValue()).contains("within 10 minutes");
+        } finally {
+            jdbc.update("UPDATE configuration SET value = '30' WHERE key = 'admin.password_reset.ttl.minutes'");
+        }
+    }
+
+    @Test
+    void aResetClearsAnUnfinishedAuthenticatorEnrolment() throws Exception {
+        User user = admin("owner@example.test", false);
+        jdbc.update("UPDATE users SET mfa_pending_secret_enc = 'pending' WHERE id = ?", user.getId());
+        String token = requestToken("owner@example.test");
+
+        reset(token, NEW_PASSWORD, null).andExpect(status().isOk());
+
+        String pending = jdbc.queryForObject("SELECT mfa_pending_secret_enc FROM users WHERE id = ?", String.class, user.getId());
+        assertThat(pending).isNull();
     }
 
     @Test
     void anExpiredLinkIsRejected() throws Exception {
         admin("owner@example.test", false);
         String token = requestToken("owner@example.test");
-        flushAndClear();
         jdbc.update("UPDATE admin_password_resets SET expires_at = now() - interval '1 minute'");
 
         reset(token, NEW_PASSWORD, null).andExpect(status().isUnauthorized());
@@ -242,7 +304,7 @@ class AdminPasswordRecoveryIntegrationTest extends PersistenceTestSupport {
 
         // Three links are allowed per window; the other three requests are answered the same but send nothing.
         verify(emailSender, timeout(3000).times(3)).send(eq("owner@example.test"), anyString(), anyString());
-        Thread.sleep(300);
+        awaitWorker();
         verify(emailSender, times(3)).send(eq("owner@example.test"), anyString(), anyString());
     }
 

@@ -10,7 +10,11 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.OptionalLong;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import com.ladygo.admin.domain.AuditLog;
 import com.ladygo.admin.repository.AuditLogRepository;
 import com.ladygo.auth.domain.AdminPasswordReset;
@@ -32,7 +36,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 /**
  * Admin password recovery by emailed link (docs/security/admin-stepup-lockout-recovery-design.md section 4).
@@ -50,6 +56,14 @@ public class AdminPasswordResetService {
     private static final int RESET_ATTEMPTS_PER_LINK = 5;
     private static final int IP_ATTEMPTS = 20;
     private static final Duration ATTEMPT_WINDOW = Duration.ofMinutes(15);
+    private static final Duration DEFAULT_TTL = Duration.ofMinutes(30);
+    /** One worker keeps the work in request order and bounded; a full queue drops the job (the user can ask again). */
+    private static final ExecutorService WORKER = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(200), runnable -> {
+                Thread thread = new Thread(runnable, "admin-password-reset");
+                thread.setDaemon(true);
+                return thread;
+            });
 
     private final UserRepository users;
     private final AdminPasswordResetRepository resets;
@@ -62,12 +76,13 @@ public class AdminPasswordResetService {
     private final ConfigurationService config;
     private final EmailSender emailSender;
     private final String adminWebBaseUrl;
+    private final TransactionTemplate tx;
 
     public AdminPasswordResetService(
             UserRepository users, AdminPasswordResetRepository resets, AuditLogRepository auditLogs,
             RefreshTokenService refreshTokenService, PasswordEncoder passwordEncoder, TotpService totpService,
             MfaSecretCipher mfaSecretCipher, RateLimiter rateLimiter, ConfigurationService config,
-            ObjectProvider<EmailSender> emailSenders,
+            ObjectProvider<EmailSender> emailSenders, TransactionTemplate tx,
             @Value("${ladygo.admin.web-base-url:}") String adminWebBaseUrl) {
         this.users = users;
         this.resets = resets;
@@ -78,6 +93,7 @@ public class AdminPasswordResetService {
         this.mfaSecretCipher = mfaSecretCipher;
         this.rateLimiter = rateLimiter;
         this.config = config;
+        this.tx = tx;
         this.emailSender = emailSenders.getIfAvailable();
         this.adminWebBaseUrl = validatedBaseUrl(adminWebBaseUrl);
         if (this.emailSender == null || this.adminWebBaseUrl.isEmpty()) {
@@ -87,7 +103,11 @@ public class AdminPasswordResetService {
         }
     }
 
-    /** Always returns normally: the caller must answer identically whether or not an email was sent. */
+    /**
+     * Always returns normally and does the same work on the request thread for every input (two counter updates and
+     * one hand-off), so neither the reply nor its timing depends on whether the address is a known admin. Looking the
+     * account up, storing the link and sending the email happen on a worker.
+     */
     public void requestReset(String email, String clientIp) {
         String normalised = email.trim().toLowerCase(Locale.ROOT);
         int maxRequests = config.getInt("admin.password_reset.max.requests", 3);
@@ -98,36 +118,51 @@ public class AdminPasswordResetService {
             log.info("operation=admin_password_reset_request result=rate_limited");
             return;
         }
-
-        User user = users.findByEmailIgnoreCase(normalised).orElse(null);
-        String token = newToken();
-        String tokenHash = sha256Hex(token); // computed for unknown addresses too, so the work done is similar.
-        if (user == null || !isStaff(user.getRole()) || user.getStatus() != UserStatus.ACTIVE
-                || user.getPasswordHash() == null) {
-            log.info("operation=admin_password_reset_request result=no_eligible_account");
-            return;
+        Duration ttl = config.getMinutes("admin.password_reset.ttl.minutes", DEFAULT_TTL);
+        try {
+            WORKER.execute(() -> issueLink(normalised, ttl));
+        } catch (RejectedExecutionException ex) {
+            log.warn("operation=admin_password_reset_request result=dropped reason=queue_full");
         }
-
-        resets.invalidateOpenForUser(user.getId(), Instant.now());
-        AdminPasswordReset reset = new AdminPasswordReset();
-        reset.setUserId(user.getId());
-        reset.setTokenHash(tokenHash);
-        reset.setExpiresAt(Instant.now().plus(config.getMinutes("admin.password_reset.ttl.minutes", Duration.ofMinutes(30))));
-        resets.save(reset);
-
-        if (emailSender == null || adminWebBaseUrl.isEmpty()) {
-            return; // already warned at startup; nothing can be delivered.
-        }
-        String link = adminWebBaseUrl + "/reset-password#token=" + token;
-        sendAsync(user.getEmail(), "Reset your Lady Go admin password",
-                "Someone asked to reset the password for this Lady Go admin account.\n\n"
-                        + "Open this link within 30 minutes to choose a new password:\n" + link + "\n\n"
-                        + "If you did not ask for this, ignore this email - your password has not changed. "
-                        + "Never share this link.");
-        log.info("operation=admin_password_reset_request result=link_sent userId={}", user.getId());
     }
 
-    @Transactional
+    /** Worker side of {@link #requestReset}. Earlier open links are left alone: each is single-use and expires, and
+     *  cancelling them would let anyone who knows an address keep its owner from ever using the link they were sent. */
+    private void issueLink(String normalisedEmail, Duration ttl) {
+        try {
+            User user = users.findByEmailIgnoreCase(normalisedEmail).orElse(null);
+            if (user == null || !isStaff(user.getRole()) || user.getStatus() != UserStatus.ACTIVE
+                    || user.getPasswordHash() == null) {
+                log.info("operation=admin_password_reset_request result=no_eligible_account");
+                return;
+            }
+            if (emailSender == null || adminWebBaseUrl.isEmpty()) {
+                return; // already warned at startup; nothing can be delivered.
+            }
+            String token = newToken();
+            AdminPasswordReset reset = new AdminPasswordReset();
+            reset.setUserId(user.getId());
+            reset.setTokenHash(sha256Hex(token));
+            reset.setExpiresAt(Instant.now().plus(ttl));
+            resets.save(reset);
+
+            String link = adminWebBaseUrl + "/reset-password#token=" + token;
+            deliver(user.getId(), user.getEmail(), "Reset your Lady Go admin password",
+                    "Someone asked to reset the password for this Lady Go admin account.\n\n"
+                            + "Open this link within " + ttl.toMinutes() + " minutes to choose a new password:\n" + link + "\n\n"
+                            + "If you did not ask for this, ignore this email - your password has not changed. "
+                            + "Never share this link.",
+                    "link");
+        } catch (RuntimeException ex) {
+            log.warn("operation=admin_password_reset_request result=failed error={}", ex.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Not one big transaction: the attempt counters must survive a rejected attempt, and a rolled-back transaction would
+     * undo them, leaving authenticator codes guessable without limit. Everything that is only checked (counters, link,
+     * code) happens first; only the final changes run together in a transaction.
+     */
     public void resetPassword(String token, String newPassword, String totpCode, String clientIp) {
         if (clientIp != null && !rateLimiter.tryConsume("admin_pwreset_ip:" + clientIp, IP_ATTEMPTS, ATTEMPT_WINDOW)) {
             throw new RateLimitExceededException();
@@ -160,14 +195,30 @@ public class AdminPasswordResetService {
             acceptedStep = step.getAsLong();
         }
 
-        if (resets.consumeIfActive(reset.getId(), Instant.now()) == 0) {
+        long step = acceptedStep;
+        String encoded = passwordEncoder.encode(newPassword);
+        User changed = tx.execute(status -> applyReset(reset.getId(), user.getId(), encoded, step, attemptBucket, clientIp));
+        log.info("operation=admin_password_reset result=success userId={}", changed.getId());
+        // After the commit, so a failed commit never tells the owner their password changed.
+        if (emailSender != null) {
+            deliver(changed.getId(), changed.getEmail(), "Your Lady Go admin password was changed",
+                    "Your Lady Go admin password was changed and every signed-in session was ended.\n\n"
+                            + "If this was not you, contact another administrator straight away.",
+                    "changed_notice");
+        }
+    }
+
+    /** The all-or-nothing part: any rejection here rolls back the password, the link and the session revocation. */
+    private User applyReset(java.util.UUID resetId, java.util.UUID userId, String encodedPassword, long acceptedStep,
+                            String attemptBucket, String clientIp) {
+        if (resets.consumeIfActive(resetId, Instant.now()) == 0) {
             throw new UnauthorizedException(); // another request used or expired the link first.
         }
-
-        // Re-read: consumeIfActive clears the persistence context, so this is a fresh managed row.
-        User fresh = users.findById(user.getId()).orElseThrow(UnauthorizedException::new);
-        fresh.setPasswordHash(passwordEncoder.encode(newPassword));
+        // consumeIfActive clears the persistence context, so this is a fresh managed row.
+        User fresh = users.findById(userId).orElseThrow(UnauthorizedException::new);
+        fresh.setPasswordHash(encodedPassword);
         fresh.setMustChangePassword(false);
+        fresh.setMfaPendingSecretEnc(null); // an unfinished enrolment from before the reset must not survive it.
         users.save(fresh);
         if (acceptedStep >= 0 && users.updateMfaLastUsedStepIfNewer(fresh.getId(), acceptedStep) == 0) {
             throw new UnauthorizedException(); // replayed code: roll the whole reset back.
@@ -185,23 +236,25 @@ public class AdminPasswordResetService {
         entry.setTargetId(fresh.getId().toString());
         entry.setIp(clientIp);
         auditLogs.save(entry);
-
-        if (emailSender != null) {
-            sendAsync(fresh.getEmail(), "Your Lady Go admin password was changed",
-                    "Your Lady Go admin password was changed and every signed-in session was ended.\n\n"
-                            + "If this was not you, contact another administrator straight away.");
-        }
-        log.info("operation=admin_password_reset result=success userId={}", fresh.getId());
+        return fresh;
     }
 
-    private void sendAsync(String to, String subject, String body) {
-        CompletableFuture.runAsync(() -> {
-            try {
-                emailSender.send(to, subject, body);
-            } catch (RuntimeException ex) {
-                log.warn("operation=admin_password_reset_email result=failed", ex);
-            }
-        });
+    /** Sends and then logs what really happened: {@code send} reports failure by returning false, not by throwing. */
+    private void deliver(Object userId, String to, String subject, String body, String kind) {
+        boolean sent;
+        try {
+            sent = emailSender.send(to, subject, body);
+        } catch (RuntimeException ex) {
+            // Class name only: the message can echo the recipient.
+            log.warn("operation=admin_password_reset_email kind={} result=failed userId={} error={}", kind, userId,
+                    ex.getClass().getSimpleName());
+            return;
+        }
+        if (sent) {
+            log.info("operation=admin_password_reset_email kind={} result=sent userId={}", kind, userId);
+        } else {
+            log.warn("operation=admin_password_reset_email kind={} result=failed userId={}", kind, userId);
+        }
     }
 
     private static boolean isStaff(UserRole role) {
@@ -222,15 +275,27 @@ public class AdminPasswordResetService {
         }
     }
 
-    /** Blank = feature off. Otherwise https (or plain http only for localhost), with no trailing slash. */
+    /** Blank = feature off. Otherwise https (or plain http only for exactly localhost / 127.0.0.1), no trailing slash. */
     private static String validatedBaseUrl(String raw) {
         String url = raw == null ? "" : raw.trim();
         if (url.isEmpty()) {
             return "";
         }
-        boolean local = url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1");
-        if (!url.startsWith("https://") && !local) {
+        String host;
+        String scheme;
+        try {
+            URI uri = new URI(url);
+            host = uri.getHost();
+            scheme = uri.getScheme();
+        } catch (URISyntaxException ex) {
+            throw new IllegalStateException("ladygo.admin.web-base-url (LADYGO_ADMIN_WEB_BASE_URL) is not a valid URL.");
+        }
+        boolean local = "http".equals(scheme) && ("localhost".equals(host) || "127.0.0.1".equals(host));
+        if (!"https".equals(scheme) && !local) {
             throw new IllegalStateException("ladygo.admin.web-base-url (LADYGO_ADMIN_WEB_BASE_URL) must be https.");
+        }
+        if (host == null) {
+            throw new IllegalStateException("ladygo.admin.web-base-url (LADYGO_ADMIN_WEB_BASE_URL) needs a host name.");
         }
         return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
