@@ -13,6 +13,8 @@ import ResetPassword from './pages/ResetPassword'
 import Placeholder from './pages/Placeholder'
 import RideDetail from './pages/RideDetail'
 import RideOversight from './pages/RideOversight'
+import SafetyIncident from './pages/SafetyIncident'
+import SafetyQueue from './pages/SafetyQueue'
 import RequireAuth from './lib/RequireAuth'
 import RequireRole from './lib/RequireRole'
 import Security from './pages/Security'
@@ -53,10 +55,8 @@ export default function App() {
           element={<Placeholder title="Customers" phase="Phase 9" description="Customer search, ride and payment history, suspend/activate." />}
         />
         <Route path="pricing" element={<ConfigScreen />} />
-        <Route
-          path="safety"
-          element={<Placeholder title="Safety incidents" phase="Phase 10" description="SOS and report queue with acknowledgement and resolution timeline." />}
-        />
+        <Route path="safety" element={<SafetyQueue />} />
+        <Route path="safety/:incidentId" element={<SafetyIncident />} />
         <Route path="audit-logs" element={<AuditLog />} />
         <Route path="users" element={<RequireRole role="SUPER_ADMIN"><AdminUsers /></RequireRole>} />
         <Route path="users/:id" element={<RequireRole role="SUPER_ADMIN"><AdminUserDetail /></RequireRole>} />

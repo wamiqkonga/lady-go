@@ -996,6 +996,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/safety/incidents/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/{id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/{id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acknowledge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ride-flags/{id}/review": {
         parameters: {
             query?: never;
@@ -1332,6 +1380,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/safety/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/open-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["openCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/rides": {
         parameters: {
             query?: never;
@@ -1451,7 +1547,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1467,7 +1563,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2136,6 +2232,66 @@ export interface components {
         AdminUserReasonRequest: {
             reason: string;
         };
+        SafetyIncidentResolveRequest: {
+            /** @enum {string} */
+            outcome: "NO_ACTION_NEEDED" | "RESOLVED_BY_PHONE" | "POLICE_INFORMED" | "ACTION_TAKEN_AGAINST_DRIVER" | "ACTION_TAKEN_AGAINST_RIDER" | "FALSE_ALARM" | "OTHER";
+            note?: string;
+        };
+        ApiResponseSafetyIncidentDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SafetyIncidentDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        SafetyEventResponse: {
+            /** Format: uuid */
+            id?: string;
+            eventType?: string;
+            actorName?: string;
+            actorRole?: string;
+            notes?: string;
+            outcome?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        SafetyIncidentDetailResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            rideId?: string;
+            /** Format: uuid */
+            bookingId?: string;
+            type?: string;
+            severity?: string;
+            status?: string;
+            reporter?: components["schemas"]["SafetyReporterResponse"];
+            location?: components["schemas"]["SafetyLocationResponse"];
+            notes?: string;
+            legalHold?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            acknowledgedAt?: string;
+            /** Format: date-time */
+            resolvedAt?: string;
+            timeline?: components["schemas"]["SafetyEventResponse"][];
+        };
+        SafetyLocationResponse: {
+            /** Format: double */
+            lat?: number;
+            /** Format: double */
+            lng?: number;
+        };
+        SafetyReporterResponse: {
+            name?: string;
+            role?: string;
+            phoneMasked?: string;
+        };
+        SafetyIncidentNoteRequest: {
+            note: string;
+        };
         AdminRideFlagReviewRequest: {
             note: string;
         };
@@ -2516,6 +2672,56 @@ export interface components {
             error?: components["schemas"]["ApiError"];
             /** Format: date-time */
             timestamp?: string;
+        };
+        ApiResponsePageResponseSafetyIncidentSummaryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseSafetyIncidentSummaryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseSafetyIncidentSummaryResponse: {
+            content?: components["schemas"]["SafetyIncidentSummaryResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        SafetyIncidentSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            rideId?: string;
+            type?: string;
+            severity?: string;
+            status?: string;
+            reporter?: components["schemas"]["SafetyReporterResponse"];
+            hasLocation?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            acknowledgedAt?: string;
+        };
+        ApiResponseSafetyOpenCountResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SafetyOpenCountResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        SafetyOpenCountResponse: {
+            /** Format: int64 */
+            unresolved?: number;
+            /** Format: int64 */
+            needsAcknowledging?: number;
+            /** Format: int64 */
+            critical?: number;
         };
         AdminRideSummaryResponse: {
             /** Format: uuid */
@@ -4547,6 +4753,80 @@ export interface operations {
             };
         };
     };
+    resolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyIncidentResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyIncidentDetailResponse"];
+                };
+            };
+        };
+    };
+    addNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyIncidentNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyIncidentDetailResponse"];
+                };
+            };
+        };
+    };
+    acknowledge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyIncidentDetailResponse"];
+                };
+            };
+        };
+    };
     reviewFlag: {
         parameters: {
             query?: never;
@@ -5022,6 +5302,71 @@ export interface operations {
             };
         };
     };
+    list_1: {
+        parameters: {
+            query: {
+                status?: "OPEN" | "ACKNOWLEDGED" | "ESCALATED" | "RESOLVED";
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseSafetyIncidentSummaryResponse"];
+                };
+            };
+        };
+    };
+    get_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyIncidentDetailResponse"];
+                };
+            };
+        };
+    };
+    openCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyOpenCountResponse"];
+                };
+            };
+        };
+    };
     listRides: {
         parameters: {
             query: {
@@ -5184,7 +5529,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -5204,7 +5549,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query: {
                 actorId?: string;

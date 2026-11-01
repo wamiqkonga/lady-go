@@ -157,6 +157,17 @@ a { color: var(--brand); }
   .content { padding: 1rem 20px 2rem; }
 }
 
+/* Safety queue */
+.nav-badge { display: inline-block; margin-left: 0.4rem; min-width: 1.3rem; padding: 0 0.4rem; border-radius: 999px; background: var(--brand); color: #fff; font-size: 0.78rem; font-weight: 800; text-align: center; }
+.nav-badge-critical { background: var(--bad); }
+.sev { font-weight: 800; font-size: 0.85rem; }
+.sev-critical { color: var(--bad); }
+.sev-high { color: var(--warn); }
+.banner-danger { border: 1px solid var(--bad); border-radius: var(--radius-lg); padding: 0.75rem 1rem; font-weight: 700; }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.panel textarea, .panel select { width: 100%; box-sizing: border-box; font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: inherit; }
+.panel form + form { margin-top: 1.25rem; }
+
 /* Motion: calm, short, ease-out. Everything stops under prefers-reduced-motion. */
 @keyframes lg-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes lg-beat { 0%, 56%, 100% { transform: scale(1); } 14% { transform: scale(1.14); } 28% { transform: scale(1); } 42% { transform: scale(1.08); } }
