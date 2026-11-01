@@ -19,6 +19,10 @@ public interface BookingRepository extends JpaRepository<Booking, UUID>, JpaSpec
 
     Page<Booking> findByCustomerIdOrderByCreatedAtDesc(UUID customerId, Pageable pageable);
 
+    long countByCustomerId(UUID customerId);
+
+    long countByCustomerIdAndStatus(UUID customerId, BookingStatus status);
+
     List<Booking> findByStatus(BookingStatus status);
 
     boolean existsByDriverIdAndStatusIn(UUID driverId, Collection<BookingStatus> statuses);

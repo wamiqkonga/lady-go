@@ -1,0 +1,19 @@
+/* Customers screens: the list table collapses to one card per customer on phones. */
+.customer-search { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; }
+.customer-search input[type='search'] { min-width: min(18rem, 100%); }
+.status-badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--surface-variant); }
+.status-badge.suspended, .status-badge.deleted { background: var(--rose-container); color: var(--fg); }
+.customer-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+.customer-facts > div { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.6rem 0.8rem; }
+.customer-facts dt { color: var(--muted); font-size: 0.8rem; }
+.customer-facts dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
+.customer-action { margin: 1rem 0; display: grid; gap: 0.5rem; max-width: 28rem; }
+.customer-action input { width: 100%; box-sizing: border-box; }
+
+@media (max-width: 760px) {
+  table.stack-table, .stack-table thead, .stack-table tbody, .stack-table tr, .stack-table td { display: block; width: 100%; box-sizing: border-box; }
+  .stack-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .stack-table tr { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+  .stack-table td { border-bottom: 0; padding: 0.25rem 0; display: flex; justify-content: space-between; gap: 1rem; text-align: right; overflow-wrap: anywhere; }
+  .stack-table td::before { content: attr(data-label); color: var(--muted); font-weight: 700; text-align: left; flex: none; }
+}

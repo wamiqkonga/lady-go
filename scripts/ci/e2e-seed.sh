@@ -116,7 +116,7 @@ SQL
 echo "== Seeding one dedicated, independently-enrolled SUPER_ADMIN account per real test login =="
 # Keys match e2e/env.ts's SUPER_ADMIN_KEYS exactly - one per test that performs a real login, so no
 # two real logins anywhere in the suite ever share a TOTP secret (see the header comment above).
-SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK RIDES FLAGS AUDITLOG CONFIGEDIT STAFFMGMT)
+SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK RIDES FLAGS AUDITLOG CONFIGEDIT STAFFMGMT CUSTOMERS)
 for i in "${!SUPER_ADMIN_KEYS[@]}"; do
   KEY="${SUPER_ADMIN_KEYS[$i]}"
   EMAIL="e2e.super.$(echo "$KEY" | tr '[:upper:]' '[:lower:]')@ladygo.test"
