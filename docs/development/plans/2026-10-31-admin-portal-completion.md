@@ -198,9 +198,9 @@ Claude cannot execute these. Lifecycle for each: Ready for test, In testing/UAT,
 - Steps: snapshot, deploy backend, confirm app boots (Liquibase/Flyway log clean).
 - Accept: health endpoint green, rows unchanged. Owner: you.
 
-**T6. Confirm email sending works on staging.** Env: staging.
-- Why: password reset link needs the email provider (see `2026-10-23-free-email-provider.md`).
-- Steps: after step 4b ships to staging, use Forgot password with your own admin email.
+**T6. Set up Resend and confirm email sending works on staging.** Env: staging.
+- Why: password reset link needs the email provider. Decision: Resend, sent over SMTP (already built, see `docs/development/email-otp-setup.md`). The SMTP sender now turns on from `LADYGO_EMAIL_PROVIDER=smtp` alone, so recovery emails work while driver codes still go by SMS.
+- Steps: (1) In Resend add the domain `ladygoride.com`, add the DNS records it lists, wait for "Verified". (2) Create an API key with sending access only. (3) Run `scripts/ops/set-smtp-secret.sh` (hidden prompt; it writes `LADYGO_EMAIL_PROVIDER=smtp`, host `smtp.resend.com`, port 587, username `resend`, and the key). (4) Make sure `LADYGO_EMAIL_FROM` is `Lady Go <no-reply@ladygoride.com>`. (5) Restart the backend, then use Forgot password with your own admin email.
 - Accept: email arrives within 2 minutes, link works once, second use fails. Owner: you.
 
 **T7. Put the break-glass script on the server.** Env: staging, then production.

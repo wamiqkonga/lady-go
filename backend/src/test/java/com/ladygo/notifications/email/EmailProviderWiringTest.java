@@ -44,9 +44,24 @@ class EmailProviderWiringTest {
                 });
     }
 
+    /** Admin password recovery emails need a sender even while OTP codes still go by SMS, so choosing the smtp
+     *  provider explicitly wires it whatever the OTP channel is. */
     @Test
-    void noEmailSenderIsWiredWhenTheChannelIsSms() {
-        runner.withPropertyValues("ladygo.email.provider=smtp").run(context -> {
+    void smtpProviderIsWiredEvenWhileOtpCodesGoBySms() {
+        runner.withPropertyValues("ladygo.email.provider=smtp",
+                        "ladygo.email.smtp.host=smtp.resend.com", "ladygo.email.smtp.port=587",
+                        "ladygo.email.smtp.username=resend", "ladygo.email.smtp.password=test-key",
+                        "ladygo.email.smtp.from=Lady Go <no-reply@ladygoride.com>")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(SmtpEmailSender.class);
+                    assertThat(context).doesNotHaveBean(SesEmailSender.class);
+                });
+    }
+
+    @Test
+    void noEmailSenderIsWiredWhenTheChannelIsSmsAndNoProviderWasChosen() {
+        runner.run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).doesNotHaveBean(SmtpEmailSender.class);
             assertThat(context).doesNotHaveBean(SesEmailSender.class);
