@@ -29,51 +29,41 @@ async function goToStep(page: import('@playwright/test').Page, title: string) {
 async function startApplication(page: import('@playwright/test').Page) {
   await page.getByRole('combobox').selectOption('Srinagar')
   await page.getByRole('button', { name: 'Start application' }).click()
-  await expect(page.getByRole('heading', { name: 'Your vehicle' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your two-wheeler', exact: true })).toBeVisible()
 }
 
+/** "Continue", or "Skip for now" on an optional step the captain has not filled in. */
 async function next(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: /^(Continue|Skip for now)$/ }).click()
 }
 
 test.describe('captain registration - full flow', () => {
   test.skip(!env, 'DRIVER_REG_E2E_* env vars not set - see scripts/ci/driver-registration-e2e-seed.sh')
 
-  test('happy path: login, city, vehicle, every document, selfie, declaration reach the done screen', async ({ page }) => {
+  test('happy path: login, city, vehicle number, RC photo, selfie, declaration reach the done screen', async ({ page }) => {
     test.setTimeout(90_000)
     await loginAs(page, env!.phones.HAPPY_PATH, env!.backendLog)
 
-    await expect(page.getByText('Which city will you drive in?')).toBeVisible()
+    await expect(page.getByText('Which city will you ride in?')).toBeVisible()
     await startApplication(page)
 
     // Nothing is done yet: the status must not claim "Under review" and Continue is locked.
     await expect(page.getByText('In progress')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
 
-    await page.getByLabel('Registration number').fill('jk01hp' + (Date.now() % 10000))
-    await page.getByRole('button', { name: 'Save vehicle' }).click()
+    // Step 1: the vehicle number and the RC photo (the fitness certificate on this step is optional).
+    await page.getByLabel('Vehicle number').fill('jk01hp' + (Date.now() % 10000))
+    await page.getByRole('button', { name: 'Save vehicle number' }).click()
     await expect(page.getByText(/JK01HP/)).toBeVisible()
+    const rc = section(page, 'Vehicle registration (RC) photo')
+    await rc.locator('input[type="file"]').setInputFiles(VALID_IMAGE)
+    await rc.getByRole('button', { name: 'Upload' }).click()
+    await expect(rc.getByText('Pending review')).toBeVisible()
     await next(page)
 
-    const documents = [
-      'Driving licence', 'Vehicle registration (RC) photo', 'Vehicle photo (plate visible)',
-      'Insurance', 'Fitness certificate', 'Pollution certificate',
-    ]
-    for (const label of documents) {
-      await expect(page.getByRole('heading', { name: label, exact: true })).toBeVisible()
-      const sectionLocator = section(page, label)
-      await sectionLocator.locator('input[type="file"]').setInputFiles(VALID_IMAGE)
-      if (label === 'Driving licence') {
-        await sectionLocator.getByLabel('Document number').fill('DL-E2E-0001')
-      }
-      if (label === 'Driving licence' || label === 'Insurance') {
-        const future = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-        await sectionLocator.getByLabel('Expiry date').fill(future)
-      }
-      await sectionLocator.getByRole('button', { name: 'Upload' }).click()
-      await expect(sectionLocator.getByText('Pending review')).toBeVisible()
-      await next(page)
-    }
+    // Step 2: the driving licence is optional, so the captain can skip it.
+    await expect(page.getByRole('heading', { name: 'Driving licence (optional)', exact: true })).toBeVisible()
+    await next(page)
 
     // Selfie, via the file-input fallback - the camera path is covered by component tests
     // (getUserMedia is unreliable headless without extra browser flags this suite doesn't need).
@@ -93,13 +83,14 @@ test.describe('captain registration - full flow', () => {
 
     await expect(page.getByRole('heading', { name: 'Application received' })).toBeVisible()
     await expect(page.getByText('Under review').first()).toBeVisible()
-    await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '9')
+    // Three required steps: the vehicle (number + RC), the selfie and the declaration.
+    await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3')
   })
 
   test('a non-image file is rejected client-side with no status change', async ({ page }) => {
     await loginAs(page, env!.phones.WRONG_FILE_TYPE, env!.backendLog)
     await startApplication(page)
-    await goToStep(page, 'Vehicle registration (RC) photo')
+    await goToStep(page, 'Your two-wheeler')
 
     const sectionLocator = section(page, 'Vehicle registration (RC) photo')
     await sectionLocator.locator('input[type="file"]').setInputFiles(NOT_AN_IMAGE)
@@ -112,7 +103,7 @@ test.describe('captain registration - full flow', () => {
   test('an oversized file is rejected client-side with no status change', async ({ page }) => {
     await loginAs(page, env!.phones.OVERSIZED_FILE, env!.backendLog)
     await startApplication(page)
-    await goToStep(page, 'Insurance')
+    await goToStep(page, 'Your two-wheeler')
 
     const oversizedPath = path.join(os.tmpdir(), `oversized-${Date.now()}.png`)
     // A real (if minimal) PNG header followed by padding, not just random bytes - the size check
@@ -120,7 +111,7 @@ test.describe('captain registration - full flow', () => {
     const validBytes = fs.readFileSync(VALID_IMAGE)
     fs.writeFileSync(oversizedPath, Buffer.concat([validBytes, Buffer.alloc(9 * 1024 * 1024)]))
 
-    const sectionLocator = section(page, 'Insurance')
+    const sectionLocator = section(page, 'Vehicle registration (RC) photo')
     await sectionLocator.locator('input[type="file"]').setInputFiles(oversizedPath)
 
     await expect(sectionLocator.getByRole('alert')).toContainText('too large')
@@ -130,10 +121,11 @@ test.describe('captain registration - full flow', () => {
   test('an already-expired expiry date is rejected by the server, not silently accepted', async ({ page }) => {
     await loginAs(page, env!.phones.EXPIRED_INSURANCE, env!.backendLog)
     await startApplication(page)
-    await goToStep(page, 'Insurance')
+    await goToStep(page, 'Driving licence (optional)')
 
-    const sectionLocator = section(page, 'Insurance')
+    const sectionLocator = section(page, 'Driving licence (optional)')
     await sectionLocator.locator('input[type="file"]').setInputFiles(VALID_IMAGE)
+    await sectionLocator.getByLabel('Document number').fill('DL-E2E-EXPIRED')
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     // The date picker's own min blocks past dates in the UI; set the value directly so the
     // server-side check (the real authority) is what gets exercised.
@@ -147,17 +139,16 @@ test.describe('captain registration - full flow', () => {
 
     await expect(sectionLocator.getByRole('alert')).toContainText('already expired')
     await expect(sectionLocator.getByText('Pending review')).not.toBeVisible()
-    await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
   })
 
   test('a rejected document shows the reviewer note and can be resubmitted', async ({ page }) => {
     await loginAs(page, env!.phones.REJECT_RESUBMIT, env!.backendLog)
 
     // The seeded captain has no vehicle yet, so the wizard resumes on the first unfinished step.
-    await expect(page.getByRole('heading', { name: 'Your vehicle' })).toBeVisible()
-    await goToStep(page, 'Driving licence')
+    await expect(page.getByRole('heading', { name: 'Your two-wheeler', exact: true })).toBeVisible()
+    await goToStep(page, 'Driving licence (optional)')
 
-    const sectionLocator = section(page, 'Driving licence')
+    const sectionLocator = section(page, 'Driving licence (optional)')
     await expect(sectionLocator.getByText('Rejected')).toBeVisible()
     await expect(sectionLocator.getByText('Photo is blurry, please retake.')).toBeVisible()
     // The note renders as literal text, never markup - no element the string could have created.

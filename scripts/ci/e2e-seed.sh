@@ -234,9 +234,9 @@ seed_driver() {
     -H 'Content-Type: application/json' -d "{\"cityId\":\"$CITY_ID\"}" >/dev/null
   curl -sf -X PUT "$BASE/api/v1/drivers/me/vehicle" -H "Authorization: Bearer $driver_token" \
     -H 'Content-Type: application/json' \
-    -d "{\"registrationNumber\":\"$registration\",\"vehicleType\":\"CAB\",\"make\":\"Maruti\",\"model\":\"Dzire\",\"color\":\"White\",\"manufactureYear\":2022}" >/dev/null
+    -d "{\"registrationNumber\":\"$registration\",\"vehicleType\":\"BIKE\",\"make\":\"Honda\",\"model\":\"Activa\",\"color\":\"White\",\"manufactureYear\":2022}" >/dev/null
   curl -sf -X POST "$BASE/api/v1/drivers/me/declaration" -H "Authorization: Bearer $driver_token" \
-    -H 'Content-Type: application/json' -d '{"declarationVersion":"v1"}' >/dev/null
+    -H 'Content-Type: application/json' -d '{"declarationVersion":"driver-v2"}' >/dev/null
   for TYPE in LICENSE VEHICLE_REGISTRATION VEHICLE_PHOTO INSURANCE; do
     curl -sf -X POST "$BASE/api/v1/drivers/me/documents?type=$TYPE" \
       -H "Authorization: Bearer $driver_token" -F "file=@${SEED_IMAGE};type=image/png" >/dev/null
