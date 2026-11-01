@@ -35,8 +35,11 @@ test.describe('staff accounts: invite and role change', () => {
     // The dev email sender logs the message; CI exposes that log as BACKEND_LOG. Follow the link when it is there.
     const logPath = process.env.BACKEND_LOG
     if (logPath) {
-      const line = readFileSync(logPath, 'utf8').split('\n').reverse().find((l) => l.includes(`to=${email}`))
-      const link = line?.match(/https?:\/\/\S+\/reset-password#token=[A-Za-z0-9_-]+/)?.[0]
+      // The logger prints the whole message body, which spans several lines: the `to=` marker is on the first
+      // one and the link is a few lines below it, so search from the last marker onward, not just that line.
+      const lines = readFileSync(logPath, 'utf8').split('\n')
+      const start = lines.map((l) => l.includes(`to=${email}`)).lastIndexOf(true)
+      const link = start < 0 ? undefined : lines.slice(start, start + 15).join('\n').match(/https?:\/\/\S+\/reset-password#token=[A-Za-z0-9_-]+/)?.[0]
       expect(link, 'invite link in the dev email log').toBeTruthy()
       const other = await page.context().newPage()
       await other.goto(link!)
