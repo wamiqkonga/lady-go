@@ -1476,6 +1476,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/live-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["snapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/eligibility-reports": {
         parameters: {
             query?: never;
@@ -2846,6 +2862,76 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        AdminLiveMapResponse: {
+            /** Format: date-time */
+            generatedAt?: string;
+            /** Format: int32 */
+            maxAgeMinutes?: number;
+            /** Format: int32 */
+            limit?: number;
+            driversTruncated?: boolean;
+            ridesTruncated?: boolean;
+            incidentsTruncated?: boolean;
+            drivers?: components["schemas"]["LiveDriver"][];
+            rides?: components["schemas"]["LiveRide"][];
+            incidents?: components["schemas"]["LiveIncident"][];
+        };
+        ApiResponseAdminLiveMapResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminLiveMapResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        LiveDriver: {
+            /** Format: uuid */
+            driverId?: string;
+            name?: string;
+            availability?: string;
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+            /** Format: date-time */
+            positionAt?: string;
+            /** Format: int64 */
+            ageSeconds?: number;
+        };
+        LiveIncident: {
+            /** Format: uuid */
+            incidentId?: string;
+            /** Format: uuid */
+            rideId?: string;
+            type?: string;
+            severity?: string;
+            status?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+        };
+        LiveRide: {
+            /** Format: uuid */
+            bookingId?: string;
+            status?: string;
+            /** Format: uuid */
+            driverId?: string;
+            driverName?: string;
+            customerName?: string;
+            pickupAddress?: string;
+            /** Format: double */
+            pickupLatitude?: number;
+            /** Format: double */
+            pickupLongitude?: number;
+            dropAddress?: string;
+            /** Format: double */
+            dropLatitude?: number;
+            /** Format: double */
+            dropLongitude?: number;
         };
         ApiResponsePageResponseEligibilityReportAdminResponse: {
             success?: boolean;
@@ -5437,6 +5523,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePageResponseAdminRideFlagResponse"];
+                };
+            };
+        };
+    };
+    snapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminLiveMapResponse"];
                 };
             };
         };
