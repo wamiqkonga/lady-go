@@ -23,6 +23,7 @@ import com.ladygo.users.domain.UserStatus;
 import com.ladygo.users.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,8 @@ public class AdminAuthService {
     private final ConfigurationService config;
     private final AuditLogRepository auditLogs;
     private final AdminLoginThrottle loginThrottle;
+    private final boolean mfaRequired;
+
 
     public AdminAuthService(
             UserRepository users,
@@ -61,7 +64,8 @@ public class AdminAuthService {
             RateLimiter rateLimiter,
             ConfigurationService config,
             AuditLogRepository auditLogs,
-            AdminLoginThrottle loginThrottle) {
+            AdminLoginThrottle loginThrottle,
+            @Value("${ladygo.mfa.required:true}") boolean mfaRequired) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.mfaSecretCipher = mfaSecretCipher;
@@ -73,6 +77,7 @@ public class AdminAuthService {
         this.config = config;
         this.auditLogs = auditLogs;
         this.loginThrottle = loginThrottle;
+        this.mfaRequired = mfaRequired;
     }
 
     /**
@@ -98,6 +103,18 @@ public class AdminAuthService {
         if (user.getStatus() != UserStatus.ACTIVE) {
             // Adversarial review finding (CRITICAL): status was never checked on this path.
             throw new ForbiddenException("This account is not active.");
+        }
+
+        if (!mfaRequired) {
+            // Pilot setting (LADYGO_ADMIN_MFA_REQUIRED=false): staff sign in with email + password only.
+            // The admin UI has no password-change or MFA-enrolment screen, so the forced steps would
+            // lock every account out; they are skipped along with the second factor.
+            user.setLastLoginAt(Instant.now());
+            users.save(user);
+            releaseLoginRateLimit(email);
+            String access = accessTokenIssuer.issue(user.getId(), user.getRole());
+            String refresh = refreshTokenService.issue(user.getId(), deviceId);
+            return new AdminLoginOutcome.Authenticated(new TokenPair(access, refresh));
         }
 
         if (user.isMustChangePassword() || !user.isMfaEnabled()) {

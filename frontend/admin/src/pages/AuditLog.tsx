@@ -72,28 +72,30 @@ export default function AuditLog() {
       {!error && rows === null && <p className="muted">Loading…</p>}
       {!error && rows !== null && rows.length === 0 && <p className="muted">No entries match these filters.</p>}
       {!error && rows !== null && rows.length > 0 && (
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>When</th>
-              <th>Actor</th>
-              <th>Action</th>
-              <th>Target</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
-                <td>{row.actorRole ?? '—'}</td>
-                <td>{row.action}</td>
-                <td>{row.targetType ?? '—'} {row.targetId ? `(${row.targetId.slice(0, 8)}…)` : ''}</td>
-                <td><MetadataCell metadata={row.metadata} /></td>
+        <div className="table-scroll">
+          <table className="list-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Actor</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Details</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
+                  <td>{row.actorRole ?? '—'}</td>
+                  <td>{row.action}</td>
+                  <td>{row.targetType ?? '—'} {row.targetId ? `(${row.targetId.slice(0, 8)}…)` : ''}</td>
+                  <td><MetadataCell metadata={row.metadata} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )

@@ -56,6 +56,7 @@ BACKEND_LOG="$STATE_DIR/backend.log"
 (
   cd "$ROOT/backend"
   export SPRING_PROFILES_ACTIVE=dev
+  export LADYGO_ADMIN_MFA_REQUIRED=true # the enrolment flow below needs MFA on; the base default is off
   export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:${PG_PORT}/ladygo"
   export SPRING_DATASOURCE_USERNAME=ladygo
   export SPRING_DATASOURCE_PASSWORD="$POSTGRES_PASSWORD"
@@ -186,7 +187,7 @@ echo "== Starting admin web dev server (port 5174) =="
 ADMIN_LOG="$STATE_DIR/admin-web.log"
 (
   cd "$ROOT/frontend/admin"
-  nohup npm run dev >"$ADMIN_LOG" 2>&1 &
+  VITE_ADMIN_MFA_REQUIRED=true nohup npm run dev >"$ADMIN_LOG" 2>&1 &
   echo $! > "$STATE_DIR/admin-web.pid"
 )
 
