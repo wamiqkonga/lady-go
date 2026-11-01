@@ -100,7 +100,7 @@ class AdminAuditLogSensitiveDataTest extends PersistenceTestSupport {
         // DRIVER_APPROVED: a boolean (policeVerificationRequired) only.
         Driver approvalDriver = newDriver(city);
         Vehicle vehicle = newVehicle(approvalDriver);
-        selfDeclarations.accept(SubjectType.DRIVER, approvalDriver.getId(), "v1");
+        selfDeclarations.accept(SubjectType.DRIVER, approvalDriver.getId(), "driver-v2");
         for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
                 DocumentType.VEHICLE_PHOTO, DocumentType.INSURANCE, DocumentType.SELFIE)) {
             DriverDocument document = pendingDocument(approvalDriver, type);

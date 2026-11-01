@@ -26,6 +26,7 @@ public class JwtService {
     private static final String SCOPE_ENROLMENT = "ENROLMENT";
     private static final String CLAIM_PWD_OK = "pwdOk";
     private static final String CLAIM_MFA_OK = "mfaOk";
+    private static final String CLAIM_STEP_UP_AT = "stepUpAt";
 
     private final javax.crypto.SecretKey key;
 
@@ -39,10 +40,21 @@ public class JwtService {
     }
 
     public String issueAccessToken(UUID userId, UserRole role, Duration ttl) {
+        return issueAccessToken(userId, role, ttl, null);
+    }
+
+    /** {@code stepUpAt} (nullable) records when this session last re-proved a TOTP code. It is signed into the
+     *  token, so it cannot be forged, and it lives only as long as the token - a refresh issues a token
+     *  without it, which is deliberate: a step-up is never silently carried to a new token. */
+    public String issueAccessToken(UUID userId, UserRole role, Duration ttl, Instant stepUpAt) {
         Instant now = Instant.now();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(userId.toString())
-                .claim(CLAIM_ROLE, role.name())
+                .claim(CLAIM_ROLE, role.name());
+        if (stepUpAt != null) {
+            builder.claim(CLAIM_STEP_UP_AT, stepUpAt.getEpochSecond());
+        }
+        return builder
                 .id(UUID.randomUUID().toString())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(ttl)))
@@ -75,7 +87,9 @@ public class JwtService {
                 return java.util.Optional.of(AuthPrincipal.enrolment(userId, pwdOk, mfaOk));
             }
             UserRole role = UserRole.valueOf(claims.get(CLAIM_ROLE, String.class));
-            return java.util.Optional.of(AuthPrincipal.authenticated(userId, role));
+            Long stepUpEpoch = claims.get(CLAIM_STEP_UP_AT, Long.class);
+            Instant stepUpAt = stepUpEpoch == null ? null : Instant.ofEpochSecond(stepUpEpoch);
+            return java.util.Optional.of(AuthPrincipal.authenticated(userId, role, stepUpAt));
         } catch (JwtException | IllegalArgumentException ex) {
             return java.util.Optional.empty();
         }

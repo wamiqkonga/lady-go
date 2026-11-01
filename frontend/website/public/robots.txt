@@ -1,0 +1,7 @@
+# Lady Go public website. Sign-in and registration pages are for drivers, not for search results.
+User-agent: *
+Allow: /
+Disallow: /driver/login
+Disallow: /driver/register
+
+Sitemap: https://ladygoride.com/sitemap.xml

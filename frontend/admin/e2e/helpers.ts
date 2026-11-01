@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test'
-import { currentTotpCode, type Credentials } from './env.js'
+import { currentTotpCode, nextTotpCode, type Credentials } from './env.js'
 
 export async function loginAs(page: Page, creds: Credentials): Promise<void> {
   await page.goto('/login')
@@ -10,6 +10,15 @@ export async function loginAs(page: Page, creds: Credentials): Promise<void> {
   await page.getByLabel('Authenticator code').fill(currentTotpCode(creds.totpSecret))
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
+}
+
+/** Answers the step-up prompt that a destructive action (config edit) raises after login. */
+export async function confirmStepUp(page: Page, creds: Credentials): Promise<void> {
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Authenticator code').fill(nextTotpCode(creds.totpSecret))
+  await dialog.getByRole('button', { name: 'Confirm' }).click()
+  await expect(dialog).not.toBeVisible()
 }
 
 /** The driver-documents queue table has no stable test id - this finds the row for a given driver by

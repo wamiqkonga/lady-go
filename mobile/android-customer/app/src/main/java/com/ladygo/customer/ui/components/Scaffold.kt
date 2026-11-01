@@ -34,6 +34,9 @@ fun LadyGoScreen(
     onBack: (() -> Unit)? = null,
     backDescription: String = "Back",
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
+    /** `false` for a screen that fills the viewport itself (a full-height map): the body does not scroll, so a
+     *  drag on the map can never be taken over by the page. Children may use `Modifier.weight`. */
+    scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
@@ -59,7 +62,7 @@ fun LadyGoScreen(
                 Modifier
                     .padding(innerPadding)
                     .let { if (title != null || onBack != null) it.statusBarsPadding() else it }
-                    .verticalScroll(rememberScrollState())
+                    .let { if (scrollable) it.verticalScroll(rememberScrollState()) else it.fillMaxSize() }
                     .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

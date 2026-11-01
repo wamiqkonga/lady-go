@@ -49,7 +49,9 @@ public class AdminAuthService {
     private final RateLimiter rateLimiter;
     private final ConfigurationService config;
     private final AuditLogRepository auditLogs;
+    private final AdminLoginThrottle loginThrottle;
     private final boolean mfaRequired;
+
 
     public AdminAuthService(
             UserRepository users,
@@ -62,6 +64,7 @@ public class AdminAuthService {
             RateLimiter rateLimiter,
             ConfigurationService config,
             AuditLogRepository auditLogs,
+            AdminLoginThrottle loginThrottle,
             @Value("${ladygo.mfa.required:true}") boolean mfaRequired) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
@@ -73,16 +76,28 @@ public class AdminAuthService {
         this.rateLimiter = rateLimiter;
         this.config = config;
         this.auditLogs = auditLogs;
+        this.loginThrottle = loginThrottle;
         this.mfaRequired = mfaRequired;
     }
 
-    @Transactional
+    /**
+     * {@code noRollbackFor}: a rejected attempt must still be counted. Every rejection below is thrown before any
+     * write other than the counters, so keeping the transaction on those exceptions cannot half-apply a login; if it
+     * rolled back, neither the fixed window nor the progressive delay would ever accumulate.
+     */
+    @Transactional(noRollbackFor = {UnauthorizedException.class, ForbiddenException.class, RateLimitExceededException.class})
     public AdminLoginOutcome login(String email, String password, String totpCode, String deviceId, String clientIp) {
-        checkLoginRateLimit(email, clientIp);
+        boolean progressive = config.getBoolean("admin.login.progressive.enabled", false);
+        if (progressive) {
+            checkProgressiveLimit(email, clientIp);
+        } else {
+            checkLoginRateLimit(email, clientIp);
+        }
 
         User user = users.findByEmailIgnoreCase(email).orElse(null);
         if (user == null || user.getPasswordHash() == null
                 || !passwordEncoder.matches(password, user.getPasswordHash())) {
+            recordLoginFailure(progressive, email);
             throw new UnauthorizedException();
         }
         if (user.getStatus() != UserStatus.ACTIVE) {
@@ -116,23 +131,31 @@ public class AdminAuthService {
             return new AdminLoginOutcome.EnrolmentRequired(token, List.copyOf(steps));
         }
 
-        long acceptedStep = verifyTotpOrThrow(user, totpCode);
+        long acceptedStep;
+        try {
+            acceptedStep = verifyTotpOrThrow(user, totpCode);
+        } catch (UnauthorizedException ex) {
+            recordLoginFailure(progressive, email);
+            throw ex;
+        }
 
-        // Order matters: save() on a User object detached by the clearAutomatically bulk update below
-        // would merge its stale in-memory mfaLastUsedStep back over the DB row, undoing replay
-        // rejection for next time. So every other mutation is saved first; the atomic replay-acceptance
-        // update runs last and is the only write that touches this user afterwards.
-        user.setLastLoginAt(Instant.now());
-        users.save(user);
+        // The atomic replay-acceptance update runs first and clears the persistence context, so the user is read
+        // again before the other write: saving the stale object would merge its old mfaLastUsedStep back over the
+        // row. It also means a replayed code is rejected before anything else is written, which is what lets this
+        // method keep the counters on rejection.
         if (users.updateMfaLastUsedStepIfNewer(user.getId(), acceptedStep) == 0) {
             log.warn("operation=totp_replay_rejected userId={}", user.getId());
+            recordLoginFailure(progressive, email);
             throw new UnauthorizedException();
         }
+        User fresh = users.findById(user.getId()).orElseThrow(UnauthorizedException::new);
+        fresh.setLastLoginAt(Instant.now());
+        users.save(fresh);
         // Adversarial review finding (MEDIUM): a run of legitimate successful logins must not erode
         // the budget meant to catch repeated failures, or enough real logins self-lock the account.
         releaseLoginRateLimit(email);
-        String access = accessTokenIssuer.issue(user.getId(), user.getRole());
-        String refresh = refreshTokenService.issue(user.getId(), deviceId);
+        String access = accessTokenIssuer.issue(fresh.getId(), fresh.getRole());
+        String refresh = refreshTokenService.issue(fresh.getId(), deviceId);
         return new AdminLoginOutcome.Authenticated(new TokenPair(access, refresh));
     }
 
@@ -185,6 +208,86 @@ public class AdminAuthService {
         if (users.updateMfaLastUsedStepIfNewer(user.getId(), step.getAsLong()) == 0) {
             throw new UnauthorizedException();
         }
+    }
+
+    /**
+     * Step-up MFA (docs/security/admin-stepup-lockout-recovery-design.md section 2): a signed-in admin re-proves a
+     * TOTP code and gets back a fresh access token carrying the step-up time. The same replay guard as login
+     * applies, so a code already used for login or a previous step-up must be replaced by the next one.
+     */
+    /** {@code noRollbackFor}: see {@link #login}; every rejection here happens before any write but the counter. */
+    @Transactional(noRollbackFor = {UnauthorizedException.class, ForbiddenException.class, RateLimitExceededException.class})
+    public String stepUp(AuthPrincipal principal, String code) {
+        requireSignedInStaff(principal);
+        String bucket = stepUpBucket(principal.userId());
+        Duration window = config.getMinutes("admin.login.window.minutes", Duration.ofMinutes(15));
+        if (!rateLimiter.tryConsume(bucket, config.getInt("admin.login.max.attempts", 5), window)) {
+            throw new RateLimitExceededException();
+        }
+        User user = users.findById(principal.userId()).orElseThrow(UnauthorizedException::new);
+        if (user.getStatus() != UserStatus.ACTIVE || !user.isMfaEnabled()) {
+            throw new UnauthorizedException();
+        }
+        long acceptedStep = verifyTotpOrThrow(user, code);
+        if (users.updateMfaLastUsedStepIfNewer(user.getId(), acceptedStep) == 0) {
+            log.warn("operation=totp_replay_rejected userId={}", user.getId());
+            throw new UnauthorizedException();
+        }
+        rateLimiter.release(bucket);
+        return accessTokenIssuer.issue(user.getId(), user.getRole(), Instant.now());
+    }
+
+    /**
+     * Self-service MFA setup for an already signed-in admin who has none (the pilot runs with login MFA off, so
+     * the forced-enrolment login path is never reached). Refused once an authenticator exists, so a stolen
+     * session cannot swap in the attacker's authenticator; replacing one is the SUPER_ADMIN MFA reset.
+     */
+    @Transactional
+    public MfaEnrollStart startSelfMfaEnrollment(AuthPrincipal principal) {
+        requireSignedInStaff(principal);
+        User user = users.findById(principal.userId()).orElseThrow(UnauthorizedException::new);
+        if (user.isMfaEnabled()) {
+            throw new ForbiddenException("An authenticator is already set up for this account.");
+        }
+        String secret = totpService.generateSecret();
+        user.setMfaPendingSecretEnc(mfaSecretCipher.encrypt(secret));
+        users.save(user);
+        return new MfaEnrollStart(secret, totpService.provisioningUri(user.getEmail(), secret));
+    }
+
+    /** Confirms the pending secret with a code and returns a token that already counts as a step-up. */
+    @Transactional
+    public String confirmSelfMfaEnrollment(AuthPrincipal principal, String code) {
+        requireSignedInStaff(principal);
+        User user = users.findById(principal.userId()).orElseThrow(UnauthorizedException::new);
+        if (user.isMfaEnabled()) {
+            throw new ForbiddenException("An authenticator is already set up for this account.");
+        }
+        if (user.getMfaPendingSecretEnc() == null) {
+            throw new UnauthorizedException();
+        }
+        OptionalLong step = totpService.verify(mfaSecretCipher.decrypt(user.getMfaPendingSecretEnc()), code, Instant.now());
+        if (step.isEmpty()) {
+            throw new UnauthorizedException();
+        }
+        user.setMfaSecretEnc(user.getMfaPendingSecretEnc());
+        user.setMfaPendingSecretEnc(null);
+        user.setMfaEnabled(true);
+        users.save(user);
+        if (users.updateMfaLastUsedStepIfNewer(user.getId(), step.getAsLong()) == 0) {
+            throw new UnauthorizedException();
+        }
+        return accessTokenIssuer.issue(user.getId(), user.getRole(), Instant.now());
+    }
+
+    private void requireSignedInStaff(AuthPrincipal principal) {
+        if (principal == null || principal.enrolment() || principal.role() == null) {
+            throw new UnauthorizedException();
+        }
+    }
+
+    private String stepUpBucket(UUID userId) {
+        return "admin_stepup:" + userId;
     }
 
     /** SUPER_ADMIN-only lost-device recovery for another staff member (section 3.3). Never self-service. */
@@ -242,6 +345,43 @@ public class AdminAuthService {
         }
     }
 
+    /** Progressive mode: refuse while the email is waiting; the IP bucket stays as a (larger) hard cap. */
+    private void checkProgressiveLimit(String email, String clientIp) {
+        int ipMax = config.getInt("admin.login.max.attempts", 5) * 4;
+        Duration window = config.getMinutes("admin.login.window.minutes", Duration.ofMinutes(15));
+        // Consume the IP slot first so an attacker cannot probe for a wait without spending an attempt.
+        boolean ipOk = clientIp == null || rateLimiter.tryConsume(ipBucket(clientIp), ipMax, window);
+        if (!ipOk || loginThrottle.isLocked(email)) {
+            throw new RateLimitExceededException();
+        }
+    }
+
+    private void recordLoginFailure(boolean progressive, String email) {
+        if (progressive) {
+            loginThrottle.recordFailure(email);
+        }
+    }
+
+    /** SUPER_ADMIN unlock: forgets both the progressive wait and the fixed-window counter for one admin. */
+    @Transactional
+    public void unlockLogin(UUID actorId, UserRole actorRole, UUID targetUserId, String reason, String ip) {
+        User target = users.findById(targetUserId).orElseThrow(UnauthorizedException::new);
+        if (target.getEmail() != null) {
+            loginThrottle.clear(target.getEmail());
+            rateLimiter.reset(emailBucket(target.getEmail()));
+        }
+
+        AuditLog entry = new AuditLog();
+        entry.setActorId(actorId);
+        entry.setActorRole(actorRole.name());
+        entry.setAction("ADMIN_LOGIN_UNLOCK");
+        entry.setTargetType("users");
+        entry.setTargetId(targetUserId.toString());
+        entry.setMetadata(java.util.Map.of("reason", reason));
+        entry.setIp(ip);
+        auditLogs.save(entry);
+    }
+
     private void releaseLoginRateLimit(String email) {
         // IP bucket is deliberately never released: it is shared across every email attempted from
         // that IP (office NAT, carrier CGNAT, ...). Releasing it on one account's success would wipe
@@ -249,10 +389,11 @@ public class AdminAuthService {
         // IP, as soon as any legitimate user on that IP happens to log in - a cross-account rate-limit
         // bypass. Only the email bucket, which is exclusively this account's, is safe to release.
         rateLimiter.release(emailBucket(email));
+        loginThrottle.clear(email);
     }
 
     private String emailBucket(String email) {
-        return "admin_login_email:" + email.toLowerCase(java.util.Locale.ROOT);
+        return "admin_login_email:" + AdminLoginThrottle.normalise(email);
     }
 
     private String ipBucket(String clientIp) {

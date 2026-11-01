@@ -81,6 +81,8 @@ for _ in $(seq 1 120); do
 done
 grep -q "Started LadyGoApplication" "$BACKEND_LOG" 2>/dev/null || { echo "Backend did not start within 120s - see $BACKEND_LOG" >&2; exit 1; }
 echo "Backend up."
+# The "Started" log line appears slightly before AdminBootstrapRunner has created the admin account.
+sleep 5
 
 BASE=http://localhost:8080
 

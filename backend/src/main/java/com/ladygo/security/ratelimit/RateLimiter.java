@@ -19,4 +19,7 @@ public interface RateLimiter {
      * review finding, MEDIUM). A no-op if the bucket doesn't exist or is already at zero.
      */
     void release(String bucketKey);
+
+    /** Forgets a bucket entirely (a SUPER_ADMIN unlocking an account). A no-op if it does not exist. */
+    void reset(String bucketKey);
 }

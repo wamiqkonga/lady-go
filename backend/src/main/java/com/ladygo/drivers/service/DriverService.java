@@ -26,6 +26,7 @@ import com.ladygo.storage.FileStorage;
 import com.ladygo.storage.FileStorageException;
 import com.ladygo.storage.UploadValidator;
 import com.ladygo.vehicles.domain.Vehicle;
+import com.ladygo.vehicles.domain.VehicleType;
 import com.ladygo.vehicles.repository.VehicleRepository;
 import com.ladygo.verification.domain.SubjectType;
 import com.ladygo.verification.service.SelfDeclarationService;
@@ -151,6 +152,9 @@ public class DriverService {
     @Transactional
     public VehicleResponse upsertVehicle(UUID userId, VehicleRequest request) {
         Driver driver = resolveDriver(userId);
+        if (request.vehicleType() != VehicleType.BIKE) {
+            throw new ValidationException("Only two-wheelers can be registered right now.");
+        }
         if (request.manufactureYear() != null) {
             int maxAgeYears = config.getInt("vehicle.max_age.years", 8);
             int oldestAllowed = Year.now().getValue() - maxAgeYears;

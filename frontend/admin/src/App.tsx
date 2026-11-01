@@ -5,18 +5,25 @@ import ConfigScreen from './pages/ConfigScreen'
 import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
 import DriverReview from './pages/DriverReview'
+import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import Placeholder from './pages/Placeholder'
 import RideDetail from './pages/RideDetail'
 import RideOversight from './pages/RideOversight'
 import RequireAuth from './lib/RequireAuth'
+import Security from './pages/Security'
+import { StepUpProvider } from './lib/StepUpProvider'
 import { SessionProvider } from './lib/SessionProvider'
 
 export default function App() {
   return (
     <SessionProvider>
+      <StepUpProvider>
       <Routes>
         <Route path="login" element={<Login />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
+        <Route path="reset-password" element={<ResetPassword />} />
         <Route
           element={
             <RequireAuth>
@@ -48,9 +55,11 @@ export default function App() {
           element={<Placeholder title="Safety incidents" phase="Phase 10" description="SOS and report queue with acknowledgement and resolution timeline." />}
         />
         <Route path="audit-logs" element={<AuditLog />} />
+        <Route path="security" element={<Security />} />
         <Route path="*" element={<Placeholder title="Page not found" phase="" description="This admin page does not exist." />} />
         </Route>
       </Routes>
+      </StepUpProvider>
     </SessionProvider>
   )
 }

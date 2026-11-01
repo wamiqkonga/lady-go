@@ -51,4 +51,9 @@ public class DatabaseRateLimiter implements RateLimiter {
     public void release(String bucketKey) {
         jdbc.update(RELEASE, bucketKey);
     }
+
+    @Override
+    public void reset(String bucketKey) {
+        jdbc.update("DELETE FROM auth_rate_limits WHERE bucket_key = ?", bucketKey);
+    }
 }

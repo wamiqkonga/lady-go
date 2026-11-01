@@ -7,29 +7,33 @@ export type DocumentType = NonNullable<DriverDocumentResponse['type']>
 
 export type Step =
   | { id: 'vehicle'; kind: 'vehicle'; title: string }
-  | { id: DocumentType; kind: 'document'; title: string; tip: string; needsNumber?: boolean; needsExpiry?: boolean }
+  | { id: DocumentType; kind: 'document'; title: string; tip: string; needsNumber?: boolean; needsExpiry?: boolean; optional?: boolean }
   | { id: 'SELFIE'; kind: 'selfie'; title: string }
   | { id: 'declaration'; kind: 'declaration'; title: string }
   | { id: 'review'; kind: 'review'; title: string }
 
+/** Captains register on a two-wheeler with: (1) vehicle number + RC photo (+ optional fitness certificate),
+ *  (2) an optional driving licence, (3) a selfie, (4) the self-declaration. */
 export const STEPS: Step[] = [
-  { id: 'vehicle', kind: 'vehicle', title: 'Your vehicle' },
-  { id: 'LICENSE', kind: 'document', title: 'Driving licence', needsNumber: true, needsExpiry: true,
-    tip: 'Photograph the front of your licence on a flat surface in good light. All four corners and the text must be sharp.' },
-  { id: 'VEHICLE_REGISTRATION', kind: 'document', title: 'Vehicle registration (RC) photo',
-    tip: 'Photograph the RC card or booklet page showing the registration number and owner name.' },
-  { id: 'VEHICLE_PHOTO', kind: 'document', title: 'Vehicle photo (plate visible)',
-    tip: 'Stand a few steps back so the whole vehicle fits, with the number plate clearly readable.' },
-  { id: 'INSURANCE', kind: 'document', title: 'Insurance', needsExpiry: true,
-    tip: 'Use the page that shows your policy dates. Expired insurance cannot be approved.' },
-  { id: 'FITNESS_CERTIFICATE', kind: 'document', title: 'Fitness certificate',
-    tip: 'Photograph the whole certificate, with the validity date visible.' },
-  { id: 'POLLUTION_CERTIFICATE', kind: 'document', title: 'Pollution certificate',
-    tip: 'Photograph the whole certificate, with the validity date visible.' },
+  { id: 'vehicle', kind: 'vehicle', title: 'Your two-wheeler' },
+  { id: 'LICENSE', kind: 'document', title: 'Driving licence (optional)', needsNumber: true, needsExpiry: true, optional: true,
+    tip: 'Photograph the front of your licence on a flat surface in good light. All four corners and the text must be sharp. You can skip this and add it later.' },
   { id: 'SELFIE', kind: 'selfie', title: 'Selfie' },
   { id: 'declaration', kind: 'declaration', title: 'Self-declaration' },
   { id: 'review', kind: 'review', title: 'Review and finish' },
 ]
+
+/** The RC photo and the fitness certificate are uploaded on the vehicle step. */
+export const RC_STEP = {
+  id: 'VEHICLE_REGISTRATION' as DocumentType,
+  title: 'Vehicle registration (RC) photo',
+  tip: 'Photograph the RC card or booklet page showing the registration number and owner name.',
+}
+export const FITNESS_STEP = {
+  id: 'FITNESS_CERTIFICATE' as DocumentType,
+  title: 'Fitness certificate (optional)',
+  tip: 'Only if you have one. Photograph the whole certificate, with the validity date visible.',
+}
 
 export type StepState = 'done' | 'fix' | 'todo'
 
@@ -47,8 +51,11 @@ export function latestDocument(documents: DriverDocumentResponse[], type: Docume
 
 export function stepState(step: Step, data: RegistrationData): StepState {
   switch (step.kind) {
-    case 'vehicle':
-      return data.vehicle ? 'done' : 'todo'
+    case 'vehicle': {
+      const rc = latestDocument(data.documents, RC_STEP.id)
+      if (rc?.status === 'REJECTED') return 'fix'
+      return data.vehicle && rc ? 'done' : 'todo'
+    }
     case 'document':
     case 'selfie': {
       const doc = latestDocument(data.documents, step.id)
@@ -62,15 +69,22 @@ export function stepState(step: Step, data: RegistrationData): StepState {
   }
 }
 
-/** Steps a driver has to finish (everything except the closing review screen). */
-export const WORK_STEPS = STEPS.filter((s) => s.kind !== 'review')
-
-export function countDone(data: RegistrationData): number {
-  return WORK_STEPS.filter((s) => stepState(s, data) === 'done').length
+export function isOptional(step: Step): boolean {
+  return step.kind === 'document' && !!step.optional
 }
 
-/** Index in STEPS of the first step still needing the driver, else the review screen. */
+/** Steps a captain sees (everything except the closing review screen). */
+export const WORK_STEPS = STEPS.filter((s) => s.kind !== 'review')
+
+/** Steps that must be finished before the application is reviewed (optional ones never block it). */
+export const REQUIRED_STEPS = WORK_STEPS.filter((s) => !isOptional(s))
+
+export function countDone(data: RegistrationData): number {
+  return REQUIRED_STEPS.filter((s) => stepState(s, data) === 'done').length
+}
+
+/** Index in STEPS of the first required step still needing the captain, else the review screen. */
 export function firstIncompleteIndex(data: RegistrationData): number {
-  const index = STEPS.findIndex((s) => s.kind !== 'review' && stepState(s, data) !== 'done')
+  const index = STEPS.findIndex((s) => s.kind !== 'review' && !isOptional(s) && stepState(s, data) !== 'done')
   return index === -1 ? STEPS.length - 1 : index
 }

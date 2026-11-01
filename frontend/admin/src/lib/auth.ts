@@ -68,8 +68,9 @@ type Envelope<T> = {
   error: { code: string; message: string } | null
 }
 
-async function postJson<T>(path: string, body?: unknown, csrfProtected = false): Promise<T> {
+async function postJson<T>(path: string, body?: unknown, csrfProtected = false, bearer = false): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (bearer && accessToken) headers.Authorization = `Bearer ${accessToken}`
   if (csrfProtected) {
     const csrf = readCsrfCookie()
     if (csrf) headers[CSRF_HEADER_NAME] = csrf
@@ -116,6 +117,41 @@ export async function login(email: string, password: string, totpCode?: string):
     enrolmentToken: data.enrolmentToken as string,
     remainingSteps: (data.remainingSteps as string[]) ?? [],
   }
+}
+
+/** Step-up MFA (docs/security/admin-stepup-lockout-recovery-design.md section 2): re-proves a TOTP code and swaps
+ *  the in-memory access token for one carrying the fresh step-up time. The server, not this module, decides
+ *  whether a destructive action is allowed - this only obtains the token. */
+export async function stepUp(code: string): Promise<void> {
+  const data = await postJson<{ accessToken: string }>('/api/v1/auth/admin/step-up', { code }, false, true)
+  setAccessToken(data.accessToken)
+}
+
+export type MfaEnrolStart = { secret: string; provisioningUri: string }
+
+/** Starts self-service authenticator setup for the signed-in admin. */
+export async function startMfaSetup(): Promise<MfaEnrolStart> {
+  return postJson<MfaEnrolStart>('/api/v1/auth/admin/mfa/self/enroll', undefined, false, true)
+}
+
+/** Confirms the authenticator with a code; the server returns a token that already counts as a step-up. */
+export async function confirmMfaSetup(code: string): Promise<void> {
+  const data = await postJson<{ accessToken: string }>(
+    '/api/v1/auth/admin/mfa/self/enroll/confirm', { code }, false, true,
+  )
+  setAccessToken(data.accessToken)
+}
+
+/** Asks for a password-reset email. The server answers the same way whether or not the address is an admin, so
+ *  this never tells the caller which it was - and neither does the UI. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await postJson<void>('/api/v1/auth/admin/password/forgot', { email })
+}
+
+/** Completes a reset with the emailed token. `totpCode` is sent only when given; the server requires it when the
+ *  account has an authenticator. A bad/expired/used token and a wrong code are deliberately indistinguishable. */
+export async function resetPassword(token: string, newPassword: string, totpCode?: string): Promise<void> {
+  await postJson<void>('/api/v1/auth/admin/password/reset', { token, newPassword, totpCode: totpCode || undefined })
 }
 
 let bootstrapInFlight: Promise<boolean> | null = null

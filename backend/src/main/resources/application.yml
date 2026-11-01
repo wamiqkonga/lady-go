@@ -72,6 +72,9 @@ logging:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{requestId:-}] %logger{36} - %msg%n"
 
 ladygo:
+  admin:
+    # Where the emailed password-reset link points. Dev default is the local admin web; blank = feature off.
+    web-base-url: ${LADYGO_ADMIN_WEB_BASE_URL:http://localhost:5174}
   cors:
     allowed-origins: ${LADYGO_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174}
   websocket:

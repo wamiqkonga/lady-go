@@ -143,7 +143,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
     @Test
     void riderAndDriverOnboardThroughAdminApprovalThenBookAndMeet() throws Exception {
         City city = newCityWithServiceArea(74.0, 34.0, 75.0, 34.5);
-        PricingRule pricingRule = newPricingRule(city, VehicleType.CAB);
+        PricingRule pricingRule = newPricingRule(city, VehicleType.BIKE);
 
         // --- Rider: signup via OTP, declaration, per-booking selfie - all real endpoints. ---
         String riderPhone = nextPhone();
@@ -196,14 +196,14 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
         mockMvc.perform(post("/api/v1/drivers/me/declaration")
                         .header("Authorization", "Bearer " + driverToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"declarationVersion\":\"v1\"}"))
+                        .content("{\"declarationVersion\":\"driver-v2\"}"))
                 .andExpect(status().isOk());
 
         String vehicleResponse = mockMvc.perform(put("/api/v1/drivers/me/vehicle")
                         .header("Authorization", "Bearer " + driverToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"registrationNumber\":\"JK01AB" + System.nanoTime() % 10000
-                                + "\",\"vehicleType\":\"CAB\",\"make\":\"Maruti\",\"model\":\"Dzire\","
+                                + "\",\"vehicleType\":\"BIKE\",\"make\":\"Maruti\",\"model\":\"Dzire\","
                                 + "\"color\":\"White\",\"manufactureYear\":" + (Year.now().getValue() - 1) + "}"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -261,7 +261,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                         .header("Authorization", "Bearer " + riderToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pickupLatitude\":34.08,\"pickupLongitude\":74.80,"
-                                + "\"destinationLatitude\":34.13,\"destinationLongitude\":74.87,\"vehicleType\":\"CAB\"}"))
+                                + "\"destinationLatitude\":34.13,\"destinationLongitude\":74.87,\"vehicleType\":\"BIKE\"}"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         long fare = JsonPath.<Number>read(estimateResponse, "$.data.estimatedFare").longValue();
@@ -272,7 +272,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pickupLatitude\":34.08,\"pickupLongitude\":74.80,\"pickupAddress\":\"Lal Chowk\","
                                 + "\"destinationLatitude\":34.13,\"destinationLongitude\":74.87,"
-                                + "\"destinationAddress\":\"Hazratbal\",\"vehicleType\":\"CAB\","
+                                + "\"destinationAddress\":\"Hazratbal\",\"vehicleType\":\"BIKE\","
                                 + "\"paymentMethod\":\"CASH\",\"expectedFare\":" + fare
                                 + ",\"rideSelfieId\":\"" + rideSelfieId + "\"}"))
                 .andExpect(status().isCreated())

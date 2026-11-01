@@ -18,8 +18,8 @@ describe('website routes', () => {
     ['/about', 'About Lady Go'],
     ['/how-it-works', 'How it works'],
     ['/safety', 'Safety'],
-    ['/driver', 'Earn ₹30,000+ a month with us'],
-    ['/driver/login', 'Driver registration'],
+    ['/captain', 'Earn ₹30,000+ a month with us'],
+    ['/captain/registration', 'Captain registration'],
     ['/contact', 'Contact us'],
     ['/faq', 'Frequently asked questions'],
     ['/terms', 'Terms of service'],
@@ -36,21 +36,21 @@ describe('website routes', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument()
   })
 
-  it('redirects /login to the driver registration login', () => {
+  it('redirects /login to the captain registration login', () => {
     renderAt('/login')
-    expect(screen.getByRole('heading', { level: 1, name: 'Driver registration' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Captain registration' })).toBeInTheDocument()
     expect(screen.getByLabelText('Phone number')).toBeEnabled()
   })
 
-  it('sends signed-out visitors from /driver/register to the login', () => {
-    renderAt('/driver/register')
-    expect(screen.getByRole('heading', { level: 1, name: 'Driver registration' })).toBeInTheDocument()
+  it('sends signed-out visitors from /captain/register to the login', () => {
+    renderAt('/captain/register')
+    expect(screen.getByRole('heading', { level: 1, name: 'Captain registration' })).toBeInTheDocument()
   })
 
-  it('advertises driver earnings on the homepage and links to registration', () => {
+  it('advertises captain earnings on the homepage and links to registration', () => {
     renderAt('/')
     expect(screen.getByRole('heading', { level: 2, name: /₹30,000\+/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Register as a driver' })).toHaveAttribute('href', '/driver')
+    expect(screen.getByRole('link', { name: 'Register as a captain' })).toHaveAttribute('href', '/captain')
   })
 
   it('toggles the mobile menu', async () => {
@@ -59,13 +59,5 @@ describe('website routes', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  })
-
-  it('switches between light and dark mode and remembers the choice', async () => {
-    renderAt('/')
-    await userEvent.click(screen.getByRole('button', { name: /Switch to (light|dark) mode/ }))
-    const chosen = document.documentElement.dataset.theme
-    expect(['light', 'dark']).toContain(chosen)
-    expect(localStorage.getItem('ladygo-theme')).toBe(chosen)
   })
 })

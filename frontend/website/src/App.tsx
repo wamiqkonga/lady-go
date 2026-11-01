@@ -23,18 +23,21 @@ export default function App() {
         <Route path="about" element={<About />} />
         <Route path="how-it-works" element={<HowItWorks />} />
         <Route path="safety" element={<Safety />} />
-        <Route path="driver" element={<DriverPage />} />
+        <Route path="captain" element={<DriverPage />} />
         <Route path="contact" element={<Contact />} />
         <Route path="faq" element={<Faq />} />
         <Route path="terms" element={<Terms />} />
         <Route path="privacy" element={<Privacy />} />
-        <Route path="login" element={<Navigate to="/driver/login" replace />} />
+        <Route path="driver" element={<Navigate to="/captain" replace />} />
+        <Route path="driver/login" element={<Navigate to="/captain/registration" replace />} />
+        <Route path="driver/register" element={<Navigate to="/captain/register" replace />} />
+        <Route path="login" element={<Navigate to="/captain/registration" replace />} />
         <Route path="*" element={<NotFound />} />
       </Route>
       <Route element={<RegistrationApp />}>
-        <Route path="driver/login" element={<RegistrationLogin />} />
+        <Route path="captain/registration" element={<RegistrationLogin />} />
         <Route
-          path="driver/register"
+          path="captain/register"
           element={
             <RequireAuth>
               <RegistrationDashboard />
