@@ -1,9 +1,14 @@
 package com.ladygo.users.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
+import com.ladygo.users.domain.UserStatus;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -34,4 +39,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("UPDATE User u SET u.mfaLastUsedStep = :step WHERE u.id = :id "
             + "AND (u.mfaLastUsedStep IS NULL OR u.mfaLastUsedStep < :step)")
     int updateMfaLastUsedStepIfNewer(@Param("id") UUID id, @Param("step") long step);
+
+    List<User> findByRoleInOrderByCreatedAtAsc(Collection<UserRole> roles);
+
+    Optional<User> findByIdAndRoleIn(UUID id, Collection<UserRole> roles);
+
+    /** Row-locks every account holding {@code role} in {@code status} (stable order, so two writers cannot deadlock):
+     *  the "last active SUPER_ADMIN" count and the change that follows it then cannot interleave with another one. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.role = :role AND u.status = :status ORDER BY u.id")
+    List<User> lockByRoleAndStatus(@Param("role") UserRole role, @Param("status") UserStatus status);
 }
