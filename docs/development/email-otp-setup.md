@@ -28,7 +28,7 @@ SMS/WhatsApp. Switch: `LADYGO_OTP_CHANNEL=email` (default `sms`, which keeps the
 - The Android apps still send phone only, so they cannot log in while the channel is `email`.
 
 ## Choosing the email provider (`LADYGO_EMAIL_PROVIDER`)
-Two senders exist; the channel stays `LADYGO_OTP_CHANNEL=email` for both.
+Two senders exist. SES is used only when `LADYGO_OTP_CHANNEL=email`. SMTP turns on whenever `LADYGO_EMAIL_PROVIDER=smtp`, whatever the OTP channel is, so admin password-recovery emails (`LADYGO_ADMIN_WEB_BASE_URL` also needed) work while driver codes still go by SMS.
 
 | Provider | Setting | When |
 |---|---|---|

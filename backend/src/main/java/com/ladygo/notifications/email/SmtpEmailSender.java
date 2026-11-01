@@ -18,7 +18,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Provider-neutral SMTP sender (Resend, Brevo, Gmail, a hosting mailbox - any relay that speaks SMTP). Wired only
- * under staging/prod, only when {@code ladygo.otp.channel=email} and {@code ladygo.email.provider=smtp}.
+ * under staging/prod, only when {@code ladygo.email.provider=smtp} is chosen explicitly. It does not depend on the OTP
+ * channel, so admin password-recovery emails work while driver OTP codes still go by SMS.
  *
  * <p>Security: TLS is mandatory - port 465 uses implicit TLS, every other port requires STARTTLS, and the sender
  * never falls back to plain text. The password comes only from the environment ({@code LADYGO_SMTP_PASSWORD}) and
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Profile("!dev & !test")
-@ConditionalOnExpression("'${ladygo.otp.channel:sms}' == 'email' and '${ladygo.email.provider:ses}' == 'smtp'")
+@ConditionalOnExpression("'${ladygo.email.provider:ses}' == 'smtp'")
 public class SmtpEmailSender implements EmailSender {
 
     private static final Logger log = LoggerFactory.getLogger(SmtpEmailSender.class);

@@ -692,6 +692,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/admin/step-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["stepUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/admin/refresh": {
         parameters: {
             query?: never;
@@ -708,6 +724,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/admin/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/admin/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/admin/password/change": {
         parameters: {
             query?: never;
@@ -718,6 +766,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/admin/mfa/self/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["startSelfMfaEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/admin/mfa/self/enroll/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmSelfMfaEnrollment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1867,6 +1947,9 @@ export interface components {
             refreshToken: string;
             logoutAll?: boolean;
         };
+        MfaEnrollConfirmRequest: {
+            code: string;
+        };
         AdminAccessTokenResponse: {
             accessToken?: string;
         };
@@ -1877,6 +1960,15 @@ export interface components {
             error?: components["schemas"]["ApiError"];
             /** Format: date-time */
             timestamp?: string;
+        };
+        AdminPasswordResetRequest: {
+            token: string;
+            newPassword: string;
+            totpCode?: string;
+        };
+        AdminPasswordForgotRequest: {
+            /** Format: email */
+            email: string;
         };
         AdminPasswordChangeRequest: {
             currentPassword: string;
@@ -1893,9 +1985,6 @@ export interface components {
         MfaEnrollResponse: {
             secret?: string;
             provisioningUri?: string;
-        };
-        MfaEnrollConfirmRequest: {
-            code: string;
         };
         AdminLoginRequest: {
             /** Format: email */
@@ -3838,6 +3927,30 @@ export interface operations {
             };
         };
     };
+    stepUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaEnrollConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminAccessTokenResponse"];
+                };
+            };
+        };
+    };
     refresh_1: {
         parameters: {
             query?: never;
@@ -3857,6 +3970,54 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseAdminAccessTokenResponse"];
+                };
+            };
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPasswordForgotRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
                 };
             };
         };
@@ -3881,6 +4042,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    startSelfMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMfaEnrollResponse"];
+                };
+            };
+        };
+    };
+    confirmSelfMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaEnrollConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminAccessTokenResponse"];
                 };
             };
         };

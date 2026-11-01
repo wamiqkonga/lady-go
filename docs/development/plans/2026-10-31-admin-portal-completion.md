@@ -108,8 +108,9 @@ forgotten password is unrecoverable without a database edit.
   30 minutes. `POST /auth/admin/password/reset` takes token + new password + a current TOTP code (if MFA is
   enrolled), enforces the password policy, revokes all refresh tokens, and writes an audit entry. Rate-limited per
   email and per IP. A "Forgot password?" link on the login screen and a reset page in the portal.
-- Break-glass script: `scripts/ops/admin-set-password.sh` (run on the server by you) sets a new password, forces a
-  change at next login, revokes sessions, and writes an audit entry. Documented in the runbook, with a rule that
+- Break-glass script: `scripts/ops/admin-reset-link.sh` (run on the server by you) issues a one-time reset link directly
+  in the database and prints it, plus an audit entry. It never handles a password or hash. (Built; replaced the earlier
+  "set a password" idea.) Documented in the runbook, with a rule that
   at least two SUPER_ADMIN accounts exist once helpers are added.
 
 Lockout hardening: replace the hard per-(email, IP) lockout with progressive delay (1s, 2s, 4s ... capped),
@@ -139,7 +140,7 @@ Order puts the launch gates first because they block exposure.
 | 2 | Design note for step-up + lockout (short, approved by you) | Opus 5.5 | Security architecture. |
 | 3 | Step-up MFA backend + frontend prompt, wired to ConfigScreen | Sonnet 5.5 | Feature work, tests first. |
 | 4 | Lockout hardening | Sonnet 5.5 | Feature work. |
-| 4b | Password recovery: forgot/reset endpoints, login link, reset page, break-glass script | Sonnet 5.5 | Security-critical, tests first. |
+| 4b | Password recovery: forgot/reset endpoints, login link, reset page, break-glass script (**built**) | Sonnet 5.5 | Security-critical, tests first. |
 | 5 | Safety endpoints + Safety screen | Sonnet 5.5 | Highest pilot value. |
 | 6 | Drivers + Customers endpoints and screens, suspend/activate | Sonnet 5.5 | Two independent slices, can run in parallel sessions. |
 | 7 | Live map | Sonnet 5.5 | Depends on decisions A and B. |
@@ -197,15 +198,22 @@ Claude cannot execute these. Lifecycle for each: Ready for test, In testing/UAT,
 - Steps: snapshot, deploy backend, confirm app boots (Liquibase/Flyway log clean).
 - Accept: health endpoint green, rows unchanged. Owner: you.
 
-**T6. Confirm email sending works on staging.** Env: staging.
-- Why: password reset link needs the email provider (see `2026-10-23-free-email-provider.md`).
-- Steps: after step 4b ships to staging, use Forgot password with your own admin email.
+**T6. Set up Resend and confirm email sending works on staging.** Env: staging.
+- Why: password reset link needs the email provider. Decision: Resend, sent over SMTP (already built, see `docs/development/email-otp-setup.md`). The SMTP sender now turns on from `LADYGO_EMAIL_PROVIDER=smtp` alone, so recovery emails work while driver codes still go by SMS.
+- Steps: (1) In Resend add the domain `ladygoride.com`, add the DNS records it lists, wait for "Verified". (2) Create an API key with sending access only. (3) Run `scripts/ops/set-smtp-secret.sh` (hidden prompt; it writes `LADYGO_EMAIL_PROVIDER=smtp`, host `smtp.resend.com`, port 587, username `resend`, and the key). (4) Make sure `LADYGO_EMAIL_FROM` is `Lady Go <no-reply@ladygoride.com>`. (5) Restart the backend, then use Forgot password with your own admin email.
 - Accept: email arrives within 2 minutes, link works once, second use fails. Owner: you.
 
 **T7. Put the break-glass script on the server.** Env: staging, then production.
 - Why: last-resort recovery if email is down or you lose access.
-- Steps: copy `scripts/ops/admin-set-password.sh`, test on staging with a throwaway admin, note the run command in the runbook.
-- Accept: password changed, change forced at next login, audit entry present. Owner: you.
+- Steps: copy `scripts/ops/admin-reset-link.sh` to the server, run it on staging for a throwaway admin with `PSQL="psql ..."` set if needed, open the printed link, set a password.
+- Accept: the link works once, the password changes, `ADMIN_PASSWORD_RESET_LINK_ISSUED` and `ADMIN_PASSWORD_RESET` audit entries exist. Owner: you.
+
+**T8. Set `LADYGO_ADMIN_WEB_BASE_URL` on staging and production.** Env: staging, then production.
+- Why: the reset email needs the admin web address. Blank (the default there) switches the forgot-password email off; it
+  logs a warning at startup but does not fail the deploy.
+- Steps: set `LADYGO_ADMIN_WEB_BASE_URL=https://<admin web address>` in the backend environment, restart, confirm no
+  `admin_password_reset_disabled` warning in the log.
+- Accept: Forgot password on the admin login sends a link that opens the reset page. Needs T6 first. Owner: you.
 
 **T5. Define the SOS procedure (decision C).** Env: n/a.
 - Why: launch gate D9.

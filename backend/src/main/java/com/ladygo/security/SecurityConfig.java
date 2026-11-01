@@ -41,6 +41,8 @@ public class SecurityConfig {
             "/api/v1/auth/admin/login",
             "/api/v1/auth/admin/refresh",
             "/api/v1/auth/admin/logout",
+            "/api/v1/auth/admin/password/forgot",
+            "/api/v1/auth/admin/password/reset",
             "/api/v1/trip-shares/lookup",
             "/internal/files",
             "/actuator/health",
