@@ -6,7 +6,9 @@ import AuditLog from './pages/AuditLog'
 import ConfigScreen from './pages/ConfigScreen'
 import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
+import DriverDetail from './pages/DriverDetail'
 import DriverReview from './pages/DriverReview'
+import Drivers from './pages/Drivers'
 import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
@@ -42,10 +44,8 @@ export default function App() {
         />
         <Route path="rides" element={<RideOversight />} />
         <Route path="rides/:bookingId" element={<RideDetail />} />
-        <Route
-          path="drivers"
-          element={<Placeholder title="Drivers" phase="Phase 9" description="Driver list, documents, ride history, earnings, suspend/activate." />}
-        />
+        <Route path="drivers" element={<Drivers />} />
+        <Route path="drivers/:driverId" element={<DriverDetail />} />
         <Route path="driver-verification" element={<DriverDocumentQueue />} />
         <Route path="driver-verification/:driverId" element={<DriverReview />} />
         <Route

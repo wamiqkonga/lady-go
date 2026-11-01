@@ -30,6 +30,7 @@ const SUPER_ADMIN_KEYS = [
   'AUDITLOG',
   'CONFIGEDIT',
   'STAFFMGMT',
+  'DRIVERS',
 ] as const
 
 type SuperAdminKey = (typeof SUPER_ADMIN_KEYS)[number]
@@ -53,6 +54,8 @@ export interface E2eEnv {
    *  rejection-note tests have pending documents to work with regardless of file execution order. */
   secondaryDriverId: string
   unknownDriverId: string
+  /** An APPROVED captain named 'E2E Suspendable Captain', seeded for admin-drivers.spec.ts only. */
+  suspendDriverId: string
   /** A COMPLETED cash booking with one open (unreviewed) RIDER_SAFETY_CANCEL flag, seeded directly via
    *  SQL (scripts/ci/e2e-seed.sh) rather than driven through the real matching/ride-lifecycle APIs -
    *  proportionate for fixture data the oversight screens just need to read/review, not for exercising
@@ -71,6 +74,7 @@ const REQUIRED_BASE = [
   'ADMIN_WEB_E2E_ADMIN2_TOTP_SECRET',
   'ADMIN_WEB_E2E_DRIVER_ID',
   'ADMIN_WEB_E2E_SECONDARY_DRIVER_ID',
+  'ADMIN_WEB_E2E_SUSPEND_DRIVER_ID',
   'ADMIN_WEB_E2E_FLAGGED_BOOKING_ID',
   'ADMIN_WEB_E2E_FLAG_ID',
 ] as const
@@ -117,6 +121,7 @@ export function readE2eEnv(): E2eEnv | null {
     secondaryDriverId: process.env.ADMIN_WEB_E2E_SECONDARY_DRIVER_ID!,
     // A syntactically valid but never-seeded UUID - "other-driver ID tampering" (manually editing the
     // URL to an id you don't otherwise have) needs a value guaranteed absent from the database.
+    suspendDriverId: process.env.ADMIN_WEB_E2E_SUSPEND_DRIVER_ID!,
     unknownDriverId: '00000000-0000-0000-0000-000000000000',
     flaggedBookingId: process.env.ADMIN_WEB_E2E_FLAGGED_BOOKING_ID!,
     flagId: process.env.ADMIN_WEB_E2E_FLAG_ID!,
