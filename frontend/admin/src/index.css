@@ -216,6 +216,7 @@ a { color: var(--brand); }
   .stack-table td { border-bottom: 0; padding: 0.3rem 0; display: flex; justify-content: space-between; gap: 1rem; overflow-wrap: anywhere; }
   .stack-table td::before { content: attr(data-label); color: var(--muted); font-weight: 700; flex: none; }
   .detail-list { grid-template-columns: 1fr; }
+}
 
 /* Live map */
 .live-map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1rem; margin-top: 1rem; }
