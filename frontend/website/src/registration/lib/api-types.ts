@@ -1492,6 +1492,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/drivers/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suspendDriver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["activateDriver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listDrivers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDriver"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2751,6 +2815,109 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        AdminDriverActionRequest: {
+            reason: string;
+        };
+        AdminDriverListItemResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            phoneMasked?: string;
+            /** @enum {string} */
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            /** @enum {string} */
+            availabilityStatus?: "OFFLINE" | "ONLINE" | "BUSY" | "ON_RIDE" | "SUSPENDED";
+            ratingAvg?: number;
+            /** Format: int32 */
+            totalRides?: number;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ApiResponsePageResponseAdminDriverListItemResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseAdminDriverListItemResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseAdminDriverListItemResponse: {
+            content?: components["schemas"]["AdminDriverListItemResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        AdminDriverDetailResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            phoneMasked?: string;
+            /** Format: uuid */
+            cityId?: string;
+            /** @enum {string} */
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            /** @enum {string} */
+            availabilityStatus?: "OFFLINE" | "ONLINE" | "BUSY" | "ON_RIDE" | "SUSPENDED";
+            ratingAvg?: number;
+            /** Format: int32 */
+            ratingCount?: number;
+            /** Format: int32 */
+            totalRides?: number;
+            /** Format: date-time */
+            verifiedAt?: string;
+            rejectionReason?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            vehicle?: components["schemas"]["VehicleAdminResponse"];
+            documents?: components["schemas"]["AdminDriverDocumentsSummary"];
+            recentRides?: components["schemas"]["AdminDriverRecentRide"][];
+            earnings?: components["schemas"]["AdminDriverEarningsTotals"];
+        };
+        AdminDriverDocumentsSummary: {
+            /** Format: int32 */
+            total?: number;
+            /** Format: int32 */
+            pending?: number;
+            /** Format: int32 */
+            approved?: number;
+            /** Format: int32 */
+            rejected?: number;
+            reviewPath?: string;
+        };
+        AdminDriverEarningsTotals: {
+            /** Format: int64 */
+            rides?: number;
+            /** Format: int64 */
+            gross?: number;
+            /** Format: int64 */
+            commission?: number;
+            /** Format: int64 */
+            net?: number;
+        };
+        AdminDriverRecentRide: {
+            /** Format: uuid */
+            bookingId?: string;
+            /** @enum {string} */
+            status?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            finalFare?: number;
+            currency?: string;
+        };
+        ApiResponseAdminDriverDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminDriverDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
     };
     responses: never;
@@ -5251,6 +5418,104 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    suspendDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDriverActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    activateDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDriverActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    listDrivers: {
+        parameters: {
+            query: {
+                q?: string;
+                verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseAdminDriverListItemResponse"];
+                };
+            };
+        };
+    };
+    getDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminDriverDetailResponse"];
                 };
             };
         };

@@ -116,7 +116,7 @@ SQL
 echo "== Seeding one dedicated, independently-enrolled SUPER_ADMIN account per real test login =="
 # Keys match e2e/env.ts's SUPER_ADMIN_KEYS exactly - one per test that performs a real login, so no
 # two real logins anywhere in the suite ever share a TOTP secret (see the header comment above).
-SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK RIDES FLAGS AUDITLOG CONFIGEDIT STAFFMGMT)
+SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK RIDES FLAGS AUDITLOG CONFIGEDIT STAFFMGMT DRIVERS)
 for i in "${!SUPER_ADMIN_KEYS[@]}"; do
   KEY="${SUPER_ADMIN_KEYS[$i]}"
   EMAIL="e2e.super.$(echo "$KEY" | tr '[:upper:]' '[:lower:]')@ladygo.test"
@@ -252,6 +252,15 @@ DRIVER_ID=$(seed_driver "+919900077001" "JK01AB1234")
 echo "== Seeding the secondary driver (left PENDING for the negative-checks spec) =="
 SECONDARY_DRIVER_ID=$(seed_driver "+919900077002" "JK01CD5678")
 
+echo "== Seeding a third, already-approved driver for the Drivers screen (search, suspend, re-activate) =="
+# Registered through the real APIs like the others, then approved and given a searchable name by SQL: the
+# review specs own the other two drivers' status, so this one must not depend on them or on spec order.
+SUSPEND_DRIVER_ID=$(seed_driver "+919900077104" "JK01EF9012")
+psql -v ON_ERROR_STOP=1 -q -c "
+UPDATE users SET name = 'E2E Suspendable Captain' WHERE phone = '+919900077104';
+UPDATE drivers SET verification_status = 'APPROVED', verified_at = now() WHERE id = '$SUSPEND_DRIVER_ID';
+" || { echo "Failed to approve the Drivers-screen fixture driver" >&2; exit 1; }
+
 echo "== Seeding a completed cash ride with one open flag (ride/flag oversight screens) =="
 # Direct SQL, not the real matching/ride-lifecycle APIs - this is fixture data for screens that only
 # read and review it; driving it through the full lifecycle (offer, accept, arrive, PIN-start,
@@ -301,6 +310,7 @@ fi
 emit ADMIN_WEB_E2E_API_BASE_URL "$BASE"
 emit ADMIN_WEB_E2E_DRIVER_ID "$DRIVER_ID"
 emit ADMIN_WEB_E2E_SECONDARY_DRIVER_ID "$SECONDARY_DRIVER_ID"
+emit ADMIN_WEB_E2E_SUSPEND_DRIVER_ID "$SUSPEND_DRIVER_ID"
 emit ADMIN_WEB_E2E_FLAGGED_BOOKING_ID "$FLAGGED_BOOKING_ID"
 emit ADMIN_WEB_E2E_FLAG_ID "$FLAG_ID"
 

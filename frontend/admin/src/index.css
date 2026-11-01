@@ -112,7 +112,7 @@ a { color: var(--brand); }
 .login h1 { color: var(--brand); }
 .form { display: grid; gap: 0.6rem; }
 .form label { font-weight: 600; }
-.form input, .filters input, .filters select, .config-edit input[type='text'] {
+.form input, .form textarea, .filters input, .filters select, .config-edit input[type='text'] {
   padding: 0.75rem 0.9rem; min-height: 48px; border: 1px solid var(--border); border-radius: var(--radius-md);
   font: inherit; background: var(--surface-variant); color: var(--fg);
 }
@@ -155,6 +155,13 @@ a { color: var(--brand); }
   .sidebar a { white-space: nowrap; flex: none; }
   .sidebar .sign-out, .sidebar .theme-toggle, .sidebar nav + .theme-toggle { margin-top: 0; }
   .content { padding: 1rem 20px 2rem; }
+  .filters label, .filters input, .filters select { width: 100%; box-sizing: border-box; }
+  /* Tables marked stack-table collapse to one card per row, each cell labelled from data-label. */
+  .stack-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .stack-table, .stack-table tbody, .stack-table tr, .stack-table td { display: block; width: 100%; }
+  .stack-table tr { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+  .stack-table td { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 0; padding: 0.3rem 0; text-align: right; }
+  .stack-table td::before { content: attr(data-label); color: var(--muted); font-weight: 700; text-align: left; }
 }
 
 /* Motion: calm, short, ease-out. Everything stops under prefers-reduced-motion. */

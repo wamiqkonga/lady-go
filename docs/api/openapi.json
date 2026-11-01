@@ -3579,6 +3579,172 @@
           }
         }
       }
+    },
+    "/api/v1/admin/drivers/{id}/suspend": {
+      "post": {
+        "tags": [
+          "admin-driver-controller"
+        ],
+        "operationId": "suspendDriver",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDriverActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/drivers/{id}/activate": {
+      "post": {
+        "tags": [
+          "admin-driver-controller"
+        ],
+        "operationId": "activateDriver",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminDriverActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/drivers": {
+      "get": {
+        "tags": [
+          "admin-driver-controller"
+        ],
+        "operationId": "listDrivers",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "verificationStatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_SUBMITTED",
+                "PENDING_REVIEW",
+                "APPROVED",
+                "REJECTED",
+                "SUSPENDED"
+              ]
+            }
+          },
+          {
+            "name": "pageable",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseAdminDriverListItemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/drivers/{id}": {
+      "get": {
+        "tags": [
+          "admin-driver-controller"
+        ],
+        "operationId": "getDriver",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminDriverDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7196,6 +7362,291 @@
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "AdminDriverActionRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "AdminDriverListItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phoneMasked": {
+            "type": "string"
+          },
+          "verificationStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_SUBMITTED",
+              "PENDING_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ]
+          },
+          "availabilityStatus": {
+            "type": "string",
+            "enum": [
+              "OFFLINE",
+              "ONLINE",
+              "BUSY",
+              "ON_RIDE",
+              "SUSPENDED"
+            ]
+          },
+          "ratingAvg": {
+            "type": "number"
+          },
+          "totalRides": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponsePageResponseAdminDriverListItemResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResponseAdminDriverListItemResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PageResponseAdminDriverListItemResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDriverListItemResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "AdminDriverDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phoneMasked": {
+            "type": "string"
+          },
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "verificationStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_SUBMITTED",
+              "PENDING_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ]
+          },
+          "availabilityStatus": {
+            "type": "string",
+            "enum": [
+              "OFFLINE",
+              "ONLINE",
+              "BUSY",
+              "ON_RIDE",
+              "SUSPENDED"
+            ]
+          },
+          "ratingAvg": {
+            "type": "number"
+          },
+          "ratingCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalRides": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rejectionReason": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/VehicleAdminResponse"
+          },
+          "documents": {
+            "$ref": "#/components/schemas/AdminDriverDocumentsSummary"
+          },
+          "recentRides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminDriverRecentRide"
+            }
+          },
+          "earnings": {
+            "$ref": "#/components/schemas/AdminDriverEarningsTotals"
+          }
+        }
+      },
+      "AdminDriverDocumentsSummary": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pending": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "approved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reviewPath": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminDriverEarningsTotals": {
+        "type": "object",
+        "properties": {
+          "rides": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gross": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "commission": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "net": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AdminDriverRecentRide": {
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "SEARCHING_DRIVER",
+              "DRIVER_ASSIGNED",
+              "DRIVER_ACCEPTED",
+              "DRIVER_ARRIVING",
+              "DRIVER_ARRIVED",
+              "RIDE_STARTED",
+              "RIDE_COMPLETED",
+              "PAYMENT_PENDING",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finalFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseAdminDriverDetailResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminDriverDetailResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }
