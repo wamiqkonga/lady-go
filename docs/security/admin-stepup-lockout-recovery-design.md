@@ -82,6 +82,9 @@ Break-glass script `scripts/ops/admin-reset-link.sh` (built; changed from the or
 - Why: a script that wrote a password hash would need the app's password encoder in shell and would put a password on
   the command line or in history; issuing a link reuses the one reviewed code path.
 
+Owner decision (2026-11-01): a SUPER_ADMIN with no authenticator may reset with the emailed link alone, so the
+break-glass path stays usable during the pilot. This is accepted, not an oversight.
+
 Known limitation: an admin with no authenticator (the pilot setting `LADYGO_ADMIN_MFA_REQUIRED=false`) can reset with
 the emailed link alone, so access to that mailbox is access to the admin account. Mitigation: set up the authenticator on
 the Security page, which also makes resets require a code. Reset links go only to the address stored on the account.
