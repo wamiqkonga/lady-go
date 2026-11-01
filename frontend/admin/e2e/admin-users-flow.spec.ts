@@ -35,8 +35,11 @@ test.describe('staff accounts: invite and role change', () => {
     // The dev email sender logs the message; CI exposes that log as BACKEND_LOG. Follow the link when it is there.
     const logPath = process.env.BACKEND_LOG
     if (logPath) {
-      const line = readFileSync(logPath, 'utf8').split('\n').reverse().find((l) => l.includes(`to=${email}`))
-      const link = line?.match(/https?:\/\/\S+\/reset-password#token=[A-Za-z0-9_-]+/)?.[0]
+      // The logger prints the whole message body, which spans several lines: the `to=` marker is on the first
+      // one and the link is a few lines below it, so search from the last marker onward, not just that line.
+      const lines = readFileSync(logPath, 'utf8').split('\n')
+      const start = lines.map((l) => l.includes(`to=${email}`)).lastIndexOf(true)
+      const link = start < 0 ? undefined : lines.slice(start, start + 15).join('\n').match(/https?:\/\/\S+\/reset-password#token=[A-Za-z0-9_-]+/)?.[0]
       expect(link, 'invite link in the dev email log').toBeTruthy()
       const other = await page.context().newPage()
       await other.goto(link!)
@@ -44,7 +47,10 @@ test.describe('staff accounts: invite and role change', () => {
       await other.getByLabel('Repeat the new password').fill('E2e-invitee-passphrase-1')
       await other.getByRole('button', { name: /password/i }).click()
       await expect(other.getByRole('status')).toContainText('Your password was changed')
-      await other.goto(link!) // single use: the same link must not work twice.
+      // Single use: the same link must not work twice. Leave the page first, because going to the same address with
+      // only the fragment changed is an in-page navigation and would keep the finished screen instead of reloading.
+      await other.goto('about:blank')
+      await other.goto(link!)
       await other.getByLabel('New password (at least 12 characters)').fill('E2e-invitee-passphrase-2')
       await other.getByLabel('Repeat the new password').fill('E2e-invitee-passphrase-2')
       await other.getByRole('button', { name: /password/i }).click()
