@@ -23,17 +23,17 @@ public record AdminDriverDetailResponse(
         String rejectionReason,
         Instant createdAt,
         VehicleAdminResponse vehicle,
-        DocumentsSummary documents,
-        List<RecentRide> recentRides,
-        EarningsTotals earnings) {
+        AdminDriverDocumentsSummary documents,
+        List<AdminDriverRecentRide> recentRides,
+        AdminDriverEarningsTotals earnings) {
 
     /** {@code reviewPath} is the admin-app route of the existing driver review screen. */
-    public record DocumentsSummary(int total, int pending, int approved, int rejected, String reviewPath) {
+    public record AdminDriverDocumentsSummary(int total, int pending, int approved, int rejected, String reviewPath) {
     }
 
-    public record RecentRide(UUID bookingId, BookingStatus status, Instant createdAt, Long finalFare, String currency) {
+    public record AdminDriverRecentRide(UUID bookingId, BookingStatus status, Instant createdAt, Long finalFare, String currency) {
     }
 
-    public record EarningsTotals(long rides, long gross, long commission, long net) {
+    public record AdminDriverEarningsTotals(long rides, long gross, long commission, long net) {
     }
 }

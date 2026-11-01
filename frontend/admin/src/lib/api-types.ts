@@ -2875,19 +2875,11 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
             vehicle?: components["schemas"]["VehicleAdminResponse"];
-            documents?: components["schemas"]["DocumentsSummary"];
-            recentRides?: components["schemas"]["RecentRide"][];
-            earnings?: components["schemas"]["EarningsTotals"];
+            documents?: components["schemas"]["AdminDriverDocumentsSummary"];
+            recentRides?: components["schemas"]["AdminDriverRecentRide"][];
+            earnings?: components["schemas"]["AdminDriverEarningsTotals"];
         };
-        ApiResponseAdminDriverDetailResponse: {
-            success?: boolean;
-            data?: components["schemas"]["AdminDriverDetailResponse"];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        DocumentsSummary: {
+        AdminDriverDocumentsSummary: {
             /** Format: int32 */
             total?: number;
             /** Format: int32 */
@@ -2898,7 +2890,7 @@ export interface components {
             rejected?: number;
             reviewPath?: string;
         };
-        EarningsTotals: {
+        AdminDriverEarningsTotals: {
             /** Format: int64 */
             rides?: number;
             /** Format: int64 */
@@ -2908,7 +2900,7 @@ export interface components {
             /** Format: int64 */
             net?: number;
         };
-        RecentRide: {
+        AdminDriverRecentRide: {
             /** Format: uuid */
             bookingId?: string;
             /** @enum {string} */
@@ -2918,6 +2910,14 @@ export interface components {
             /** Format: int64 */
             finalFare?: number;
             currency?: string;
+        };
+        ApiResponseAdminDriverDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminDriverDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
     };
     responses: never;

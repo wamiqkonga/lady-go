@@ -9,8 +9,8 @@ import com.ladygo.admin.repository.AdminDriverQueryRepository;
 import com.ladygo.admin.repository.AdminDriverRow;
 import com.ladygo.admin.repository.AuditLogRepository;
 import com.ladygo.admin.web.dto.AdminDriverDetailResponse;
-import com.ladygo.admin.web.dto.AdminDriverDetailResponse.DocumentsSummary;
-import com.ladygo.admin.web.dto.AdminDriverDetailResponse.RecentRide;
+import com.ladygo.admin.web.dto.AdminDriverDetailResponse.AdminDriverDocumentsSummary;
+import com.ladygo.admin.web.dto.AdminDriverDetailResponse.AdminDriverRecentRide;
 import com.ladygo.admin.web.dto.AdminDriverListItemResponse;
 import com.ladygo.admin.web.dto.VehicleAdminResponse;
 import com.ladygo.bookings.domain.Booking;
@@ -78,13 +78,13 @@ public class AdminDriverService {
         Vehicle vehicle = vehicles.findByDriverId(driverId).stream().findFirst().orElse(null);
 
         var docs = documents.findByDriverId(driverId);
-        DocumentsSummary summary = new DocumentsSummary(docs.size(),
+        AdminDriverDocumentsSummary summary = new AdminDriverDocumentsSummary(docs.size(),
                 (int) docs.stream().filter(d -> d.getStatus() == DocumentStatus.PENDING).count(),
                 (int) docs.stream().filter(d -> d.getStatus() == DocumentStatus.APPROVED).count(),
                 (int) docs.stream().filter(d -> d.getStatus() == DocumentStatus.REJECTED).count(),
                 "/driver-verification/" + driverId);
 
-        List<RecentRide> recent = bookings.findAll(
+        List<AdminDriverRecentRide> recent = bookings.findAll(
                         (root, query, cb) -> cb.equal(root.get("driverId"), driverId),
                         PageRequest.of(0, RECENT_RIDES, Sort.by(Sort.Direction.DESC, "createdAt")))
                 .map(AdminDriverService::toRecentRide).getContent();
@@ -141,8 +141,8 @@ public class AdminDriverService {
                 row.availabilityStatus(), row.ratingAvg(), row.totalRides(), row.createdAt());
     }
 
-    private static RecentRide toRecentRide(Booking b) {
-        return new RecentRide(b.getId(), b.getStatus(), b.getCreatedAt(), b.getFinalFare(), b.getCurrency());
+    private static AdminDriverRecentRide toRecentRide(Booking b) {
+        return new AdminDriverRecentRide(b.getId(), b.getStatus(), b.getCreatedAt(), b.getFinalFare(), b.getCurrency());
     }
 
     private static final UUID NIL = new UUID(0L, 0L);

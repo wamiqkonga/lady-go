@@ -2,7 +2,7 @@ package com.ladygo.admin.repository;
 
 import java.time.Instant;
 import java.util.UUID;
-import com.ladygo.admin.web.dto.AdminDriverDetailResponse.EarningsTotals;
+import com.ladygo.admin.web.dto.AdminDriverDetailResponse.AdminDriverEarningsTotals;
 import com.ladygo.drivers.domain.Driver;
 import com.ladygo.drivers.domain.DriverVerificationStatus;
 import org.springframework.data.domain.Page;
@@ -42,11 +42,11 @@ public interface AdminDriverQueryRepository extends Repository<Driver, UUID> {
             @Param("status") DriverVerificationStatus status, Pageable pageable);
 
     @Query("""
-            SELECT new com.ladygo.admin.web.dto.AdminDriverDetailResponse$EarningsTotals(
+            SELECT new com.ladygo.admin.web.dto.AdminDriverDetailResponse$AdminDriverEarningsTotals(
                    count(e), coalesce(sum(e.gross), 0), coalesce(sum(e.commission), 0), coalesce(sum(e.net), 0))
             FROM RideEarning e WHERE e.driverId = :driverId
             """)
-    EarningsTotals earningsTotals(@Param("driverId") UUID driverId);
+    AdminDriverEarningsTotals earningsTotals(@Param("driverId") UUID driverId);
 
     /** APPROVED -> SUSPENDED and offline, in one statement; 0 rows when the driver is not currently approved. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)

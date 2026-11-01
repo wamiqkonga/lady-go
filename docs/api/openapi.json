@@ -7535,41 +7535,20 @@
             "$ref": "#/components/schemas/VehicleAdminResponse"
           },
           "documents": {
-            "$ref": "#/components/schemas/DocumentsSummary"
+            "$ref": "#/components/schemas/AdminDriverDocumentsSummary"
           },
           "recentRides": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/RecentRide"
+              "$ref": "#/components/schemas/AdminDriverRecentRide"
             }
           },
           "earnings": {
-            "$ref": "#/components/schemas/EarningsTotals"
+            "$ref": "#/components/schemas/AdminDriverEarningsTotals"
           }
         }
       },
-      "ApiResponseAdminDriverDetailResponse": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "data": {
-            "$ref": "#/components/schemas/AdminDriverDetailResponse"
-          },
-          "message": {
-            "type": "string"
-          },
-          "error": {
-            "$ref": "#/components/schemas/ApiError"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "DocumentsSummary": {
+      "AdminDriverDocumentsSummary": {
         "type": "object",
         "properties": {
           "total": {
@@ -7593,7 +7572,7 @@
           }
         }
       },
-      "EarningsTotals": {
+      "AdminDriverEarningsTotals": {
         "type": "object",
         "properties": {
           "rides": {
@@ -7614,7 +7593,7 @@
           }
         }
       },
-      "RecentRide": {
+      "AdminDriverRecentRide": {
         "type": "object",
         "properties": {
           "bookingId": {
@@ -7647,6 +7626,27 @@
           },
           "currency": {
             "type": "string"
+          }
+        }
+      },
+      "ApiResponseAdminDriverDetailResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminDriverDetailResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }
