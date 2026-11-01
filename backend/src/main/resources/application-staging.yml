@@ -29,6 +29,7 @@ ladygo:
     channel: ${LADYGO_OTP_CHANNEL:sms}
     hash-secret: ${LADYGO_OTP_HASH_SECRET}
   mfa:
+    required: ${LADYGO_ADMIN_MFA_REQUIRED:false}
     enc-key: ${LADYGO_MFA_ENC_KEY}
   ride:
     pin-secret: ${LADYGO_RIDE_PIN_SECRET}

@@ -82,38 +82,40 @@ function RidesTab() {
       {!error && rows === null && <p className="muted">Loading…</p>}
       {!error && rows !== null && rows.length === 0 && <p className="muted">No rides match these filters.</p>}
       {!error && rows !== null && rows.length > 0 && (
-        <table className="list-table">
-          <thead>
-            <tr>
-              <th>Created</th>
-              <th>Status</th>
-              <th>Customer</th>
-              <th>Driver</th>
-              <th>Fare</th>
-              <th>Open flags</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.bookingId}>
-                <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
-                <td>
-                  <Link to={`/rides/${row.bookingId}`}>{row.bookingStatus}</Link>
-                </td>
-                <td>{row.customer?.name ?? '—'} {row.customer?.phoneMasked ? `(${row.customer.phoneMasked})` : ''}</td>
-                <td>{row.driver?.name ?? '—'} {row.driver?.phoneMasked ? `(${row.driver.phoneMasked})` : ''}</td>
-                <td>{row.finalFare ?? row.estimatedFare ?? '—'}</td>
-                <td>
-                  {row.openFlagCount && row.openFlagCount > 0 ? (
-                    <span className="badge-expired">{row.openFlagCount}</span>
-                  ) : (
-                    0
-                  )}
-                </td>
+        <div className="table-scroll">
+          <table className="list-table">
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Status</th>
+                <th>Customer</th>
+                <th>Driver</th>
+                <th>Fare</th>
+                <th>Open flags</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.bookingId}>
+                  <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
+                  <td>
+                    <Link to={`/rides/${row.bookingId}`}>{row.bookingStatus}</Link>
+                  </td>
+                  <td>{row.customer?.name ?? '—'} {row.customer?.phoneMasked ? `(${row.customer.phoneMasked})` : ''}</td>
+                  <td>{row.driver?.name ?? '—'} {row.driver?.phoneMasked ? `(${row.driver.phoneMasked})` : ''}</td>
+                  <td>{row.finalFare ?? row.estimatedFare ?? '—'}</td>
+                  <td>
+                    {row.openFlagCount && row.openFlagCount > 0 ? (
+                      <span className="badge-expired">{row.openFlagCount}</span>
+                    ) : (
+                      0
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )
