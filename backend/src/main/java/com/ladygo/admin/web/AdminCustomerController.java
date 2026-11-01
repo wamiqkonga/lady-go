@@ -11,6 +11,7 @@ import com.ladygo.common.api.PageResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.security.net.ClientIpResolver;
 import com.ladygo.users.domain.UserStatus;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +43,7 @@ public class AdminCustomerController {
     }
 
     @GetMapping
+    @Operation(operationId = "listCustomers")
     @PreAuthorize("hasAnyRole('SUPPORT', 'ADMIN', 'SUPER_ADMIN')")
     public ApiResponse<PageResponse<AdminCustomerSummaryResponse>> list(
             @RequestParam(required = false) String q, @RequestParam(required = false) UserStatus status,
@@ -50,12 +52,14 @@ public class AdminCustomerController {
     }
 
     @GetMapping("/{id}")
+    @Operation(operationId = "getCustomer")
     @PreAuthorize("hasAnyRole('SUPPORT', 'ADMIN', 'SUPER_ADMIN')")
     public ApiResponse<AdminCustomerDetailResponse> get(@PathVariable UUID id) {
         return ApiResponse.ok(service.get(id));
     }
 
     @PostMapping("/{id}/suspend")
+    @Operation(operationId = "suspendCustomer")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ApiResponse<AdminCustomerDetailResponse> suspend(
             @PathVariable UUID id, @Valid @RequestBody AdminCustomerActionRequest body,
@@ -66,6 +70,7 @@ public class AdminCustomerController {
     }
 
     @PostMapping("/{id}/activate")
+    @Operation(operationId = "activateCustomer")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ApiResponse<AdminCustomerDetailResponse> activate(
             @PathVariable UUID id, @Valid @RequestBody AdminCustomerActionRequest body,

@@ -3,6 +3,8 @@ import Layout from './components/Layout'
 import AdminUserDetail from './pages/AdminUserDetail'
 import AdminUsers from './pages/AdminUsers'
 import AuditLog from './pages/AuditLog'
+import CustomerDetail from './pages/CustomerDetail'
+import Customers from './pages/Customers'
 import ConfigScreen from './pages/ConfigScreen'
 import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
@@ -48,10 +50,8 @@ export default function App() {
         />
         <Route path="driver-verification" element={<DriverDocumentQueue />} />
         <Route path="driver-verification/:driverId" element={<DriverReview />} />
-        <Route
-          path="customers"
-          element={<Placeholder title="Customers" phase="Phase 9" description="Customer search, ride and payment history, suspend/activate." />}
-        />
+        <Route path="customers" element={<Customers />} />
+        <Route path="customers/:customerId" element={<CustomerDetail />} />
         <Route path="pricing" element={<ConfigScreen />} />
         <Route
           path="safety"
