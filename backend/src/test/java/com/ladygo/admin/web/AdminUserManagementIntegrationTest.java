@@ -385,7 +385,7 @@ class AdminUserManagementIntegrationTest extends PersistenceTestSupport {
         User target = staff(UserRole.SUPPORT, false);
 
         postAs(staleToken, "/" + target.getId() + "/deactivate", "{\"reason\":\"r\"}")
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized()); // the filter drops a token whose role no longer matches.
 
         assertThat(users.findById(target.getId()).orElseThrow().getStatus()).isEqualTo(UserStatus.ACTIVE);
     }
@@ -473,6 +473,29 @@ class AdminUserManagementIntegrationTest extends PersistenceTestSupport {
 
         setPassword(token).andExpect(status().isUnauthorized());
         assertThat(users.findById(id).orElseThrow().getPasswordHash()).isNull();
+    }
+
+    /** An access token minted before a deactivation or demotion must stop working at once, not at its expiry. */
+    @Test
+    void deactivatedOrDemotedStaffTokensStopWorkingImmediately() throws Exception {
+        User superAdmin = staff(UserRole.SUPER_ADMIN, true);
+        User admin = staff(UserRole.ADMIN, true);
+        User demoted = staff(UserRole.SUPER_ADMIN, true);
+        String adminToken = fresh(admin);
+        String demotedToken = fresh(demoted);
+        mockMvc.perform(get("/api/v1/admin/config").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+        getAs(demotedToken, "").andExpect(status().isOk());
+
+        postAs(fresh(superAdmin), "/" + admin.getId() + "/deactivate", "{\"reason\":\"r\"}").andExpect(status().isOk());
+        postAs(fresh(superAdmin), "/" + demoted.getId() + "/role", "{\"role\":\"SUPPORT\",\"reason\":\"r\"}")
+                .andExpect(status().isOk());
+        em.flush();
+        em.clear();
+
+        mockMvc.perform(get("/api/v1/admin/config").header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isUnauthorized());
+        getAs(demotedToken, "").andExpect(status().isUnauthorized());
     }
 
     // ---- secrets -------------------------------------------------------------------------------------------
