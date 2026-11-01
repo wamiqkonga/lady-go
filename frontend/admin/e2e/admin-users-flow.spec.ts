@@ -47,7 +47,10 @@ test.describe('staff accounts: invite and role change', () => {
       await other.getByLabel('Repeat the new password').fill('E2e-invitee-passphrase-1')
       await other.getByRole('button', { name: /password/i }).click()
       await expect(other.getByRole('status')).toContainText('Your password was changed')
-      await other.goto(link!) // single use: the same link must not work twice.
+      // Single use: the same link must not work twice. Leave the page first, because going to the same address with
+      // only the fragment changed is an in-page navigation and would keep the finished screen instead of reloading.
+      await other.goto('about:blank')
+      await other.goto(link!)
       await other.getByLabel('New password (at least 12 characters)').fill('E2e-invitee-passphrase-2')
       await other.getByLabel('Repeat the new password').fill('E2e-invitee-passphrase-2')
       await other.getByRole('button', { name: /password/i }).click()
