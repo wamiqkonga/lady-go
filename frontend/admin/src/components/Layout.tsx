@@ -3,7 +3,7 @@ import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import { useSession } from '../lib/sessionContext'
 
-const nav = [
+const nav: { to: string; label: string; superAdminOnly?: boolean }[] = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/live-map', label: 'Live map' },
   { to: '/rides', label: 'Rides' },
@@ -13,11 +13,12 @@ const nav = [
   { to: '/safety', label: 'Safety' },
   { to: '/pricing', label: 'Pricing' },
   { to: '/audit-logs', label: 'Audit log' },
+  { to: '/users', label: 'Staff', superAdminOnly: true },
   { to: '/security', label: 'Security' },
 ]
 
 export default function Layout() {
-  const { signOut } = useSession()
+  const { signOut, role } = useSession()
   return (
     <div className="admin-shell">
       <aside className="sidebar">
@@ -26,7 +27,7 @@ export default function Layout() {
           <span>Lady Go Admin</span>
         </div>
         <nav aria-label="Admin">
-          {nav.map((n) => (
+          {nav.filter((n) => !n.superAdminOnly || role === 'SUPER_ADMIN').map((n) => (
             <NavLink key={n.to} to={n.to}>
               {n.label}
             </NavLink>

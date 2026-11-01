@@ -182,3 +182,27 @@ a { color: var(--brand); }
 
 .dialog-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
 .dialog { background: var(--surface); color: inherit; border-radius: 12px; padding: 1.25rem; width: 100%; max-width: 380px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
+
+/* Staff accounts: the table collapses to one card per account on phones. */
+.detail-list { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1.25rem; margin: 1rem 0; }
+.detail-list dt { color: var(--muted); font-weight: 700; }
+.detail-list dd { margin: 0; }
+.staff-actions { display: grid; gap: 0.75rem; justify-items: start; }
+.staff-actions > button, .reason-action .row-actions button { min-height: 44px; }
+.reason-action { display: grid; gap: 0.5rem; max-width: 460px; width: 100%; }
+.reason-action input, .reason-action select, .form select {
+  padding: 0.75rem 0.9rem; min-height: 48px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font: inherit; background: var(--surface-variant); color: var(--fg);
+}
+.staff-actions > button {
+  padding: 0.4rem 1.1rem; border-radius: 999px; border: 1.5px solid var(--brand); background: transparent;
+  color: var(--brand); font: inherit; font-weight: 700; cursor: pointer;
+}
+@media (max-width: 760px) {
+  .stack-table thead { position: absolute; left: -9999px; }
+  .stack-table, .stack-table tbody, .stack-table tr, .stack-table td { display: block; width: 100%; }
+  .stack-table tr { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 0.75rem; padding: 0.4rem 0.9rem; }
+  .stack-table td { border-bottom: 0; padding: 0.3rem 0; display: flex; justify-content: space-between; gap: 1rem; overflow-wrap: anywhere; }
+  .stack-table td::before { content: attr(data-label); color: var(--muted); font-weight: 700; flex: none; }
+  .detail-list { grid-template-columns: 1fr; }
+}

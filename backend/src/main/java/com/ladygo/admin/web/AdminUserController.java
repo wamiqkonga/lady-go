@@ -11,6 +11,7 @@ import com.ladygo.auth.web.dto.AdminUnlockRequest;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.security.net.ClientIpResolver;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
@@ -68,12 +69,14 @@ public class AdminUserController {
 
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(operationId = "listAdminUsers")
     public ApiResponse<List<AdminUserResponse>> list() {
         return ApiResponse.ok(management.list());
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(operationId = "getAdminUser")
     public ApiResponse<AdminUserResponse> get(@PathVariable UUID id) {
         return ApiResponse.ok(management.get(id));
     }
@@ -81,6 +84,7 @@ public class AdminUserController {
     /** Invites a new staff member: creates the account with no password and emails a single-use set-password link. */
     @PostMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(operationId = "inviteAdminUser")
     public ApiResponse<AdminUserResponse> invite(
             @Valid @RequestBody AdminUserInviteRequest body, @AuthenticationPrincipal AuthPrincipal principal,
             HttpServletRequest request) {
@@ -91,6 +95,7 @@ public class AdminUserController {
 
     @PostMapping("/{id}/role")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(operationId = "changeAdminUserRole")
     public ApiResponse<AdminUserResponse> changeRole(
             @PathVariable UUID id, @Valid @RequestBody AdminUserRoleRequest body,
             @AuthenticationPrincipal AuthPrincipal principal, HttpServletRequest request) {
@@ -101,6 +106,7 @@ public class AdminUserController {
 
     @PostMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(operationId = "deactivateAdminUser")
     public ApiResponse<AdminUserResponse> deactivate(
             @PathVariable UUID id, @Valid @RequestBody AdminUserReasonRequest body,
             @AuthenticationPrincipal AuthPrincipal principal, HttpServletRequest request) {
@@ -111,6 +117,7 @@ public class AdminUserController {
 
     @PostMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(operationId = "reactivateAdminUser")
     public ApiResponse<AdminUserResponse> reactivate(
             @PathVariable UUID id, @Valid @RequestBody AdminUserReasonRequest body,
             @AuthenticationPrincipal AuthPrincipal principal, HttpServletRequest request) {
