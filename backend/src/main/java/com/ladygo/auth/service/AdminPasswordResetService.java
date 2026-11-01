@@ -139,23 +139,49 @@ public class AdminPasswordResetService {
             if (emailSender == null || adminWebBaseUrl.isEmpty()) {
                 return; // already warned at startup; nothing can be delivered.
             }
-            String token = newToken();
-            AdminPasswordReset reset = new AdminPasswordReset();
-            reset.setUserId(user.getId());
-            reset.setTokenHash(sha256Hex(token));
-            reset.setExpiresAt(Instant.now().plus(ttl));
-            resets.save(reset);
-
-            String link = adminWebBaseUrl + "/reset-password#token=" + token;
-            deliver(user.getId(), user.getEmail(), "Reset your Lady Go admin password",
+            storeAndEmailLink(user, ttl, "Reset your Lady Go admin password",
                     "Someone asked to reset the password for this Lady Go admin account.\n\n"
-                            + "Open this link within " + ttl.toMinutes() + " minutes to choose a new password:\n" + link + "\n\n"
+                            + "Open this link within " + ttl.toMinutes() + " minutes to choose a new password:\n%s\n\n"
                             + "If you did not ask for this, ignore this email - your password has not changed. "
                             + "Never share this link.",
                     "link");
         } catch (RuntimeException ex) {
             log.warn("operation=admin_password_reset_request result=failed error={}", ex.getClass().getSimpleName());
         }
+    }
+
+    /** True when a link could actually be delivered (an email provider and the admin portal address are configured). */
+    public boolean canDeliverLinks() {
+        return emailSender != null && !adminWebBaseUrl.isEmpty();
+    }
+
+    /**
+     * Staff invitation: the same hashed, single-use, expiring token and the same reset page as password recovery, so
+     * an invitee sets a first password exactly the way a forgetful admin sets a new one. Called inside the caller's
+     * transaction; if the email is not accepted the caller's work is rolled back, so no account is left that nobody
+     * can enter. Only the SHA-256 of the token is stored; the token is never returned or logged.
+     */
+    public void sendInvite(User invitee, Duration ttl) {
+        if (!canDeliverLinks() || !storeAndEmailLink(invitee, ttl, "You are invited to the Lady Go admin portal",
+                "You have been invited to the Lady Go admin portal as " + invitee.getRole().name() + ".\n\n"
+                        + "Open this link within " + ttl.toMinutes() / 60 + " hours to choose your password:\n%s\n\n"
+                        + "If you were not expecting this, ignore this email. Never share this link.",
+                "invite")) {
+            throw new com.ladygo.common.exception.EmailDeliveryException();
+        }
+    }
+
+    /** Stores a fresh hashed token for {@code user} and emails the link; {@code %s} in {@code bodyTemplate} is the link.
+     *  The token travels in the URL fragment so it never reaches server logs or Referer headers. */
+    private boolean storeAndEmailLink(User user, Duration ttl, String subject, String bodyTemplate, String kind) {
+        String token = newToken();
+        AdminPasswordReset reset = new AdminPasswordReset();
+        reset.setUserId(user.getId());
+        reset.setTokenHash(sha256Hex(token));
+        reset.setExpiresAt(Instant.now().plus(ttl));
+        resets.save(reset);
+        String link = adminWebBaseUrl + "/reset-password#token=" + token;
+        return deliver(user.getId(), user.getEmail(), subject, bodyTemplate.formatted(link), kind);
     }
 
     /**
@@ -240,7 +266,7 @@ public class AdminPasswordResetService {
     }
 
     /** Sends and then logs what really happened: {@code send} reports failure by returning false, not by throwing. */
-    private void deliver(Object userId, String to, String subject, String body, String kind) {
+    private boolean deliver(Object userId, String to, String subject, String body, String kind) {
         boolean sent;
         try {
             sent = emailSender.send(to, subject, body);
@@ -248,13 +274,14 @@ public class AdminPasswordResetService {
             // Class name only: the message can echo the recipient.
             log.warn("operation=admin_password_reset_email kind={} result=failed userId={} error={}", kind, userId,
                     ex.getClass().getSimpleName());
-            return;
+            return false;
         }
         if (sent) {
             log.info("operation=admin_password_reset_email kind={} result=sent userId={}", kind, userId);
         } else {
             log.warn("operation=admin_password_reset_email kind={} result=failed userId={}", kind, userId);
         }
+        return sent;
     }
 
     private static boolean isStaff(UserRole role) {
