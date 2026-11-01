@@ -116,7 +116,7 @@ SQL
 echo "== Seeding one dedicated, independently-enrolled SUPER_ADMIN account per real test login =="
 # Keys match e2e/env.ts's SUPER_ADMIN_KEYS exactly - one per test that performs a real login, so no
 # two real logins anywhere in the suite ever share a TOTP secret (see the header comment above).
-SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK RIDES FLAGS AUDITLOG CONFIGEDIT)
+SUPER_ADMIN_KEYS=(LOGIN QUEUE REVIEW IDLE SIGNOUT WRONGCODE REPLAY DOCEXPIRY TAMPER COOKIES NOSTORAGE MARKUP ROLECHECK RIDES FLAGS AUDITLOG CONFIGEDIT SAFETY)
 for i in "${!SUPER_ADMIN_KEYS[@]}"; do
   KEY="${SUPER_ADMIN_KEYS[$i]}"
   EMAIL="e2e.super.$(echo "$KEY" | tr '[:upper:]' '[:lower:]')@ladygo.test"
@@ -293,7 +293,18 @@ VALUES ('$FLAGGED_RIDE_ID', '$FLAGGED_BOOKING_ID', '$RIDE_CUSTOMER_ID', '$DRIVER
   'RIDER_SAFETY_CANCEL', 'CUSTOMER')
 RETURNING id;") || { echo "Failed to seed the fixture ride flag" >&2; exit 1; }
 
-if [[ -z "$FLAGGED_BOOKING_ID" || -z "$FLAG_ID" ]]; then
+# One open SOS on that ride, reported by the fixture rider, for the safety queue screens (direct SQL, like the flag above).
+SAFETY_INCIDENT_ID=$(psql -t -A -q -c "
+INSERT INTO safety_incidents (ride_id, reporter_id, type, severity, status, location, notes)
+VALUES ('$FLAGGED_RIDE_ID', (SELECT id FROM users WHERE phone = '$RIDE_CUSTOMER_PHONE'), 'SOS', 'CRITICAL', 'OPEN',
+  ST_GeogFromText('SRID=4326;POINT(74.8 34.1)'), 'E2E: the driver took a wrong turn')
+RETURNING id;") || { echo "Failed to seed the fixture safety incident" >&2; exit 1; }
+psql -v ON_ERROR_STOP=1 -q -c "
+INSERT INTO safety_incident_events (incident_id, actor_id, event_type)
+VALUES ('$SAFETY_INCIDENT_ID', (SELECT id FROM users WHERE phone = '$RIDE_CUSTOMER_PHONE'), 'CREATED');
+" || { echo "Failed to seed the fixture safety incident event" >&2; exit 1; }
+
+if [[ -z "$FLAGGED_BOOKING_ID" || -z "$FLAG_ID" || -z "$SAFETY_INCIDENT_ID" ]]; then
   echo "Ride/flag fixture seeding produced an empty id - refusing to continue silently." >&2
   exit 1
 fi
@@ -303,5 +314,6 @@ emit ADMIN_WEB_E2E_DRIVER_ID "$DRIVER_ID"
 emit ADMIN_WEB_E2E_SECONDARY_DRIVER_ID "$SECONDARY_DRIVER_ID"
 emit ADMIN_WEB_E2E_FLAGGED_BOOKING_ID "$FLAGGED_BOOKING_ID"
 emit ADMIN_WEB_E2E_FLAG_ID "$FLAG_ID"
+emit ADMIN_WEB_E2E_SAFETY_INCIDENT_ID "$SAFETY_INCIDENT_ID"
 
 echo "Seed complete. Driver $DRIVER_ID (primary), $SECONDARY_DRIVER_ID (secondary), flagged booking $FLAGGED_BOOKING_ID."

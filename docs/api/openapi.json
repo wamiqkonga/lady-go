@@ -2296,6 +2296,119 @@
         }
       }
     },
+    "/api/v1/admin/safety/incidents/{id}/resolve": {
+      "post": {
+        "tags": [
+          "admin-safety-controller"
+        ],
+        "operationId": "resolve",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyIncidentResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSafetyIncidentDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/safety/incidents/{id}/notes": {
+      "post": {
+        "tags": [
+          "admin-safety-controller"
+        ],
+        "operationId": "addNote",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SafetyIncidentNoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSafetyIncidentDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/safety/incidents/{id}/acknowledge": {
+      "post": {
+        "tags": [
+          "admin-safety-controller"
+        ],
+        "operationId": "acknowledge",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSafetyIncidentDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/ride-flags/{id}/review": {
       "post": {
         "tags": [
@@ -2933,6 +3046,101 @@
         }
       }
     },
+    "/api/v1/admin/safety/incidents": {
+      "get": {
+        "tags": [
+          "admin-safety-controller"
+        ],
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "ACKNOWLEDGED",
+                "ESCALATED",
+                "RESOLVED"
+              ]
+            }
+          },
+          {
+            "name": "pageable",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseSafetyIncidentSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/safety/incidents/{id}": {
+      "get": {
+        "tags": [
+          "admin-safety-controller"
+        ],
+        "operationId": "get_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSafetyIncidentDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/safety/incidents/open-count": {
+      "get": {
+        "tags": [
+          "admin-safety-controller"
+        ],
+        "operationId": "openCount",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseSafetyOpenCountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/rides": {
       "get": {
         "tags": [
@@ -3242,7 +3450,7 @@
         "tags": [
           "admin-config-controller"
         ],
-        "operationId": "list_1",
+        "operationId": "list_2",
         "responses": {
           "200": {
             "description": "OK",
@@ -3262,7 +3470,7 @@
         "tags": [
           "admin-audit-log-controller"
         ],
-        "operationId": "list_2",
+        "operationId": "list_3",
         "parameters": [
           {
             "name": "actorId",
@@ -5182,6 +5390,176 @@
           "reason"
         ]
       },
+      "SafetyIncidentResolveRequest": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "NO_ACTION_NEEDED",
+              "RESOLVED_BY_PHONE",
+              "POLICE_INFORMED",
+              "ACTION_TAKEN_AGAINST_DRIVER",
+              "ACTION_TAKEN_AGAINST_RIDER",
+              "FALSE_ALARM",
+              "OTHER"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "ApiResponseSafetyIncidentDetailResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SafetyIncidentDetailResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SafetyEventResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "actorRole": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SafetyIncidentDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rideId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "reporter": {
+            "$ref": "#/components/schemas/SafetyReporterResponse"
+          },
+          "location": {
+            "$ref": "#/components/schemas/SafetyLocationResponse"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "legalHold": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acknowledgedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SafetyEventResponse"
+            }
+          }
+        }
+      },
+      "SafetyLocationResponse": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lng": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SafetyReporterResponse": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "phoneMasked": {
+            "type": "string"
+          }
+        }
+      },
+      "SafetyIncidentNoteRequest": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "note"
+        ]
+      },
       "AdminRideFlagReviewRequest": {
         "type": "object",
         "properties": {
@@ -6164,6 +6542,128 @@
           },
           "country": {
             "type": "string"
+          }
+        }
+      },
+      "ApiResponsePageResponseSafetyIncidentSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResponseSafetyIncidentSummaryResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PageResponseSafetyIncidentSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SafetyIncidentSummaryResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SafetyIncidentSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rideId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "reporter": {
+            "$ref": "#/components/schemas/SafetyReporterResponse"
+          },
+          "hasLocation": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acknowledgedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseSafetyOpenCountResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SafetyOpenCountResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SafetyOpenCountResponse": {
+        "type": "object",
+        "properties": {
+          "unresolved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "needsAcknowledging": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "critical": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

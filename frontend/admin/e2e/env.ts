@@ -29,6 +29,7 @@ const SUPER_ADMIN_KEYS = [
   'FLAGS',
   'AUDITLOG',
   'CONFIGEDIT',
+  'SAFETY',
 ] as const
 
 type SuperAdminKey = (typeof SUPER_ADMIN_KEYS)[number]
@@ -58,6 +59,8 @@ export interface E2eEnv {
    *  the lifecycle itself (that's rides/service's own test suite's job). */
   flaggedBookingId: string
   flagId: string
+  /** One OPEN, CRITICAL SOS on that ride, reported by the fixture rider (also seeded directly via SQL). */
+  safetyIncidentId: string
 }
 
 const REQUIRED_BASE = [
@@ -72,6 +75,7 @@ const REQUIRED_BASE = [
   'ADMIN_WEB_E2E_SECONDARY_DRIVER_ID',
   'ADMIN_WEB_E2E_FLAGGED_BOOKING_ID',
   'ADMIN_WEB_E2E_FLAG_ID',
+  'ADMIN_WEB_E2E_SAFETY_INCIDENT_ID',
 ] as const
 
 function requiredVarsForKey(key: SuperAdminKey): string[] {
@@ -119,6 +123,7 @@ export function readE2eEnv(): E2eEnv | null {
     unknownDriverId: '00000000-0000-0000-0000-000000000000',
     flaggedBookingId: process.env.ADMIN_WEB_E2E_FLAGGED_BOOKING_ID!,
     flagId: process.env.ADMIN_WEB_E2E_FLAG_ID!,
+    safetyIncidentId: process.env.ADMIN_WEB_E2E_SAFETY_INCIDENT_ID!,
   }
 }
 
