@@ -54,9 +54,22 @@ Replace the hard block with a progressive delay and visibility:
 - Alert: log a structured `admin_login_failures_high` event at N failures in M minutes (defaults 10 in 10).
   Real alerting channel is a later ticket; the log line is the hook.
 - SUPER_ADMIN unlock: `POST /api/v1/admin/users/{id}/unlock`, step-up required, audit entry, reason mandatory.
-- Break-glass: if the only SUPER_ADMIN is locked, the server script in section 4 will also clear the counter (planned with this step; the script does not do it yet).
-- Rollout safety: new behaviour behind `admin.login.progressive.enabled` (default true on staging, flipped on in
-  production after UAT). Old hard lockout stays available for one release.
+- Break-glass: if the only SUPER_ADMIN is locked, the server script in section 4 also clears the wait and the fixed-window counter for that admin, so the link it prints works at once.
+- Rollout safety: new behaviour behind `admin.login.progressive.enabled`. It ships OFF (`false`) in the migration so
+  deploying changes nothing; flip it on staging, test, then flip it on production. Old fixed-window limit (5 per 15
+  minutes per email and per IP) stays available while it is off.
+
+Built (step 4, migration V37): table `admin_login_throttle` (one row per email, atomic upsert, cleared by a success or an
+unlock, rows older than 24 hours are pruned). Wait after the n-th failure is `min(2^(n-1), admin.login.max.delay.seconds)`
+seconds. While on, the IP counter is a hard cap of four times `admin.login.max.attempts` per window (default 20 per 15
+minutes) and is never released. Email matching ignores case and surrounding spaces. The alert line carries a 12-character
+SHA-256 prefix of the email rather than the address, because the value is attacker-supplied; hash a known address to match.
+Settings: `admin.login.progressive.enabled`, `.max.delay.seconds`, `.alert.failures`, `.alert.window.minutes`.
+
+Counting fix (applies with the switch on or off): `AdminAuthService.login` and `.stepUp` used a plain transaction, so each
+rejected attempt rolled back its own counter and nothing ever accumulated. They now keep the transaction on the three
+rejection exceptions (`noRollbackFor`). Every rejection happens before any write other than the counters; the replay
+check was moved ahead of the last-login write to keep that true. The step-up limit stays the fixed window per user.
 
 ## 4. Password recovery
 

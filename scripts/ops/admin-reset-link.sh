@@ -7,7 +7,8 @@
 # Usage:   scripts/ops/admin-reset-link.sh admin@example.com --confirm admin@example.com
 # Needs:   psql, openssl; database access via the standard PG* variables (PGHOST, PGDATABASE, PGUSER, PGPASSWORD) or
 #          a PSQL="psql <connection options>" override; LADYGO_ADMIN_WEB_BASE_URL (e.g. https://admin.example.com).
-# Effects: closes any open reset links for that admin, creates one valid for 30 minutes, writes an audit entry.
+# Effects: closes any open reset links for that admin, creates one valid for 30 minutes, clears that admin's failed-login
+#          wait (so a locked-out admin can use the link straight away), writes an audit entry.
 set -euo pipefail
 
 EMAIL="${1:-}"
@@ -49,6 +50,8 @@ UPDATE admin_password_resets SET used_at = now()
   WHERE used_at IS NULL AND user_id IN (SELECT id FROM target);
 INSERT INTO admin_password_resets (user_id, token_hash, expires_at)
   SELECT id, :'hash', now() + interval '30 minutes' FROM target;
+DELETE FROM admin_login_throttle WHERE email IN (SELECT lower(email) FROM users WHERE id IN (SELECT id FROM target));
+DELETE FROM auth_rate_limits WHERE bucket_key IN (SELECT 'admin_login_email:' || lower(email) FROM users WHERE id IN (SELECT id FROM target));
 INSERT INTO audit_logs (actor_id, actor_role, action, target_type, target_id, metadata)
   SELECT NULL, NULL, 'ADMIN_PASSWORD_RESET_LINK_ISSUED', 'users', id::text, jsonb_build_object('via', 'break-glass script', 'operator', :'operator') FROM target;
 SELECT count(*) FROM target;

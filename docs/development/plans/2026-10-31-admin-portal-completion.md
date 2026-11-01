@@ -215,6 +215,21 @@ Claude cannot execute these. Lifecycle for each: Ready for test, In testing/UAT,
   `admin_password_reset_disabled` warning in the log.
 - Accept: Forgot password on the admin login sends a link that opens the reset page. Needs T6 first. Owner: you.
 
+**T9. Turn on the progressive login delay.** Env: staging, then production.
+- Why: step 4 ships with `admin.login.progressive.enabled` = false so the deploy changes nothing.
+- Steps: on staging, open Config, set `admin.login.progressive.enabled` to true (needs an authenticator code). Fail a
+  login twice on purpose with a test admin and check the second attempt is refused for a moment; sign in correctly
+  and check it works again. Then repeat on production.
+- Accept: a wrong password makes the next attempt wait (1s, then 2s, 4s); a correct sign-in clears it; a SUPER_ADMIN can
+  unlock someone with `POST /api/v1/admin/users/{id}/unlock` (screen comes with admin user management). Owner: you.
+
+**T10. Set trusted proxies on staging and production.** Env: staging, then production.
+- Why: the per-IP limits (login, password reset) see the proxy's address for everyone unless the proxy is trusted, so
+  one visitor can use up everyone's budget.
+- Steps: set `LADYGO_SECURITY_TRUSTEDPROXIES_0` to the CIDR range of the reverse proxy / load balancer in front of the
+  backend (for a single host, `1.2.3.4/32`; add `_1`, `_2` for more), restart, check `X-Forwarded-For` from outside is not believed.
+- Accept: two different visitors get separate login attempt budgets. Owner: you.
+
 **T5. Define the SOS procedure (decision C).** Env: n/a.
 - Why: launch gate D9.
 - Steps: write who watches the queue, hours, who calls 112.
