@@ -1826,6 +1826,156 @@
         }
       }
     },
+    "/api/v1/auth/driver/password/set": {
+      "post": {
+        "tags": [
+          "driver-auth-controller"
+        ],
+        "operationId": "driverPasswordSet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverPasswordSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/driver/password/reset": {
+      "post": {
+        "tags": [
+          "driver-auth-controller"
+        ],
+        "operationId": "driverPasswordReset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverPasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseVoid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/driver/password/login": {
+      "post": {
+        "tags": [
+          "driver-auth-controller"
+        ],
+        "operationId": "driverPasswordLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverPasswordLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/driver/password/forgot": {
+      "post": {
+        "tags": [
+          "driver-auth-controller"
+        ],
+        "operationId": "driverPasswordForgot",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverPasswordForgotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseMessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/driver/password/change": {
+      "post": {
+        "tags": [
+          "driver-auth-controller"
+        ],
+        "operationId": "driverPasswordChange",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverPasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseTokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/admin/step-up": {
       "post": {
         "tags": [
@@ -3210,6 +3360,26 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseBookingDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/driver/password/status": {
+      "get": {
+        "tags": [
+          "driver-auth-controller"
+        ],
+        "operationId": "driverPasswordStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverPasswordStatusResponse"
                 }
               }
             }
@@ -5418,6 +5588,94 @@
           "refreshToken"
         ]
       },
+      "DriverPasswordSetRequest": {
+        "type": "object",
+        "properties": {
+          "newPassword": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "newPassword"
+        ]
+      },
+      "DriverPasswordResetRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 0
+          },
+          "newPassword": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "newPassword",
+          "token"
+        ]
+      },
+      "DriverPasswordLoginRequest": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 0
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "deviceId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "identifier",
+          "password"
+        ]
+      },
+      "DriverPasswordForgotRequest": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "identifier"
+        ]
+      },
+      "DriverPasswordChangeRequest": {
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 0
+          },
+          "newPassword": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "currentPassword",
+          "newPassword"
+        ]
+      },
       "MfaEnrollConfirmRequest": {
         "type": "object",
         "properties": {
@@ -6889,6 +7147,35 @@
           },
           "country": {
             "type": "string"
+          }
+        }
+      },
+      "ApiResponseDriverPasswordStatusResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DriverPasswordStatusResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DriverPasswordStatusResponse": {
+        "type": "object",
+        "properties": {
+          "passwordSet": {
+            "type": "boolean"
           }
         }
       },
