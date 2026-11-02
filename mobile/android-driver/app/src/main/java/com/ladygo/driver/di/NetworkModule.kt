@@ -2,6 +2,7 @@ package com.ladygo.driver.di
 
 import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
+import com.ladygo.driver.api.generated.apis.DriverAuthControllerApi
 import com.ladygo.driver.api.generated.apis.DriverBookingControllerApi
 import com.ladygo.driver.api.generated.apis.DriverControllerApi
 import com.ladygo.driver.api.generated.apis.DriverEarningsControllerApi
@@ -169,6 +170,13 @@ object NetworkModule {
     fun provideAuthControllerApi(
         @PlainClient retrofit: Retrofit,
     ): AuthControllerApi = retrofit.create(AuthControllerApi::class.java)
+
+    /** Password sign-in is public (no token yet), so it uses the plain client like [provideAuthControllerApi]. */
+    @Provides
+    @Singleton
+    fun provideDriverAuthControllerApi(
+        @PlainClient retrofit: Retrofit,
+    ): DriverAuthControllerApi = retrofit.create(DriverAuthControllerApi::class.java)
 
     @Provides
     @Singleton

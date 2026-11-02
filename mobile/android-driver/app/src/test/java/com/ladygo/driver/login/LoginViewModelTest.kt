@@ -1,6 +1,7 @@
 package com.ladygo.driver.login
 
 import com.ladygo.driver.auth.AuthRepository
+import com.ladygo.driver.auth.PasswordLoginOutcome
 import com.ladygo.driver.auth.RequestOtpOutcome
 import com.ladygo.driver.auth.VerifyOtpOutcome
 import com.ladygo.driver.testing.MainDispatcherRule
@@ -22,9 +23,55 @@ class LoginViewModelTest {
     private val viewModel = LoginViewModel(authRepository)
 
     @Test
-    fun startsOnPhoneEntry() {
+    fun startsOnPasswordEntryAndCanSwitchToACodeAndBack() {
+        assertEquals(LoginStep.PASSWORD_ENTRY, viewModel.uiState.value.step)
+        viewModel.onUseCodeInstead()
         assertEquals(LoginStep.PHONE_ENTRY, viewModel.uiState.value.step)
+        viewModel.onUsePasswordInstead()
+        assertEquals(LoginStep.PASSWORD_ENTRY, viewModel.uiState.value.step)
     }
+
+    @Test
+    fun aPasswordLoginSignsInAndClearsThePassword() =
+        runTest {
+            coEvery { authRepository.loginWithPassword("captain@example.com", "my little pink scooter") } returns
+                PasswordLoginOutcome.LoggedIn
+            viewModel.onIdentifierChanged("captain@example.com")
+            viewModel.onPasswordChanged("my little pink scooter")
+
+            viewModel.onPasswordLogin()
+            testScheduler.advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value.loggedIn)
+            assertEquals("", viewModel.uiState.value.password)
+        }
+
+    @Test
+    fun aFailedPasswordLoginShowsTheMessageAndClearsThePassword() =
+        runTest {
+            coEvery { authRepository.loginWithPassword(any(), any()) } returns
+                PasswordLoginOutcome.Failed("Phone, email or password is not correct.")
+            viewModel.onIdentifierChanged("captain@example.com")
+            viewModel.onPasswordChanged("wrong-password-1")
+
+            viewModel.onPasswordLogin()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals("Phone, email or password is not correct.", viewModel.uiState.value.error)
+            assertEquals("", viewModel.uiState.value.password)
+            assertEquals(false, viewModel.uiState.value.loggedIn)
+        }
+
+    @Test
+    fun aPasswordLoginWithABlankFieldIsANoOp() =
+        runTest {
+            viewModel.onIdentifierChanged("captain@example.com")
+
+            viewModel.onPasswordLogin()
+            testScheduler.advanceUntilIdle()
+
+            coVerify(exactly = 0) { authRepository.loginWithPassword(any(), any()) }
+        }
 
     @Test
     fun requestingAnOtpMovesToCodeEntryOnSuccess() =

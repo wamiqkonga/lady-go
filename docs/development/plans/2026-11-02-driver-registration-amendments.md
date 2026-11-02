@@ -1,6 +1,6 @@
 # Plan: driver registration amendments (password, loader, congratulations, FAQ/Terms/Contact)
 
-Status: **DRAFT, waiting for the owner's approval. No code has been written.**
+Status: **APPROVED by the owner on 2026-11-02 with every recommended default** (see "Owner decisions" at the end). Built on this branch.
 Date: 2026-11-02. Branch: `claude/driver-registration-amendments-e820fe`, one PR into `develop`. Nothing goes to `main`
 (merging to `main` auto-deploys production).
 
@@ -314,3 +314,14 @@ Lifecycle for each: Ready for test, In testing/UAT, Test Failed, Ready To Deploy
 - **Q7.** OK that the reset link always opens the website, also for app users (4b)?
 - **Q8.** Company legal name, registered address, GSTIN, fares/commission, hours, response times, refund rules: if you want
   any in the Terms/Contact pages, send them; otherwise they stay out.
+
+---
+
+## 13. Owner decisions (2026-11-02) and what changed while building
+
+- Q2 yes: support address is `supportladygo@gmail.com`. Q3: minimum password length **10**. Q4: **no** review-time target, so the dialog promises none. Q5: **no** retention period is stated on the Privacy page. Q6 yes: existing captains may tap "Not now"; new sign-ups cannot skip. Q7 yes: the reset link always opens the website. Q8: no company details in the Terms or Contact pages.
+- **Q1 (the 60-day target number) is still open.** `docs/development/driver-adoption-60-day.sql` carries a clearly marked `TODO(owner)` placeholder (`:target`) until it is given.
+- **Found while building (changes 4i):** the database refused a password on any non-staff user (`ck_users_password_admin_only`, migration V2). Migration **V42** therefore replaces it with `ck_users_password_by_role`, which also allows DRIVER (CUSTOMER still cannot hold a password). It also adds `users.password_set_at` and six configuration rows. V38 to V41 are reserved by other admin work; V42 is the next free number after checking `origin/develop` and every open branch.
+- The existing `admin_password_resets` table needed no change: it is keyed by user and the driver service checks the role, so an admin link cannot reset a driver and the reverse.
+- A failed-login **audit row per attempt** was dropped from the plan on purpose (it would let an attacker flood the audit table); failures are counted by the throttle and alerted in the log instead. Set, change and reset are audited.
+- Passwords longer than 72 bytes are refused (bcrypt ignores the rest), so the stated maximum is 72 characters, not 128.
