@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { SUPPORT_EMAIL } from '../lib/support'
+import { SUPPORT_EMAIL } from '../../config'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'
 

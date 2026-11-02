@@ -18,21 +18,18 @@ type CityResponse = { id?: string; name?: string; country?: string }
 
 /** Opens the congratulations dialog once per captain on this browser: when the last required step is done, or the
  *  first time a captain who already finished opens the page. Closing it is remembered (best effort). */
-function CongratsGate({ allDone, profileId }: { allDone: boolean; profileId: string | undefined }) {
-  const key = `lg_congrats_seen_${profileId ?? ''}`
-  const [open, setOpen] = useState(false)
-  useEffect(() => {
-    if (!allDone || !profileId) return
-    let seen = false
-    try { seen = localStorage.getItem(key) === '1' } catch { /* storage unavailable: show it */ }
-    if (!seen) setOpen(true)
-  }, [allDone, profileId, key])
-  if (!open) return null
+function CongratsGate({ allDone, profileId }: { allDone: boolean; profileId: string }) {
+  const key = `lg_congrats_seen_${profileId}`
+  const [dismissed, setDismissed] = useState(false)
+  const [seenBefore] = useState(() => {
+    try { return localStorage.getItem(key) === '1' } catch { return false } // storage unavailable: show it
+  })
+  if (!allDone || dismissed || seenBefore) return null
   return (
     <CongratulationsDialog
       onClose={() => {
         try { localStorage.setItem(key, '1') } catch { /* ignore */ }
-        setOpen(false)
+        setDismissed(true)
       }}
     />
   )
@@ -488,7 +485,7 @@ export default function Dashboard() {
           </>
         )}
       </div>
-      <CongratsGate allDone={allDone && ready} profileId={profile?.id} />
+      {profile?.id && <CongratsGate key={profile.id} allDone={allDone && ready} profileId={profile.id} />}
       {profile && ready && (
         <div className="primary-action">
           <div className="action-bar">
