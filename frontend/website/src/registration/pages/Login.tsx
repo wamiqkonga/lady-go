@@ -83,6 +83,7 @@ export default function Login() {
         {stage === 'phone' ? (
           <form
             className="form"
+            aria-busy={busy}
             onSubmit={(e) => {
               e.preventDefault()
               sendCode()
@@ -116,8 +117,16 @@ export default function Login() {
             </p>
             {error && <p role="alert" className="error">{error}</p>}
             <button type="submit" disabled={busy || !phone.trim() || !email.trim()}>
-              Send code
+              {busy ? (
+                <>
+                  <span className="spinner" aria-hidden="true" /> Sending your code…
+                </>
+              ) : (
+                'Send code'
+              )}
             </button>
+            {/* Announced to screen readers; the visible text is in the button. Gone once the code screen replaces this form. */}
+            <span role="status" className="sr-only">{busy ? 'Sending your code, please wait.' : ''}</span>
           </form>
         ) : (
           <form

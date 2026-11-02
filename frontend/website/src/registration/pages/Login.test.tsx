@@ -11,6 +11,40 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe('Login', () => {
+  it('shows a busy loader on Send code until the code screen is visible', async () => {
+    let release!: (r: Response) => void
+    const pending = new Promise<Response>((resolve) => { release = resolve })
+    vi.stubGlobal('fetch', vi.fn().mockReturnValueOnce(pending))
+    render(<MemoryRouter><Login /></MemoryRouter>)
+    await userEvent.type(screen.getByLabelText('Phone number'), '+919900000001')
+    await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
+
+    const busyButton = await screen.findByRole('button', { name: /Sending your code/ })
+    expect(busyButton).toBeDisabled()
+    expect(busyButton.closest('form')).toHaveAttribute('aria-busy', 'true')
+    expect(busyButton.querySelector('.spinner')).not.toBeNull()
+    expect(screen.getByRole('status')).toHaveTextContent('Sending your code')
+    expect(screen.queryByLabelText('Code')).toBeNull()
+
+    release(jsonResponse({ success: true, data: { message: 'sent' }, error: null }))
+    await waitFor(() => expect(screen.getByLabelText('Code')).toBeVisible())
+    expect(screen.queryByText(/Sending your code/)).toBeNull()
+  })
+
+  it('clears the loader and shows the error when sending the code fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse({ success: false, data: null, error: { code: 'OTP_EMAIL_MISMATCH', message: 'Use the same phone number and email you signed up with.' } }, 409)))
+    render(<MemoryRouter><Login /></MemoryRouter>)
+    await userEvent.type(screen.getByLabelText('Phone number'), '+919900000001')
+    await userEvent.type(screen.getByLabelText('Email'), 'captain@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Send code' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Use the same phone number'))
+    const button = screen.getByRole('button', { name: 'Send code' })
+    expect(button).toBeEnabled()
+    expect(button.closest('form')).toHaveAttribute('aria-busy', 'false')
+  })
+
   it('sends a code then verifies it, requesting the DRIVER role', async () => {
     const fetchMock = vi
       .fn()
