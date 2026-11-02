@@ -79,6 +79,15 @@ test.describe('captain registration - full flow', () => {
     await declarationSection.getByLabel(/I have read and understood/).check()
     await declarationSection.getByRole('button', { name: 'I agree' }).click()
     await expect(declarationSection.getByText(/Accepted/)).toBeVisible()
+
+    // Every required step is done: the congratulations dialog opens and the Back button is gone.
+    const congrats = page.getByRole('dialog', { name: /Congratulations/ })
+    await expect(congrats).toBeVisible()
+    await expect(congrats.getByRole('link', { name: 'supportladygo@gmail.com' })).toHaveAttribute('href', 'mailto:supportladygo@gmail.com')
+    await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(congrats).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0)
     await next(page)
 
     await expect(page.getByRole('heading', { name: 'Application received' })).toBeVisible()

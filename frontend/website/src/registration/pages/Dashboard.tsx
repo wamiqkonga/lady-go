@@ -3,6 +3,7 @@ import { client, unwrap, ApiCallError } from '../lib/client'
 import { useSession } from '../lib/sessionContext'
 import DocumentUploadSection from '../components/DocumentUploadSection'
 import SelfieCapture from '../components/SelfieCapture'
+import CongratulationsDialog from '../components/CongratulationsDialog'
 import {
   STEPS, WORK_STEPS, REQUIRED_STEPS, FITNESS_STEP, RC_STEP, countDone, firstIncompleteIndex, isOptional, latestDocument, stepState,
   type RegistrationData, type Step,
@@ -14,6 +15,28 @@ type VehicleResponse = components['schemas']['VehicleResponse']
 type DriverDocumentResponse = components['schemas']['DriverDocumentResponse']
 type DeclarationStatusResponse = components['schemas']['DeclarationStatusResponse']
 type CityResponse = { id?: string; name?: string; country?: string }
+
+/** Opens the congratulations dialog once per captain on this browser: when the last required step is done, or the
+ *  first time a captain who already finished opens the page. Closing it is remembered (best effort). */
+function CongratsGate({ allDone, profileId }: { allDone: boolean; profileId: string | undefined }) {
+  const key = `lg_congrats_seen_${profileId ?? ''}`
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!allDone || !profileId) return
+    let seen = false
+    try { seen = localStorage.getItem(key) === '1' } catch { /* storage unavailable: show it */ }
+    if (!seen) setOpen(true)
+  }, [allDone, profileId, key])
+  if (!open) return null
+  return (
+    <CongratulationsDialog
+      onClose={() => {
+        try { localStorage.setItem(key, '1') } catch { /* ignore */ }
+        setOpen(false)
+      }}
+    />
+  )
+}
 
 /** Overall status. The backend moves a captain to PENDING_REVIEW on their first upload, long before
  *  the application is complete, so "Under review" is only shown once every step is actually in. */
@@ -465,10 +488,11 @@ export default function Dashboard() {
           </>
         )}
       </div>
+      <CongratsGate allDone={allDone && ready} profileId={profile?.id} />
       {profile && ready && (
         <div className="primary-action">
           <div className="action-bar">
-            {stepIndex > 0 && (
+            {stepIndex > 0 && !allDone && (
               <button type="button" className="secondary" onClick={() => setStepIndex(stepIndex - 1)}>
                 Back
               </button>
