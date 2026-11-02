@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readE2eEnvOrThrowInCi } from './env.js'
-import { loginAs } from './helpers.js'
+import { E2E_PASSWORD, loginAs } from './helpers.js'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
@@ -94,6 +94,25 @@ test.describe('captain registration - full flow', () => {
     await expect(page.getByText('Under review').first()).toBeVisible()
     // Three required steps: the vehicle (number + RC), the selfie and the declaration.
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3')
+  })
+
+  test('a captain who set a password signs in with it, and a wrong password is refused with one plain message', async ({ page }) => {
+    test.setTimeout(90_000)
+    await loginAs(page, env!.phones.WRONG_FILE_TYPE, env!.backendLog)
+    await page.getByRole('button', { name: 'Sign out' }).click()
+
+    await page.goto('/captain/registration')
+    await page.getByRole('button', { name: /Sign in with your password/ }).click()
+    await page.getByLabel('Phone number or email').fill(env!.phones.WRONG_FILE_TYPE)
+    await page.getByLabel('Password', { exact: true }).fill('not the right password')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page.getByRole('alert')).toHaveText('Phone, email or password is not correct.')
+
+    // The first wrong try makes the account wait a second; the right password must work after that.
+    await page.waitForTimeout(1500)
+    await page.getByLabel('Password', { exact: true }).fill(E2E_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page.getByRole('heading', { name: 'My application' })).toBeVisible()
   })
 
   test('a non-image file is rejected client-side with no status change', async ({ page }) => {
