@@ -71,6 +71,28 @@ POST /api/v1/auth/otp/verify   { phone, code, purpose }
 
 Configurable (via the existing `configuration` table / `ConfigurationService` — not hard-coded per `docs/architecture/backend-architecture.md` §1 "no hard-coded business values"): `otp.expiry.seconds` = 300, `otp.max.attempts` = 5, `otp.resend.cooldown.seconds` = 30, `otp.resend.max.per.hour` = 5. Seeded in `V12` so they exist from the first deploy.
 
+## 4a. Driver password sign-in (added 2026-11-02)
+
+Plan and rationale: `docs/development/plans/2026-11-02-driver-registration-amendments.md`. Drivers (captains) can sign in with a **password** on the website and in the Android driver app, in addition to OTP. OTP (section 4) is unchanged and independent: a password never replaces it and a password lockout never blocks it. Customers are out of scope (the database refuses a password on a CUSTOMER).
+
+**Credential.** `users.password_hash`, the same `PasswordEncoder` (bcrypt) as staff; `users.password_set_at` records when. Migration V42 widens the old V2 check so DRIVER (not CUSTOMER) may hold a hash. Bcrypt ignores everything past 72 bytes, so longer passwords are refused rather than cut.
+
+**Password policy** (`DriverPasswordPolicy`, server side): at least 10 characters, at most 72 bytes, not in the bundled common-password list (`auth/common-passwords.txt`), not all one character, not the account's own phone number or email. No composition rules. Spaces and any characters allowed.
+
+**Endpoints** (`DriverAuthController`, `/api/v1/auth/driver`):
+- `POST password/login` (public): `identifier` = phone or email (a plain 10-digit number gets +91, as on the website), `password`, optional `deviceId`. Returns the same token pair as OTP verify. A wrong identifier, a wrong password, an account with no password and a non-driver account all give the same `401 UNAUTHORIZED`; a suspended account gets `403` only after the correct password.
+- `GET password/status`, `POST password/set`, `POST password/change` (DRIVER token): `set` is for an account with no password and needs a sign-in within `driver.password.set.fresh.minutes` (default 10), so an old or stolen access token cannot plant a password; `change` needs the current password (5 tries per 15 minutes, counted even when rejected), ends every session and returns a new pair.
+- `POST password/forgot` (public): always the same `200` text; the lookup, the stored link and the email happen on a worker, so the reply and its timing do not depend on whether the account exists. Rate limited per identifier and per IP.
+- `POST password/reset` (public): the emailed token is the credential. It reuses the admin machinery: 32 random bytes, only the SHA-256 stored in `admin_password_resets`, single use, 30 minutes, token in the URL fragment of the website link (`/captain/reset-password#token=...`) so it never reaches logs or Referer. The role is checked (a driver link cannot reset an admin and the reverse). Success sets the password, revokes every refresh token, closes other open links, clears the wait, writes `DRIVER_PASSWORD_RESET` and emails a "password changed" notice.
+
+**Guessing limits.** Per account: `AdminLoginThrottle` with key `driver:<user id>` (or `driver:<identifier>` for an unknown one), a wait that doubles per failure (1s, 2s, 4s ... capped at `admin.login.max.delay.seconds`, 15 minutes). The key is the account, so trying the phone and then the email does not dodge it. Per IP: `RateLimiter` `driver_pwlogin_ip:<ip>`, `driver.password.login.max.per.ip` per 15 minutes (default 20). `DriverPasswordService.login` is `@Transactional(noRollbackFor = {Unauthorized, Forbidden, RateLimitExceeded})` so a rejected attempt is still counted. An unknown account still pays one dummy bcrypt comparison. Known trade-off: someone who knows a captain's phone can make that account wait (up to 15 minutes) by failing on purpose; OTP sign-in is unaffected.
+
+**Audit and logs.** `audit_logs` actions `DRIVER_PASSWORD_SET`, `DRIVER_PASSWORD_CHANGED`, `DRIVER_PASSWORD_RESET` (actor and target = the driver, with the IP). Passwords, tokens and hashes are never logged or returned; log lines carry the user id and result only. A failed-login audit row is deliberately not written per attempt (it would let an attacker flood the table); the throttle already logs an `admin_login_failures_high`-style alert line.
+
+**Kill switch.** `auth.driver_password.enabled` (configuration table, default true): when false, login/set/change/reset answer 404 and forgot silently does nothing. OTP is untouched.
+
+**Account-takeover note.** In email-OTP mode the code proves the email, not the phone (`docs/development/email-otp-setup.md`). A password does not open a new door: whoever passed the OTP already owned the account. It adds a second way in for that same person that no longer needs email. The existing first-claim limitation (an attacker registering someone else's phone with their own email first) is unchanged; admin document review and a call to the number before approval remain the backstop.
+
 ## 5. JWT access tokens
 
 - Algorithm: HS256, signing key from `LADYGO_JWT_SECRET` (env only, never committed; startup fails if unset in staging/prod — same pattern as `LADYGO_CORS_ALLOWED_ORIGINS`; a clearly-labelled insecure default exists only in `application.yml`'s base/dev defaults).
