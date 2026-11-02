@@ -99,7 +99,7 @@ never returned in any response, and never put in an audit entry.
   requests (3 per hour per identifier, 12 per IP).
 - **Rejected attempts must still be counted.** The sign-in method follows `AdminAuthService.login`: its transaction is
   marked `noRollbackFor` the "wrong password / forbidden / too many" exceptions, otherwise the failure counter would be
-  rolled back together with the rejected request and an attacker could guess forever. Tests (4h-style, see section 8)
+  rolled back together with the rejected request and an attacker could guess forever. Tests (see section 8)
   run **committed, not wrapped in a rolled-back test transaction**, because a class-level `@Transactional` test hides
   exactly this bug.
 - A real unknown account still pays the cost of one dummy password hash so timing does not reveal existence.
