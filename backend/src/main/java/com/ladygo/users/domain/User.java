@@ -63,6 +63,10 @@ public class User extends AuditedEntity {
     @Column(name = "mfa_pending_secret_enc", columnDefinition = "text")
     private String mfaPendingSecretEnc;
 
+    /** When a DRIVER last set or reset their password; null until they have one. */
+    @Column(name = "password_set_at")
+    private Instant passwordSetAt;
+
     @Column(name = "mfa_last_used_step")
     private Long mfaLastUsedStep;
 }

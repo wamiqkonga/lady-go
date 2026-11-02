@@ -1,6 +1,8 @@
 package com.ladygo.driver.auth
 
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
+import com.ladygo.driver.api.generated.apis.DriverAuthControllerApi
+import com.ladygo.driver.api.generated.models.DriverPasswordLoginRequest
 import com.ladygo.driver.api.generated.models.LogoutRequest
 import com.ladygo.driver.api.generated.models.OtpRequestRequest
 import com.ladygo.driver.api.generated.models.OtpVerifyRequest
@@ -24,6 +26,14 @@ sealed interface VerifyOtpOutcome {
     ) : VerifyOtpOutcome
 }
 
+sealed interface PasswordLoginOutcome {
+    data object LoggedIn : PasswordLoginOutcome
+
+    data class Failed(
+        val message: String,
+    ) : PasswordLoginOutcome
+}
+
 sealed interface RequestOtpOutcome {
     data object Sent : RequestOtpOutcome
 
@@ -42,6 +52,7 @@ class AuthRepository
     @Inject
     constructor(
         private val authApi: AuthControllerApi,
+        private val driverAuthApi: DriverAuthControllerApi,
         private val tokenStore: TokenStore,
         private val sessionManager: SessionManager,
         private val availabilityRepository: AvailabilityRepository,
@@ -108,6 +119,43 @@ class AuthRepository
             tokenStore.setTokens(accessToken, refreshToken)
             sessionManager.onLoggedIn()
             return VerifyOtpOutcome.LoggedIn
+        }
+
+        /**
+         * Password sign-in (phone or email + password), the same credential the captain set on the website. One
+         * plain message for every wrong-credential case so the app never reveals which part was wrong; the server
+         * answers 429 while an account is waiting after failed tries.
+         */
+        suspend fun loginWithPassword(
+            identifier: String,
+            password: String,
+        ): PasswordLoginOutcome {
+            val response =
+                runCatching {
+                    driverAuthApi.driverPasswordLogin(
+                        DriverPasswordLoginRequest(identifier = identifier.trim(), password = password, deviceId = deviceId),
+                    )
+                }.getOrElse {
+                    return PasswordLoginOutcome.Failed("Could not reach the server. Check your connection and try again.")
+                }
+            if (!response.isSuccessful) {
+                return PasswordLoginOutcome.Failed(
+                    when (response.code()) {
+                        401 -> "Phone, email or password is not correct."
+                        429 -> "Too many tries. Wait a little and try again, or sign in with a code."
+                        else -> errorMessageOrDefault(response, "Could not sign in. Try again.")
+                    },
+                )
+            }
+            val tokens = response.body()?.data
+            val accessToken = tokens?.accessToken
+            val refreshToken = tokens?.refreshToken
+            if (accessToken == null || refreshToken == null) {
+                return PasswordLoginOutcome.Failed("Unexpected response from the server.")
+            }
+            tokenStore.setTokens(accessToken, refreshToken)
+            sessionManager.onLoggedIn()
+            return PasswordLoginOutcome.LoggedIn
         }
 
         /** Best-effort server-side revoke, same as the website: tokens are cleared locally either way.
