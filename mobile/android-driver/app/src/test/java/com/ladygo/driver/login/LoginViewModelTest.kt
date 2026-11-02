@@ -90,6 +90,7 @@ class LoginViewModelTest {
     fun requestingAnOtpSurfacesTheServerErrorAndStaysOnPhoneEntry() =
         runTest {
             coEvery { authRepository.requestOtp(any()) } returns RequestOtpOutcome.Failed("Too many requests.")
+            viewModel.onUseCodeInstead()
             viewModel.onPhoneChanged("+14155550100")
 
             viewModel.onRequestOtp()

@@ -3,6 +3,7 @@ package com.ladygo.driver.login.ui
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.ladygo.driver.login.LoginStep
 import com.ladygo.driver.login.LoginUiState
@@ -123,7 +124,7 @@ class LoginScreenTest {
         composeRule.onNodeWithText("Phone number or email").assertExists()
         composeRule.onNodeWithText("Password").assertExists()
         composeRule.onNodeWithText("Use a code instead").assertExists()
-        composeRule.onNodeWithText("Forgot password?").performClick()
+        composeRule.onNodeWithText("Forgot password?").performScrollTo().performClick()
         assertTrue(forgot)
     }
 
