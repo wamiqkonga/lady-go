@@ -12,7 +12,8 @@ Scope: `auth` module (OTP, login, tokens, logout, admin enrolment), `security` m
 
 | Role | Credential | Source |
 |------|-----------|--------|
-| CUSTOMER, DRIVER | Phone + OTP only. No password (`ck_users_password_admin_only` forbids it). | existing constraint |
+| CUSTOMER | Phone + OTP only. No password (the database refuses one). | `ck_users_password_by_role` |
+| DRIVER | Phone + OTP, **or** a password (phone or email + password), see section 4a. | V42 |
 | ADMIN, SUPER_ADMIN, SUPPORT | Email + password + mandatory TOTP MFA | "Admin authentication: email + password + MFA (TOTP)" — `docs/product/admin-flows.md` §1 |
 
 Passwords: BCrypt (Spring Security default, `PasswordEncoder` bean), never logged, never returned in any response.
