@@ -14,6 +14,7 @@ import RegistrationApp from './registration/RegistrationApp'
 import RequireAuth from './registration/lib/RequireAuth'
 import RegistrationDashboard from './registration/pages/Dashboard'
 import RegistrationLogin from './registration/pages/Login'
+import ResetPassword from './registration/pages/ResetPassword'
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
       </Route>
       <Route element={<RegistrationApp />}>
         <Route path="captain/registration" element={<RegistrationLogin />} />
+        <Route path="captain/reset-password" element={<ResetPassword />} />
         <Route
           path="captain/register"
           element={

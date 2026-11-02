@@ -149,3 +149,6 @@
 .app-shell .dialog { width: 100%; max-width: 30rem; max-height: 90dvh; overflow-y: auto; background: var(--panel); color: var(--fg); border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); }
 .app-shell .dialog h2 { margin-top: 0; }
 .app-shell .dialog button { width: 100%; min-height: 52px; border-radius: 999px; border: 0; background: var(--brand); color: var(--brand-contrast); font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer; }
+
+.app-shell .form .check-row { display: flex; align-items: center; gap: 0.5rem; font-weight: 400; }
+.app-shell .form .check-row input { width: auto; }
