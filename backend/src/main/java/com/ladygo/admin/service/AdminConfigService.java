@@ -77,6 +77,8 @@ public class AdminConfigService {
             Map.entry("otp.expiry.seconds", new long[] {30, 900}),
             Map.entry("otp.max.attempts", new long[] {1, 20}),
             Map.entry("admin.livemap.max_age.minutes", new long[] {1, 120}),
+            Map.entry("verification.queue.overdue.hours", new long[] {1, 168}),
+            Map.entry("admin.dashboard.sos_ack_target.minutes", new long[] {1, 60}),
             Map.entry("admin.login.max.attempts", new long[] {1, 20}),
             Map.entry("admin.login.max.delay.seconds", new long[] {1, 3_600}),
             Map.entry("admin.login.alert.failures", new long[] {3, 200}),
