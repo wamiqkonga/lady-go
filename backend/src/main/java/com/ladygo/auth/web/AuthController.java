@@ -4,6 +4,7 @@ import com.ladygo.auth.service.AccessTokenIssuer;
 import com.ladygo.auth.service.OtpLoginService;
 import com.ladygo.auth.service.RefreshTokenService;
 import com.ladygo.auth.service.TokenPair;
+import com.ladygo.auth.web.dto.DriverAppVerifyRequest;
 import com.ladygo.auth.web.dto.LogoutRequest;
 import com.ladygo.auth.web.dto.MessageResponse;
 import com.ladygo.auth.web.dto.OtpRequestRequest;
@@ -73,6 +74,13 @@ public class AuthController {
             return ApiResponse.ok(new TokenResponse(pair.accessToken(), pair.refreshToken()));
         }
         return ApiResponse.ok(new MessageResponse(PHONE_VERIFIED));
+    }
+
+    /** The driver app's sign-in: only fully approved drivers get tokens (see {@code OtpLoginService#verifyDriverAppOtp}). */
+    @PostMapping("/driver-app/otp/verify")
+    public ApiResponse<TokenResponse> verifyDriverAppOtp(@Valid @RequestBody DriverAppVerifyRequest request) {
+        TokenPair pair = otpLoginService.verifyDriverAppOtp(request.phone(), request.code(), request.deviceId());
+        return ApiResponse.ok(new TokenResponse(pair.accessToken(), pair.refreshToken()));
     }
 
     @PostMapping("/refresh")

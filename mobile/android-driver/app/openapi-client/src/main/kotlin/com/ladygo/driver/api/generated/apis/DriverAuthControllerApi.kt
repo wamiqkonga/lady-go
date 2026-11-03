@@ -18,6 +18,19 @@ import com.ladygo.driver.api.generated.models.DriverPasswordSetRequest
 
 interface DriverAuthControllerApi {
     /**
+     * POST api/v1/auth/driver/app/password/login
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @param driverPasswordLoginRequest 
+     * @return [ApiResponseTokenResponse]
+     */
+    @POST("api/v1/auth/driver/app/password/login")
+    suspend fun driverAppPasswordLogin(@Body driverPasswordLoginRequest: DriverPasswordLoginRequest): Response<ApiResponseTokenResponse>
+
+    /**
      * POST api/v1/auth/driver/password/change
      * 
      * 

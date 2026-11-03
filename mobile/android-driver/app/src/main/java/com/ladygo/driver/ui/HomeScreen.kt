@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,7 +40,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -49,6 +53,7 @@ import com.ladygo.driver.location.GoOnlineStep
 import com.ladygo.driver.location.LocationForegroundService
 import com.ladygo.driver.location.decideNextGoOnlineStep
 import com.ladygo.driver.location.shouldRunLocationService
+import com.ladygo.driver.map.HomeMap
 import com.ladygo.driver.ui.components.BannerKind
 import com.ladygo.driver.ui.components.InfoBanner
 import com.ladygo.driver.ui.components.LadyGoCard
@@ -207,6 +212,7 @@ fun HomeScreen(
                 },
                 onDismiss = { showFineLocationDeniedExplainer = false },
             ),
+        map = { HomeMap(Modifier.fillMaxSize()) },
     )
 }
 
@@ -247,6 +253,38 @@ data class FineLocationDeniedDialogState(
 )
 
 @Composable
+private fun HomeHeader() {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(LadyGoTheme.extra.heroStart)) { LogoMark(size = 52.dp) }
+        Column {
+            Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineMedium)
+            Text(
+                stringResource(R.string.home_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MapFrame(
+    heightDp: Int,
+    tag: String,
+    shape: Shape,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(heightDp.dp)
+                .clip(shape)
+                .testTag(tag),
+    ) { content() }
+}
+
+@Composable
 fun HomeContent(
     state: HomeUiState,
     onToggleAvailability: () -> Unit,
@@ -254,6 +292,8 @@ fun HomeContent(
     onDismissMessages: () -> Unit,
     batteryGuidanceDialog: BatteryGuidanceDialogState,
     fineLocationDeniedDialog: FineLocationDeniedDialogState,
+    /** Her position while online. A slot so screen tests never need Play services; the real screen passes [HomeMap]. */
+    map: @Composable () -> Unit = {},
 ) {
     val online = state.availability == Availability.ONLINE
     LadyGoScreen(
@@ -273,18 +313,9 @@ fun HomeContent(
         },
     ) {
         Spacer(Modifier.height(24.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(LadyGoTheme.extra.heroStart)) { LogoMark(size = 52.dp) }
-            Column {
-                Text(stringResource(R.string.home_title), style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    stringResource(R.string.home_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        HomeHeader()
         AvailabilityCard(online)
+        if (online) MapFrame(HOME_MAP_HEIGHT_DP, "home_map", RoundedCornerShape(24.dp), map)
         state.error?.let { message ->
             InfoBanner(text = message, kind = BannerKind.ERROR, modifier = Modifier.clickable(onClick = onDismissMessages))
         }
@@ -363,3 +394,5 @@ private fun AvailabilityCard(online: Boolean) {
         )
     }
 }
+
+private const val HOME_MAP_HEIGHT_DP = 180

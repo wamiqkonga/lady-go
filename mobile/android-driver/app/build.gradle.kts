@@ -26,6 +26,12 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.google.services) apply false
+}
+
+// Without the Firebase config file the app still builds and runs, with push switched off.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 apply(plugin = "org.openapi.generator")
@@ -41,6 +47,9 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // The Google Maps key is a build-time secret: set MAPS_API_KEY in ~/.gradle/gradle.properties or pass
+        // -PMAPS_API_KEY=... in CI. It is never committed; without it the map renders blank but the app builds.
+        manifestPlaceholders["MAPS_API_KEY"] = (project.findProperty("MAPS_API_KEY") as String?) ?: ""
     }
 
     buildTypes {
@@ -307,6 +316,11 @@ dependencies {
 
     implementation(libs.androidx.security.crypto)
     implementation(libs.play.services.location)
+    implementation(libs.play.services.maps)
+    implementation(libs.maps.compose)
+    // Push (FCM). Delivery needs app/google-services.json, which is not committed (see docs/development/push-notifications-setup.md).
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     // STOMP-over-WebSocket client for ride offers (slice 2b) - verified before adding: MIT licensed,
     // actively maintained (github.com/joffrey-bion/krossbow, last push within days of this commit),

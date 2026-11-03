@@ -51,6 +51,20 @@ public class DriverAuthController {
         return ApiResponse.ok(new TokenResponse(pair.accessToken(), pair.refreshToken()));
     }
 
+    /**
+     * Public. The driver app's password sign-in: as above, but only a fully approved driver (APPROVED plus an approved
+     * vehicle) gets tokens; anyone else gets 403 with DRIVER_UNDER_REVIEW, DRIVER_REJECTED, DRIVER_SUSPENDED or
+     * DRIVER_NOT_REGISTERED once her password has been checked. The website keeps using the ungated endpoint above.
+     */
+    @Operation(operationId = "driverAppPasswordLogin")
+    @PostMapping("/app/password/login")
+    public ApiResponse<TokenResponse> appLogin(
+            @Valid @RequestBody DriverPasswordLoginRequest request, HttpServletRequest httpRequest) {
+        TokenPair pair = service.loginForApp(
+                request.identifier(), request.password(), request.deviceId(), clientIpResolver.resolve(httpRequest));
+        return ApiResponse.ok(new TokenResponse(pair.accessToken(), pair.refreshToken()));
+    }
+
     @Operation(operationId = "driverPasswordStatus")
     @GetMapping("/password/status")
     @PreAuthorize("hasRole('DRIVER')")

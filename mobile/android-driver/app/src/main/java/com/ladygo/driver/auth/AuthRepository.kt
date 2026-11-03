@@ -2,20 +2,39 @@ package com.ladygo.driver.auth
 
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
 import com.ladygo.driver.api.generated.apis.DriverAuthControllerApi
+import com.ladygo.driver.api.generated.models.DriverAppVerifyRequest
 import com.ladygo.driver.api.generated.models.DriverPasswordLoginRequest
 import com.ladygo.driver.api.generated.models.LogoutRequest
 import com.ladygo.driver.api.generated.models.OtpRequestRequest
-import com.ladygo.driver.api.generated.models.OtpVerifyRequest
 import com.ladygo.driver.location.AppPreferences
 import com.ladygo.driver.location.AvailabilityRepository
 import com.ladygo.driver.network.errorMessageOrDefault
+import com.ladygo.driver.network.parseErrorBody
+import com.ladygo.driver.push.PushTokenRegistrar
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Why the server would not let this driver in. Each has its own message in the app, and all point at support. */
+enum class BlockedReason(
+    val serverCode: String,
+) {
+    UNDER_REVIEW("DRIVER_UNDER_REVIEW"),
+    NOT_REGISTERED("DRIVER_NOT_REGISTERED"),
+    REJECTED("DRIVER_REJECTED"),
+    SUSPENDED("DRIVER_SUSPENDED"),
+}
+
+private fun blockedReasonOf(code: String?): BlockedReason? = BlockedReason.entries.firstOrNull { it.serverCode == code }
+
 sealed interface VerifyOtpOutcome {
     data object LoggedIn : VerifyOtpOutcome
+
+    /** The code was right but the driver is not (yet) allowed to use the app. */
+    data class Blocked(
+        val reason: BlockedReason,
+    ) : VerifyOtpOutcome
 
     /** The backend's own union response for `purpose=LOGIN` always returns tokens (see
      *  AuthController.verifyOtp) - a bare "phone verified" message here would mean the server
@@ -28,6 +47,11 @@ sealed interface VerifyOtpOutcome {
 
 sealed interface PasswordLoginOutcome {
     data object LoggedIn : PasswordLoginOutcome
+
+    /** The password was right but the driver is not (yet) allowed to use the app. */
+    data class Blocked(
+        val reason: BlockedReason,
+    ) : PasswordLoginOutcome
 
     data class Failed(
         val message: String,
@@ -57,6 +81,7 @@ class AuthRepository
         private val sessionManager: SessionManager,
         private val availabilityRepository: AvailabilityRepository,
         private val appPreferences: AppPreferences,
+        private val pushTokens: PushTokenRegistrar,
     ) {
         /** One per process, never persisted - only distinguishes refresh-token "families" for the
          *  server's reuse detection, matching the web client's same reasoning. */
@@ -84,35 +109,24 @@ class AuthRepository
             }
         }
 
+        /** Checks the code through the driver-app endpoint, which only admits fully approved drivers. */
         suspend fun verifyOtp(
             phone: String,
             code: String,
         ): VerifyOtpOutcome {
             val response =
-                runCatching {
-                    authApi.verifyOtp(
-                        OtpVerifyRequest(
-                            phone = phone,
-                            code = code,
-                            purpose = OtpVerifyRequest.Purpose.LOGIN,
-                            intendedRole = OtpVerifyRequest.IntendedRole.DRIVER,
-                            deviceId = deviceId,
-                        ),
-                    )
-                }.getOrElse {
-                    return VerifyOtpOutcome.Failed(
-                        "Could not reach the server. Check your connection and try again.",
-                    )
-                }
-
+                runCatching { authApi.verifyDriverAppOtp(DriverAppVerifyRequest(phone = phone, code = code, deviceId = deviceId)) }
+                    .getOrElse {
+                        return VerifyOtpOutcome.Failed("Could not reach the server. Check your connection and try again.")
+                    }
             if (!response.isSuccessful) {
-                return VerifyOtpOutcome.Failed(
-                    errorMessageOrDefault(response, "That code didn't work. Check it and try again."),
-                )
+                val error = parseErrorBody(response)
+                blockedReasonOf(error?.code)?.let { return VerifyOtpOutcome.Blocked(it) }
+                return VerifyOtpOutcome.Failed(error?.message ?: "That code didn't work. Check it and try again.")
             }
-            val data = response.body()?.data as? Map<*, *>
-            val accessToken = data?.get("accessToken") as? String
-            val refreshToken = data?.get("refreshToken") as? String
+            val tokens = response.body()?.data
+            val accessToken = tokens?.accessToken
+            val refreshToken = tokens?.refreshToken
             if (accessToken == null || refreshToken == null) {
                 return VerifyOtpOutcome.Failed("Unexpected response from the server.")
             }
@@ -132,13 +146,14 @@ class AuthRepository
         ): PasswordLoginOutcome {
             val response =
                 runCatching {
-                    driverAuthApi.driverPasswordLogin(
+                    driverAuthApi.driverAppPasswordLogin(
                         DriverPasswordLoginRequest(identifier = identifier.trim(), password = password, deviceId = deviceId),
                     )
                 }.getOrElse {
                     return PasswordLoginOutcome.Failed("Could not reach the server. Check your connection and try again.")
                 }
             if (!response.isSuccessful) {
+                blockedReasonOf(parseErrorBody(response)?.code)?.let { return PasswordLoginOutcome.Blocked(it) }
                 return PasswordLoginOutcome.Failed(
                     when (response.code()) {
                         401 -> "Phone, email or password is not correct."
@@ -166,6 +181,7 @@ class AuthRepository
         suspend fun logout() {
             withTimeoutOrNull(GO_OFFLINE_TIMEOUT_MILLIS) { runCatching { availabilityRepository.goOffline() } }
             appPreferences.setActiveBookingId(null)
+            runCatching { pushTokens.forget() } // while the access token is still valid
             val refreshToken = tokenStore.getRefreshToken()
             if (refreshToken != null) {
                 runCatching { authApi.logout(LogoutRequest(refreshToken = refreshToken, logoutAll = false)) }

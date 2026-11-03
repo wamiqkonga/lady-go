@@ -3,7 +3,6 @@ package com.ladygo.driver.auth
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
 import com.ladygo.driver.api.generated.apis.DriverAuthControllerApi
 import com.ladygo.driver.api.generated.models.ApiResponseMessageResponse
-import com.ladygo.driver.api.generated.models.ApiResponseObject
 import com.ladygo.driver.api.generated.models.ApiResponseTokenResponse
 import com.ladygo.driver.api.generated.models.MessageResponse
 import com.ladygo.driver.api.generated.models.TokenResponse
@@ -33,7 +32,9 @@ class AuthRepositoryTest {
     private val sessionManager = SessionManager(tokenStore)
     private val availabilityRepository = mockk<AvailabilityRepository>()
     private val appPreferences = mockk<AppPreferences>(relaxed = true)
-    private val repository = AuthRepository(authApi, driverAuthApi, tokenStore, sessionManager, availabilityRepository, appPreferences)
+    private val pushTokens = mockk<com.ladygo.driver.push.PushTokenRegistrar>(relaxed = true)
+    private val repository =
+        AuthRepository(authApi, driverAuthApi, tokenStore, sessionManager, availabilityRepository, appPreferences, pushTokens)
 
     @Before
     fun goOfflineSucceeds() {
@@ -81,8 +82,8 @@ class AuthRepositoryTest {
     @Test
     fun verifyOtpLogsInWhenTheServerReturnsTokens() =
         runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                Response.success(ApiResponseObject(data = mapOf("accessToken" to "access-1", "refreshToken" to "refresh-1")))
+            coEvery { authApi.verifyDriverAppOtp(any()) } returns
+                Response.success(ApiResponseTokenResponse(data = TokenResponse(accessToken = "access-1", refreshToken = "refresh-1")))
 
             val outcome = repository.verifyOtp("+14155550100", "123456")
 
@@ -92,14 +93,10 @@ class AuthRepositoryTest {
             assertTrue(sessionManager.isLoggedIn.value)
         }
 
-    /** `purpose=LOGIN` always returns tokens server-side (AuthController.verifyOtp) - a bare
-     *  message-only response here would mean the contract changed, and must fail, not be silently
-     *  treated as some other kind of success. */
     @Test
-    fun verifyOtpFailsIfTheServerReturnsOnlyAMessageForLoginPurpose() =
+    fun verifyOtpFailsIfTheServerReturnsNoTokens() =
         runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                Response.success(ApiResponseObject(data = mapOf("message" to "Phone verified.")))
+            coEvery { authApi.verifyDriverAppOtp(any()) } returns Response.success(ApiResponseTokenResponse(data = null))
 
             val outcome = repository.verifyOtp("+14155550100", "123456")
 
@@ -111,8 +108,8 @@ class AuthRepositoryTest {
     @Test
     fun verifyOtpSurfacesAnInvalidCodeError() =
         runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                errorResponse<ApiResponseObject>(401, """{"error":{"code":"INVALID_OTP","message":"That code is wrong."}}""")
+            coEvery { authApi.verifyDriverAppOtp(any()) } returns
+                errorResponse<ApiResponseTokenResponse>(401, """{"error":{"code":"INVALID_OTP","message":"That code is wrong."}}""")
 
             val outcome = repository.verifyOtp("+14155550100", "000000")
 
@@ -161,7 +158,7 @@ class AuthRepositoryTest {
     @Test
     fun passwordLoginStoresTokensAndSignsIn() =
         runTest {
-            coEvery { driverAuthApi.driverPasswordLogin(any()) } returns
+            coEvery { driverAuthApi.driverAppPasswordLogin(any()) } returns
                 Response.success(ApiResponseTokenResponse(data = TokenResponse(accessToken = "access-9", refreshToken = "refresh-9")))
 
             val outcome = repository.loginWithPassword(" +919900000001 ", "my little pink scooter")
@@ -171,7 +168,7 @@ class AuthRepositoryTest {
             assertEquals("refresh-9", tokenStore.getRefreshToken())
             assertTrue(sessionManager.isLoggedIn.value)
             coVerify {
-                driverAuthApi.driverPasswordLogin(
+                driverAuthApi.driverAppPasswordLogin(
                     match { it.identifier == "+919900000001" && it.password == "my little pink scooter" && it.deviceId != null },
                 )
             }
@@ -180,7 +177,7 @@ class AuthRepositoryTest {
     @Test
     fun passwordLoginGivesOnePlainMessageForAWrongPassword() =
         runTest {
-            coEvery { driverAuthApi.driverPasswordLogin(any()) } returns
+            coEvery { driverAuthApi.driverAppPasswordLogin(any()) } returns
                 errorResponse<ApiResponseTokenResponse>(
                     401,
                     """{"error":{"code":"UNAUTHORIZED","message":"Authentication is required."}}""",
@@ -196,7 +193,7 @@ class AuthRepositoryTest {
     @Test
     fun passwordLoginExplainsAWaitWhenTheAccountIsRateLimited() =
         runTest {
-            coEvery { driverAuthApi.driverPasswordLogin(any()) } returns
+            coEvery { driverAuthApi.driverAppPasswordLogin(any()) } returns
                 errorResponse<ApiResponseTokenResponse>(429, """{"error":{"code":"RATE_LIMITED","message":"Too many requests."}}""")
 
             val outcome = repository.loginWithPassword("captain@example.com", "wrong-password-1")
@@ -207,11 +204,56 @@ class AuthRepositoryTest {
     @Test
     fun passwordLoginFailsClosedOnANetworkException() =
         runTest {
-            coEvery { driverAuthApi.driverPasswordLogin(any()) } throws java.io.IOException("no network")
+            coEvery { driverAuthApi.driverAppPasswordLogin(any()) } throws java.io.IOException("no network")
 
             val outcome = repository.loginWithPassword("captain@example.com", "my little pink scooter")
 
             assertTrue(outcome is PasswordLoginOutcome.Failed)
             assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    private val blockedCodes =
+        mapOf(
+            "DRIVER_UNDER_REVIEW" to BlockedReason.UNDER_REVIEW,
+            "DRIVER_NOT_REGISTERED" to BlockedReason.NOT_REGISTERED,
+            "DRIVER_REJECTED" to BlockedReason.REJECTED,
+            "DRIVER_SUSPENDED" to BlockedReason.SUSPENDED,
+        )
+
+    @Test
+    fun everyServerRefusalOfACodeBecomesItsOwnBlockedReasonAndLeavesThemSignedOut() =
+        runTest {
+            blockedCodes.forEach { (code, reason) ->
+                coEvery { authApi.verifyDriverAppOtp(any()) } returns
+                    errorResponse<ApiResponseTokenResponse>(403, """{"error":{"code":"$code","message":"No."}}""")
+
+                assertEquals(code, VerifyOtpOutcome.Blocked(reason), repository.verifyOtp("+14155550100", "123456"))
+            }
+            assertNull(tokenStore.getAccessToken())
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun everyServerRefusalOfAPasswordBecomesItsOwnBlockedReasonAndLeavesThemSignedOut() =
+        runTest {
+            blockedCodes.forEach { (code, reason) ->
+                coEvery { driverAuthApi.driverAppPasswordLogin(any()) } returns
+                    errorResponse<ApiResponseTokenResponse>(403, """{"error":{"code":"$code","message":"No."}}""")
+
+                assertEquals(code, PasswordLoginOutcome.Blocked(reason), repository.loginWithPassword("+919900000001", "a password 1"))
+            }
+            assertNull(tokenStore.getAccessToken())
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun logoutForgetsThePushTokenBeforeRevokingTheSession() =
+        runTest {
+            tokenStore.setTokens("access-1", "refresh-1")
+            coEvery { authApi.logout(any()) } returns Response.success(null)
+
+            repository.logout()
+
+            coVerify { pushTokens.forget() }
         }
 }

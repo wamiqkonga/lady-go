@@ -1,5 +1,7 @@
 package com.ladygo.driver.login.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -28,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -36,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.R
+import com.ladygo.driver.auth.BlockedReason
 import com.ladygo.driver.login.LoginStep
 import com.ladygo.driver.login.LoginUiState
 import com.ladygo.driver.login.LoginViewModel
@@ -71,6 +77,7 @@ fun LoginScreen(
         onPasswordLogin = viewModel::onPasswordLogin,
         onUseCodeInstead = viewModel::onUseCodeInstead,
         onUsePasswordInstead = viewModel::onUsePasswordInstead,
+        onDismissBlocked = viewModel::onDismissBlocked,
         // Resetting happens on the website: the emailed link opens there, and its sign-in page has "Forgot password?".
         onForgotPassword = { ExternalIntents.openUrl(context, BuildConfig.DRIVER_REGISTRATION_URL) },
     )
@@ -90,6 +97,7 @@ fun LoginContent(
     onUseCodeInstead: () -> Unit = {},
     onUsePasswordInstead: () -> Unit = {},
     onForgotPassword: () -> Unit = {},
+    onDismissBlocked: () -> Unit = {},
 ) {
     Column(
         modifier =
@@ -109,11 +117,16 @@ fun LoginContent(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp).navigationBarsPadding(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                when (state.step) {
-                    LoginStep.PASSWORD_ENTRY ->
-                        PasswordStep(state, onIdentifierChanged, onPasswordChanged, onPasswordLogin, onForgotPassword, onUseCodeInstead)
-                    LoginStep.PHONE_ENTRY -> PhoneStep(state, onPhoneChanged, onRequestOtp, onUsePasswordInstead)
-                    LoginStep.CODE_ENTRY -> CodeStep(state, onCodeChanged, onVerifyOtp, onBackToPhoneEntry)
+                val blocked = state.blocked
+                if (blocked != null) {
+                    BlockedStep(blocked, onDismissBlocked)
+                } else {
+                    when (state.step) {
+                        LoginStep.PASSWORD_ENTRY ->
+                            PasswordStep(state, onIdentifierChanged, onPasswordChanged, onPasswordLogin, onForgotPassword, onUseCodeInstead)
+                        LoginStep.PHONE_ENTRY -> PhoneStep(state, onPhoneChanged, onRequestOtp, onUsePasswordInstead)
+                        LoginStep.CODE_ENTRY -> CodeStep(state, onCodeChanged, onVerifyOtp, onBackToPhoneEntry)
+                    }
                 }
                 state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -232,4 +245,42 @@ private fun CodeStep(
         enabled = state.code.isNotBlank() && !state.isLoading,
     )
     QuietButton(text = "Use a different number", onClick = onBackToPhoneEntry, enabled = !state.isLoading)
+}
+
+/** The sign-in was right, but this driver cannot use the app yet: say why, and how to reach the team. */
+@Composable
+private fun BlockedStep(
+    reason: BlockedReason,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val supportEmail = stringResource(R.string.support_email)
+    val (title, body) =
+        when (reason) {
+            BlockedReason.UNDER_REVIEW -> R.string.blocked_review_title to R.string.blocked_review_body
+            BlockedReason.NOT_REGISTERED -> R.string.blocked_register_title to R.string.blocked_register_body
+            BlockedReason.REJECTED -> R.string.blocked_rejected_title to R.string.blocked_rejected_body
+            BlockedReason.SUSPENDED -> R.string.blocked_suspended_title to R.string.blocked_suspended_body
+        }
+    Icon(
+        Icons.Filled.Info,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(40.dp),
+    )
+    Text(stringResource(title), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.testTag("blocked_title"))
+    Text(stringResource(body), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(stringResource(R.string.blocked_contact_label), style = MaterialTheme.typography.labelLarge)
+    Text(supportEmail, style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("blocked_support_email"))
+    PrimaryButton(
+        text = stringResource(R.string.blocked_email_action),
+        onClick = {
+            val intent =
+                Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$supportEmail"))
+                    .putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.blocked_email_subject))
+            runCatching { context.startActivity(intent) }
+        },
+        icon = Icons.Filled.Email,
+    )
+    QuietButton(text = stringResource(R.string.blocked_back_action), onClick = onDismiss)
 }

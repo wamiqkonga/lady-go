@@ -2,6 +2,7 @@ package com.ladygo.driver.di
 
 import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
+import com.ladygo.driver.api.generated.apis.DeviceControllerApi
 import com.ladygo.driver.api.generated.apis.DriverAuthControllerApi
 import com.ladygo.driver.api.generated.apis.DriverBookingControllerApi
 import com.ladygo.driver.api.generated.apis.DriverControllerApi
@@ -9,6 +10,7 @@ import com.ladygo.driver.api.generated.apis.DriverEarningsControllerApi
 import com.ladygo.driver.api.generated.apis.DriverOfferControllerApi
 import com.ladygo.driver.api.generated.apis.RatingControllerApi
 import com.ladygo.driver.api.generated.apis.RideLifecycleControllerApi
+import com.ladygo.driver.api.generated.apis.SosControllerApi
 import com.ladygo.driver.api.generated.apis.SupportContactControllerApi
 import com.ladygo.driver.api.generated.apis.SystemControllerApi
 import com.ladygo.driver.api.generated.infrastructure.Serializer
@@ -180,6 +182,12 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideDeviceControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): DeviceControllerApi = retrofit.create(DeviceControllerApi::class.java)
+
+    @Provides
+    @Singleton
     fun provideDriverControllerApi(
         @AuthenticatedClient retrofit: Retrofit,
     ): DriverControllerApi = retrofit.create(DriverControllerApi::class.java)
@@ -250,6 +258,12 @@ object NetworkModule {
     @Singleton
     fun provideAppScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    @Provides
+    @Singleton
+    fun provideSosControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): SosControllerApi = retrofit.create(SosControllerApi::class.java)
+
     private const val STOMP_WS_PING_INTERVAL_SECONDS = 20L
 }
 
@@ -262,4 +276,7 @@ private val SENSITIVE_BODY_PATHS =
 
 /** Paths whose request/response bodies must never reach the debug log: the ride PIN, the rider selfie's signed URL
  *  and a rating's score, tags and comment. */
-internal fun isBodyLoggingSensitive(encodedPath: String): Boolean = SENSITIVE_BODY_PATHS.any { it.containsMatchIn(encodedPath) }
+internal fun isBodyLoggingSensitive(encodedPath: String): Boolean =
+    SENSITIVE_BODY_PATHS.any {
+        it.containsMatchIn(encodedPath)
+    }

@@ -12,3 +12,6 @@ captures/
 # .openapi-generator/, .openapi-generator-ignore) - only the generated client source itself is committed.
 app/openapi-client/*
 !app/openapi-client/src/
+
+# Firebase client config (project ids and keys): supplied per environment, never committed.
+app/google-services.json

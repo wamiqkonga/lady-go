@@ -1,5 +1,6 @@
 package com.ladygo.auth.service;
 
+import com.ladygo.common.exception.ErrorCode;
 import java.time.Instant;
 import java.util.Optional;
 import com.ladygo.auth.challenge.ChallengeVerifier;
@@ -29,6 +30,7 @@ public class OtpLoginService {
 
     private final UserRepository users;
     private final CustomerRepository customers;
+    private final DriverApprovalGate driverApprovalGate;
     private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
     private final AccessTokenIssuer accessTokenIssuer;
@@ -38,6 +40,7 @@ public class OtpLoginService {
     public OtpLoginService(
             UserRepository users,
             CustomerRepository customers,
+            DriverApprovalGate driverApprovalGate,
             OtpService otpService,
             RefreshTokenService refreshTokenService,
             AccessTokenIssuer accessTokenIssuer,
@@ -45,6 +48,7 @@ public class OtpLoginService {
             ConfigurationService config) {
         this.users = users;
         this.customers = customers;
+        this.driverApprovalGate = driverApprovalGate;
         this.otpService = otpService;
         this.refreshTokenService = refreshTokenService;
         this.accessTokenIssuer = accessTokenIssuer;
@@ -118,7 +122,23 @@ public class OtpLoginService {
             String deviceId) {
         requireCustomerOrDriver(intendedRole);
         String otpEmail = otpService.verify(phone, code, purpose);
+        return completeVerifiedLogin(phone, otpEmail, purpose, intendedRole, deviceId, false);
+    }
 
+    /**
+     * The driver app's sign-in. Drivers register on the website, so this never creates an account, and it only
+     * lets in a driver the admin team has fully approved (the driver and an approved vehicle). Anyone else gets a
+     * specific refusal the app turns into a clear message, after the code has proved who they are.
+     */
+    @Transactional
+    public TokenPair verifyDriverAppOtp(String phone, String code, String deviceId) {
+        String otpEmail = otpService.verify(phone, code, OtpPurpose.LOGIN);
+        return completeVerifiedLogin(phone, otpEmail, OtpPurpose.LOGIN, UserRole.DRIVER, deviceId, true)
+                .orElseThrow(OtpVerificationException::new);
+    }
+
+    private Optional<TokenPair> completeVerifiedLogin(String phone, String otpEmail, OtpPurpose purpose,
+            UserRole intendedRole, String deviceId, boolean driverApp) {
         User user = users.findByPhone(phone).orElse(null);
         if (otpEmail != null) {
             // Defence in depth for the race the request-time check cannot close.
@@ -135,6 +155,9 @@ public class OtpLoginService {
             log.info("operation=otp_role_mismatch phone_suffix={} existingRole={} intendedRole={}",
                     suffix(phone), user.getRole(), intendedRole);
             throw new OtpVerificationException();
+        }
+        if (driverApp) {
+            driverApprovalGate.requireApproved(user);
         }
         if (user == null) {
             user = new User();

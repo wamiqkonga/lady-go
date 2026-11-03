@@ -4,8 +4,12 @@ import com.ladygo.customer.BuildConfig
 import com.ladygo.customer.api.generated.apis.AuthControllerApi
 import com.ladygo.customer.api.generated.apis.BookingControllerApi
 import com.ladygo.customer.api.generated.apis.CityControllerApi
+import com.ladygo.customer.api.generated.apis.CustomerAuthControllerApi
 import com.ladygo.customer.api.generated.apis.CustomerControllerApi
+import com.ladygo.customer.api.generated.apis.DeviceControllerApi
 import com.ladygo.customer.api.generated.apis.MapsControllerApi
+import com.ladygo.customer.api.generated.apis.RatingControllerApi
+import com.ladygo.customer.api.generated.apis.SosControllerApi
 import com.ladygo.customer.api.generated.apis.SystemControllerApi
 import com.ladygo.customer.api.generated.infrastructure.Serializer
 import com.ladygo.customer.auth.AuthInterceptor
@@ -144,11 +148,35 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideRatingControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): RatingControllerApi = retrofit.create(RatingControllerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDeviceControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): DeviceControllerApi = retrofit.create(DeviceControllerApi::class.java)
+
+    @Provides
+    @Singleton
     fun provideMapsControllerApi(
         @AuthenticatedClient retrofit: Retrofit,
     ): MapsControllerApi = retrofit.create(MapsControllerApi::class.java)
 
     // Public (the service-area list is needed before any booking) but harmless to authenticate.
+    @Provides
+    @Singleton
+    fun provideCustomerAuthControllerApi(
+        @PlainClient retrofit: Retrofit,
+    ): CustomerAuthControllerApi = retrofit.create(CustomerAuthControllerApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSosControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): SosControllerApi = retrofit.create(SosControllerApi::class.java)
+
     @Provides
     @Singleton
     fun provideCityControllerApi(

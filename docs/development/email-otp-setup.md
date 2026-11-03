@@ -26,6 +26,14 @@ SMS/WhatsApp. Switch: `LADYGO_OTP_CHANNEL=email` (default `sms`, which keeps the
 - Extra send caps: `email.send.max_per_address.daily` (default 20), plus the existing per-phone, per-IP and
   global caps.
 - The Android **customer** app still sends phone only, so it cannot log in while the channel is `email`. The Android **driver** app can: captains set a password on the website after the code screen and then sign in to the app with phone or email + password (`docs/security/auth-design.md` section 4a). Driver forgot-password emails need `LADYGO_WEBSITE_BASE_URL` (the public captain website address, https) as well as an email provider; blank turns those emails off.
+## Rider registration and password reset
+Always delivered by email, whatever `LADYGO_OTP_CHANNEL` is, so an email provider (SES or SMTP, below) must be configured wherever riders can register.
+- `POST /auth/customer/register/otp` (phone + email) emails a code; `409 ACCOUNT_EXISTS` if either is already registered.
+- `POST /auth/customer/register` (phone, email, code, password) creates the account and signs her in.
+- `POST /auth/customer/login` (email or phone, password). Rate limited per account and per IP.
+- `POST /auth/customer/password/forgot` always answers the same, whether or not the email has an account.
+- `POST /auth/customer/password/reset` (email, code, new password) also signs her out everywhere.
+- Accounts created before this change by phone code have no password and possibly no email; they cannot reset a password by email.
 
 ## Choosing the email provider (`LADYGO_EMAIL_PROVIDER`)
 Two senders exist. SES is used only when `LADYGO_OTP_CHANNEL=email`. SMTP turns on whenever `LADYGO_EMAIL_PROVIDER=smtp`, whatever the OTP channel is, so admin password-recovery emails (`LADYGO_ADMIN_WEB_BASE_URL` also needed) work while driver codes still go by SMS.

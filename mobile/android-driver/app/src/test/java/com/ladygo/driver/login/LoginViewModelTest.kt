@@ -1,6 +1,7 @@
 package com.ladygo.driver.login
 
 import com.ladygo.driver.auth.AuthRepository
+import com.ladygo.driver.auth.BlockedReason
 import com.ladygo.driver.auth.PasswordLoginOutcome
 import com.ladygo.driver.auth.RequestOtpOutcome
 import com.ladygo.driver.auth.VerifyOtpOutcome
@@ -145,4 +146,49 @@ class LoginViewModelTest {
         assertEquals(LoginStep.PHONE_ENTRY, viewModel.uiState.value.step)
         assertEquals("", viewModel.uiState.value.code)
     }
+
+    @Test
+    fun aDriverStillUnderReviewIsShownWhyAfterAPasswordSignIn() =
+        runTest {
+            coEvery { authRepository.loginWithPassword(any(), any()) } returns PasswordLoginOutcome.Blocked(BlockedReason.UNDER_REVIEW)
+            viewModel.onIdentifierChanged("captain@example.com")
+            viewModel.onPasswordChanged("my little pink scooter")
+
+            viewModel.onPasswordLogin()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(BlockedReason.UNDER_REVIEW, viewModel.uiState.value.blocked)
+            assertEquals(false, viewModel.uiState.value.loggedIn)
+            assertEquals("", viewModel.uiState.value.password)
+        }
+
+    @Test
+    fun aDriverStillUnderReviewIsShownWhyAfterACode() =
+        runTest {
+            coEvery { authRepository.verifyOtp(any(), any()) } returns VerifyOtpOutcome.Blocked(BlockedReason.REJECTED)
+            viewModel.onUseCodeInstead()
+            viewModel.onPhoneChanged("+919900000001")
+            viewModel.onCodeChanged("123456")
+
+            viewModel.onVerifyOtp()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(BlockedReason.REJECTED, viewModel.uiState.value.blocked)
+            assertEquals(false, viewModel.uiState.value.loggedIn)
+        }
+
+    @Test
+    fun goingBackFromTheBlockedScreenStartsAFreshSignIn() =
+        runTest {
+            coEvery { authRepository.loginWithPassword(any(), any()) } returns PasswordLoginOutcome.Blocked(BlockedReason.SUSPENDED)
+            viewModel.onIdentifierChanged("captain@example.com")
+            viewModel.onPasswordChanged("my little pink scooter")
+            viewModel.onPasswordLogin()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.onDismissBlocked()
+
+            assertNull(viewModel.uiState.value.blocked)
+            assertEquals(LoginStep.PASSWORD_ENTRY, viewModel.uiState.value.step)
+        }
 }

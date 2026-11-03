@@ -100,6 +100,11 @@ public class BookingStateMachine {
         return booking;
     }
 
+    /** Whether a booking in this status can still be cancelled (the cancel button is only offered then). */
+    public static boolean isCancellable(BookingStatus from) {
+        return ALLOWED.getOrDefault(from, Set.of()).contains(CANCELLED);
+    }
+
     private static final Set<BookingStatus> CUSTOMER_ALLOWED_TARGETS = Set.of(
             CANCELLED,
             // docs/api/ride-lifecycle.md section 13b-4: the rider-confirm-arrival gate bypass.

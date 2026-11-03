@@ -4,5 +4,9 @@ package com.ladygo.auth.domain;
 public enum OtpPurpose {
     LOGIN,
     PHONE_VERIFY,
-    ADMIN_MFA
+    ADMIN_MFA,
+    /** Customer sign-up: the code goes to the email she is registering with. */
+    REGISTER,
+    /** Customer forgot-password: the code goes to the email on file. */
+    PASSWORD_RESET
 }

@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -22,12 +23,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.maps.model.LatLng
 import com.ladygo.driver.R
 import com.ladygo.driver.api.generated.models.BookingDetailResponse
+import com.ladygo.driver.api.generated.models.OfferResponse
+import com.ladygo.driver.map.OfferMapPreview
 import com.ladygo.driver.offer.OfferResolutionOutcome
 import com.ladygo.driver.offer.OfferUiState
 import com.ladygo.driver.offer.OfferViewModel
@@ -80,7 +86,36 @@ fun OfferScreen(
             onAccept = viewModel::onAccept,
             onDecline = viewModel::onDecline,
             onCountdownExpired = viewModel::onLocalCountdownExpired,
+            map = { offer ->
+                val lat = offer.approximatePickupLatitude
+                val lng = offer.approximatePickupLongitude
+                if (lat != null && lng != null) OfferMapPreview(LatLng(lat, lng), Modifier.fillMaxSize())
+            },
         )
+    }
+}
+
+@Composable
+private fun CountdownRing(
+    seconds: Long,
+    progress: Float,
+) {
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.size(168.dp),
+            strokeWidth = 10.dp,
+            color = if (seconds <= LOW_TIME_SECONDS) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.primaryContainer,
+        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("${seconds}s", style = MaterialTheme.typography.displayMedium)
+            Text(
+                stringResource(R.string.offer_time_left),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -90,6 +125,8 @@ fun OfferContent(
     onAccept: () -> Unit,
     onDecline: () -> Unit,
     onCountdownExpired: () -> Unit,
+    /** The area map. A slot so screen tests never need Play services; the real screen passes [OfferMapPreview]. */
+    map: @Composable (OfferResponse) -> Unit = {},
 ) {
     val expiresAtMillis = remember(state.offer.expiresAt) { parseIsoInstantMillis(state.offer.expiresAt) ?: 0L }
     var remainingMillis by remember(state.offer.offerId) { mutableStateOf(0L) }
@@ -126,23 +163,7 @@ fun OfferContent(
     ) {
         Spacer(Modifier.height(24.dp))
         StatusChip(text = stringResource(R.string.offer_screen_title), kind = BannerKind.INFO, icon = Icons.Filled.DirectionsCar)
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.size(168.dp),
-                strokeWidth = 10.dp,
-                color = if (seconds <= LOW_TIME_SECONDS) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.primaryContainer,
-            )
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("${seconds}s", style = MaterialTheme.typography.displayMedium)
-                Text(
-                    stringResource(R.string.offer_time_left),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+        CountdownRing(seconds, progress)
         val fare = state.offer.estimatedFare
         if (fare != null) {
             FareCard(
@@ -158,11 +179,24 @@ fun OfferContent(
                 icon = Icons.Filled.Place,
             )
         }
+        if (state.offer.approximatePickupLatitude != null && state.offer.approximatePickupLongitude != null) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .height(OFFER_MAP_HEIGHT_DP.dp)
+                        .clip(MaterialTheme.shapes.large)
+                        .testTag("offer_map"),
+            ) {
+                map(state.offer)
+            }
+        }
         InfoBanner(text = stringResource(R.string.offer_privacy_note), kind = BannerKind.INFO, icon = Icons.Filled.Lock)
         state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR) }
     }
 }
 
+private const val OFFER_MAP_HEIGHT_DP = 160
 private const val COUNTDOWN_TICK_MILLIS = 200L
 private const val MILLIS_PER_SECOND = 1_000L
 private const val LOW_TIME_SECONDS = 5L

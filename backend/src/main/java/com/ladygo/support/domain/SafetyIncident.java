@@ -20,8 +20,12 @@ import org.locationtech.jts.geom.Point;
 @Setter
 public class SafetyIncident extends AuditedEntity {
 
-    @Column(name = "ride_id", nullable = false)
+    /** Null for an SOS raised before a ride row exists, or with no active booking. */
+    @Column(name = "ride_id")
     private UUID rideId;
+
+    @Column(name = "booking_id")
+    private UUID bookingId;
 
     @Column(name = "reporter_id", nullable = false)
     private UUID reporterId;
