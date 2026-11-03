@@ -246,4 +246,17 @@
     <string name="map_home_description">Map showing where you are.</string>
     <string name="notification_channel_ride_updates">Ride updates</string>
     <string name="notification_channel_ride_updates_description">Your driver, pickup and ride status.</string>
+
+    <!-- SOS -->
+    <string name="sos_action">SOS</string>
+    <string name="sos_confirm_title">Send an SOS?</string>
+    <string name="sos_confirm_body">This alerts the Lady Go safety team with your live location. In danger right now, call 112 first.</string>
+    <string name="sos_confirm_action">Send SOS</string>
+    <string name="sos_cancel_action">Not now</string>
+    <string name="sos_sending">Alerting the safety team…</string>
+    <string name="sos_sent_title">The safety team has been alerted</string>
+    <string name="sos_sent_body">They can see where you are. If you are in danger, call 112 now.</string>
+    <string name="sos_failed_title">We could not send the SOS</string>
+    <string name="sos_close_action">Close</string>
+    <string name="sos_call_112_action">Call 112</string>
 </resources>

@@ -62,6 +62,7 @@ import com.ladygo.driver.ride.ActiveRideViewModel
 import com.ladygo.driver.ride.ExternalIntents
 import com.ladygo.driver.ride.RideStage
 import com.ladygo.driver.ride.SelfieState
+import com.ladygo.driver.safety.ui.SosButton
 import com.ladygo.driver.ui.components.BannerKind
 import com.ladygo.driver.ui.components.EmergencyButton
 import com.ladygo.driver.ui.components.FareCard
@@ -129,6 +130,7 @@ fun ActiveRideScreen(
                 modifier = Modifier.fillMaxSize(),
             )
         },
+        safety = { bookingId -> SosButton(bookingId) },
     )
 }
 
@@ -138,6 +140,8 @@ fun ActiveRideContent(
     actions: ActiveRideActions,
     /** The ride map. A slot so screen tests never need Play services; the real screen passes [RideMap]. */
     map: @Composable (BookingDetailResponse, RideStage) -> Unit = { _, _ -> },
+    /** The SOS button. A slot so screen tests need no view model; the real screen passes [SosButton]. */
+    safety: @Composable (UUID?) -> Unit = {},
 ) {
     val booking = state.booking ?: return
     val stage = state.stage ?: return
@@ -164,6 +168,7 @@ fun ActiveRideContent(
             }
         }
         state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("ride_error")) }
+        if (stage.showsEmergencyCall) safety(booking.id)
         StageContent(state, stage, booking, actions)
     }
 }

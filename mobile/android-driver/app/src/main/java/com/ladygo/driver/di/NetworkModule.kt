@@ -9,6 +9,7 @@ import com.ladygo.driver.api.generated.apis.DriverEarningsControllerApi
 import com.ladygo.driver.api.generated.apis.DriverOfferControllerApi
 import com.ladygo.driver.api.generated.apis.RatingControllerApi
 import com.ladygo.driver.api.generated.apis.RideLifecycleControllerApi
+import com.ladygo.driver.api.generated.apis.SosControllerApi
 import com.ladygo.driver.api.generated.apis.SupportContactControllerApi
 import com.ladygo.driver.api.generated.apis.SystemControllerApi
 import com.ladygo.driver.api.generated.infrastructure.Serializer
@@ -249,6 +250,12 @@ object NetworkModule {
     @Singleton
     fun provideAppScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    @Provides
+    @Singleton
+    fun provideSosControllerApi(
+        @AuthenticatedClient retrofit: Retrofit,
+    ): SosControllerApi = retrofit.create(SosControllerApi::class.java)
+
     private const val STOMP_WS_PING_INTERVAL_SECONDS = 20L
 }
 
@@ -261,4 +268,7 @@ private val SENSITIVE_BODY_PATHS =
 
 /** Paths whose request/response bodies must never reach the debug log: the ride PIN, the rider selfie's signed URL
  *  and a rating's score, tags and comment. */
-internal fun isBodyLoggingSensitive(encodedPath: String): Boolean = SENSITIVE_BODY_PATHS.any { it.containsMatchIn(encodedPath) }
+internal fun isBodyLoggingSensitive(encodedPath: String): Boolean =
+    SENSITIVE_BODY_PATHS.any {
+        it.containsMatchIn(encodedPath)
+    }
