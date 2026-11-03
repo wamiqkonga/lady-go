@@ -16,6 +16,8 @@ import com.ladygo.customer.booking.ui.BookRideScreen
 import com.ladygo.customer.booking.ui.TrackBookingScreen
 import com.ladygo.customer.login.ui.LoginScreen
 import com.ladygo.customer.onboarding.ui.OnboardingScreen
+import com.ladygo.customer.password.ui.ForgotPasswordScreen
+import com.ladygo.customer.register.ui.RegisterScreen
 import com.ladygo.customer.ui.HomeScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +25,8 @@ import javax.inject.Inject
 
 object Routes {
     const val LOGIN = "login"
+    const val REGISTER = "register"
+    const val FORGOT_PASSWORD = "forgot-password"
     const val ONBOARDING = "onboarding"
     const val HOME = "home"
     const val BOOK = "book"
@@ -65,9 +69,24 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
         startDestination = if (initiallyLoggedIn) Routes.ONBOARDING else Routes.LOGIN,
     ) {
         composable(Routes.LOGIN) {
-            LoginScreen(onLoggedIn = {
-                navController.navigate(Routes.ONBOARDING) { popUpTo(Routes.LOGIN) { inclusive = true } }
-            })
+            LoginScreen(
+                onLoggedIn = {
+                    navController.navigate(Routes.ONBOARDING) { popUpTo(Routes.LOGIN) { inclusive = true } }
+                },
+                onRegister = { navController.navigate(Routes.REGISTER) { launchSingleTop = true } },
+                onForgotPassword = { navController.navigate(Routes.FORGOT_PASSWORD) { launchSingleTop = true } },
+            )
+        }
+        composable(Routes.REGISTER) {
+            RegisterScreen(
+                onRegistered = {
+                    navController.navigate(Routes.ONBOARDING) { popUpTo(Routes.LOGIN) { inclusive = true } }
+                },
+                onBackToLogin = { navController.popBackStack(Routes.LOGIN, inclusive = false) },
+            )
+        }
+        composable(Routes.FORGOT_PASSWORD) {
+            ForgotPasswordScreen(onBackToLogin = { navController.popBackStack(Routes.LOGIN, inclusive = false) })
         }
         composable(Routes.ONBOARDING) {
             OnboardingScreen(onReady = {

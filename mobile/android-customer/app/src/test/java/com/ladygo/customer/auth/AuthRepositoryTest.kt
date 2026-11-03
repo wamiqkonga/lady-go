@@ -1,9 +1,13 @@
 package com.ladygo.customer.auth
 
 import com.ladygo.customer.api.generated.apis.AuthControllerApi
+import com.ladygo.customer.api.generated.apis.CustomerAuthControllerApi
 import com.ladygo.customer.api.generated.models.ApiResponseMessageResponse
-import com.ladygo.customer.api.generated.models.ApiResponseObject
+import com.ladygo.customer.api.generated.models.ApiResponseTokenResponse
+import com.ladygo.customer.api.generated.models.CustomerLoginRequest
+import com.ladygo.customer.api.generated.models.CustomerRegisterRequest
 import com.ladygo.customer.api.generated.models.MessageResponse
+import com.ladygo.customer.api.generated.models.TokenResponse
 import com.ladygo.customer.push.PushTokenRegistrar
 import com.ladygo.customer.testing.FakeTokenStore
 import io.mockk.coEvery
@@ -19,109 +23,139 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import retrofit2.Response
+import java.io.IOException
 
 class AuthRepositoryTest {
     private val authApi = mockk<AuthControllerApi>()
+    private val customerApi = mockk<CustomerAuthControllerApi>()
     private val tokenStore = FakeTokenStore()
     private val sessionManager = SessionManager(tokenStore)
     private val pushTokens = mockk<PushTokenRegistrar>(relaxed = true)
-    private val repository = AuthRepository(authApi, tokenStore, sessionManager, pushTokens)
+    private val repository = AuthRepository(authApi, customerApi, tokenStore, sessionManager, pushTokens)
 
     private fun <T> errorResponse(
         code: Int,
-        body: String,
-    ): Response<T> = Response.error(code, body.toResponseBody("application/json".toMediaType()))
+        message: String,
+    ): Response<T> =
+        Response.error(
+            code,
+            """{"success":false,"error":{"code":"X","message":"$message"}}""".toResponseBody("application/json".toMediaType()),
+        )
+
+    private fun tokens() =
+        Response.success(ApiResponseTokenResponse(data = TokenResponse(accessToken = "access-1", refreshToken = "refresh-1")))
+
+    private fun message() = Response.success(ApiResponseMessageResponse(data = MessageResponse(message = "ok")))
 
     @Test
-    fun requestOtpSucceeds() =
+    fun theRegistrationCodeIsRequestedForThePhoneAndEmail() =
         runTest {
-            coEvery { authApi.requestOtp(any()) } returns
-                Response.success(ApiResponseMessageResponse(data = MessageResponse("If this number is valid, a code was sent.")))
+            coEvery { customerApi.requestRegistrationOtp(any()) } returns message()
 
-            val outcome = repository.requestOtp("+14155550100")
+            assertEquals(AuthOutcome.Success, repository.requestRegistrationOtp("+919876543210", "a@example.com"))
 
-            assertTrue(outcome is RequestOtpOutcome.Sent)
+            coVerify { customerApi.requestRegistrationOtp(match { it.phone == "+919876543210" && it.email == "a@example.com" }) }
         }
 
     @Test
-    fun otpRequestAndVerifyAlwaysDeclareTheCustomerRole() =
+    fun anExistingAccountShowsTheServersMessage() =
         runTest {
-            val requested = slot<com.ladygo.customer.api.generated.models.OtpRequestRequest>()
-            val verified = slot<com.ladygo.customer.api.generated.models.OtpVerifyRequest>()
-            coEvery { authApi.requestOtp(capture(requested)) } returns
-                Response.success(ApiResponseMessageResponse(data = MessageResponse("sent")))
-            coEvery { authApi.verifyOtp(capture(verified)) } returns
-                Response.success(ApiResponseObject(data = mapOf("accessToken" to "a", "refreshToken" to "r")))
+            coEvery { customerApi.requestRegistrationOtp(any()) } returns errorResponse(409, "Please log in instead.")
 
-            repository.requestOtp("+14155550100")
-            repository.verifyOtp("+14155550100", "123456")
-
-            assertEquals(com.ladygo.customer.api.generated.models.OtpRequestRequest.IntendedRole.CUSTOMER, requested.captured.intendedRole)
-            assertEquals(com.ladygo.customer.api.generated.models.OtpVerifyRequest.IntendedRole.CUSTOMER, verified.captured.intendedRole)
+            assertEquals(AuthOutcome.Failed("Please log in instead."), repository.requestRegistrationOtp("+919876543210", "a@example.com"))
         }
 
     @Test
-    fun requestOtpSurfacesTheServerErrorMessage() =
+    fun registeringStoresTheTokensAndStartsTheSession() =
         runTest {
-            coEvery { authApi.requestOtp(any()) } returns
-                errorResponse<ApiResponseMessageResponse>(429, """{"error":{"code":"RATE_LIMITED","message":"Too many requests."}}""")
+            val sent = slot<CustomerRegisterRequest>()
+            coEvery { customerApi.register1(capture(sent)) } returns tokens()
 
-            val outcome = repository.requestOtp("+14155550100")
+            val outcome = repository.register("+919876543210", "a@example.com", "123456", "Sunrise2026")
 
-            assertTrue(outcome is RequestOtpOutcome.Failed)
-            assertEquals("Too many requests.", (outcome as RequestOtpOutcome.Failed).message)
-        }
-
-    @Test
-    fun requestOtpFailsClosedOnANetworkException() =
-        runTest {
-            coEvery { authApi.requestOtp(any()) } throws java.io.IOException("no network")
-
-            val outcome = repository.requestOtp("+14155550100")
-
-            assertTrue(outcome is RequestOtpOutcome.Failed)
-        }
-
-    @Test
-    fun verifyOtpLogsInWhenTheServerReturnsTokens() =
-        runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                Response.success(ApiResponseObject(data = mapOf("accessToken" to "access-1", "refreshToken" to "refresh-1")))
-
-            val outcome = repository.verifyOtp("+14155550100", "123456")
-
-            assertTrue(outcome is VerifyOtpOutcome.LoggedIn)
+            assertEquals(AuthOutcome.Success, outcome)
             assertEquals("access-1", tokenStore.getAccessToken())
             assertEquals("refresh-1", tokenStore.getRefreshToken())
             assertTrue(sessionManager.isLoggedIn.value)
+            assertEquals("123456", sent.captured.code)
+            assertEquals("Sunrise2026", sent.captured.password)
         }
 
-    /** `purpose=LOGIN` always returns tokens server-side (AuthController.verifyOtp) - a bare
-     *  message-only response here would mean the contract changed, and must fail, not be silently
-     *  treated as some other kind of success. */
     @Test
-    fun verifyOtpFailsIfTheServerReturnsOnlyAMessageForLoginPurpose() =
+    fun aWrongCodeLeavesHerSignedOut() =
         runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                Response.success(ApiResponseObject(data = mapOf("message" to "Phone verified.")))
+            coEvery { customerApi.register1(any()) } returns errorResponse(400, "The code is invalid or has expired.")
 
-            val outcome = repository.verifyOtp("+14155550100", "123456")
+            val outcome = repository.register("+919876543210", "a@example.com", "000000", "Sunrise2026")
 
-            assertTrue(outcome is VerifyOtpOutcome.Failed)
+            assertEquals(AuthOutcome.Failed("The code is invalid or has expired."), outcome)
             assertNull(tokenStore.getAccessToken())
             assertFalse(sessionManager.isLoggedIn.value)
         }
 
     @Test
-    fun verifyOtpSurfacesAnInvalidCodeError() =
+    fun loggingInSendsTheIdentifierAndStoresTheTokens() =
         runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                errorResponse<ApiResponseObject>(401, """{"error":{"code":"INVALID_OTP","message":"That code is wrong."}}""")
+            val sent = slot<CustomerLoginRequest>()
+            coEvery { customerApi.login(capture(sent)) } returns tokens()
 
-            val outcome = repository.verifyOtp("+14155550100", "000000")
+            assertEquals(AuthOutcome.Success, repository.login("a@example.com", "Sunrise2026"))
 
-            assertTrue(outcome is VerifyOtpOutcome.Failed)
-            assertEquals("That code is wrong.", (outcome as VerifyOtpOutcome.Failed).message)
+            assertEquals("a@example.com", sent.captured.identifier)
+            assertTrue(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun aWrongPasswordIsAFriendlyFailureNotACrash() =
+        runTest {
+            coEvery { customerApi.login(any()) } returns errorResponse(401, "Authentication is required.")
+
+            val outcome = repository.login("a@example.com", "nope")
+
+            assertEquals(AuthOutcome.Failed("Authentication is required."), outcome)
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun aNetworkErrorFailsClosedWithAHelpfulMessage() =
+        runTest {
+            coEvery { customerApi.login(any()) } throws IOException("offline")
+            coEvery { customerApi.requestRegistrationOtp(any()) } throws IOException("offline")
+
+            assertTrue((repository.login("a@example.com", "x") as AuthOutcome.Failed).message.contains("connection"))
+            assertTrue(
+                (repository.requestRegistrationOtp("+919876543210", "a@example.com") as AuthOutcome.Failed).message.contains("connection"),
+            )
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun aResponseWithoutTokensIsAFailure() =
+        runTest {
+            coEvery { customerApi.login(any()) } returns Response.success(ApiResponseTokenResponse(data = null))
+
+            assertTrue(repository.login("a@example.com", "x") is AuthOutcome.Failed)
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun passwordResetRequestAndResetGoThroughTheCustomerEndpoints() =
+        runTest {
+            coEvery { customerApi.forgotPassword(any()) } returns message()
+            coEvery { customerApi.resetPassword(any()) } returns message()
+
+            assertEquals(AuthOutcome.Success, repository.requestPasswordReset("a@example.com"))
+            assertEquals(AuthOutcome.Success, repository.resetPassword("a@example.com", "123456", "Moonlight2027"))
+
+            coVerify {
+                customerApi.resetPassword(
+                    match {
+                        it.email == "a@example.com" &&
+                            it.code == "123456" &&
+                            it.newPassword == "Moonlight2027"
+                    },
+                )
+            }
         }
 
     @Test
@@ -129,7 +163,7 @@ class AuthRepositoryTest {
         runTest {
             tokenStore.setTokens("access-1", "refresh-1")
             sessionManager.onLoggedIn()
-            coEvery { authApi.logout(any()) } throws java.io.IOException("no network")
+            coEvery { authApi.logout(any()) } throws IOException("no network")
 
             repository.logout()
 
