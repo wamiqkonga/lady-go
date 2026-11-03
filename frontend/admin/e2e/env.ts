@@ -31,6 +31,7 @@ const SUPER_ADMIN_KEYS = [
   'CONFIGEDIT',
   'SAFETY',
   'STAFFMGMT',
+  'CUSTOMERS',
 ] as const
 
 type SuperAdminKey = (typeof SUPER_ADMIN_KEYS)[number]
