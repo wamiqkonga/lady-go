@@ -19,6 +19,9 @@ ladygo:
   admin:
     # No default in prod: blank turns the forgot-password email off (logged at startup) instead of failing the deploy.
     web-base-url: ${LADYGO_ADMIN_WEB_BASE_URL:}
+  website:
+    # No default: a reset link must never point at localhost. Blank turns the driver forgot-password email off (logged at startup).
+    base-url: ${LADYGO_WEBSITE_BASE_URL:}
   cors:
     allowed-origins: ${LADYGO_CORS_ALLOWED_ORIGINS}
   websocket:

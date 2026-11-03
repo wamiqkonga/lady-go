@@ -19,15 +19,29 @@ import { defineConfig } from 'vitest/config'
  * `vite build` shows only external `src=` references), so `vite build`/`vite preview` keep the
  * strict policy - only `vite dev`'s own tooling gets the relaxation, never anything served to a
  * real admin. connect-src/img-src include the configured API origin, since fetches and the
- * document-viewer image both target it.
+ * document-viewer image both target it. img-src also carries the live map tile origin
+ * (VITE_MAP_TILE_URL, default OpenStreetMap), the only third-party origin the app loads anything from.
  */
-function buildCsp(apiBaseUrl: string, isDevServer: boolean): string {
+const DEFAULT_MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+
+/** Origin of the live map tile server (VITE_MAP_TILE_URL), allowed in img-src and nowhere else. A
+ *  `{s}` subdomain placeholder is rejected on purpose: it would need a wildcard, which the production
+ *  CSP check forbids - set one concrete host instead. */
+function tileOrigin(tileUrl: string): string {
+  try {
+    return new URL(tileUrl.replace(/\{[zxyr]\}/g, '0')).origin
+  } catch {
+    throw new Error(`VITE_MAP_TILE_URL must be a URL with a concrete host (no {s} placeholder): ${tileUrl}`)
+  }
+}
+
+function buildCsp(apiBaseUrl: string, isDevServer: boolean, tileUrl: string): string {
   return [
     "default-src 'self'",
     `script-src 'self'${isDevServer ? " 'unsafe-inline'" : ''}`,
     // Dev only: Vite injects CSS as inline <style> tags for HMR, which 'self' blocks (unstyled UI).
     `style-src 'self'${isDevServer ? " 'unsafe-inline'" : ''}`,
-    `img-src 'self' data: ${apiBaseUrl}`,
+    `img-src 'self' data: ${apiBaseUrl} ${tileOrigin(tileUrl)}`,
     "font-src 'self'",
     `connect-src 'self' ${apiBaseUrl}`,
     "frame-src 'none'",
@@ -41,11 +55,11 @@ function buildCsp(apiBaseUrl: string, isDevServer: boolean): string {
  *  `dist/` isn't configured to add the header itself - belt, not suspenders: the HTTP header
  *  (documented for production in docs/security/admin-web-csp.md) is still what should actually be
  *  set, since a meta tag can't carry frame-ancestors at all. */
-function cspMetaPlugin(apiBaseUrl: string, isDevServer: boolean): Plugin {
+function cspMetaPlugin(apiBaseUrl: string, isDevServer: boolean, tileUrl: string): Plugin {
   return {
     name: 'ladygo-csp-meta',
     transformIndexHtml(html) {
-      const tag = `<meta http-equiv="Content-Security-Policy" content="${buildCsp(apiBaseUrl, isDevServer)}">`
+      const tag = `<meta http-equiv="Content-Security-Policy" content="${buildCsp(apiBaseUrl, isDevServer, tileUrl)}">`
       return html.replace('</head>', `    ${tag}\n  </head>`)
     },
   }
@@ -55,11 +69,12 @@ function cspMetaPlugin(apiBaseUrl: string, isDevServer: boolean): Plugin {
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   const apiBaseUrl = env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+  const tileUrl = env.VITE_MAP_TILE_URL ?? DEFAULT_MAP_TILE_URL
   const isDevServer = command === 'serve'
-  const csp = buildCsp(apiBaseUrl, isDevServer)
+  const csp = buildCsp(apiBaseUrl, isDevServer, tileUrl)
 
   return {
-    plugins: [react(), cspMetaPlugin(apiBaseUrl, isDevServer)],
+    plugins: [react(), cspMetaPlugin(apiBaseUrl, isDevServer, tileUrl)],
     server: {
       port: 5174,
       strictPort: true,
@@ -67,7 +82,7 @@ export default defineConfig(({ mode, command }) => {
     },
     preview: {
       // vite preview serves the real production build - never the relaxed dev-only policy.
-      headers: { 'Content-Security-Policy': buildCsp(apiBaseUrl, false) },
+      headers: { 'Content-Security-Policy': buildCsp(apiBaseUrl, false, tileUrl) },
     },
     test: {
       environment: 'jsdom',

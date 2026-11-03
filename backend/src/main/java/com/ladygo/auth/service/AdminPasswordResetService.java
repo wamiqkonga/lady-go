@@ -288,7 +288,7 @@ public class AdminPasswordResetService {
         return role == UserRole.ADMIN || role == UserRole.SUPER_ADMIN || role == UserRole.SUPPORT;
     }
 
-    private static String newToken() {
+    static String newToken() {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -303,7 +303,7 @@ public class AdminPasswordResetService {
     }
 
     /** Blank = feature off. Otherwise https (or plain http only for exactly localhost / 127.0.0.1), no trailing slash. */
-    private static String validatedBaseUrl(String raw) {
+    static String validatedBaseUrl(String raw) {
         String url = raw == null ? "" : raw.trim();
         if (url.isEmpty()) {
             return "";

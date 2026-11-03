@@ -1,6 +1,9 @@
 package com.ladygo.driver.auth
 
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
+import com.ladygo.driver.api.generated.apis.DriverAuthControllerApi
+import com.ladygo.driver.api.generated.models.ApiResponseTokenResponse
+import com.ladygo.driver.api.generated.models.TokenResponse
 import com.ladygo.driver.api.generated.models.ApiResponseMessageResponse
 import com.ladygo.driver.api.generated.models.ApiResponseObject
 import com.ladygo.driver.api.generated.models.MessageResponse
@@ -25,11 +28,12 @@ import retrofit2.Response
 
 class AuthRepositoryTest {
     private val authApi = mockk<AuthControllerApi>()
+    private val driverAuthApi = mockk<DriverAuthControllerApi>()
     private val tokenStore = FakeTokenStore()
     private val sessionManager = SessionManager(tokenStore)
     private val availabilityRepository = mockk<AvailabilityRepository>()
     private val appPreferences = mockk<AppPreferences>(relaxed = true)
-    private val repository = AuthRepository(authApi, tokenStore, sessionManager, availabilityRepository, appPreferences)
+    private val repository = AuthRepository(authApi, driverAuthApi, tokenStore, sessionManager, availabilityRepository, appPreferences)
 
     @Before
     fun goOfflineSucceeds() {
@@ -151,6 +155,60 @@ class AuthRepositoryTest {
             repository.logout()
 
             coVerify(exactly = 0) { authApi.logout(any()) }
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun passwordLoginStoresTokensAndSignsIn() =
+        runTest {
+            coEvery { driverAuthApi.driverPasswordLogin(any()) } returns
+                Response.success(ApiResponseTokenResponse(data = TokenResponse(accessToken = "access-9", refreshToken = "refresh-9")))
+
+            val outcome = repository.loginWithPassword(" +919900000001 ", "my little pink scooter")
+
+            assertTrue(outcome is PasswordLoginOutcome.LoggedIn)
+            assertEquals("access-9", tokenStore.getAccessToken())
+            assertEquals("refresh-9", tokenStore.getRefreshToken())
+            assertTrue(sessionManager.isLoggedIn.value)
+            coVerify {
+                driverAuthApi.driverPasswordLogin(
+                    match { it.identifier == "+919900000001" && it.password == "my little pink scooter" && it.deviceId != null },
+                )
+            }
+        }
+
+    @Test
+    fun passwordLoginGivesOnePlainMessageForAWrongPassword() =
+        runTest {
+            coEvery { driverAuthApi.driverPasswordLogin(any()) } returns
+                errorResponse<ApiResponseTokenResponse>(401, """{"error":{"code":"UNAUTHORIZED","message":"Authentication is required."}}""")
+
+            val outcome = repository.loginWithPassword("captain@example.com", "wrong-password-1")
+
+            assertEquals(PasswordLoginOutcome.Failed("Phone, email or password is not correct."), outcome)
+            assertNull(tokenStore.getAccessToken())
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun passwordLoginExplainsAWaitWhenTheAccountIsRateLimited() =
+        runTest {
+            coEvery { driverAuthApi.driverPasswordLogin(any()) } returns
+                errorResponse<ApiResponseTokenResponse>(429, """{"error":{"code":"RATE_LIMITED","message":"Too many requests."}}""")
+
+            val outcome = repository.loginWithPassword("captain@example.com", "wrong-password-1")
+
+            assertTrue((outcome as PasswordLoginOutcome.Failed).message.startsWith("Too many tries"))
+        }
+
+    @Test
+    fun passwordLoginFailsClosedOnANetworkException() =
+        runTest {
+            coEvery { driverAuthApi.driverPasswordLogin(any()) } throws java.io.IOException("no network")
+
+            val outcome = repository.loginWithPassword("captain@example.com", "my little pink scooter")
+
+            assertTrue(outcome is PasswordLoginOutcome.Failed)
             assertFalse(sessionManager.isLoggedIn.value)
         }
 }

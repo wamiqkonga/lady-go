@@ -26,5 +26,25 @@ export async function loginAs(page: Page, phone: string, backendLogPath: string)
   const code = await waitForOtpCode(phone, backendLogPath)
   await page.getByLabel('Code').fill(code)
   await page.getByRole('button', { name: 'Continue' }).click()
+  await passPasswordStep(page)
   await expect(page.getByRole('heading', { name: 'My application' })).toBeVisible()
+}
+
+export const E2E_PASSWORD = 'e2e quiet river lantern 42'
+
+/** After the code, a captain with no password is asked to create one. A new sign-up cannot skip it; a captain who
+ *  already has an application can tap "Not now". Does nothing when the step does not appear. */
+export async function passPasswordStep(page: Page): Promise<void> {
+  const newPassword = page.getByLabel('New password')
+  const dashboard = page.getByRole('heading', { name: 'My application' })
+  await expect(newPassword.or(dashboard)).toBeVisible()
+  if (!(await newPassword.isVisible())) return
+  const notNow = page.getByRole('button', { name: 'Not now' })
+  if (await notNow.isVisible()) {
+    await notNow.click()
+    return
+  }
+  await newPassword.fill(E2E_PASSWORD)
+  await page.getByLabel('Type it again').fill(E2E_PASSWORD)
+  await page.getByRole('button', { name: 'Save password and continue' }).click()
 }
