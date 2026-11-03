@@ -12,6 +12,21 @@ tracked in a dedicated follow-up; this document remains its design of record. Pe
 (6.5), still ahead of Payments (8) - the SOS deferral doesn't change that ordering, only SOS's own
 scope within it.
 
+## Status update (2026-11-03): what is built
+
+- **SOS (rider and driver) is built**, using the proposals in this document for the open questions: `ride_id`
+  nullable plus `booking_id` (migration V35); a driver's SOS is admin-only (no driver emergency contacts);
+  nobody else on the ride is told; no automatic penalty for a false alarm; no automatic contact with
+  authorities. Endpoints: `POST /api/v1/customers/me/sos`, `POST /api/v1/drivers/me/sos`, and the queue
+  `GET /api/v1/admin/safety-incidents`. Rate limit: `sos.rate.max.attempts` per `sos.rate.window.minutes`.
+- **No SMS provider exists yet**, so the platform does not text emergency contacts itself. The rider app opens the
+  phone's messages app with a ready-written message and a map link to her trusted contacts; she taps send.
+  A server-side SMS alert stays a launch gate (needs an SMS provider).
+- **Not built yet:** admin acknowledge / escalate / resolve actions and the admin web screen for the queue,
+  and a push or realtime alert to admins when an SOS arrives.
+- **Rider app:** trusted contacts screen, Share trip and SOS buttons on the ride screen. **Driver app:** SOS button
+  on the ride screen. **Website:** `/track#<token>` page for people who receive a trip-share link.
+
 ## 0. What already exists — this is an API/service design on top of existing schema, not a new one
 
 Phase 2 (`V10__safety_support.sql`) already created the core tables, and `docs/product/requirements.md`

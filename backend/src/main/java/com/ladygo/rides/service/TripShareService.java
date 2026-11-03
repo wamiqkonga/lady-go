@@ -139,8 +139,11 @@ public class TripShareService {
      * elapsed, driver/vehicle somehow missing - throws the exact same {@link ResourceNotFoundException}
      * with no distinguishing detail, so a caller can never learn WHY a token didn't work, only that it
      * didn't (security review requirement: identical error for unknown/expired/revoked).
+     *
+     * <p>Deliberately NOT {@code @Transactional}: the rate limiter writes its counters, which a read-only transaction
+     * rejects (every lookup failed with a 500 on a real database), and a surrounding transaction would also roll back
+     * the failed-attempt count when the lookup throws. The reads below are independent single-row finds.
      */
-    @Transactional(readOnly = true)
     public TripShareLookupResponse resolve(String rawToken, String clientIp) {
         enforceLookupRateLimits(rawToken, clientIp);
 
