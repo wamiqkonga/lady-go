@@ -1956,6 +1956,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/customers": {
         parameters: {
             query?: never;
@@ -3741,6 +3757,106 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        AdminDashboardResponse: {
+            /** Format: date-time */
+            generatedAt?: string;
+            timeZone?: string;
+            /** Format: date */
+            today?: string;
+            drivers?: components["schemas"]["Drivers"];
+            rides?: components["schemas"]["Rides"];
+            customers?: components["schemas"]["Customers"];
+            verification?: components["schemas"]["Verification"];
+            safety?: components["schemas"]["Safety"];
+            adoption?: components["schemas"]["Adoption"];
+            loginAlerts?: components["schemas"]["LoginAlerts"];
+        };
+        Adoption: {
+            /** Format: int64 */
+            captainsRegistered?: number;
+            /** Format: int64 */
+            captainsCompletedAllSteps?: number;
+            /** Format: int64 */
+            captainsApproved?: number;
+            /** Format: int64 */
+            ridersWhoCompletedARide?: number;
+            weeklyRides?: components["schemas"]["WeeklyRides"][];
+        };
+        ApiResponseAdminDashboardResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminDashboardResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        Customers: {
+            /** Format: int64 */
+            total?: number;
+            /** Format: int64 */
+            newLast7Days?: number;
+        };
+        Drivers: {
+            /** Format: int64 */
+            active?: number;
+            /** Format: int64 */
+            online?: number;
+            /** Format: int32 */
+            onlineMaxAgeMinutes?: number;
+        };
+        LoginAlerts: {
+            /** Format: int64 */
+            accountsWithRepeatedFailures?: number;
+            /** Format: int32 */
+            failureThreshold?: number;
+            /** Format: int32 */
+            windowMinutes?: number;
+        };
+        Rides: {
+            /** Format: int64 */
+            active?: number;
+            /** Format: int64 */
+            pendingBookings?: number;
+            /** Format: int64 */
+            completedToday?: number;
+            /** Format: int64 */
+            cancelledToday?: number;
+            cashFaresTodayRupees?: number;
+        };
+        Safety: {
+            /** Format: int64 */
+            unresolved?: number;
+            /** Format: int64 */
+            needsAcknowledging?: number;
+            /** Format: int64 */
+            critical?: number;
+            /** Format: double */
+            sosMedianAckMinutes?: number;
+            /** Format: int64 */
+            sosAckSample?: number;
+            /** Format: double */
+            oldestUnacknowledgedSosMinutes?: number;
+            /** Format: int32 */
+            sosTargetMinutes?: number;
+        };
+        Verification: {
+            /** Format: int64 */
+            waiting?: number;
+            /** Format: int64 */
+            waitingOverTarget?: number;
+            /** Format: double */
+            medianWaitHours?: number;
+            /** Format: double */
+            longestWaitHours?: number;
+            /** Format: int32 */
+            targetHours?: number;
+        };
+        WeeklyRides: {
+            /** Format: date */
+            weekStart?: string;
+            /** Format: int64 */
+            completed?: number;
         };
         AdminCustomerSummaryResponse: {
             /** Format: uuid */
@@ -7024,6 +7140,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseURI"];
+                };
+            };
+        };
+    };
+    dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminDashboardResponse"];
                 };
             };
         };
