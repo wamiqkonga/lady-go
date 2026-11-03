@@ -2,11 +2,11 @@ package com.ladygo.driver.auth
 
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
 import com.ladygo.driver.api.generated.apis.DriverAuthControllerApi
-import com.ladygo.driver.api.generated.models.ApiResponseTokenResponse
-import com.ladygo.driver.api.generated.models.TokenResponse
 import com.ladygo.driver.api.generated.models.ApiResponseMessageResponse
 import com.ladygo.driver.api.generated.models.ApiResponseObject
+import com.ladygo.driver.api.generated.models.ApiResponseTokenResponse
 import com.ladygo.driver.api.generated.models.MessageResponse
+import com.ladygo.driver.api.generated.models.TokenResponse
 import com.ladygo.driver.location.AppPreferences
 import com.ladygo.driver.location.AvailabilityRepository
 import com.ladygo.driver.location.SetAvailabilityOutcome
@@ -181,7 +181,10 @@ class AuthRepositoryTest {
     fun passwordLoginGivesOnePlainMessageForAWrongPassword() =
         runTest {
             coEvery { driverAuthApi.driverPasswordLogin(any()) } returns
-                errorResponse<ApiResponseTokenResponse>(401, """{"error":{"code":"UNAUTHORIZED","message":"Authentication is required."}}""")
+                errorResponse<ApiResponseTokenResponse>(
+                    401,
+                    """{"error":{"code":"UNAUTHORIZED","message":"Authentication is required."}}""",
+                )
 
             val outcome = repository.loginWithPassword("captain@example.com", "wrong-password-1")
 

@@ -22,8 +22,9 @@ test.describe('customers screen', () => {
     expect(await page.locator('body').innerText()).not.toMatch(/\+?91990007700\d/)
 
     await row.getByRole('link').click()
-    await expect(page.getByText('ACTIVE', { exact: true })).toBeVisible()
+    // Wait for the detail page first: on the list page "ACTIVE" is also a filter option, so matching it early is ambiguous.
     await expect(page.getByRole('heading', { name: 'Ride history' })).toBeVisible()
+    await expect(page.locator('.status-badge')).toHaveText('ACTIVE')
     await expect(page.locator('tbody tr').filter({ hasText: 'COMPLETED' })).toHaveCount(1)
 
     // A reason is required before the button is usable.
