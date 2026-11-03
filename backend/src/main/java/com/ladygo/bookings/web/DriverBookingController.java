@@ -6,9 +6,12 @@ import com.ladygo.bookings.service.BookingService;
 import com.ladygo.bookings.service.RiderSelfieDeliveryService;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
 import com.ladygo.bookings.web.dto.CancelBookingRequest;
+import com.ladygo.bookings.web.dto.RideLegRouteResponse;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,12 +19,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** docs/api/driver-onboarding.md section 4/5 - driver-side booking actions. */
 @RestController
 @RequestMapping("/api/v1/drivers/me/bookings")
 @PreAuthorize("hasRole('DRIVER')")
+@org.springframework.validation.annotation.Validated
 public class DriverBookingController {
 
     private final BookingService bookingService;
@@ -39,6 +44,17 @@ public class DriverBookingController {
     public ApiResponse<BookingDetailResponse> get(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable java.util.UUID id) {
         return ApiResponse.ok(bookingService.getForDriver(principal.userId(), id));
+    }
+
+    /** The road from her position to the pickup ({@code leg=PICKUP}) or the destination ({@code leg=DESTINATION}). */
+    @GetMapping("/{id}/route")
+    public ApiResponse<RideLegRouteResponse> route(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id,
+            @RequestParam @DecimalMin("-90") @DecimalMax("90") double fromLatitude,
+            @RequestParam @DecimalMin("-180") @DecimalMax("180") double fromLongitude,
+            @RequestParam(defaultValue = "PICKUP") String leg) {
+        return ApiResponse.ok(bookingService.routeLegForDriver(
+                principal.userId(), id, fromLatitude, fromLongitude, "DESTINATION".equalsIgnoreCase(leg)));
     }
 
     /** Cancel without penalty on an eligibility concern - auto-creates an eligibility report. */

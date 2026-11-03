@@ -3747,6 +3747,68 @@
         }
       }
     },
+    "/api/v1/drivers/me/bookings/{id}/route": {
+      "get": {
+        "tags": [
+          "driver-booking-controller"
+        ],
+        "operationId": "route",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "fromLatitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double",
+              "maximum": 90.0,
+              "minimum": -90.0
+            }
+          },
+          {
+            "name": "fromLongitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double",
+              "maximum": 180.0,
+              "minimum": -180.0
+            }
+          },
+          {
+            "name": "leg",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "PICKUP"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseRideLegRouteResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/drivers/me/bookings/{id}/rider-selfie": {
       "get": {
         "tags": [
@@ -8140,6 +8202,43 @@
           "acceptedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseRideLegRouteResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RideLegRouteResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RideLegRouteResponse": {
+        "type": "object",
+        "properties": {
+          "polyline": {
+            "type": "string"
+          },
+          "distanceMeters": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

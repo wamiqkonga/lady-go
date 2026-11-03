@@ -1604,6 +1604,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drivers/me/bookings/{id}/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["route"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drivers/me/bookings/{id}/rider-selfie": {
         parameters: {
             query?: never;
@@ -3191,6 +3207,21 @@ export interface components {
             acceptedVersion?: string;
             /** Format: date-time */
             acceptedAt?: string;
+        };
+        ApiResponseRideLegRouteResponse: {
+            success?: boolean;
+            data?: components["schemas"]["RideLegRouteResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        RideLegRouteResponse: {
+            polyline?: string;
+            /** Format: int32 */
+            distanceMeters?: number;
+            /** Format: int32 */
+            durationSeconds?: number;
         };
         ApiResponseURI: {
             success?: boolean;
@@ -6539,6 +6570,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    route: {
+        parameters: {
+            query: {
+                fromLatitude: number;
+                fromLongitude: number;
+                leg?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRideLegRouteResponse"];
                 };
             };
         };

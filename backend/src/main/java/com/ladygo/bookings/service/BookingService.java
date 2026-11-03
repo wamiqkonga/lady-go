@@ -14,6 +14,7 @@ import com.ladygo.bookings.domain.BookingStatus;
 import com.ladygo.bookings.repository.BookingEventRepository;
 import com.ladygo.bookings.repository.BookingRepository;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
+import com.ladygo.bookings.web.dto.RideLegRouteResponse;
 import com.ladygo.bookings.web.dto.CancellationPreviewResponse;
 import com.ladygo.bookings.web.dto.BookingRequest;
 import com.ladygo.bookings.web.dto.DestinationChangeEstimateRequest;
@@ -250,6 +251,30 @@ public class BookingService {
                         BookingViewerRole.DRIVER, b.getStatus(), BookingField.PICKUP_ADDRESS_EXACT))
                 .orElseThrow(ResourceNotFoundException::new);
         return toDetail(booking, BookingViewerRole.DRIVER);
+    }
+
+    /**
+     * The road from the driver's own position to her pickup or destination, for the map on her ride screen. Only for a
+     * booking she is on, and counted against the same per-user Maps budget as fare estimates. A provider outage is not an
+     * error: the answer is empty and the app draws a straight line instead.
+     */
+    public RideLegRouteResponse routeLegForDriver(
+            UUID driverUserId, UUID bookingId, double fromLatitude, double fromLongitude, boolean toDestination) {
+        Driver driver = drivers.findByUserId(driverUserId).orElseThrow(ResourceNotFoundException::new);
+        Booking booking = bookings.findById(bookingId)
+                .filter(b -> driver.getId().equals(b.getDriverId()))
+                .filter(b -> BookingVisibilityPolicy.isVisible(
+                        BookingViewerRole.DRIVER, b.getStatus(), BookingField.PICKUP_ADDRESS_EXACT))
+                .orElseThrow(ResourceNotFoundException::new);
+        enforceMapsRateLimit(driverUserId);
+        org.locationtech.jts.geom.Point end = toDestination ? booking.getDestinationLocation() : booking.getPickupLocation();
+        try {
+            RouteResult route = mapsService.calculateRoute(
+                    new Coordinate(fromLatitude, fromLongitude), new Coordinate(end.getY(), end.getX()));
+            return new RideLegRouteResponse(route.polyline(), route.distanceMeters(), route.durationSeconds());
+        } catch (MapsServiceException ex) {
+            return new RideLegRouteResponse(null, null, null);
+        }
     }
 
     /** docs/api/booking.md section 5. */
