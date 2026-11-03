@@ -25,7 +25,7 @@ SMS/WhatsApp. Switch: `LADYGO_OTP_CHANNEL=email` (default `sms`, which keeps the
   before approving drivers.
 - Extra send caps: `email.send.max_per_address.daily` (default 20), plus the existing per-phone, per-IP and
   global caps.
-- The Android apps still send phone only, so they cannot log in while the channel is `email`.
+- The Android **customer** app still sends phone only, so it cannot log in while the channel is `email`. The Android **driver** app can: captains set a password on the website after the code screen and then sign in to the app with phone or email + password (`docs/security/auth-design.md` section 4a). Driver forgot-password emails need `LADYGO_WEBSITE_BASE_URL` (the public captain website address, https) as well as an email provider; blank turns those emails off.
 
 ## Choosing the email provider (`LADYGO_EMAIL_PROVIDER`)
 Two senders exist. SES is used only when `LADYGO_OTP_CHANNEL=email`. SMTP turns on whenever `LADYGO_EMAIL_PROVIDER=smtp`, whatever the OTP channel is, so admin password-recovery emails (`LADYGO_ADMIN_WEB_BASE_URL` also needed) work while driver codes still go by SMS.

@@ -72,6 +72,11 @@
     <string name="login_phone_title">Welcome back</string>
     <string name="login_phone_body">Enter your phone number and we will send you a code to sign in.</string>
     <string name="login_phone_helper">Include your country code, for example +91.</string>
+    <string name="login_password_title">Welcome back</string>
+    <string name="login_password_body">Use the phone number or email and the password you chose when you registered.</string>
+    <string name="login_forgot_password">Forgot password?</string>
+    <string name="login_use_code_instead">Use a code instead</string>
+    <string name="login_use_password_instead">Sign in with password</string>
     <string name="login_code_title">Check your messages</string>
     <string name="login_privacy_note">We only use your number to sign you in and keep your account safe.</string>
 
