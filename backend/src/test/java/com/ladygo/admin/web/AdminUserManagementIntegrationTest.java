@@ -412,6 +412,86 @@ class AdminUserManagementIntegrationTest extends PersistenceTestSupport {
     // ---- deactivate / reactivate ---------------------------------------------------------------------------
 
     @Test
+    void mfaResetNeedsAReasonStaffTargetAndSomeoneElseAndSignsTheTargetOut() throws Exception {
+        User superAdmin = staff(UserRole.SUPER_ADMIN, true);
+        User target = staff(UserRole.ADMIN, true);
+        refreshTokenService.issue(target.getId(), "laptop");
+        String token = fresh(superAdmin);
+
+        postAs(token, "/" + target.getId() + "/mfa/reset", "{}").andExpect(status().isBadRequest());
+        postAs(token, "/" + target.getId() + "/mfa/reset", "{\"reason\":\" \"}").andExpect(status().isBadRequest());
+        assertThat(users.findById(target.getId()).orElseThrow().isMfaEnabled()).isTrue();
+
+        postAs(token, "/" + target.getId() + "/mfa/reset", "{\"reason\":\"Lost phone\"}").andExpect(status().isOk());
+
+        User after = users.findById(target.getId()).orElseThrow();
+        assertThat(after.isMfaEnabled()).isFalse();
+        assertThat(after.getMfaSecretEnc()).isNull();
+        assertThat(refreshTokens.findByUserIdAndRevokedAtIsNull(target.getId())).isEmpty();
+        assertThat(audit("ADMIN_MFA_RESET", target.getId())).isEqualTo(1);
+        em.flush();
+        assertThat(jdbc.queryForObject("SELECT metadata->>'reason' FROM audit_logs WHERE action = 'ADMIN_MFA_RESET' AND target_id = ?",
+                String.class, target.getId().toString())).isEqualTo("Lost phone");
+    }
+
+    @Test
+    void mfaResetAndUnlockRefuseYourOwnAccountAndNonStaffTargets() throws Exception {
+        User superAdmin = staff(UserRole.SUPER_ADMIN, true);
+        User customer = newUser(UserRole.CUSTOMER);
+        User driver = newUser(UserRole.DRIVER);
+        String token = fresh(superAdmin);
+
+        postAs(token, "/" + superAdmin.getId() + "/mfa/reset", "{\"reason\":\"r\"}").andExpect(status().isForbidden());
+        postAs(token, "/" + superAdmin.getId() + "/unlock", "{\"reason\":\"r\"}").andExpect(status().isForbidden());
+        for (User other : new User[] {customer, driver}) {
+            postAs(token, "/" + other.getId() + "/mfa/reset", "{\"reason\":\"r\"}").andExpect(status().isNotFound());
+            postAs(token, "/" + other.getId() + "/unlock", "{\"reason\":\"r\"}").andExpect(status().isNotFound());
+        }
+        postAs(token, "/" + UUID.randomUUID() + "/unlock", "{\"reason\":\"r\"}").andExpect(status().isNotFound());
+        assertThat(audit("ADMIN_MFA_RESET", customer.getId())).isZero();
+        assertThat(audit("ADMIN_LOGIN_UNLOCK", driver.getId())).isZero();
+        assertThat(audit("ADMIN_MFA_RESET", superAdmin.getId())).isZero();
+    }
+
+    @Test
+    void unlockNeedsAReasonAndAFreshStepUpAndIsAudited() throws Exception {
+        User superAdmin = staff(UserRole.SUPER_ADMIN, true);
+        User target = staff(UserRole.SUPPORT, false);
+
+        postAs(noStepUp(superAdmin), "/" + target.getId() + "/unlock", "{\"reason\":\"r\"}")
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("STEP_UP_REQUIRED"));
+        postAs(fresh(superAdmin), "/" + target.getId() + "/unlock", "{}").andExpect(status().isBadRequest());
+        postAs(fresh(superAdmin), "/" + target.getId() + "/unlock", "{\"reason\":\"Locked out on shift\"}")
+                .andExpect(status().isOk());
+        assertThat(audit("ADMIN_LOGIN_UNLOCK", target.getId())).isEqualTo(1);
+    }
+
+    @Test
+    void inviteIsAuditedWithAMaskedAddressAndCappedPerActorPerHour() throws Exception {
+        User superAdmin = staff(UserRole.SUPER_ADMIN, true);
+        User other = staff(UserRole.SUPER_ADMIN, true);
+        String email = "typo-" + UUID.randomUUID() + "@example.test";
+
+        UUID id = idOf(postAs(fresh(superAdmin), "", inviteJson(email, "SUPPORT", "New agent")).andExpect(status().isOk()));
+
+        em.flush();
+        String audited = jdbc.queryForObject("SELECT metadata->>'invitedEmail' FROM audit_logs WHERE action = 'ADMIN_USER_INVITED' AND target_id = ?",
+                String.class, id.toString());
+        assertThat(audited).isEqualTo("t***@example.test");
+
+        for (int i = 1; i < 10; i++) {
+            postAs(fresh(superAdmin), "", inviteJson("cap-" + i + "-" + UUID.randomUUID() + "@example.test", "SUPPORT", "r"))
+                    .andExpect(status().isOk());
+        }
+        String blocked = "cap-over-" + UUID.randomUUID() + "@example.test";
+        postAs(fresh(superAdmin), "", inviteJson(blocked, "SUPPORT", "r")).andExpect(status().isTooManyRequests());
+        assertThat(users.findByEmailIgnoreCase(blocked)).isEmpty();
+        // The cap is per actor: another SUPER_ADMIN is not affected.
+        postAs(fresh(other), "", inviteJson("other-" + UUID.randomUUID() + "@example.test", "SUPPORT", "r"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void deactivateBlocksTheAccountRevokesSessionsAndAudits() throws Exception {
         User superAdmin = staff(UserRole.SUPER_ADMIN, true);
         User target = staff(UserRole.ADMIN, true);

@@ -156,7 +156,7 @@ class AdminAuthServiceIntegrationTest {
         users.saveAndFlush(target);
 
         UUID actorId = UUID.randomUUID();
-        adminAuthService.resetMfa(actorId, UserRole.SUPER_ADMIN, target.getId(), "203.0.113.5");
+        adminAuthService.resetMfa(actorId, UserRole.SUPER_ADMIN, target.getId(), "lost phone", "203.0.113.5");
 
         User reloaded = users.findById(target.getId()).orElseThrow();
         assertThat(reloaded.isMfaEnabled()).isFalse();

@@ -13,6 +13,7 @@ import com.ladygo.admin.domain.AuditLog;
 import com.ladygo.admin.repository.AuditLogRepository;
 import com.ladygo.admin.web.dto.AdminUserResponse;
 import com.ladygo.auth.repository.AdminPasswordResetRepository;
+import com.ladygo.auth.service.AdminAuthService;
 import com.ladygo.auth.service.AdminLoginThrottle;
 import com.ladygo.auth.service.AdminPasswordResetService;
 import com.ladygo.auth.service.RefreshTokenService;
@@ -20,6 +21,8 @@ import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.config.ConfigurationService;
+import com.ladygo.security.ratelimit.RateLimitExceededException;
+import com.ladygo.security.ratelimit.RateLimiter;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.domain.UserRole;
 import com.ladygo.users.domain.UserStatus;
@@ -43,6 +46,7 @@ public class AdminUserManagementService {
     private static final Set<UserRole> STAFF = EnumSet.of(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.SUPPORT);
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final Duration DEFAULT_INVITE_TTL = Duration.ofHours(24);
+    private static final int DEFAULT_INVITES_PER_HOUR = 10;
 
     private final UserRepository users;
     private final AuditLogRepository auditLogs;
@@ -51,11 +55,14 @@ public class AdminUserManagementService {
     private final AdminPasswordResetService passwordResets;
     private final AdminLoginThrottle loginThrottle;
     private final ConfigurationService config;
+    private final AdminAuthService adminAuth;
+    private final RateLimiter rateLimiter;
 
     public AdminUserManagementService(
             UserRepository users, AuditLogRepository auditLogs, RefreshTokenService refreshTokens,
             AdminPasswordResetRepository resets, AdminPasswordResetService passwordResets,
-            AdminLoginThrottle loginThrottle, ConfigurationService config) {
+            AdminLoginThrottle loginThrottle, ConfigurationService config, AdminAuthService adminAuth,
+            RateLimiter rateLimiter) {
         this.users = users;
         this.auditLogs = auditLogs;
         this.refreshTokens = refreshTokens;
@@ -63,6 +70,8 @@ public class AdminUserManagementService {
         this.passwordResets = passwordResets;
         this.loginThrottle = loginThrottle;
         this.config = config;
+        this.adminAuth = adminAuth;
+        this.rateLimiter = rateLimiter;
     }
 
     @Transactional(readOnly = true)
@@ -79,6 +88,10 @@ public class AdminUserManagementService {
     public AdminUserResponse invite(UUID actorId, String email, String name, UserRole role, String reason, String ip) {
         requireStaffRole(role);
         requireActiveSuperAdmin(actorId);
+        int maxPerHour = config.getInt("admin.invite.max.per_hour", DEFAULT_INVITES_PER_HOUR);
+        if (!rateLimiter.tryConsume("admin_invite:" + actorId, maxPerHour, Duration.ofHours(1))) {
+            throw new RateLimitExceededException();
+        }
         String normalised = email.trim().toLowerCase(Locale.ROOT);
         if (users.findByEmailIgnoreCase(normalised).isPresent()) {
             throw new ValidationException("An account with this email already exists.");
@@ -98,7 +111,7 @@ public class AdminUserManagementService {
         }
         Duration ttl = config.getMinutes("admin.invite.ttl.minutes", DEFAULT_INVITE_TTL);
         passwordResets.sendInvite(saved, ttl);
-        audit(actorId, "ADMIN_USER_INVITED", saved.getId(), ip, Map.of("role", role.name(), "reason", reason.trim()));
+        audit(actorId, "ADMIN_USER_INVITED", saved.getId(), ip, Map.of("role", role.name(), "reason", reason.trim(), "invitedEmail", maskEmail(normalised)));
         log.info("operation=admin_user_invited actorId={} userId={} role={}", actorId, saved.getId(), role);
         return toResponse(saved);
     }
@@ -148,6 +161,30 @@ public class AdminUserManagementService {
         audit(actorId, "ADMIN_USER_DEACTIVATED", targetId, ip, Map.of("reason", reason.trim()));
         log.info("operation=admin_user_deactivated actorId={} userId={}", actorId, targetId);
         return toResponse(target);
+    }
+
+    /** Lost-device recovery: only on another staff account, never your own; the target loses every session. */
+    @Transactional
+    public void resetMfa(UUID actorId, UUID targetId, String reason, String ip) {
+        requireActiveSuperAdmin(actorId);
+        if (actorId.equals(targetId)) {
+            throw new ForbiddenException("You cannot reset your own authenticator.");
+        }
+        staff(targetId);
+        adminAuth.resetMfa(actorId, UserRole.SUPER_ADMIN, targetId, reason.trim(), ip);
+        refreshTokens.revokeAll(targetId);
+        log.info("operation=admin_user_mfa_reset actorId={} userId={}", actorId, targetId);
+    }
+
+    /** Clears a staff member's failed-login wait. Staff targets only, never your own account. */
+    @Transactional
+    public void unlock(UUID actorId, UUID targetId, String reason, String ip) {
+        requireActiveSuperAdmin(actorId);
+        if (actorId.equals(targetId)) {
+            throw new ForbiddenException("You cannot unlock your own account.");
+        }
+        staff(targetId);
+        adminAuth.unlockLogin(actorId, UserRole.SUPER_ADMIN, targetId, reason.trim(), ip);
     }
 
     @Transactional

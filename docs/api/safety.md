@@ -18,7 +18,7 @@ scope within it.
   nullable plus `booking_id` (migration V35); a driver's SOS is admin-only (no driver emergency contacts);
   nobody else on the ride is told; no automatic penalty for a false alarm; no automatic contact with
   authorities. Endpoints: `POST /api/v1/customers/me/sos`, `POST /api/v1/drivers/me/sos`, and the queue
-  `GET /api/v1/admin/safety-incidents`. Rate limit: `sos.rate.max.attempts` per `sos.rate.window.minutes`.
+  `GET /api/v1/admin/safety/incidents`. Rate limit: `sos.rate.max.attempts` per `sos.rate.window.minutes`.
 - **No SMS provider exists yet**, so the platform does not text emergency contacts itself. The rider app opens the
   phone's messages app with a ready-written message and a map link to her trusted contacts; she taps send.
   A server-side SMS alert stays a launch gate (needs an SMS provider).
@@ -109,7 +109,7 @@ doc's own open question, not re-litigating D9.
 ## 3. Driver/rider acknowledgement vs. admin acknowledgement
 
 `status: OPEN → ACKNOWLEDGED` is admin-only (`acknowledged_by`/`acknowledged_at`), via
-`POST /api/v1/admin/safety-incidents/{id}/acknowledge`. Separately, once alerted, the OTHER party on the
+`POST /api/v1/admin/safety/incidents/{id}/acknowledge`. Separately, once alerted, the OTHER party on the
 ride (if the incident was raised by one side) should probably be told something is being looked at -
 **open question**: does the non-reporting party get any visibility into an SOS being active on their
 own ride at all, or does that defeat the point (if a driver is the threat, telling them an SOS was
@@ -117,9 +117,10 @@ raised against them could escalate, not de-escalate)? Proposing: **no visibility
 default** - only admin and the reporter's own emergency contacts know. Flagging for your confirmation,
 since getting this wrong in either direction is a real safety (not just UX) decision.
 
-`POST /api/v1/admin/safety-incidents/{id}/escalate` and `.../resolve` (with a required `notes` body for
-resolve) round out the admin side, each appending a `safety_incident_events` row (`ESCALATED`,
-`RESOLVED`) and, for `resolve`, setting `legal_hold` per §5 below.
+`POST /api/v1/admin/safety/incidents/{id}/notes` and `.../resolve` (required `outcome`, optional `note`) round out the
+admin side, each appending a `safety_incident_events` row (`NOTE`, `RESOLVED`) and an audit entry. There is no escalate
+endpoint yet (the `ESCALATED` status exists but nothing sets it). `GET .../open-count` feeds the sidebar badge.
+The old read-only `GET /api/v1/admin/safety-incidents` was removed: `/api/v1/admin/safety/incidents` is the one admin API.
 
 ## 4. Trip sharing — **implemented**
 
