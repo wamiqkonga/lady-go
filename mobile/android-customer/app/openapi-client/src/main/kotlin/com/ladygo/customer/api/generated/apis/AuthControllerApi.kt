@@ -10,6 +10,7 @@ import com.ladygo.customer.api.generated.models.ApiResponseMessageResponse
 import com.ladygo.customer.api.generated.models.ApiResponseObject
 import com.ladygo.customer.api.generated.models.ApiResponseTokenResponse
 import com.ladygo.customer.api.generated.models.ApiResponseVoid
+import com.ladygo.customer.api.generated.models.DriverAppVerifyRequest
 import com.ladygo.customer.api.generated.models.LogoutRequest
 import com.ladygo.customer.api.generated.models.OtpRequestRequest
 import com.ladygo.customer.api.generated.models.OtpVerifyRequest
@@ -54,6 +55,19 @@ interface AuthControllerApi {
      */
     @POST("api/v1/auth/otp/request")
     suspend fun requestOtp(@Body otpRequestRequest: OtpRequestRequest): Response<ApiResponseMessageResponse>
+
+    /**
+     * POST api/v1/auth/driver-app/otp/verify
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @param driverAppVerifyRequest 
+     * @return [ApiResponseTokenResponse]
+     */
+    @POST("api/v1/auth/driver-app/otp/verify")
+    suspend fun verifyDriverAppOtp(@Body driverAppVerifyRequest: DriverAppVerifyRequest): Response<ApiResponseTokenResponse>
 
     /**
      * POST api/v1/auth/otp/verify

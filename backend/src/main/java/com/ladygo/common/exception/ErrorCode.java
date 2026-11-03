@@ -25,6 +25,16 @@ public enum ErrorCode {
     OTP_EMAIL_MISMATCH(HttpStatus.CONFLICT,
             "This phone number and email do not go together. Use the same phone number and email you signed up with. "
                     + "A new phone number needs a new email."),
+    ACCOUNT_EXISTS(HttpStatus.CONFLICT,
+            "These details cannot be used to register. If you already have an account, please log in instead."),
+    DRIVER_UNDER_REVIEW(HttpStatus.FORBIDDEN,
+            "Your documents are under review. You can log in once our team has approved your account."),
+    DRIVER_NOT_REGISTERED(HttpStatus.FORBIDDEN,
+            "We could not find a completed driver registration for these details. Please register on our website first."),
+    DRIVER_REJECTED(HttpStatus.FORBIDDEN,
+            "Your application was not approved. Please contact our support team."),
+    DRIVER_SUSPENDED(HttpStatus.FORBIDDEN,
+            "Your driver account is suspended. Please contact our support team."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

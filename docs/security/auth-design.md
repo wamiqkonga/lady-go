@@ -12,7 +12,8 @@ Scope: `auth` module (OTP, login, tokens, logout, admin enrolment), `security` m
 
 | Role | Credential | Source |
 |------|-----------|--------|
-| CUSTOMER, DRIVER | Phone + OTP only. No password (`ck_users_password_admin_only` forbids it). | existing constraint |
+| CUSTOMER | Registers with phone + email (a code emailed to that address proves the email) and a password; logs in with email or phone + password; resets a forgotten password by emailed code. The phone number is required but not verified. | `ck_users_password_roles` (V34) |
+| DRIVER | Phone + OTP only, no password. The driver app additionally refuses anyone who is not fully approved (driver APPROVED plus an approved vehicle) and never creates accounts: drivers register on the website. | existing constraint |
 | ADMIN, SUPER_ADMIN, SUPPORT | Email + password + mandatory TOTP MFA | "Admin authentication: email + password + MFA (TOTP)" — `docs/product/admin-flows.md` §1 |
 
 Passwords: BCrypt (Spring Security default, `PasswordEncoder` bean), never logged, never returned in any response.

@@ -25,7 +25,16 @@ SMS/WhatsApp. Switch: `LADYGO_OTP_CHANNEL=email` (default `sms`, which keeps the
   before approving drivers.
 - Extra send caps: `email.send.max_per_address.daily` (default 20), plus the existing per-phone, per-IP and
   global caps.
-- The Android apps still send phone only, so they cannot log in while the channel is `email`.
+- The driver app now asks for phone and email, so it works in both channels. The rider app no longer uses the login code at all: it registers and signs in with a password (see below).
+
+## Rider registration and password reset
+Always delivered by email, whatever `LADYGO_OTP_CHANNEL` is, so an email provider (SES or SMTP, below) must be configured wherever riders can register.
+- `POST /auth/customer/register/otp` (phone + email) emails a code; `409 ACCOUNT_EXISTS` if either is already registered.
+- `POST /auth/customer/register` (phone, email, code, password) creates the account and signs her in.
+- `POST /auth/customer/login` (email or phone, password). Rate limited per account and per IP.
+- `POST /auth/customer/password/forgot` always answers the same, whether or not the email has an account.
+- `POST /auth/customer/password/reset` (email, code, new password) also signs her out everywhere.
+- Accounts created before this change by phone code have no password and possibly no email; they cannot reset a password by email.
 
 ## Choosing the email provider (`LADYGO_EMAIL_PROVIDER`)
 Two senders exist; the channel stays `LADYGO_OTP_CHANNEL=email` for both.

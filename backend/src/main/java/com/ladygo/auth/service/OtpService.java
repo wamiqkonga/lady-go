@@ -84,7 +84,21 @@ public class OtpService {
      *  ignored for SMS. Stored lower-cased on the OTP row so a successful verify can bind it to the user. */
     @Transactional
     public void requestOtp(String phone, OtpPurpose purpose, String ip, String email) {
-        if (emailChannel && (email == null || email.isBlank())) {
+        deliverOtp(phone, purpose, ip, email, emailChannel);
+    }
+
+    /** Always delivers by email, whatever the global channel is: registration and password reset prove control of an
+     *  email address, so SMS is never an option for them. */
+    @Transactional
+    public void requestEmailOtp(String phone, OtpPurpose purpose, String ip, String email) {
+        if (emailSender == null) {
+            throw new IllegalStateException("Email delivery is not configured (see docs/development/email-otp-setup.md).");
+        }
+        deliverOtp(phone, purpose, ip, email, true);
+    }
+
+    private void deliverOtp(String phone, OtpPurpose purpose, String ip, String email, boolean viaEmail) {
+        if (viaEmail && (email == null || email.isBlank())) {
             throw new ValidationException("Email is required.");
         }
         String bucket = "otp_request:" + phone + ":" + purpose;
@@ -97,7 +111,7 @@ public class OtpService {
             throw new RateLimitExceededException();
         }
         checkSendCaps(phone, ip);
-        String deliveryEmail = emailChannel ? email.trim().toLowerCase() : null;
+        String deliveryEmail = viaEmail ? email.trim().toLowerCase() : null;
         if (deliveryEmail != null) {
             int maxPerAddress = config.getInt("email.send.max_per_address.daily", 20);
             if (!rateLimiter.tryConsume("email_send:address:" + deliveryEmail, maxPerAddress, Duration.ofDays(1))) {
@@ -120,8 +134,11 @@ public class OtpService {
 
         long minutes = Math.max(expiry.toMinutes(), 1);
         if (deliveryEmail != null) {
-            emailSender.send(deliveryEmail, "Your Lady Go verification code",
-                    "Your Lady Go verification code is " + code + ".\nIt is valid for " + minutes
+            boolean reset = purpose == OtpPurpose.PASSWORD_RESET;
+            emailSender.send(deliveryEmail,
+                    reset ? "Reset your Lady Go password" : "Your Lady Go verification code",
+                    "Your Lady Go " + (reset ? "password reset" : "verification") + " code is " + code
+                            + ".\nIt is valid for " + minutes
                             + " minutes. If you did not request it, you can ignore this email.");
             return;
         }

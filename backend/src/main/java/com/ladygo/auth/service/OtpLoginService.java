@@ -1,5 +1,11 @@
 package com.ladygo.auth.service;
 
+import com.ladygo.common.exception.ErrorCode;
+import com.ladygo.drivers.domain.Driver;
+import com.ladygo.drivers.domain.DriverVerificationStatus;
+import com.ladygo.drivers.repository.DriverRepository;
+import com.ladygo.vehicles.domain.VehicleVerificationStatus;
+import com.ladygo.vehicles.repository.VehicleRepository;
 import java.time.Instant;
 import java.util.Optional;
 import com.ladygo.auth.challenge.ChallengeVerifier;
@@ -29,6 +35,8 @@ public class OtpLoginService {
 
     private final UserRepository users;
     private final CustomerRepository customers;
+    private final DriverRepository drivers;
+    private final VehicleRepository vehicles;
     private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
     private final AccessTokenIssuer accessTokenIssuer;
@@ -38,6 +46,8 @@ public class OtpLoginService {
     public OtpLoginService(
             UserRepository users,
             CustomerRepository customers,
+            DriverRepository drivers,
+            VehicleRepository vehicles,
             OtpService otpService,
             RefreshTokenService refreshTokenService,
             AccessTokenIssuer accessTokenIssuer,
@@ -45,6 +55,8 @@ public class OtpLoginService {
             ConfigurationService config) {
         this.users = users;
         this.customers = customers;
+        this.drivers = drivers;
+        this.vehicles = vehicles;
         this.otpService = otpService;
         this.refreshTokenService = refreshTokenService;
         this.accessTokenIssuer = accessTokenIssuer;
@@ -118,7 +130,23 @@ public class OtpLoginService {
             String deviceId) {
         requireCustomerOrDriver(intendedRole);
         String otpEmail = otpService.verify(phone, code, purpose);
+        return completeVerifiedLogin(phone, otpEmail, purpose, intendedRole, deviceId, false);
+    }
 
+    /**
+     * The driver app's sign-in. Drivers register on the website, so this never creates an account, and it only
+     * lets in a driver the admin team has fully approved (the driver and an approved vehicle). Anyone else gets a
+     * specific refusal the app turns into a clear message, after the code has proved who they are.
+     */
+    @Transactional
+    public TokenPair verifyDriverAppOtp(String phone, String code, String deviceId) {
+        String otpEmail = otpService.verify(phone, code, OtpPurpose.LOGIN);
+        return completeVerifiedLogin(phone, otpEmail, OtpPurpose.LOGIN, UserRole.DRIVER, deviceId, true)
+                .orElseThrow(OtpVerificationException::new);
+    }
+
+    private Optional<TokenPair> completeVerifiedLogin(String phone, String otpEmail, OtpPurpose purpose,
+            UserRole intendedRole, String deviceId, boolean driverApp) {
         User user = users.findByPhone(phone).orElse(null);
         if (otpEmail != null) {
             // Defence in depth for the race the request-time check cannot close.
@@ -135,6 +163,9 @@ public class OtpLoginService {
             log.info("operation=otp_role_mismatch phone_suffix={} existingRole={} intendedRole={}",
                     suffix(phone), user.getRole(), intendedRole);
             throw new OtpVerificationException();
+        }
+        if (driverApp) {
+            requireApprovedDriver(user);
         }
         if (user == null) {
             user = new User();
@@ -165,6 +196,39 @@ public class OtpLoginService {
         user.setLastLoginAt(Instant.now());
         users.save(user);
         return Optional.of(issueTokens(user, deviceId));
+    }
+
+    /** Who may use the driver app: an active user whose driver record is APPROVED and who has an approved vehicle. */
+    private void requireApprovedDriver(User user) {
+        if (user == null) {
+            throw new DriverLoginBlockedException(ErrorCode.DRIVER_NOT_REGISTERED);
+        }
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new ForbiddenException("This account is not active.");
+        }
+        Driver driver = drivers.findByUserId(user.getId()).orElse(null);
+        if (driver == null) {
+            throw new DriverLoginBlockedException(ErrorCode.DRIVER_NOT_REGISTERED);
+        }
+        DriverVerificationStatus status = driver.getVerificationStatus();
+        if (status == DriverVerificationStatus.APPROVED) {
+            boolean hasApprovedVehicle = vehicles.findByDriverId(driver.getId()).stream()
+                    .anyMatch(v -> v.getVerificationStatus() == VehicleVerificationStatus.APPROVED);
+            if (!hasApprovedVehicle) {
+                throw new DriverLoginBlockedException(ErrorCode.DRIVER_UNDER_REVIEW);
+            }
+            return;
+        }
+        if (status == DriverVerificationStatus.PENDING_REVIEW) {
+            throw new DriverLoginBlockedException(ErrorCode.DRIVER_UNDER_REVIEW);
+        }
+        if (status == DriverVerificationStatus.REJECTED) {
+            throw new DriverLoginBlockedException(ErrorCode.DRIVER_REJECTED);
+        }
+        if (status == DriverVerificationStatus.SUSPENDED) {
+            throw new DriverLoginBlockedException(ErrorCode.DRIVER_SUSPENDED);
+        }
+        throw new DriverLoginBlockedException(ErrorCode.DRIVER_NOT_REGISTERED); // NOT_SUBMITTED: registration unfinished
     }
 
     private TokenPair issueTokens(User user, String deviceId) {
