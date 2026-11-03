@@ -260,4 +260,41 @@ class MatchingServiceTest extends PersistenceTestSupport {
         assertThat(offers.findByBookingIdAndStatus(booking.getId(), OfferStatus.OFFERED).orElseThrow().getDriverId())
                 .isEqualTo(fresh.getId());
     }
+
+    @Test
+    void aSuspendedDriverIsNeverOffered() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Driver suspended = onlineDriverWithApprovedVehicle(city, VehicleType.CAB);
+        suspended.setAvailabilityStatus(DriverAvailability.SUSPENDED);
+        drivers.saveAndFlush(suspended);
+        Booking booking = newBooking(customer, city, BookingStatus.SEARCHING_DRIVER, null);
+
+        service.tryOfferNextCandidate(booking.getId());
+
+        assertThat(offers.findByBookingIdAndStatus(booking.getId(), OfferStatus.OFFERED)).isEmpty();
+        assertThat(drivers.findById(suspended.getId()).orElseThrow().getAvailabilityStatus())
+                .isEqualTo(DriverAvailability.SUSPENDED);
+    }
+
+    @Test
+    void aDriverSuspendedWhileHoldingAnOfferCannotAcceptItOrSeeItAsCurrent() {
+        City city = srinagar();
+        Customer customer = newCustomer();
+        Driver driver = onlineDriverWithApprovedVehicle(city, VehicleType.CAB);
+        Booking booking = newBooking(customer, city, BookingStatus.SEARCHING_DRIVER, null);
+        service.tryOfferNextCandidate(booking.getId());
+        UUID offerId = offers.findByBookingIdAndStatus(booking.getId(), OfferStatus.OFFERED).orElseThrow().getId();
+        flushAndClear();
+        Driver held = drivers.findById(driver.getId()).orElseThrow();
+        held.setAvailabilityStatus(DriverAvailability.SUSPENDED);
+        held.setVerificationStatus(com.ladygo.drivers.domain.DriverVerificationStatus.SUSPENDED);
+        drivers.saveAndFlush(held);
+
+        assertThatThrownBy(() -> service.accept(driver.getUserId(), offerId))
+                .isInstanceOf(com.ladygo.common.exception.ForbiddenException.class);
+        assertThatThrownBy(() -> service.getCurrentOffer(driver.getUserId()))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(offers.findById(offerId).orElseThrow().getStatus()).isEqualTo(OfferStatus.OFFERED);
+    }
 }
