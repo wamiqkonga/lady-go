@@ -56,12 +56,14 @@ class AdminPricingRuleCommittedIntegrationTest extends PricingRuleHttpSupport {
     private final List<UUID> userIds = new ArrayList<>();
     private final List<UUID> customerIds = new ArrayList<>();
     private UUID cityId;
-    private UUID actorId;
 
     @AfterEach
     void purge() {
         if (cityId == null) {
             return;
+        }
+        for (UUID customerId : customerIds) {
+            jdbc.update("DELETE FROM ride_selfies WHERE customer_id = ?", customerId);
         }
         jdbc.update("DELETE FROM booking_events WHERE booking_id IN (SELECT id FROM bookings WHERE city_id = ?)", cityId);
         jdbc.update("DELETE FROM ride_flags WHERE ride_id IN (SELECT r.id FROM rides r JOIN bookings b ON b.id = r.booking_id "
@@ -70,15 +72,14 @@ class AdminPricingRuleCommittedIntegrationTest extends PricingRuleHttpSupport {
         jdbc.update("DELETE FROM bookings WHERE city_id = ?", cityId);
         jdbc.update("DELETE FROM pricing_rules WHERE city_id = ?", cityId);
         for (UUID customerId : customerIds) {
-            jdbc.update("DELETE FROM ride_selfies WHERE customer_id = ?", customerId);
             jdbc.update("DELETE FROM self_declarations WHERE subject_type = 'CUSTOMER' AND subject_id = ?", customerId);
         }
         jdbc.update("DELETE FROM drivers WHERE city_id = ?", cityId);
         for (UUID customerId : customerIds) {
             jdbc.update("DELETE FROM customers WHERE id = ?", customerId);
         }
-        jdbc.update("DELETE FROM audit_logs WHERE actor_id = ?", actorId);
         for (UUID userId : userIds) {
+            jdbc.update("DELETE FROM audit_logs WHERE actor_id = ?", userId);
             jdbc.update("DELETE FROM users WHERE id = ?", userId);
         }
         jdbc.update("DELETE FROM cities WHERE id = ?", cityId);
@@ -93,7 +94,6 @@ class AdminPricingRuleCommittedIntegrationTest extends PricingRuleHttpSupport {
     private String admin() {
         UUID id = newUser(UserRole.SUPER_ADMIN).getId();
         userIds.add(id);
-        actorId = id;
         return steppedUpSuperAdminToken(id);
     }
 
@@ -211,7 +211,7 @@ class AdminPricingRuleCommittedIntegrationTest extends PricingRuleHttpSupport {
         PricingRule oldRule = seedRule(city, 5000, 4321);
         Customer customer = customer();
         Booking booking = book(customer);
-        Driver driver = startedRideFor(booking, city);
+        startedRideFor(booking, city);
 
         Map<String, Object> change = createBody(city.getId(), "BIKE", oldRule.getId(), "fee rise");
         change.put("cancellationFee", 6000);
@@ -219,7 +219,7 @@ class AdminPricingRuleCommittedIntegrationTest extends PricingRuleHttpSupport {
 
         // no distance travelled -> the early end charges the cancellation fee of the booking's own rule (4321),
         // not that of the rule now in force (6000)
-        rideLifecycleService.endRideEarlyAsDriver(driver.getUserId(), booking.getId(), "rider asked to stop", false);
+        rideLifecycleService.endRideEarlyAsCustomer(customer.getUserId(), booking.getId(), "feeling unwell", false);
 
         assertThat(bookings.findById(booking.getId()).orElseThrow().getFinalFare()).isEqualTo(4321L);
     }

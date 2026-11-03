@@ -21,6 +21,9 @@ public interface BookingRepository extends JpaRepository<Booking, UUID>, JpaSpec
 
     long countByCustomerId(UUID customerId);
 
+    /** True while any booking was priced with this pricing rule version (such a version can never be deleted). */
+    boolean existsByPricingRuleId(UUID pricingRuleId);
+
     long countByCustomerIdAndStatus(UUID customerId, BookingStatus status);
 
     List<Booking> findByStatus(BookingStatus status);
