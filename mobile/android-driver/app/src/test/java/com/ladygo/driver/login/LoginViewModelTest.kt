@@ -1,6 +1,7 @@
 package com.ladygo.driver.login
 
 import com.ladygo.driver.auth.AuthRepository
+import com.ladygo.driver.auth.BlockedReason
 import com.ladygo.driver.auth.RequestOtpOutcome
 import com.ladygo.driver.auth.VerifyOtpOutcome
 import com.ladygo.driver.testing.MainDispatcherRule
@@ -9,6 +10,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -29,8 +31,9 @@ class LoginViewModelTest {
     @Test
     fun requestingAnOtpMovesToCodeEntryOnSuccess() =
         runTest {
-            coEvery { authRepository.requestOtp("+14155550100") } returns RequestOtpOutcome.Sent
+            coEvery { authRepository.requestOtp("+14155550100", "driver@example.com") } returns RequestOtpOutcome.Sent
             viewModel.onPhoneChanged("+14155550100")
+            viewModel.onEmailChanged("driver@example.com")
 
             viewModel.onRequestOtp()
             testScheduler.advanceUntilIdle()
@@ -42,8 +45,9 @@ class LoginViewModelTest {
     @Test
     fun requestingAnOtpSurfacesTheServerErrorAndStaysOnPhoneEntry() =
         runTest {
-            coEvery { authRepository.requestOtp(any()) } returns RequestOtpOutcome.Failed("Too many requests.")
+            coEvery { authRepository.requestOtp(any(), any()) } returns RequestOtpOutcome.Failed("Too many requests.")
             viewModel.onPhoneChanged("+14155550100")
+            viewModel.onEmailChanged("driver@example.com")
 
             viewModel.onRequestOtp()
             testScheduler.advanceUntilIdle()
@@ -58,7 +62,7 @@ class LoginViewModelTest {
             viewModel.onRequestOtp()
             testScheduler.advanceUntilIdle()
 
-            coVerify(exactly = 0) { authRepository.requestOtp(any()) }
+            coVerify(exactly = 0) { authRepository.requestOtp(any(), any()) }
         }
 
     @Test
@@ -97,4 +101,46 @@ class LoginViewModelTest {
         assertEquals(LoginStep.PHONE_ENTRY, viewModel.uiState.value.step)
         assertEquals("", viewModel.uiState.value.code)
     }
+
+    @Test
+    fun aCodeIsNotRequestedWithoutAnEmail() =
+        runTest {
+            viewModel.onPhoneChanged("+14155550100")
+
+            viewModel.onRequestOtp()
+            testScheduler.advanceUntilIdle()
+
+            assertFalse(viewModel.uiState.value.canRequestCode)
+            coVerify(exactly = 0) { authRepository.requestOtp(any(), any()) }
+        }
+
+    @Test
+    fun aDriverWhoIsNotYetApprovedGetsTheBlockedScreenNotAnError() =
+        runTest {
+            coEvery { authRepository.verifyOtp(any(), any()) } returns VerifyOtpOutcome.Blocked(BlockedReason.UNDER_REVIEW)
+            viewModel.onPhoneChanged("+14155550100")
+            viewModel.onCodeChanged("123456")
+
+            viewModel.onVerifyOtp()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(BlockedReason.UNDER_REVIEW, viewModel.uiState.value.blocked)
+            assertFalse(viewModel.uiState.value.loggedIn)
+            assertNull(viewModel.uiState.value.error)
+        }
+
+    @Test
+    fun leavingTheBlockedScreenStartsAFreshLogin() =
+        runTest {
+            coEvery { authRepository.verifyOtp(any(), any()) } returns VerifyOtpOutcome.Blocked(BlockedReason.REJECTED)
+            viewModel.onCodeChanged("123456")
+            viewModel.onVerifyOtp()
+            testScheduler.advanceUntilIdle()
+
+            viewModel.onDismissBlocked()
+
+            assertNull(viewModel.uiState.value.blocked)
+            assertEquals(LoginStep.PHONE_ENTRY, viewModel.uiState.value.step)
+            assertEquals("", viewModel.uiState.value.code)
+        }
 }

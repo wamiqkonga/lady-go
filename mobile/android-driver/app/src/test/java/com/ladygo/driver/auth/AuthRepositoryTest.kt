@@ -2,8 +2,10 @@ package com.ladygo.driver.auth
 
 import com.ladygo.driver.api.generated.apis.AuthControllerApi
 import com.ladygo.driver.api.generated.models.ApiResponseMessageResponse
-import com.ladygo.driver.api.generated.models.ApiResponseObject
+import com.ladygo.driver.api.generated.models.ApiResponseTokenResponse
 import com.ladygo.driver.api.generated.models.MessageResponse
+import com.ladygo.driver.api.generated.models.OtpRequestRequest
+import com.ladygo.driver.api.generated.models.TokenResponse
 import com.ladygo.driver.location.AppPreferences
 import com.ladygo.driver.location.AvailabilityRepository
 import com.ladygo.driver.location.SetAvailabilityOutcome
@@ -12,6 +14,7 @@ import com.ladygo.driver.testing.FakeTokenStore
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
@@ -49,7 +52,7 @@ class AuthRepositoryTest {
             coEvery { authApi.requestOtp(any()) } returns
                 Response.success(ApiResponseMessageResponse(data = MessageResponse("If this number is valid, a code was sent.")))
 
-            val outcome = repository.requestOtp("+14155550100")
+            val outcome = repository.requestOtp("+14155550100", "driver@example.com")
 
             assertTrue(outcome is RequestOtpOutcome.Sent)
         }
@@ -60,7 +63,7 @@ class AuthRepositoryTest {
             coEvery { authApi.requestOtp(any()) } returns
                 errorResponse<ApiResponseMessageResponse>(429, """{"error":{"code":"RATE_LIMITED","message":"Too many requests."}}""")
 
-            val outcome = repository.requestOtp("+14155550100")
+            val outcome = repository.requestOtp("+14155550100", "driver@example.com")
 
             assertTrue(outcome is RequestOtpOutcome.Failed)
             assertEquals("Too many requests.", (outcome as RequestOtpOutcome.Failed).message)
@@ -71,16 +74,18 @@ class AuthRepositoryTest {
         runTest {
             coEvery { authApi.requestOtp(any()) } throws java.io.IOException("no network")
 
-            val outcome = repository.requestOtp("+14155550100")
+            val outcome = repository.requestOtp("+14155550100", "driver@example.com")
 
             assertTrue(outcome is RequestOtpOutcome.Failed)
         }
 
+    private fun tokens() =
+        Response.success(ApiResponseTokenResponse(data = TokenResponse(accessToken = "access-1", refreshToken = "refresh-1")))
+
     @Test
-    fun verifyOtpLogsInWhenTheServerReturnsTokens() =
+    fun verifyOtpLogsInThroughTheDriverAppEndpointWhenTheServerReturnsTokens() =
         runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                Response.success(ApiResponseObject(data = mapOf("accessToken" to "access-1", "refreshToken" to "refresh-1")))
+            coEvery { authApi.verifyDriverAppOtp(any()) } returns tokens()
 
             val outcome = repository.verifyOtp("+14155550100", "123456")
 
@@ -88,16 +93,13 @@ class AuthRepositoryTest {
             assertEquals("access-1", tokenStore.getAccessToken())
             assertEquals("refresh-1", tokenStore.getRefreshToken())
             assertTrue(sessionManager.isLoggedIn.value)
+            coVerify(exactly = 0) { authApi.verifyOtp(any()) }
         }
 
-    /** `purpose=LOGIN` always returns tokens server-side (AuthController.verifyOtp) - a bare
-     *  message-only response here would mean the contract changed, and must fail, not be silently
-     *  treated as some other kind of success. */
     @Test
-    fun verifyOtpFailsIfTheServerReturnsOnlyAMessageForLoginPurpose() =
+    fun aResponseWithoutTokensIsAFailure() =
         runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                Response.success(ApiResponseObject(data = mapOf("message" to "Phone verified.")))
+            coEvery { authApi.verifyDriverAppOtp(any()) } returns Response.success(ApiResponseTokenResponse(data = null))
 
             val outcome = repository.verifyOtp("+14155550100", "123456")
 
@@ -109,13 +111,46 @@ class AuthRepositoryTest {
     @Test
     fun verifyOtpSurfacesAnInvalidCodeError() =
         runTest {
-            coEvery { authApi.verifyOtp(any()) } returns
-                errorResponse<ApiResponseObject>(401, """{"error":{"code":"INVALID_OTP","message":"That code is wrong."}}""")
+            coEvery { authApi.verifyDriverAppOtp(any()) } returns
+                errorResponse<ApiResponseTokenResponse>(400, """{"error":{"code":"VALIDATION_FAILED","message":"That code is wrong."}}""")
 
             val outcome = repository.verifyOtp("+14155550100", "000000")
 
             assertTrue(outcome is VerifyOtpOutcome.Failed)
             assertEquals("That code is wrong.", (outcome as VerifyOtpOutcome.Failed).message)
+        }
+
+    @Test
+    fun everyServerRefusalBecomesItsOwnBlockedReasonAndLeavesThemSignedOut() =
+        runTest {
+            val expected =
+                mapOf(
+                    "DRIVER_UNDER_REVIEW" to BlockedReason.UNDER_REVIEW,
+                    "DRIVER_NOT_REGISTERED" to BlockedReason.NOT_REGISTERED,
+                    "DRIVER_REJECTED" to BlockedReason.REJECTED,
+                    "DRIVER_SUSPENDED" to BlockedReason.SUSPENDED,
+                )
+            expected.forEach { (code, reason) ->
+                coEvery { authApi.verifyDriverAppOtp(any()) } returns
+                    errorResponse<ApiResponseTokenResponse>(403, """{"error":{"code":"$code","message":"No."}}""")
+
+                assertEquals(code, VerifyOtpOutcome.Blocked(reason), repository.verifyOtp("+14155550100", "123456"))
+            }
+            assertNull(tokenStore.getAccessToken())
+            assertFalse(sessionManager.isLoggedIn.value)
+        }
+
+    @Test
+    fun theEmailIsSentWithTheCodeRequest() =
+        runTest {
+            val sent = slot<OtpRequestRequest>()
+            coEvery { authApi.requestOtp(capture(sent)) } returns
+                Response.success(ApiResponseMessageResponse(data = MessageResponse("sent")))
+
+            repository.requestOtp("+14155550100", "driver@example.com")
+
+            assertEquals("driver@example.com", sent.captured.email)
+            assertEquals(OtpRequestRequest.IntendedRole.DRIVER, sent.captured.intendedRole)
         }
 
     @Test

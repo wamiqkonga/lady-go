@@ -3,6 +3,7 @@ package com.ladygo.driver.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ladygo.driver.auth.AuthRepository
+import com.ladygo.driver.auth.BlockedReason
 import com.ladygo.driver.auth.RequestOtpOutcome
 import com.ladygo.driver.auth.VerifyOtpOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,11 +18,16 @@ enum class LoginStep { PHONE_ENTRY, CODE_ENTRY }
 data class LoginUiState(
     val step: LoginStep = LoginStep.PHONE_ENTRY,
     val phone: String = "",
+    val email: String = "",
     val code: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
     val loggedIn: Boolean = false,
-)
+    /** Set when the code was right but this driver may not use the app yet; the screen shows why and how to reach us. */
+    val blocked: BlockedReason? = null,
+) {
+    val canRequestCode: Boolean get() = phone.isNotBlank() && email.isNotBlank() && !isLoading
+}
 
 @HiltViewModel
 class LoginViewModel
@@ -36,6 +42,15 @@ class LoginViewModel
             _uiState.value = _uiState.value.copy(phone = phone, error = null)
         }
 
+        fun onEmailChanged(email: String) {
+            _uiState.value = _uiState.value.copy(email = email.trim(), error = null)
+        }
+
+        /** Leaves the "cannot log in yet" screen for a fresh login. */
+        fun onDismissBlocked() {
+            _uiState.value = _uiState.value.copy(step = LoginStep.PHONE_ENTRY, code = "", blocked = null, error = null)
+        }
+
         fun onCodeChanged(code: String) {
             _uiState.value = _uiState.value.copy(code = code, error = null)
         }
@@ -45,11 +60,11 @@ class LoginViewModel
         }
 
         fun onRequestOtp() {
-            val phone = _uiState.value.phone
-            if (phone.isBlank() || _uiState.value.isLoading) return
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            val state = _uiState.value
+            if (!state.canRequestCode) return
+            _uiState.value = state.copy(isLoading = true, error = null)
             viewModelScope.launch {
-                when (val outcome = authRepository.requestOtp(phone)) {
+                when (val outcome = authRepository.requestOtp(state.phone, state.email)) {
                     RequestOtpOutcome.Sent ->
                         _uiState.value = _uiState.value.copy(isLoading = false, step = LoginStep.CODE_ENTRY)
                     is RequestOtpOutcome.Failed ->
@@ -66,6 +81,8 @@ class LoginViewModel
                 when (val outcome = authRepository.verifyOtp(state.phone, state.code)) {
                     VerifyOtpOutcome.LoggedIn ->
                         _uiState.value = _uiState.value.copy(isLoading = false, loggedIn = true)
+                    is VerifyOtpOutcome.Blocked ->
+                        _uiState.value = _uiState.value.copy(isLoading = false, blocked = outcome.reason)
                     is VerifyOtpOutcome.Failed ->
                         _uiState.value = _uiState.value.copy(isLoading = false, error = outcome.message)
                 }
