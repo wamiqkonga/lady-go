@@ -24,6 +24,7 @@ describe('website routes', () => {
     ['/faq', 'Frequently asked questions'],
     ['/terms', 'Terms of service'],
     ['/privacy', 'Privacy policy'],
+    ['/track', 'Follow a trip'],
   ]
 
   it.each(routes)('renders %s', (path, heading) => {

@@ -10,6 +10,7 @@ import NotFound from './pages/NotFound'
 import Privacy from './pages/Privacy'
 import Safety from './pages/Safety'
 import Terms from './pages/Terms'
+import TrackTrip from './pages/TrackTrip'
 import RegistrationApp from './registration/RegistrationApp'
 import RequireAuth from './registration/lib/RequireAuth'
 import RegistrationDashboard from './registration/pages/Dashboard'
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="faq" element={<Faq />} />
         <Route path="terms" element={<Terms />} />
         <Route path="privacy" element={<Privacy />} />
+        <Route path="track" element={<TrackTrip />} />
         <Route path="login" element={<Navigate to="/driver/login" replace />} />
         <Route path="*" element={<NotFound />} />
       </Route>
