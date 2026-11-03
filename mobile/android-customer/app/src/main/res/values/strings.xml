@@ -169,4 +169,40 @@
     <string name="forgot_done">Your password was changed. Please log in with your new password.</string>
     <string name="notification_channel_ride_updates">Ride updates</string>
     <string name="notification_channel_ride_updates_description">Your driver, pickup and ride status.</string>
+
+    <!-- Safety: trusted contacts, SOS, share trip -->
+    <string name="trip_share_base_url" translatable="false">https://ladygo.app/track#</string>
+    <string name="contacts_title">Trusted contacts</string>
+    <string name="contacts_intro">If you ever press SOS, these are the people we help you tell. They do not need the app.</string>
+    <string name="contacts_empty">You have not added anyone yet.</string>
+    <string name="contacts_add_title">Add a contact</string>
+    <string name="contacts_name_label">Name</string>
+    <string name="contacts_phone_label">Phone number</string>
+    <string name="contacts_phone_helper">10 digits, or with the country code like +91…</string>
+    <string name="contacts_relationship_label">Relationship (optional)</string>
+    <string name="contacts_add_action">Save contact</string>
+    <string name="contacts_remove_action">Remove</string>
+    <string name="contacts_name_error">Please enter a name.</string>
+    <string name="contacts_phone_error">Please enter a valid phone number.</string>
+    <string name="contacts_limit_note">You can save up to 5 contacts. Remove one to add another.</string>
+    <string name="contacts_home_action">Trusted contacts</string>
+    <string name="contacts_home_body">Choose who we help you alert in an emergency.</string>
+
+    <string name="safety_share_action">Share trip</string>
+    <string name="safety_share_chooser">Share your trip with</string>
+    <string name="safety_share_message">Follow my Lady Go ride live: %1$s</string>
+    <string name="safety_sos_action">SOS</string>
+    <string name="safety_sos_confirm_title">Send an SOS?</string>
+    <string name="safety_sos_confirm_body">This alerts the Lady Go safety team with your live location. In danger right now, call 112 first.</string>
+    <string name="safety_sos_confirm_action">Send SOS</string>
+    <string name="safety_sos_cancel_action">Not now</string>
+    <string name="safety_sos_sending">Alerting the safety team…</string>
+    <string name="safety_sos_sent_title">The safety team has been alerted</string>
+    <string name="safety_sos_sent_body">They can see where you are. You can also tell your trusted contacts, or call 112.</string>
+    <string name="safety_sos_text_contacts_action">Text my trusted contacts</string>
+    <string name="safety_sos_add_contacts_note">You have no trusted contacts yet. Add some in Trusted contacts on the home screen.</string>
+    <string name="safety_sos_sms">I need help. This is an SOS from my Lady Go ride. My location: %1$s</string>
+    <string name="safety_sos_failed_title">We could not send the SOS</string>
+    <string name="safety_sos_close_action">Close</string>
+    <string name="safety_sos_call_112_action">Call 112</string>
 </resources>

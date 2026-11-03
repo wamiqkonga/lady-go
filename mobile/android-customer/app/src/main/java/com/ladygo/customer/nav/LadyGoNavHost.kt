@@ -18,6 +18,7 @@ import com.ladygo.customer.login.ui.LoginScreen
 import com.ladygo.customer.onboarding.ui.OnboardingScreen
 import com.ladygo.customer.password.ui.ForgotPasswordScreen
 import com.ladygo.customer.register.ui.RegisterScreen
+import com.ladygo.customer.safety.ui.ContactsScreen
 import com.ladygo.customer.ui.HomeScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +31,7 @@ object Routes {
     const val ONBOARDING = "onboarding"
     const val HOME = "home"
     const val BOOK = "book"
+    const val CONTACTS = "contacts"
     const val TRACK = "track/{bookingId}"
 
     fun track(bookingId: java.util.UUID) = "track/$bookingId"
@@ -97,7 +99,11 @@ fun LadyGoNavHost(navController: NavHostController = rememberNavController()) {
             HomeScreen(
                 onBookRide = { navController.navigate(Routes.BOOK) { launchSingleTop = true } },
                 onResumeRide = { id -> navController.navigate(Routes.track(id)) { launchSingleTop = true } },
+                onOpenContacts = { navController.navigate(Routes.CONTACTS) { launchSingleTop = true } },
             )
+        }
+        composable(Routes.CONTACTS) {
+            ContactsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.BOOK) {
             BookRideScreen(

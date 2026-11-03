@@ -28,6 +28,10 @@ abstract class BookingBindsModule {
     @Binds
     @Singleton
     abstract fun bindRatingSource(impl: ServerRatingSource): RatingSource
+
+    @Binds
+    @Singleton
+    abstract fun bindSafetySource(impl: com.ladygo.customer.safety.ServerSafetySource): com.ladygo.customer.safety.SafetySource
 }
 
 @Module

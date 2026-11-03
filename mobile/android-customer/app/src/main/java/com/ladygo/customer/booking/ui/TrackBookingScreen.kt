@@ -49,6 +49,7 @@ import com.ladygo.customer.booking.GeoPoint
 import com.ladygo.customer.booking.TrackBookingViewModel
 import com.ladygo.customer.booking.TrackStage
 import com.ladygo.customer.booking.TrackUiState
+import com.ladygo.customer.safety.ui.SafetyPanel
 import com.ladygo.customer.ui.components.BannerKind
 import com.ladygo.customer.ui.components.EmergencyButton
 import com.ladygo.customer.ui.components.FareCard
@@ -105,6 +106,7 @@ fun TrackBookingScreen(
             ),
         map = { st -> LiveTrackMap(st) },
         rating = { booking -> RateDriverCard(booking) },
+        safety = { SafetyPanel() },
     )
 }
 
@@ -133,6 +135,8 @@ fun TrackBookingContent(
     map: @Composable (TrackUiState) -> Unit = {},
     /** The "rate your driver" card. A slot so screen tests need no view model; the real screen passes [RateDriverCard]. */
     rating: @Composable (BookingDetailResponse) -> Unit = {},
+    /** Share trip and SOS. A slot so screen tests need no view model; the real screen passes [SafetyPanel]. */
+    safety: @Composable () -> Unit = {},
 ) {
     // The ride PIN is shown here: no screenshots / recordings while it is on screen.
     SecureWindowEffect(enabled = state.stage == TrackStage.DRIVER_COMING)
@@ -178,6 +182,7 @@ fun TrackBookingContent(
             ) {
                 map(state)
             }
+            safety()
         }
         if (stage == TrackStage.CANCELLED) CancelFeeNote(state.cancelFee, state.cancelFeeCurrency)
         StageBody(stage, booking)
