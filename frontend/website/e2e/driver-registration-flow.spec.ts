@@ -98,12 +98,12 @@ test.describe('captain registration - full flow', () => {
 
   test('a captain who set a password signs in with it, and a wrong password is refused with one plain message', async ({ page }) => {
     test.setTimeout(90_000)
-    await loginAs(page, env!.phones.WRONG_FILE_TYPE, env!.backendLog)
+    await loginAs(page, env!.phones.PASSWORD_SIGN_IN, env!.backendLog)
     await page.getByRole('button', { name: 'Sign out' }).click()
 
     await page.goto('/captain/registration')
     await page.getByRole('button', { name: /Sign in with your password/ }).click()
-    await page.getByLabel('Phone number or email').fill(env!.phones.WRONG_FILE_TYPE)
+    await page.getByLabel('Phone number or email').fill(env!.phones.PASSWORD_SIGN_IN)
     await page.getByLabel('Password', { exact: true }).fill('not the right password')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page.getByRole('alert')).toHaveText('Phone, email or password is not correct.')
