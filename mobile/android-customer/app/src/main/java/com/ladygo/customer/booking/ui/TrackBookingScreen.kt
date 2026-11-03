@@ -122,6 +122,7 @@ private fun LiveTrackMap(state: TrackUiState) {
             stop = GeoPoint(latitude, longitude),
             stopIsPickup = comingForRider,
             driver = state.driver,
+            route = state.route,
             modifier = Modifier.fillMaxSize(),
         )
     }

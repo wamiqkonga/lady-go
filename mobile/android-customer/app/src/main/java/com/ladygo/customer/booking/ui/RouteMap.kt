@@ -6,11 +6,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.Dash
 import com.google.android.gms.maps.model.Gap
@@ -56,6 +57,8 @@ fun RouteMap(
         }
     val description = stringResource(R.string.book_route_map_description)
     val routeColor = MaterialTheme.colorScheme.primary
+    val pickupIcon = MapIcons.pickup()
+    val destinationIcon = MapIcons.destination()
     Box(modifier = modifier.semantics { contentDescription = description }) {
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
@@ -74,19 +77,23 @@ fun RouteMap(
             // Framing needs the map's size, which exists once it has loaded.
             onMapLoaded = { cameraPositionState.move(CameraUpdateFactory.newLatLngBounds(bounds, FRAME_PADDING_PX)) },
         ) {
+            if (route.isNotEmpty()) Polyline(points = line, color = Color.White, width = ROUTE_OUTLINE_WIDTH)
             Polyline(
                 points = line,
                 color = routeColor,
                 width = ROUTE_WIDTH,
+                zIndex = 0.1f,
                 pattern = if (route.isEmpty()) listOf(Dash(DASH_LENGTH), Gap(DASH_LENGTH)) else null,
             )
             Marker(
                 state = MarkerState(LatLng(pickup.latitude, pickup.longitude)),
-                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN),
+                icon = pickupIcon,
+                anchor = Offset(0.5f, 0.5f),
             )
             Marker(
                 state = MarkerState(LatLng(destination.latitude, destination.longitude)),
-                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE),
+                icon = destinationIcon,
+                anchor = Offset(0.5f, 1f),
             )
         }
     }
@@ -94,5 +101,6 @@ fun RouteMap(
 
 private const val FALLBACK_ZOOM = 14f
 private const val FRAME_PADDING_PX = 96
-private const val ROUTE_WIDTH = 10f
+private const val ROUTE_WIDTH = 12f
+private const val ROUTE_OUTLINE_WIDTH = 20f
 private const val DASH_LENGTH = 24f

@@ -65,6 +65,8 @@ data class TrackUiState(
     val isCancelling: Boolean = false,
     /** Where her driver is right now, for the map; `null` when not shown (no driver yet, not live, or the ride is over). */
     val driver: GeoPoint? = null,
+    /** The road to draw: driver -> pickup while she is coming, pickup -> destination during the trip. Empty when unknown. */
+    val route: List<GeoPoint> = emptyList(),
     val cancelPreview: CancelPreview? = null,
     /** What the rider was told cancelling would cost, kept to say so on the cancelled screen. `null` when unknown. */
     val cancelFee: Long? = null,
@@ -102,6 +104,7 @@ class TrackBookingViewModel
                         is BookingFetchOutcome.Found -> {
                             apply(outcome.booking)
                             refreshDriverPosition()
+                            refreshRoute()
                         }
                         BookingFetchOutcome.NotFound -> _uiState.update { it.copy(gone = true) }
                         // Transient: keep showing the last known state; the next tick retries.
@@ -124,6 +127,47 @@ class TrackBookingViewModel
                 DriverLocationOutcome.Failed -> Unit // keep the last position; the next poll retries
             }
         }
+
+        private var routeStage: TrackStage? = null
+        private var routeFetchedAt = 0L
+
+        /** The line on the map. The trip route never changes, so it is fetched once; the driver-to-pickup route moves
+         *  with her, so it is refreshed every [ROUTE_REFRESH_MILLIS]. Any failure just leaves the map without a line. */
+        private suspend fun refreshRoute() {
+            val state = _uiState.value
+            val booking = state.booking ?: return
+            val stage = state.stage
+            val pickup = geoOf(booking.pickupLatitude, booking.pickupLongitude)
+            val destination = geoOf(booking.destinationLatitude, booking.destinationLongitude)
+            val (from, to) =
+                when (stage) {
+                    TrackStage.IN_TRIP -> pickup to destination
+                    TrackStage.DRIVER_COMING -> state.driver to pickup
+                    else -> null to null
+                }
+            if (from == null || to == null) {
+                if (stage != TrackStage.DRIVER_COMING && state.route.isNotEmpty()) _uiState.update { it.copy(route = emptyList()) }
+                return
+            }
+            val now = System.currentTimeMillis()
+            val fresh = routeStage == stage && state.route.isNotEmpty()
+            if (fresh && (stage == TrackStage.IN_TRIP || now - routeFetchedAt < ROUTE_REFRESH_MILLIS)) return
+            val outcome = runCatching { repository.estimate(from, to) }.getOrNull()
+            routeFetchedAt = now
+            routeStage = stage
+            val line =
+                (outcome as? EstimateOutcome.Success)
+                    ?.estimate
+                    ?.routePolyline
+                    ?.let(::decodePolyline)
+                    .orEmpty()
+            _uiState.update { it.copy(route = line) }
+        }
+
+        private fun geoOf(
+            latitude: Double?,
+            longitude: Double?,
+        ): GeoPoint? = if (latitude != null && longitude != null) GeoPoint(latitude, longitude) else null
 
         /** Opens the cancel dialog and asks the server what cancelling costs right now. */
         fun onCancelRequested() {
@@ -202,5 +246,6 @@ class TrackBookingViewModel
 
         companion object {
             const val BOOKING_ID_ARG = "bookingId"
+            const val ROUTE_REFRESH_MILLIS = 30_000L
         }
     }

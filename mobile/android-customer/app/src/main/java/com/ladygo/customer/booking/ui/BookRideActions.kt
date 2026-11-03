@@ -11,6 +11,8 @@ data class BookRideActions(
     val onQueryChanged: (String) -> Unit = {},
     val onSearch: () -> Unit = {},
     val onPickDestination: (Place) -> Unit = {},
+    val onSearchResultChosen: (Place) -> Unit = {},
+    val onRecenter: () -> Unit = {},
     val onChangeDestination: () -> Unit = {},
     val onBook: () -> Unit = {},
     val onPinMoving: () -> Unit = {},

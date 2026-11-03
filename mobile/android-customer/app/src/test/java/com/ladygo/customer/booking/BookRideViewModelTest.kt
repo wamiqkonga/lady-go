@@ -10,7 +10,9 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -575,7 +577,8 @@ class BookRideViewModelTest {
             coEvery { pinLookup.lookup(pinPoint) } returns PinLookupOutcome.Resolved("Dal Gate, Srinagar", true, "Srinagar")
             vm.onQueryChanged("dal gate")
             vm.onSearch()
-            assertTrue(vm.uiState.value.isBusy)
+            runCurrent()
+            assertTrue(vm.uiState.value.isSearching)
 
             vm.onPinSettled(pinPoint)
             advanceUntilIdle()
@@ -599,5 +602,85 @@ class BookRideViewModelTest {
             assertNotNull(vm.uiState.value.error)
             assertEquals(BookStep.DESTINATION, vm.uiState.value.step)
             coVerify(exactly = 0) { repository.estimate(any(), any()) }
+        }
+
+    @Test
+    fun typingSearchesByItselfAfterAShortPauseAndNotBeforeThreeLetters() =
+        runTest {
+            val vm = viewModel()
+            coEvery { resolver.search("dal", here) } returns listOf(there)
+
+            vm.onQueryChanged("da")
+            advanceTimeBy(450L + 50)
+            assertFalse(vm.uiState.value.searched)
+
+            vm.onQueryChanged("dal")
+            advanceTimeBy(450L - 100)
+            assertFalse(vm.uiState.value.searched)
+            advanceTimeBy(200)
+            runCurrent()
+
+            assertEquals(listOf(there), vm.uiState.value.candidates)
+            assertTrue(vm.uiState.value.searched)
+        }
+
+    @Test
+    fun pickingASearchResultMovesTheMapThereAndWaitsForConfirmInsteadOfJumpingToAFare() =
+        runTest {
+            val vm = viewModel()
+            vm.onQueryChanged("dal")
+
+            vm.onSearchResultChosen(there)
+
+            val state = vm.uiState.value
+            assertEquals(there.point, state.focus?.point)
+            assertEquals(there.address, state.focus?.label)
+            assertEquals(PinState.Resolving, state.pin)
+            assertTrue(state.candidates.isEmpty())
+            assertEquals("", state.query)
+            assertEquals(BookStep.DESTINATION, state.step)
+            coVerify(exactly = 0) { repository.estimate(any(), any()) }
+        }
+
+    @Test
+    fun aPinThatSettlesWhereTheSearchResultPutItKeepsTheResultsOwnName() =
+        runTest {
+            val vm = viewModel()
+            coEvery { pinLookup.lookup(there.point) } returns PinLookupOutcome.Resolved("Mock address near 34.1,74.83", true, "Srinagar")
+            vm.onSearchResultChosen(there)
+
+            vm.onPinSettled(there.point)
+            advanceUntilIdle()
+
+            assertEquals(PinState.Resolved(there, true), vm.uiState.value.pin)
+        }
+
+    @Test
+    fun aPinDraggedAwayFromTheSearchResultUsesTheLookedUpAddress() =
+        runTest {
+            val vm = viewModel()
+            val elsewhere = GeoPoint(34.12, 74.9)
+            coEvery { pinLookup.lookup(elsewhere) } returns PinLookupOutcome.Resolved("Nishat, Srinagar", true, "Srinagar")
+            vm.onSearchResultChosen(there)
+
+            vm.onPinSettled(elsewhere)
+            advanceUntilIdle()
+
+            assertEquals(PinState.Resolved(Place("Nishat, Srinagar", elsewhere), true), vm.uiState.value.pin)
+        }
+
+    @Test
+    fun theMyLocationButtonBringsTheMapBackToWhereSheIs() =
+        runTest {
+            val vm = viewModel()
+
+            vm.onRecenter()
+            advanceUntilIdle()
+
+            assertEquals(
+                here,
+                vm.uiState.value.focus
+                    ?.point,
+            )
         }
 }
