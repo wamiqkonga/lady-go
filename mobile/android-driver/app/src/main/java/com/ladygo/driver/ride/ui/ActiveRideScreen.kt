@@ -127,6 +127,7 @@ fun ActiveRideScreen(
                 pickup = pickup,
                 destination = destination,
                 focus = if (stage == RideStage.IN_TRIP) RideFocus.DESTINATION else RideFocus.PICKUP,
+                bookingId = booking.id,
                 modifier = Modifier.fillMaxSize(),
             )
         },

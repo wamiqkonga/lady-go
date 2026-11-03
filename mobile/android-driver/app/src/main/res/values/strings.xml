@@ -70,7 +70,7 @@
     <string name="login_hero_title">Lady Go Driver</string>
     <string name="login_hero_subtitle">Drive with confidence. Earn on your terms.</string>
     <string name="login_phone_title">Welcome back</string>
-    <string name="login_phone_body">Enter the phone number and email you registered with on our website. We will email you a code to sign in.</string>
+    <string name="login_phone_body">Enter your phone number and we will send you a code to sign in.</string>
     <string name="login_phone_helper">Include your country code, for example +91.</string>
     <string name="login_password_title">Welcome back</string>
     <string name="login_password_body">Use the phone number or email and the password you chose when you registered.</string>
@@ -78,9 +78,7 @@
     <string name="login_use_code_instead">Use a code instead</string>
     <string name="login_use_password_instead">Sign in with password</string>
     <string name="login_code_title">Check your messages</string>
-    <string name="login_privacy_note">We only use your number and email to sign you in and keep your account safe.</string>
-    <string name="login_email_helper">The email you registered with on our website. We send your code here.</string>
-    <string name="login_code_body">Enter the code we emailed to %1$s.</string>
+    <string name="login_privacy_note">We only use your number to sign you in and keep your account safe.</string>
     <string name="support_email">supportladygo@gmail.com</string>
     <string name="blocked_review_title">Your documents are under review</string>
     <string name="blocked_review_body">Our team is checking your documents. You will be able to log in once you are approved. If it has been a while, or you have a question, please contact us.</string>
