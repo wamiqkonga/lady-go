@@ -52,6 +52,7 @@ import com.ladygo.rides.repository.RideRepository;
 import com.ladygo.security.ratelimit.RateLimitExceededException;
 import com.ladygo.security.ratelimit.RateLimiter;
 import com.ladygo.users.domain.User;
+import com.ladygo.users.domain.UserStatus;
 import com.ladygo.users.repository.UserRepository;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleType;
@@ -159,6 +160,11 @@ public class BookingService {
         // here, at creation, rather than left to surface later as a stuck PAYMENT_PENDING booking.
         if (request.paymentMethod() == PaymentMode.ONLINE) {
             throw new PaymentMethodUnavailableException();
+        }
+        // An access token outlives a suspension until it expires, so the account status is checked here.
+        User account = users.findById(userId).orElseThrow(ResourceNotFoundException::new);
+        if (account.getStatus() != UserStatus.ACTIVE) {
+            throw new ForbiddenException("This account is not active.");
         }
         Customer customer = resolveCustomer(userId);
 

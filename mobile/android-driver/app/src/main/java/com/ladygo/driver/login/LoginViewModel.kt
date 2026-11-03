@@ -3,6 +3,7 @@ package com.ladygo.driver.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ladygo.driver.auth.AuthRepository
+import com.ladygo.driver.auth.PasswordLoginOutcome
 import com.ladygo.driver.auth.RequestOtpOutcome
 import com.ladygo.driver.auth.VerifyOtpOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,12 +13,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class LoginStep { PHONE_ENTRY, CODE_ENTRY }
+enum class LoginStep { PASSWORD_ENTRY, PHONE_ENTRY, CODE_ENTRY }
 
 data class LoginUiState(
     val step: LoginStep = LoginStep.PHONE_ENTRY,
     val phone: String = "",
     val code: String = "",
+    val identifier: String = "",
+    val password: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
     val loggedIn: Boolean = false,
@@ -29,7 +32,7 @@ class LoginViewModel
     constructor(
         private val authRepository: AuthRepository,
     ) : ViewModel() {
-        private val _uiState = MutableStateFlow(LoginUiState())
+        private val _uiState = MutableStateFlow(LoginUiState(step = LoginStep.PASSWORD_ENTRY))
         val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
         fun onPhoneChanged(phone: String) {
@@ -38,6 +41,36 @@ class LoginViewModel
 
         fun onCodeChanged(code: String) {
             _uiState.value = _uiState.value.copy(code = code, error = null)
+        }
+
+        fun onIdentifierChanged(identifier: String) {
+            _uiState.value = _uiState.value.copy(identifier = identifier, error = null)
+        }
+
+        fun onPasswordChanged(password: String) {
+            _uiState.value = _uiState.value.copy(password = password, error = null)
+        }
+
+        fun onUseCodeInstead() {
+            _uiState.value = _uiState.value.copy(step = LoginStep.PHONE_ENTRY, password = "", error = null)
+        }
+
+        fun onUsePasswordInstead() {
+            _uiState.value = _uiState.value.copy(step = LoginStep.PASSWORD_ENTRY, code = "", error = null)
+        }
+
+        fun onPasswordLogin() {
+            val state = _uiState.value
+            if (state.identifier.isBlank() || state.password.isEmpty() || state.isLoading) return
+            _uiState.value = state.copy(isLoading = true, error = null)
+            viewModelScope.launch {
+                when (val outcome = authRepository.loginWithPassword(state.identifier, state.password)) {
+                    PasswordLoginOutcome.LoggedIn ->
+                        _uiState.value = _uiState.value.copy(isLoading = false, password = "", loggedIn = true)
+                    is PasswordLoginOutcome.Failed ->
+                        _uiState.value = _uiState.value.copy(isLoading = false, password = "", error = outcome.message)
+                }
+            }
         }
 
         fun onBackToPhoneEntry() {

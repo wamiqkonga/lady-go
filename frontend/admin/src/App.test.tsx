@@ -92,7 +92,7 @@ describe('admin routes, signed in', () => {
     ['/drivers', 'Drivers'],
     ['/customers', 'Customers'],
     ['/pricing', 'Pricing & configuration'],
-    ['/safety', 'Safety incidents'],
+    ['/safety', 'Safety'],
     ['/audit-logs', 'Audit log'],
   ])('renders %s', async (path, heading) => {
     mockAuthenticatedBootstrap()

@@ -112,7 +112,7 @@ a { color: var(--brand); }
 .login h1 { color: var(--brand); }
 .form { display: grid; gap: 0.6rem; }
 .form label { font-weight: 600; }
-.form input, .filters input, .filters select, .config-edit input[type='text'] {
+.form input, .form textarea, .filters input, .filters select, .config-edit input[type='text'] {
   padding: 0.75rem 0.9rem; min-height: 48px; border: 1px solid var(--border); border-radius: var(--radius-md);
   font: inherit; background: var(--surface-variant); color: var(--fg);
 }
@@ -155,7 +155,25 @@ a { color: var(--brand); }
   .sidebar a { white-space: nowrap; flex: none; }
   .sidebar .sign-out, .sidebar .theme-toggle, .sidebar nav + .theme-toggle { margin-top: 0; }
   .content { padding: 1rem 20px 2rem; }
+  .filters label, .filters input, .filters select { width: 100%; box-sizing: border-box; }
+  /* Tables marked stack-table collapse to one card per row, each cell labelled from data-label. */
+  .stack-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .stack-table, .stack-table tbody, .stack-table tr, .stack-table td { display: block; width: 100%; }
+  .stack-table tr { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+  .stack-table td { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 0; padding: 0.3rem 0; text-align: right; }
+  .stack-table td::before { content: attr(data-label); color: var(--muted); font-weight: 700; text-align: left; }
 }
+
+/* Safety queue */
+.nav-badge { display: inline-block; margin-left: 0.4rem; min-width: 1.3rem; padding: 0 0.4rem; border-radius: 999px; background: var(--brand); color: #fff; font-size: 0.78rem; font-weight: 800; text-align: center; }
+.nav-badge-critical { background: var(--bad); }
+.sev { font-weight: 800; font-size: 0.85rem; }
+.sev-critical { color: var(--bad); }
+.sev-high { color: var(--warn); }
+.banner-danger { border: 1px solid var(--bad); border-radius: var(--radius-lg); padding: 0.75rem 1rem; font-weight: 700; }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.panel textarea, .panel select { width: 100%; box-sizing: border-box; font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: inherit; }
+.panel form + form { margin-top: 1.25rem; }
 
 /* Motion: calm, short, ease-out. Everything stops under prefers-reduced-motion. */
 @keyframes lg-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
@@ -182,3 +200,49 @@ a { color: var(--brand); }
 
 .dialog-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
 .dialog { background: var(--surface); color: inherit; border-radius: 12px; padding: 1.25rem; width: 100%; max-width: 380px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3); }
+
+/* Staff accounts: the table collapses to one card per account on phones. */
+.detail-list { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1.25rem; margin: 1rem 0; }
+.detail-list dt { color: var(--muted); font-weight: 700; }
+.detail-list dd { margin: 0; }
+.staff-actions { display: grid; gap: 0.75rem; justify-items: start; }
+.staff-actions > button, .reason-action .row-actions button { min-height: 44px; }
+.reason-action { display: grid; gap: 0.5rem; max-width: 460px; width: 100%; }
+.reason-action input, .reason-action select, .form select {
+  padding: 0.75rem 0.9rem; min-height: 48px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font: inherit; background: var(--surface-variant); color: var(--fg);
+}
+.staff-actions > button {
+  padding: 0.4rem 1.1rem; border-radius: 999px; border: 1.5px solid var(--brand); background: transparent;
+  color: var(--brand); font: inherit; font-weight: 700; cursor: pointer;
+}
+@media (max-width: 760px) {
+  .stack-table thead { position: absolute; left: -9999px; }
+  .stack-table, .stack-table tbody, .stack-table tr, .stack-table td { display: block; width: 100%; }
+  .stack-table tr { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 0.75rem; padding: 0.4rem 0.9rem; }
+  .stack-table td { border-bottom: 0; padding: 0.3rem 0; display: flex; justify-content: space-between; gap: 1rem; overflow-wrap: anywhere; }
+  .stack-table td::before { content: attr(data-label); color: var(--muted); font-weight: 700; flex: none; }
+  .detail-list { grid-template-columns: 1fr; }
+}
+
+/* Live map */
+.live-map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1rem; margin-top: 1rem; }
+.live-map-canvas { height: 70vh; min-height: 360px; border: 1px solid var(--border); border-radius: var(--radius-md); z-index: 0; }
+.live-map-side { max-height: 70vh; overflow-y: auto; }
+.live-map-list { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.live-map-list button, .link-button { text-align: left; width: 100%; font: inherit; color: var(--fg); background: var(--surface-variant); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.5rem 0.75rem; cursor: pointer; }
+.link-button { width: auto; float: right; }
+.live-map-empty, .warning { background: var(--warn-container); color: var(--warn); border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; }
+.map-pin { display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid #fff; color: #fff; font-weight: 700; font-size: 0.8rem; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
+.map-pin-driver { background: #1f7a63; }
+.map-pin-driver-busy { background: #6a2c70; }
+.map-pin-pickup { background: #1a5fb4; }
+.map-pin-drop { background: #5c5c5c; }
+.map-pin-incident { background: #b3261e; }
+.map-pin-stale { opacity: 0.5; border-style: dashed; }
+.map-pin-selected { outline: 3px solid #f5c211; }
+@media (max-width: 760px) {
+  .live-map-layout { grid-template-columns: minmax(0, 1fr); }
+  .live-map-canvas { height: 50vh; }
+  .live-map-side { max-height: none; }
+}

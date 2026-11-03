@@ -20,6 +20,7 @@ import com.ladygo.bookings.service.BookingVisibilityPolicy;
 import com.ladygo.bookings.service.BookingViewerRole;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
 import com.ladygo.common.domain.ActorType;
+import com.ladygo.common.exception.ForbiddenException;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.common.geo.GeoPoints;
@@ -27,6 +28,8 @@ import com.ladygo.config.ConfigurationService;
 import com.ladygo.customers.domain.Customer;
 import com.ladygo.customers.repository.CustomerRepository;
 import com.ladygo.drivers.domain.Driver;
+import com.ladygo.drivers.domain.DriverAvailability;
+import com.ladygo.drivers.domain.DriverVerificationStatus;
 import com.ladygo.drivers.repository.DriverRepository;
 import com.ladygo.matching.web.dto.OfferResponse;
 import com.ladygo.realtime.RealtimePushService;
@@ -143,6 +146,7 @@ public class MatchingService {
     @Transactional
     public BookingDetailResponse accept(UUID driverUserId, UUID offerId) {
         Driver driver = resolveDriver(driverUserId);
+        rejectIfSuspended(driver);
         // Idempotent replay (a lost response): the same driver re-accepting an offer she already won, while
         // the booking is still active for her, gets the same result with no state change. Anything else
         // (other driver, expired/declined offer, cancelled booking) falls through to the strict checks.
@@ -196,6 +200,9 @@ public class MatchingService {
      *  not relying solely on the WebSocket push arriving. */
     public OfferResponse getCurrentOffer(UUID driverUserId) {
         Driver driver = resolveDriver(driverUserId);
+        if (isSuspended(driver)) {
+            throw new ResourceNotFoundException(); // an offer held at suspension time is never shown again.
+        }
         RideOffer offer = offers.findByDriverIdAndStatus(driver.getId(), OfferStatus.OFFERED)
                 .filter(o -> o.getExpiresAt() == null || o.getExpiresAt().isAfter(Instant.now()))
                 .orElseThrow(ResourceNotFoundException::new);
@@ -220,6 +227,18 @@ public class MatchingService {
         Customer customer = customers.findById(booking.getCustomerId()).orElse(null);
         if (customer != null) {
             push.pushToUser(customer.getUserId(), "/queue/booking", bookingService.get(customer.getUserId(), booking.getId()));
+        }
+    }
+
+    private static boolean isSuspended(Driver driver) {
+        return driver.getAvailabilityStatus() == DriverAvailability.SUSPENDED
+                || driver.getVerificationStatus() == DriverVerificationStatus.SUSPENDED;
+    }
+
+    /** An admin suspension takes effect immediately, even on an offer the driver already holds. */
+    private static void rejectIfSuspended(Driver driver) {
+        if (isSuspended(driver)) {
+            throw new ForbiddenException("Your account is suspended.");
         }
     }
 

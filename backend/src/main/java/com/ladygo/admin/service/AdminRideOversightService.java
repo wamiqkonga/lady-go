@@ -250,7 +250,7 @@ public class AdminRideOversightService {
         return customerContacts(Set.of(customerId)).getOrDefault(customerId, new AdminPersonRefResponse(null, null));
     }
 
-    private static String maskPhone(String phone) {
+    static String maskPhone(String phone) {
         if (phone == null || phone.isBlank()) {
             return null;
         }

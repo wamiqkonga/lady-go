@@ -8,6 +8,7 @@ import com.ladygo.common.exception.UnauthorizedException;
 import com.ladygo.config.ConfigurationService;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.users.domain.User;
+import com.ladygo.users.domain.UserStatus;
 import com.ladygo.users.repository.UserRepository;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +36,9 @@ public class StepUpGuard {
             throw new UnauthorizedException();
         }
         User user = users.findById(principal.userId()).orElseThrow(UnauthorizedException::new);
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new UnauthorizedException(); // a deactivated account's still-valid access token must not act.
+        }
         if (!user.isMfaEnabled()) {
             throw new MfaEnrolmentRequiredException();
         }

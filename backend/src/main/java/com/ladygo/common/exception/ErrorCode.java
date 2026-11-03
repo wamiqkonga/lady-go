@@ -28,6 +28,8 @@ public enum ErrorCode {
     STEP_UP_REQUIRED(HttpStatus.FORBIDDEN, "Confirm your identity with a fresh authenticator code to continue."),
     MFA_ENROLMENT_REQUIRED(HttpStatus.FORBIDDEN,
             "Set up an authenticator app on the Security page before doing this."),
+    EMAIL_DELIVERY_FAILED(HttpStatus.SERVICE_UNAVAILABLE,
+            "The email could not be sent, so nothing was changed. Please try again."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

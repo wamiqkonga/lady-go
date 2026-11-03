@@ -692,6 +692,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/driver/password/set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverPasswordSet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/driver/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/driver/password/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverPasswordLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/driver/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverPasswordForgot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/driver/password/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverPasswordChange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/admin/step-up": {
         parameters: {
             query?: never;
@@ -900,6 +980,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAdminUsers"];
+        put?: never;
+        post: operations["inviteAdminUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users/{id}/unlock": {
         parameters: {
             query?: never;
@@ -916,6 +1012,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changeAdminUserRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reactivateAdminUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users/{id}/mfa/reset": {
         parameters: {
             query?: never;
@@ -926,6 +1054,70 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["resetMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["deactivateAdminUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/{id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/{id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acknowledge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1038,6 +1230,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["approveDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suspendCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["activateCustomer"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1252,6 +1476,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/driver/password/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverPasswordStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAdminUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/safety/incidents/open-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["openCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/rides": {
         parameters: {
             query?: never;
@@ -1292,6 +1596,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["listFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/live-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["snapshot"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1364,6 +1684,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCustomers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCustomer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/config": {
         parameters: {
             query?: never;
@@ -1371,7 +1723,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1387,7 +1739,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1407,6 +1759,70 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["revokeTripShare"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suspendDriver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["activateDriver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listDrivers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDriver"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1963,6 +2379,25 @@ export interface components {
             refreshToken: string;
             logoutAll?: boolean;
         };
+        DriverPasswordSetRequest: {
+            newPassword: string;
+        };
+        DriverPasswordResetRequest: {
+            token: string;
+            newPassword: string;
+        };
+        DriverPasswordLoginRequest: {
+            identifier: string;
+            password: string;
+            deviceId?: string;
+        };
+        DriverPasswordForgotRequest: {
+            identifier: string;
+        };
+        DriverPasswordChangeRequest: {
+            currentPassword: string;
+            newPassword: string;
+        };
         MfaEnrollConfirmRequest: {
             code: string;
         };
@@ -2012,8 +2447,109 @@ export interface components {
         DocumentReviewRequest: {
             note?: string;
         };
+        AdminUserInviteRequest: {
+            /** Format: email */
+            email: string;
+            name: string;
+            /** @enum {string} */
+            role: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
+            reason: string;
+        };
+        AdminUserResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            maskedEmail?: string;
+            /** @enum {string} */
+            role?: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
+            /** @enum {string} */
+            status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+            mfaEnrolled?: boolean;
+            /** Format: date-time */
+            lastLoginAt?: string;
+            locked?: boolean;
+            pendingInvite?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ApiResponseAdminUserResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminUserResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
         AdminUnlockRequest: {
             reason: string;
+        };
+        AdminUserRoleRequest: {
+            /** @enum {string} */
+            role: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
+            reason: string;
+        };
+        AdminUserReasonRequest: {
+            reason: string;
+        };
+        SafetyIncidentResolveRequest: {
+            /** @enum {string} */
+            outcome: "NO_ACTION_NEEDED" | "RESOLVED_BY_PHONE" | "POLICE_INFORMED" | "ACTION_TAKEN_AGAINST_DRIVER" | "ACTION_TAKEN_AGAINST_RIDER" | "FALSE_ALARM" | "OTHER";
+            note?: string;
+        };
+        ApiResponseSafetyIncidentDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SafetyIncidentDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        SafetyEventResponse: {
+            /** Format: uuid */
+            id?: string;
+            eventType?: string;
+            actorName?: string;
+            actorRole?: string;
+            notes?: string;
+            outcome?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        SafetyIncidentDetailResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            rideId?: string;
+            /** Format: uuid */
+            bookingId?: string;
+            type?: string;
+            severity?: string;
+            status?: string;
+            reporter?: components["schemas"]["SafetyReporterResponse"];
+            location?: components["schemas"]["SafetyLocationResponse"];
+            notes?: string;
+            legalHold?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            acknowledgedAt?: string;
+            /** Format: date-time */
+            resolvedAt?: string;
+            timeline?: components["schemas"]["SafetyEventResponse"][];
+        };
+        SafetyLocationResponse: {
+            /** Format: double */
+            lat?: number;
+            /** Format: double */
+            lng?: number;
+        };
+        SafetyReporterResponse: {
+            name?: string;
+            role?: string;
+            phoneMasked?: string;
+        };
+        SafetyIncidentNoteRequest: {
+            note: string;
         };
         AdminRideFlagReviewRequest: {
             note: string;
@@ -2121,6 +2657,51 @@ export interface components {
             expiresAt?: string;
             /** Format: date-time */
             createdAt?: string;
+        };
+        AdminCustomerActionRequest: {
+            reason: string;
+        };
+        AdminCustomerDetailResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            phoneMasked?: string;
+            /** @enum {string} */
+            status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+            /** Format: date-time */
+            statusChangedAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastLoginAt?: string;
+            /** Format: int64 */
+            totalRides?: number;
+            /** Format: int64 */
+            completedRides?: number;
+            /** Format: int64 */
+            cancelledRides?: number;
+            rides?: components["schemas"]["AdminCustomerRideResponse"][];
+        };
+        AdminCustomerRideResponse: {
+            /** Format: uuid */
+            bookingId?: string;
+            /** @enum {string} */
+            status?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            estimatedFare?: number;
+            /** Format: int64 */
+            finalFare?: number;
+            currency?: string;
+        };
+        ApiResponseAdminCustomerDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminCustomerDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
         ApiResponseTripShareLookupResponse: {
             success?: boolean;
@@ -2388,6 +2969,75 @@ export interface components {
             name?: string;
             country?: string;
         };
+        ApiResponseDriverPasswordStatusResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverPasswordStatusResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverPasswordStatusResponse: {
+            passwordSet?: boolean;
+        };
+        ApiResponseListAdminUserResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminUserResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        ApiResponsePageResponseSafetyIncidentSummaryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseSafetyIncidentSummaryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseSafetyIncidentSummaryResponse: {
+            content?: components["schemas"]["SafetyIncidentSummaryResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        SafetyIncidentSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            rideId?: string;
+            type?: string;
+            severity?: string;
+            status?: string;
+            reporter?: components["schemas"]["SafetyReporterResponse"];
+            hasLocation?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            acknowledgedAt?: string;
+        };
+        ApiResponseSafetyOpenCountResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SafetyOpenCountResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        SafetyOpenCountResponse: {
+            /** Format: int64 */
+            unresolved?: number;
+            /** Format: int64 */
+            needsAcknowledging?: number;
+            /** Format: int64 */
+            critical?: number;
+        };
         AdminRideSummaryResponse: {
             /** Format: uuid */
             bookingId?: string;
@@ -2512,6 +3162,76 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
+        AdminLiveMapResponse: {
+            /** Format: date-time */
+            generatedAt?: string;
+            /** Format: int32 */
+            maxAgeMinutes?: number;
+            /** Format: int32 */
+            limit?: number;
+            driversTruncated?: boolean;
+            ridesTruncated?: boolean;
+            incidentsTruncated?: boolean;
+            drivers?: components["schemas"]["LiveDriver"][];
+            rides?: components["schemas"]["LiveRide"][];
+            incidents?: components["schemas"]["LiveIncident"][];
+        };
+        ApiResponseAdminLiveMapResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminLiveMapResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        LiveDriver: {
+            /** Format: uuid */
+            driverId?: string;
+            name?: string;
+            availability?: string;
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+            /** Format: date-time */
+            positionAt?: string;
+            /** Format: int64 */
+            ageSeconds?: number;
+        };
+        LiveIncident: {
+            /** Format: uuid */
+            incidentId?: string;
+            /** Format: uuid */
+            rideId?: string;
+            type?: string;
+            severity?: string;
+            status?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+        };
+        LiveRide: {
+            /** Format: uuid */
+            bookingId?: string;
+            status?: string;
+            /** Format: uuid */
+            driverId?: string;
+            driverName?: string;
+            customerName?: string;
+            pickupAddress?: string;
+            /** Format: double */
+            pickupLatitude?: number;
+            /** Format: double */
+            pickupLongitude?: number;
+            dropAddress?: string;
+            /** Format: double */
+            dropLatitude?: number;
+            /** Format: double */
+            dropLongitude?: number;
+        };
         ApiResponsePageResponseEligibilityReportAdminResponse: {
             success?: boolean;
             data?: components["schemas"]["PageResponseEligibilityReportAdminResponse"];
@@ -2580,6 +3300,37 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
+        AdminCustomerSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            phoneMasked?: string;
+            /** @enum {string} */
+            status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastLoginAt?: string;
+        };
+        ApiResponsePageResponseAdminCustomerSummaryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseAdminCustomerSummaryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseAdminCustomerSummaryResponse: {
+            content?: components["schemas"]["AdminCustomerSummaryResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
         ApiResponseListAdminConfigEntryResponse: {
             success?: boolean;
             data?: components["schemas"]["AdminConfigEntryResponse"][];
@@ -2622,6 +3373,109 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        AdminDriverActionRequest: {
+            reason: string;
+        };
+        AdminDriverListItemResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            phoneMasked?: string;
+            /** @enum {string} */
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            /** @enum {string} */
+            availabilityStatus?: "OFFLINE" | "ONLINE" | "BUSY" | "ON_RIDE" | "SUSPENDED";
+            ratingAvg?: number;
+            /** Format: int32 */
+            totalRides?: number;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ApiResponsePageResponseAdminDriverListItemResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseAdminDriverListItemResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseAdminDriverListItemResponse: {
+            content?: components["schemas"]["AdminDriverListItemResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        AdminDriverDetailResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            phoneMasked?: string;
+            /** Format: uuid */
+            cityId?: string;
+            /** @enum {string} */
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            /** @enum {string} */
+            availabilityStatus?: "OFFLINE" | "ONLINE" | "BUSY" | "ON_RIDE" | "SUSPENDED";
+            ratingAvg?: number;
+            /** Format: int32 */
+            ratingCount?: number;
+            /** Format: int32 */
+            totalRides?: number;
+            /** Format: date-time */
+            verifiedAt?: string;
+            rejectionReason?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            vehicle?: components["schemas"]["VehicleAdminResponse"];
+            documents?: components["schemas"]["AdminDriverDocumentsSummary"];
+            recentRides?: components["schemas"]["AdminDriverRecentRide"][];
+            earnings?: components["schemas"]["AdminDriverEarningsTotals"];
+        };
+        AdminDriverDocumentsSummary: {
+            /** Format: int32 */
+            total?: number;
+            /** Format: int32 */
+            pending?: number;
+            /** Format: int32 */
+            approved?: number;
+            /** Format: int32 */
+            rejected?: number;
+            reviewPath?: string;
+        };
+        AdminDriverEarningsTotals: {
+            /** Format: int64 */
+            rides?: number;
+            /** Format: int64 */
+            gross?: number;
+            /** Format: int64 */
+            commission?: number;
+            /** Format: int64 */
+            net?: number;
+        };
+        AdminDriverRecentRide: {
+            /** Format: uuid */
+            bookingId?: string;
+            /** @enum {string} */
+            status?: "REQUESTED" | "SEARCHING_DRIVER" | "DRIVER_ASSIGNED" | "DRIVER_ACCEPTED" | "DRIVER_ARRIVING" | "DRIVER_ARRIVED" | "RIDE_STARTED" | "RIDE_COMPLETED" | "PAYMENT_PENDING" | "COMPLETED" | "CANCELLED";
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            finalFare?: number;
+            currency?: string;
+        };
+        ApiResponseAdminDriverDetailResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminDriverDetailResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
         };
     };
     responses: never;
@@ -3946,6 +4800,126 @@ export interface operations {
             };
         };
     };
+    driverPasswordSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverPasswordSetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    driverPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverPasswordResetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    driverPasswordLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverPasswordLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseTokenResponse"];
+                };
+            };
+        };
+    };
+    driverPasswordForgot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverPasswordForgotRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMessageResponse"];
+                };
+            };
+        };
+    };
+    driverPasswordChange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverPasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseTokenResponse"];
+                };
+            };
+        };
+    };
     stepUp: {
         parameters: {
             query?: never;
@@ -4248,6 +5222,50 @@ export interface operations {
             };
         };
     };
+    listAdminUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListAdminUserResponse"];
+                };
+            };
+        };
+    };
+    inviteAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserInviteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminUserResponse"];
+                };
+            };
+        };
+    };
     unlock: {
         parameters: {
             query?: never;
@@ -4274,6 +5292,58 @@ export interface operations {
             };
         };
     };
+    changeAdminUserRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminUserResponse"];
+                };
+            };
+        };
+    };
+    reactivateAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminUserResponse"];
+                };
+            };
+        };
+    };
     resetMfa: {
         parameters: {
             query?: never;
@@ -4292,6 +5362,106 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    deactivateAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserReasonRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminUserResponse"];
+                };
+            };
+        };
+    };
+    resolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyIncidentResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyIncidentDetailResponse"];
+                };
+            };
+        };
+    };
+    addNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SafetyIncidentNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyIncidentDetailResponse"];
+                };
+            };
+        };
+    };
+    acknowledge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyIncidentDetailResponse"];
                 };
             };
         };
@@ -4466,6 +5636,58 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseDriverDocumentAdminResponse"];
+                };
+            };
+        };
+    };
+    suspendCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCustomerActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminCustomerDetailResponse"];
+                };
+            };
+        };
+    };
+    activateCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCustomerActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminCustomerDetailResponse"];
                 };
             };
         };
@@ -4749,6 +5971,113 @@ export interface operations {
             };
         };
     };
+    driverPasswordStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverPasswordStatusResponse"];
+                };
+            };
+        };
+    };
+    getAdminUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminUserResponse"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query: {
+                status?: "OPEN" | "ACKNOWLEDGED" | "ESCALATED" | "RESOLVED";
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseSafetyIncidentSummaryResponse"];
+                };
+            };
+        };
+    };
+    get_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyIncidentDetailResponse"];
+                };
+            };
+        };
+    };
+    openCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSafetyOpenCountResponse"];
+                };
+            };
+        };
+    };
     listRides: {
         parameters: {
             query: {
@@ -4819,6 +6148,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePageResponseAdminRideFlagResponse"];
+                };
+            };
+        };
+    };
+    snapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminLiveMapResponse"];
                 };
             };
         };
@@ -4911,7 +6260,53 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    listCustomers: {
+        parameters: {
+            query: {
+                q?: string;
+                status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseAdminCustomerSummaryResponse"];
+                };
+            };
+        };
+    };
+    getCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminCustomerDetailResponse"];
+                };
+            };
+        };
+    };
+    list_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -4931,7 +6326,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_3: {
         parameters: {
             query: {
                 actorId?: string;
@@ -4978,6 +6373,104 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    suspendDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDriverActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    activateDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDriverActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    listDrivers: {
+        parameters: {
+            query: {
+                q?: string;
+                verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseAdminDriverListItemResponse"];
+                };
+            };
+        };
+    };
+    getDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminDriverDetailResponse"];
                 };
             };
         };

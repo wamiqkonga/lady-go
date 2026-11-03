@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from './Dashboard'
 import { SessionContext } from '../lib/sessionContext'
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  localStorage.clear()
+})
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -220,5 +223,65 @@ describe('Dashboard', () => {
     await userEvent.click(screen.getByRole('button', { name: 'I agree' }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+  })
+  describe('when every required step is done', () => {
+    const accepted = { success: true, data: { currentVersion: 'v1', currentText: 'x', accepted: true, acceptedVersion: 'v1', acceptedAt: 'x' }, error: null }
+    function stubComplete() {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
+        const url = input.url
+        if (url.endsWith('/api/v1/drivers/me/vehicle')) return Promise.resolve(jsonResponse(vehicle))
+        if (url.endsWith('/api/v1/drivers/me/documents')) return Promise.resolve(jsonResponse(docs()))
+        if (url.endsWith('/api/v1/drivers/me/declaration')) return Promise.resolve(jsonResponse(accepted))
+        return Promise.resolve(jsonResponse(profile))
+      }))
+    }
+
+    it('removes the Back button and shows a labelled congratulations dialog with the support link', async () => {
+      stubComplete()
+      renderDashboard()
+
+      const dialog = await screen.findByRole('dialog', { name: /Congratulations/ })
+      expect(dialog).toHaveAttribute('aria-modal', 'true')
+      expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument()
+      const mail = screen.getByRole('link', { name: 'supportladygo@gmail.com' })
+      expect(mail).toHaveAttribute('href', 'mailto:supportladygo@gmail.com')
+      expect(dialog).not.toHaveTextContent(/within \d|hours|days/i) // no invented review time
+      expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus()
+    })
+
+    it('closes with Done and with Escape, and does not reopen for the same captain', async () => {
+      stubComplete()
+      const { unmount } = renderDashboard()
+      await screen.findByRole('dialog')
+      await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      unmount()
+
+      // Reopening the page: already seen, no dialog. Back stays hidden because the application is complete.
+      renderDashboard()
+      await screen.findByRole('heading', { name: /Application received/ })
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument()
+    })
+
+    it('Escape closes the dialog', async () => {
+      stubComplete()
+      renderDashboard()
+      await screen.findByRole('dialog')
+      await userEvent.keyboard('{Escape}')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('keeps keyboard focus inside the dialog', async () => {
+      stubComplete()
+      renderDashboard()
+      await screen.findByRole('dialog')
+      const mail = screen.getByRole('link', { name: 'supportladygo@gmail.com' })
+      const done = screen.getByRole('button', { name: 'Done' })
+      await userEvent.tab()
+      expect(document.activeElement).toBe(mail) // wraps from Done to the first control
+      await userEvent.tab({ shift: true })
+      expect(document.activeElement).toBe(done) // and back
+    })
   })
 })

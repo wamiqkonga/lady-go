@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,15 +27,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ladygo.driver.BuildConfig
 import com.ladygo.driver.R
 import com.ladygo.driver.login.LoginStep
 import com.ladygo.driver.login.LoginUiState
 import com.ladygo.driver.login.LoginViewModel
+import com.ladygo.driver.ride.ExternalIntents
 import com.ladygo.driver.ui.components.BannerKind
 import com.ladygo.driver.ui.components.BrandHeader
 import com.ladygo.driver.ui.components.InfoBanner
@@ -53,6 +58,7 @@ fun LoginScreen(
         if (state.loggedIn) onLoggedIn()
     }
 
+    val context = LocalContext.current
     LoginContent(
         state = state,
         onPhoneChanged = viewModel::onPhoneChanged,
@@ -60,6 +66,13 @@ fun LoginScreen(
         onRequestOtp = viewModel::onRequestOtp,
         onVerifyOtp = viewModel::onVerifyOtp,
         onBackToPhoneEntry = viewModel::onBackToPhoneEntry,
+        onIdentifierChanged = viewModel::onIdentifierChanged,
+        onPasswordChanged = viewModel::onPasswordChanged,
+        onPasswordLogin = viewModel::onPasswordLogin,
+        onUseCodeInstead = viewModel::onUseCodeInstead,
+        onUsePasswordInstead = viewModel::onUsePasswordInstead,
+        // Resetting happens on the website: the emailed link opens there, and its sign-in page has "Forgot password?".
+        onForgotPassword = { ExternalIntents.openUrl(context, BuildConfig.DRIVER_REGISTRATION_URL) },
     )
 }
 
@@ -71,6 +84,12 @@ fun LoginContent(
     onRequestOtp: () -> Unit,
     onVerifyOtp: () -> Unit,
     onBackToPhoneEntry: () -> Unit,
+    onIdentifierChanged: (String) -> Unit = {},
+    onPasswordChanged: (String) -> Unit = {},
+    onPasswordLogin: () -> Unit = {},
+    onUseCodeInstead: () -> Unit = {},
+    onUsePasswordInstead: () -> Unit = {},
+    onForgotPassword: () -> Unit = {},
 ) {
     Column(
         modifier =
@@ -91,7 +110,9 @@ fun LoginContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 when (state.step) {
-                    LoginStep.PHONE_ENTRY -> PhoneStep(state, onPhoneChanged, onRequestOtp)
+                    LoginStep.PASSWORD_ENTRY ->
+                        PasswordStep(state, onIdentifierChanged, onPasswordChanged, onPasswordLogin, onForgotPassword, onUseCodeInstead)
+                    LoginStep.PHONE_ENTRY -> PhoneStep(state, onPhoneChanged, onRequestOtp, onUsePasswordInstead)
                     LoginStep.CODE_ENTRY -> CodeStep(state, onCodeChanged, onVerifyOtp, onBackToPhoneEntry)
                 }
                 state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR) }
@@ -118,6 +139,7 @@ private fun PhoneStep(
     state: LoginUiState,
     onPhoneChanged: (String) -> Unit,
     onRequestOtp: () -> Unit,
+    onUsePasswordInstead: () -> Unit,
 ) {
     Text(stringResource(R.string.login_phone_title), style = MaterialTheme.typography.headlineMedium)
     Text(
@@ -138,6 +160,50 @@ private fun PhoneStep(
         onClick = onRequestOtp,
         enabled = state.phone.isNotBlank() && !state.isLoading,
     )
+    QuietButton(
+        text = stringResource(R.string.login_use_password_instead),
+        onClick = onUsePasswordInstead,
+        enabled = !state.isLoading,
+    )
+}
+
+@Composable
+private fun PasswordStep(
+    state: LoginUiState,
+    onIdentifierChanged: (String) -> Unit,
+    onPasswordChanged: (String) -> Unit,
+    onPasswordLogin: () -> Unit,
+    onForgotPassword: () -> Unit,
+    onUseCodeInstead: () -> Unit,
+) {
+    Text(stringResource(R.string.login_password_title), style = MaterialTheme.typography.headlineMedium)
+    Text(
+        stringResource(R.string.login_password_body),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    LadyGoTextField(
+        value = state.identifier,
+        onValueChange = onIdentifierChanged,
+        label = "Phone number or email",
+        leadingIcon = Icons.Filled.Person,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+    )
+    LadyGoTextField(
+        value = state.password,
+        onValueChange = onPasswordChanged,
+        label = "Password",
+        leadingIcon = Icons.Filled.Lock,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        visualTransformation = PasswordVisualTransformation(),
+    )
+    PrimaryButton(
+        text = if (state.isLoading) "Signing in..." else "Sign in",
+        onClick = onPasswordLogin,
+        enabled = state.identifier.isNotBlank() && state.password.isNotEmpty() && !state.isLoading,
+    )
+    QuietButton(text = stringResource(R.string.login_forgot_password), onClick = onForgotPassword, enabled = !state.isLoading)
+    QuietButton(text = stringResource(R.string.login_use_code_instead), onClick = onUseCodeInstead, enabled = !state.isLoading)
 }
 
 @Composable
