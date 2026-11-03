@@ -23,7 +23,7 @@ The policy itself (`buildCsp` in `vite.config.ts`):
 default-src 'self';
 script-src 'self';
 style-src 'self';
-img-src 'self' data: <API_BASE_URL>;
+img-src 'self' data: <API_BASE_URL> <MAP_TILE_ORIGIN>;
 font-src 'self';
 connect-src 'self' <API_BASE_URL>;
 frame-src 'none';
@@ -39,6 +39,13 @@ turns up nothing, and the only external-looking reference anywhere is the API or
 target it; `data:` in `img-src` is for nothing today but is harmless (inline data-URI images only, no
 script execution vector) and avoids a future small-icon addition silently violating the policy.
 
+`<MAP_TILE_ORIGIN>` is the origin of the Live map tile server: `https://tile.openstreetmap.org` by default,
+or whatever `VITE_MAP_TILE_URL` points at (build time). It is allowed in `img-src` only (a tile is an image).
+The tile URL must name one concrete host, no `{s}` subdomain placeholder, so no wildcard is ever needed. When
+switching to a paid provider for public launch, set `VITE_MAP_TILE_URL` (and `VITE_MAP_ATTRIBUTION`) and
+update the production header above to the same origin. `scripts/check-production-csp.mjs` allows exactly that
+origin in `img-src` and still fails on any other third-party source.
+
 ## 2. What's NOT covered, and why that's a separate, production-only step
 
 `frame-ancestors` (the modern replacement for `X-Frame-Options`, preventing the admin console from
@@ -53,7 +60,7 @@ header-rules config).
 dev default:**
 
 ```
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://api.ladygo.example; font-src 'self'; connect-src 'self' https://api.ladygo.example; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://api.ladygo.example https://tile.openstreetmap.org; font-src 'self'; connect-src 'self' https://api.ladygo.example; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 ```
 
 Replace `https://api.ladygo.example` with the actual production API origin. If document images move

@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Icon from '../../components/Icons'
 import { DriverScene } from '../../components/Illustrations'
-import { requestOtp, verifyOtp, AuthError } from '../lib/auth'
+import NewPasswordFields from '../components/NewPasswordFields'
+import {
+  requestOtp, verifyOtp, passwordLogin, getPasswordStatus, isNewCaptain, setPassword as saveNewPassword, forgotPassword, AuthError,
+} from '../lib/auth'
+import { passwordProblem } from '../lib/passwordRules'
 import { normalizePhone } from '../lib/phone'
 
 export default function Login() {
@@ -10,7 +14,13 @@ export default function Login() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
-  const [stage, setStage] = useState<'phone' | 'code'>('phone')
+  const [stage, setStage] = useState<'phone' | 'code' | 'set-password' | 'password' | 'forgot'>('phone')
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [canSkip, setCanSkip] = useState(false)
+  const [forgotReply, setForgotReply] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cooldown, setCooldown] = useState(0)
@@ -48,12 +58,81 @@ export default function Login() {
     setError(null)
     try {
       await verifyOtp(phone, code)
+      // Ask for a password unless the captain already has one. Never block the sign-in if this check fails.
+      const hasPassword = await getPasswordStatus().catch(() => true)
+      if (!hasPassword) {
+        setCanSkip(!(await isNewCaptain().catch(() => false))) // a brand-new sign-up must set one; existing captains may wait
+        setStage('set-password')
+        return
+      }
       navigate('/captain/register', { replace: true })
     } catch (err) {
       setError(err instanceof AuthError ? err.message : 'Incorrect code.')
     } finally {
       setBusy(false)
     }
+  }
+
+  async function savePassword() {
+    const problem = passwordProblem(password, confirm)
+    if (problem) {
+      setError(problem)
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      await saveNewPassword(password)
+      navigate('/captain/register', { replace: true })
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : 'Could not save the password.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function identifierToSend(): string {
+    const typed = identifier.trim()
+    if (typed.includes('@')) return typed
+    const normalized = normalizePhone(typed)
+    return 'phone' in normalized ? normalized.phone : typed
+  }
+
+  async function signInWithPassword() {
+    setBusy(true)
+    setError(null)
+    try {
+      await passwordLogin(identifierToSend(), password)
+      navigate('/captain/register', { replace: true })
+    } catch (err) {
+      setError(
+        err instanceof AuthError && err.code === 'RATE_LIMITED'
+          ? 'Too many tries. Wait a little and try again, or sign in with a code.'
+          : err instanceof AuthError && err.code === 'UNAUTHORIZED'
+            ? 'Phone, email or password is not correct.'
+            : err instanceof AuthError ? err.message : 'Could not sign in.',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function sendResetLink() {
+    setBusy(true)
+    setError(null)
+    try {
+      setForgotReply(await forgotPassword(identifierToSend()))
+    } catch (err) {
+      setError(err instanceof AuthError ? err.message : 'Could not send the link.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function goTo(next: typeof stage) {
+    setStage(next)
+    setError(null)
+    setForgotReply(null)
   }
 
   return (
@@ -78,11 +157,16 @@ export default function Login() {
           <div className="auth-card">
         <h1>Captain registration</h1>
         <p className="muted">
-          {stage === 'phone' ? 'Step 1 of 2 · Tell us how to reach you' : 'Step 2 of 2 · Confirm your code'}
+          {stage === 'phone' && 'Step 1 of 3 · Tell us how to reach you'}
+          {stage === 'code' && 'Step 2 of 3 · Confirm your code'}
+          {stage === 'set-password' && 'Step 3 of 3 · Create your password'}
+          {stage === 'password' && 'Sign in with your password'}
+          {stage === 'forgot' && 'Forgot your password?'}
         </p>
         {stage === 'phone' ? (
           <form
             className="form"
+            aria-busy={busy}
             onSubmit={(e) => {
               e.preventDefault()
               sendCode()
@@ -116,8 +200,66 @@ export default function Login() {
             </p>
             {error && <p role="alert" className="error">{error}</p>}
             <button type="submit" disabled={busy || !phone.trim() || !email.trim()}>
-              Send code
+              {busy ? (
+                <>
+                  <span className="spinner" aria-hidden="true" /> Sending your code…
+                </>
+              ) : (
+                'Send code'
+              )}
             </button>
+            {/* Announced to screen readers; the visible text is in the button. Gone once the code screen replaces this form. */}
+            <span role="status" className="sr-only">{busy ? 'Sending your code, please wait.' : ''}</span>
+            <button type="button" className="quiet" onClick={() => goTo('password')} disabled={busy}>
+              Already registered? Sign in with your password
+            </button>
+          </form>
+        ) : stage === 'set-password' ? (
+          <form className="form" aria-busy={busy} onSubmit={(e) => { e.preventDefault(); savePassword() }}>
+            <p className="muted">
+              Choose a password. You can then sign in to the Lady Go captain app and to this website with your phone
+              number or email and this password.
+            </p>
+            <NewPasswordFields password={password} confirm={confirm} onPassword={setPassword} onConfirm={setConfirm} />
+            {error && <p role="alert" className="error">{error}</p>}
+            <button type="submit" disabled={busy || !password || !confirm}>
+              {busy ? (<><span className="spinner" aria-hidden="true" /> Saving…</>) : 'Save password and continue'}
+            </button>
+            {canSkip && (
+              <button type="button" className="quiet" disabled={busy} onClick={() => navigate('/captain/register', { replace: true })}>
+                Not now
+              </button>
+            )}
+          </form>
+        ) : stage === 'password' ? (
+          <form className="form" aria-busy={busy} onSubmit={(e) => { e.preventDefault(); signInWithPassword() }}>
+            <label htmlFor="identifier">Phone number or email</label>
+            <input id="identifier" type="text" inputMode="email" autoComplete="username" autoFocus
+              value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+            <label htmlFor="password">Password</label>
+            <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password"
+              value={password} onChange={(e) => setPassword(e.target.value)} />
+            <label className="check-row">
+              <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} /> Show password
+            </label>
+            {error && <p role="alert" className="error">{error}</p>}
+            <button type="submit" disabled={busy || !identifier.trim() || !password}>
+              {busy ? (<><span className="spinner" aria-hidden="true" /> Signing in…</>) : 'Sign in'}
+            </button>
+            <button type="button" className="quiet" onClick={() => goTo('forgot')} disabled={busy}>Forgot password?</button>
+            <button type="button" className="quiet" onClick={() => goTo('phone')} disabled={busy}>Use a code instead</button>
+          </form>
+        ) : stage === 'forgot' ? (
+          <form className="form" aria-busy={busy} onSubmit={(e) => { e.preventDefault(); sendResetLink() }}>
+            <label htmlFor="forgot-identifier">Phone number or email</label>
+            <input id="forgot-identifier" type="text" inputMode="email" autoComplete="username" autoFocus
+              value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
+            {forgotReply && <p role="status">{forgotReply} It can take a minute; check your spam folder too.</p>}
+            {error && <p role="alert" className="error">{error}</p>}
+            <button type="submit" disabled={busy || !identifier.trim()}>
+              {busy ? (<><span className="spinner" aria-hidden="true" /> Sending…</>) : 'Email me a link'}
+            </button>
+            <button type="button" className="quiet" onClick={() => goTo('password')} disabled={busy}>Back to sign in</button>
           </form>
         ) : (
           <form

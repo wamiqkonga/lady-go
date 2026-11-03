@@ -21,7 +21,7 @@ interface AdminConfigControllerApi {
      * @return [ApiResponseListAdminConfigEntryResponse]
      */
     @GET("api/v1/admin/config")
-    suspend fun list1(): Response<ApiResponseListAdminConfigEntryResponse>
+    suspend fun list2(): Response<ApiResponseListAdminConfigEntryResponse>
 
     /**
      * PUT api/v1/admin/config/{id}

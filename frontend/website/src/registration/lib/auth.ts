@@ -36,10 +36,12 @@ type Envelope<T> = {
   error: { code: string; message: string } | null
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function postJson<T>(path: string, body: unknown, authenticated = false): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (authenticated && accessToken) headers.Authorization = `Bearer ${accessToken}`
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   })
   const envelope = (await response.json().catch(() => null)) as Envelope<T> | null
@@ -78,6 +80,53 @@ export async function verifyOtp(phone: string, code: string): Promise<void> {
     return
   }
   throw new AuthError('UNEXPECTED_RESPONSE', 'Login did not return tokens.')
+}
+
+/** Signs in with a password. `identifier` is the phone number (already normalised) or the email. */
+export async function passwordLogin(identifier: string, password: string): Promise<void> {
+  const data = await postJson<{ accessToken?: string; refreshToken?: string }>('/api/v1/auth/driver/password/login', {
+    identifier, password, deviceId,
+  })
+  if (typeof data.accessToken === 'string' && typeof data.refreshToken === 'string') {
+    setTokens(data.accessToken, data.refreshToken)
+    scheduleProactiveRefresh()
+    return
+  }
+  throw new AuthError('UNEXPECTED_RESPONSE', 'Login did not return tokens.')
+}
+
+/** Whether the signed-in captain already has a password. */
+export async function getPasswordStatus(): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/driver/password/status`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  })
+  const envelope = (await response.json().catch(() => null)) as Envelope<{ passwordSet: boolean }> | null
+  if (!response.ok || !envelope?.success || !envelope.data) {
+    throw new AuthError(envelope?.error?.code ?? 'UNKNOWN_ERROR', envelope?.error?.message ?? 'Request failed.')
+  }
+  return envelope.data.passwordSet
+}
+
+/** True when this captain has not started an application yet, i.e. this is a brand-new sign-up. */
+export async function isNewCaptain(): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/drivers/me`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  })
+  return response.status === 404
+}
+
+export async function setPassword(newPassword: string): Promise<void> {
+  await postJson<null>('/api/v1/auth/driver/password/set', { newPassword }, true)
+}
+
+/** Always resolves with the same text, whether or not the account exists. */
+export async function forgotPassword(identifier: string): Promise<string> {
+  const data = await postJson<{ message: string }>('/api/v1/auth/driver/password/forgot', { identifier })
+  return data.message
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await postJson<null>('/api/v1/auth/driver/password/reset', { token, newPassword })
 }
 
 export async function refresh(): Promise<boolean> {

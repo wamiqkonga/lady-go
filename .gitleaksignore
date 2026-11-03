@@ -7,3 +7,6 @@ e1b096247a7beda305e65d63b59b83622af76092:frontend/admin/src/pages/PasswordRecove
 
 # The test builds a throwaway RSA key at run time; only the "BEGIN PRIVATE KEY" marker is in the source.
 c3309f10243eed13f77ea54b15a55c2ab536e7ef:backend/src/test/java/com/ladygo/notifications/push/FcmPushSenderTest.java:private-key:24
+
+# Throwaway passwords hard-coded in the driver password integration test (user rows exist only in the test DB).
+dc97ac1f32b2fa57da3e099d1bfafbd52449ca49:backend/src/test/java/com/ladygo/auth/web/DriverPasswordIntegrationTest.java:generic-api-key:60

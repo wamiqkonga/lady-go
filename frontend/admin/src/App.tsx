@@ -10,11 +10,14 @@ import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
 import DriverReview from './pages/DriverReview'
 import ForgotPassword from './pages/ForgotPassword'
+import LiveMap from './pages/LiveMap'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 import Placeholder from './pages/Placeholder'
 import RideDetail from './pages/RideDetail'
 import RideOversight from './pages/RideOversight'
+import SafetyIncident from './pages/SafetyIncident'
+import SafetyQueue from './pages/SafetyQueue'
 import RequireAuth from './lib/RequireAuth'
 import RequireRole from './lib/RequireRole'
 import Security from './pages/Security'
@@ -38,10 +41,7 @@ export default function App() {
         >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route
-          path="live-map"
-          element={<Placeholder title="Live map" phase="Phase 7 (real-time) and Phase 9" description="Online drivers, active rides, pickup/destination and ride status in real time." />}
-        />
+        <Route path="live-map" element={<LiveMap />} />
         <Route path="rides" element={<RideOversight />} />
         <Route path="rides/:bookingId" element={<RideDetail />} />
         <Route
@@ -53,10 +53,8 @@ export default function App() {
         <Route path="customers" element={<Customers />} />
         <Route path="customers/:customerId" element={<CustomerDetail />} />
         <Route path="pricing" element={<ConfigScreen />} />
-        <Route
-          path="safety"
-          element={<Placeholder title="Safety incidents" phase="Phase 10" description="SOS and report queue with acknowledgement and resolution timeline." />}
-        />
+        <Route path="safety" element={<SafetyQueue />} />
+        <Route path="safety/:incidentId" element={<SafetyIncident />} />
         <Route path="audit-logs" element={<AuditLog />} />
         <Route path="users" element={<RequireRole role="SUPER_ADMIN"><AdminUsers /></RequireRole>} />
         <Route path="users/:id" element={<RequireRole role="SUPER_ADMIN"><AdminUserDetail /></RequireRole>} />

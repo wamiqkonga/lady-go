@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import Logo from './Logo'
 import ThemeToggle from './ThemeToggle'
 import { useSession } from '../lib/sessionContext'
+import { useSafetyBadge } from '../lib/useSafetyBadge'
 
 const nav: { to: string; label: string; superAdminOnly?: boolean }[] = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -19,6 +20,7 @@ const nav: { to: string; label: string; superAdminOnly?: boolean }[] = [
 
 export default function Layout() {
   const { signOut, role } = useSession()
+  const safety = useSafetyBadge()
   return (
     <div className="admin-shell">
       <aside className="sidebar">
@@ -30,6 +32,11 @@ export default function Layout() {
           {nav.filter((n) => !n.superAdminOnly || role === 'SUPER_ADMIN').map((n) => (
             <NavLink key={n.to} to={n.to}>
               {n.label}
+              {n.to === '/safety' && safety && safety.unresolved > 0 && (
+                <span className={`nav-badge${safety.critical > 0 ? ' nav-badge-critical' : ''}`} aria-label={`${safety.unresolved} unresolved`}>
+                  {safety.unresolved}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
