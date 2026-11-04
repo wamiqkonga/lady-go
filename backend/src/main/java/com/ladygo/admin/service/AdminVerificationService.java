@@ -78,12 +78,14 @@ public class AdminVerificationService {
     private final FileStorage fileStorage;
     private final UserRepository users;
     private final TaskScheduler taskScheduler;
+    private final CaptainDecisionNotifier notifier;
 
     public AdminVerificationService(
             DriverDocumentRepository documents, EligibilityReportRepository reports,
             AuditLogRepository auditLogs, DriverReverificationService reverificationService,
             DriverRepository drivers, VehicleRepository vehicles, SelfDeclarationService selfDeclarations,
-            ConfigurationService config, FileStorage fileStorage, UserRepository users, TaskScheduler taskScheduler) {
+            ConfigurationService config, FileStorage fileStorage, UserRepository users, TaskScheduler taskScheduler,
+            CaptainDecisionNotifier notifier) {
         this.documents = documents;
         this.reports = reports;
         this.auditLogs = auditLogs;
@@ -95,6 +97,7 @@ public class AdminVerificationService {
         this.fileStorage = fileStorage;
         this.users = users;
         this.taskScheduler = taskScheduler;
+        this.notifier = notifier;
     }
 
     /**
@@ -177,6 +180,7 @@ public class AdminVerificationService {
         DriverDocument saved = documents.save(document);
 
         audit(adminUserId, adminRole, "DRIVER_DOCUMENT_REJECTED", "driver_documents", documentId, ip);
+        driverUserId(saved.getDriverId()).ifPresent(userId -> notifier.documentRejected(userId, saved.getType(), note));
         return toDocumentResponse(saved, driverContact(saved.getDriverId()));
     }
 
@@ -258,6 +262,7 @@ public class AdminVerificationService {
         boolean policeRequired = config.getBoolean("driver.police_verification.required", false);
         audit(adminUserId, adminRole, "DRIVER_APPROVED", "drivers", driverId, ip,
                 Map.of("policeVerificationRequired", policeRequired));
+        notifier.driverApproved(driver.getUserId());
     }
 
     @Transactional
@@ -273,6 +278,7 @@ public class AdminVerificationService {
         drivers.save(driver);
 
         audit(adminUserId, adminRole, "DRIVER_REJECTED", "drivers", driverId, ip);
+        notifier.driverRejected(driver.getUserId(), note);
     }
 
     @Transactional
@@ -294,6 +300,11 @@ public class AdminVerificationService {
         vehicles.save(vehicle);
 
         audit(adminUserId, adminRole, "VEHICLE_REJECTED", "vehicles", vehicleId, ip);
+        driverUserId(vehicle.getDriverId()).ifPresent(userId -> notifier.vehicleRejected(userId, note));
+    }
+
+    private Optional<UUID> driverUserId(UUID driverId) {
+        return drivers.findById(driverId).map(Driver::getUserId);
     }
 
     private List<String> missingRequirements(UUID driverId, Vehicle vehicle, boolean declarationAccepted) {

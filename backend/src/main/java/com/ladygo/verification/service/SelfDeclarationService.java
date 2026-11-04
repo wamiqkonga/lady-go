@@ -57,6 +57,21 @@ public class SelfDeclarationService {
                 .isPresent();
     }
 
+    /** Name of the version captains or riders must accept right now. */
+    public String currentVersionName(SubjectType subjectType) {
+        return currentVersion(subjectType).getVersion();
+    }
+
+    /** Batched {@link #hasAcceptedCurrentVersion}: which of these subjects have accepted the current version. */
+    public java.util.Set<UUID> subjectsWhoAcceptedCurrentVersion(SubjectType subjectType, java.util.Collection<UUID> subjectIds) {
+        if (subjectIds.isEmpty()) {
+            return java.util.Set.of();
+        }
+        return declarations.findBySubjectTypeAndDeclarationVersionAndSubjectIdIn(
+                        subjectType, currentVersion(subjectType).getVersion(), subjectIds).stream()
+                .map(SelfDeclaration::getSubjectId).collect(java.util.stream.Collectors.toSet());
+    }
+
     /** The current version's text (so a client can actually show it before asking for acceptance) plus
      *  whether this subject has already accepted it - previously nothing exposed either. */
     public DeclarationStatusResponse currentStatus(SubjectType subjectType, UUID subjectId) {

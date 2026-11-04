@@ -1,5 +1,7 @@
 package com.ladygo.verification.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import com.ladygo.verification.domain.SelfDeclaration;
@@ -10,4 +12,7 @@ public interface SelfDeclarationRepository extends JpaRepository<SelfDeclaration
 
     Optional<SelfDeclaration> findBySubjectTypeAndSubjectIdAndDeclarationVersion(
             SubjectType subjectType, UUID subjectId, String declarationVersion);
+
+    List<SelfDeclaration> findBySubjectTypeAndDeclarationVersionAndSubjectIdIn(
+            SubjectType subjectType, String declarationVersion, Collection<UUID> subjectIds);
 }

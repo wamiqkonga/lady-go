@@ -1924,6 +1924,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/driver-verification/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["captainQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/driver-documents": {
         parameters: {
             query?: never;
@@ -3709,6 +3725,53 @@ export interface components {
             documents?: components["schemas"]["DriverDocumentAdminResponse"][];
             readyForApproval?: boolean;
             missingRequirements?: string[];
+        };
+        ApiResponsePageResponseDriverVerificationQueueItemResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseDriverVerificationQueueItemResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverVerificationQueueItemResponse: {
+            /** Format: uuid */
+            driverId?: string;
+            driverName?: string;
+            phoneMasked?: string;
+            city?: string;
+            vehicleNumber?: string;
+            /** @enum {string} */
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            requiredItems?: components["schemas"]["RequiredItemCounts"];
+            optionalDocumentsProvided?: boolean;
+            readyForReview?: boolean;
+            /** Format: date-time */
+            submittedAt?: string;
+            /** Format: int64 */
+            waitingSeconds?: number;
+            overdue?: boolean;
+        };
+        PageResponseDriverVerificationQueueItemResponse: {
+            content?: components["schemas"]["DriverVerificationQueueItemResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        RequiredItemCounts: {
+            /** Format: int32 */
+            approved?: number;
+            /** Format: int32 */
+            pending?: number;
+            /** Format: int32 */
+            rejected?: number;
+            /** Format: int32 */
+            missing?: number;
         };
         ApiResponsePageResponseDriverDocumentAdminResponse: {
             success?: boolean;
@@ -6977,6 +7040,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseDriverReviewSummaryResponse"];
+                };
+            };
+        };
+    };
+    captainQueue: {
+        parameters: {
+            query: {
+                q?: string;
+                status?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+                overdueOnly?: boolean;
+                readyOnly?: boolean;
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseDriverVerificationQueueItemResponse"];
                 };
             };
         };

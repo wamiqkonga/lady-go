@@ -4486,6 +4486,77 @@
         }
       }
     },
+    "/api/v1/admin/driver-verification/queue": {
+      "get": {
+        "tags": [
+          "admin-verification-controller"
+        ],
+        "operationId": "captainQueue",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_SUBMITTED",
+                "PENDING_REVIEW",
+                "APPROVED",
+                "REJECTED",
+                "SUSPENDED"
+              ]
+            }
+          },
+          {
+            "name": "overdueOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "readyOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "pageable",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseDriverVerificationQueueItemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/driver-documents": {
       "get": {
         "tags": [
@@ -9593,6 +9664,126 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "ApiResponsePageResponseDriverVerificationQueueItemResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResponseDriverVerificationQueueItemResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DriverVerificationQueueItemResponse": {
+        "type": "object",
+        "properties": {
+          "driverId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "driverName": {
+            "type": "string"
+          },
+          "phoneMasked": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "vehicleNumber": {
+            "type": "string"
+          },
+          "verificationStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_SUBMITTED",
+              "PENDING_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ]
+          },
+          "requiredItems": {
+            "$ref": "#/components/schemas/RequiredItemCounts"
+          },
+          "optionalDocumentsProvided": {
+            "type": "boolean"
+          },
+          "readyForReview": {
+            "type": "boolean"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "waitingSeconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "overdue": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PageResponseDriverVerificationQueueItemResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DriverVerificationQueueItemResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RequiredItemCounts": {
+        "type": "object",
+        "properties": {
+          "approved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pending": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missing": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
