@@ -20,7 +20,15 @@ Status: Draft v0.1 · Phase 0
 Admin authentication: email + password + MFA (TOTP), short sessions, IP/device logging. Authorisation is enforced by the backend; the UI only hides what the API forbids.
 
 ## 2. Dashboard
-Tiles: active drivers, online drivers, active rides, pending bookings, completed rides (today), cancelled rides (today), revenue (today), customers (total/new), driver verification requests, open support/safety issues, system alerts. Tiles link to filtered lists. Counts are refreshed via WebSocket or short polling fallback.
+Endpoint `GET /api/v1/admin/dashboard` (SUPPORT and above, read only, counts and timestamps only, no personal data). The page polls it every 30 seconds while the tab is visible. "Today" is the Asia/Kolkata calendar day; weeks start on Monday in the same zone.
+
+Tiles, each linking to its screen: active drivers (APPROVED), online drivers (ONLINE with a position newer than `admin.livemap.max_age.minutes`), active rides, pending bookings, completed and cancelled rides today, cash fares collected today, customers (total and new in 7 days), driver verification requests, open safety incidents, system alerts.
+
+- **Cash fares** is the sum of final fares of today's completed cash rides, in rupees. It is money riders paid captains, not Lady Go revenue, and is labelled that way (the pilot is cash only).
+- **System alerts** counts admin sign-in addresses with at least `admin.login.alert.failures` failed attempts in the last `admin.login.alert.window.minutes` (the same rule as the `admin_login_failures_high` log line). Nothing else feeds it, and the tile says so.
+- **Driver review wait** is measured from the same "submitted at" as the verification queue (first document, vehicle or declaration sent, else account creation). Over target when it exceeds `verification.queue.overdue.hours` (default 24, range 1-168; the same limit the queue uses).
+- **SOS acknowledgement** is the median of `ACKNOWLEDGED` minus `CREATED` timeline events over SOS raised in the last 30 days, plus how long the longest-waiting unacknowledged SOS has waited. Over target when it exceeds `admin.dashboard.sos_ack_target.minutes` (default 5, range 1-60). Both tiles turn red and say "Over target".
+- **60-day adoption block**: captains registered, captains who finished every step (vehicle, RC document, selfie and signed declaration, reviewed or not), captains approved, riders who completed a ride, and rides completed per week for the last 8 weeks (a bar list that is also its own text equivalent).
 
 ## 3. Live map (critical)
 - Layers: online/available drivers, drivers on rides, active rides (pickup, destination, route line, status).

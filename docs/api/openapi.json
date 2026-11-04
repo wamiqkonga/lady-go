@@ -4618,6 +4618,26 @@
         }
       }
     },
+    "/api/v1/admin/dashboard": {
+      "get": {
+        "tags": [
+          "admin-dashboard-controller"
+        ],
+        "operationId": "dashboard",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminDashboardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/customers": {
       "get": {
         "tags": [
@@ -9832,6 +9852,233 @@
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "AdminDashboardResponse": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "today": {
+            "type": "string",
+            "format": "date"
+          },
+          "drivers": {
+            "$ref": "#/components/schemas/Drivers"
+          },
+          "rides": {
+            "$ref": "#/components/schemas/Rides"
+          },
+          "customers": {
+            "$ref": "#/components/schemas/Customers"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/Verification"
+          },
+          "safety": {
+            "$ref": "#/components/schemas/Safety"
+          },
+          "adoption": {
+            "$ref": "#/components/schemas/Adoption"
+          },
+          "loginAlerts": {
+            "$ref": "#/components/schemas/LoginAlerts"
+          }
+        }
+      },
+      "Adoption": {
+        "type": "object",
+        "properties": {
+          "captainsRegistered": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "captainsCompletedAllSteps": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "captainsApproved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ridersWhoCompletedARide": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "weeklyRides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeeklyRides"
+            }
+          }
+        }
+      },
+      "ApiResponseAdminDashboardResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminDashboardResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Customers": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "newLast7Days": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "Drivers": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "online": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "onlineMaxAgeMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LoginAlerts": {
+        "type": "object",
+        "properties": {
+          "accountsWithRepeatedFailures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failureThreshold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "windowMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Rides": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pendingBookings": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "completedToday": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancelledToday": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cashFaresTodayRupees": {
+            "type": "number"
+          }
+        }
+      },
+      "Safety": {
+        "type": "object",
+        "properties": {
+          "unresolved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "needsAcknowledging": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "critical": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sosMedianAckMinutes": {
+            "type": "number",
+            "format": "double"
+          },
+          "sosAckSample": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "oldestUnacknowledgedSosMinutes": {
+            "type": "number",
+            "format": "double"
+          },
+          "sosTargetMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Verification": {
+        "type": "object",
+        "properties": {
+          "waiting": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "waitingOverTarget": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "medianWaitHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "longestWaitHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "targetHours": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WeeklyRides": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

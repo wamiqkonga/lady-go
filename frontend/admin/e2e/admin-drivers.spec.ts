@@ -11,7 +11,7 @@ test.describe('Drivers screen', () => {
     test.setTimeout(90_000)
     const creds = env!.superAdmins.DRIVERS
     await loginAs(page, creds)
-    await page.getByRole('link', { name: 'Drivers' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Drivers' }).click()
     await expect(page.getByRole('heading', { name: 'Drivers' })).toBeVisible()
 
     // The list shows the seeded captains; the phone is always masked.
