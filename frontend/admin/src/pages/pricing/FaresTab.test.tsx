@@ -338,6 +338,26 @@ describe('Fares tab: setting and changing a fare', () => {
   })
 })
 
+describe('Fares tab: confirmation is per set of large changes', () => {
+  it('a ticked confirmation is cleared when a different field becomes a large change', async () => {
+    const user = userEvent.setup()
+    let large = [{ field: 'baseFare', oldValue: '3000', newValue: '9000' }]
+    mockApi((c) => (c.path.endsWith('/preview') ? ok(previewOf(large)) : undefined))
+    renderPricing()
+    await user.click(await screen.findByRole('button', { name: 'Change fare' }))
+    await user.clear(field('Base fare (rupees)'))
+    await user.type(field('Base fare (rupees)'), '90')
+    await user.click(await screen.findByLabelText('I confirm this large change'))
+    expect(screen.getByRole('button', { name: 'Review change' })).toBeEnabled()
+    large = [{ field: 'baseFare', oldValue: '3000', newValue: '9000' }, { field: 'perKm', oldValue: '1000', newValue: '5000' }]
+    await user.clear(field('Per kilometre (rupees)'))
+    await user.type(field('Per kilometre (rupees)'), '50')
+    await waitFor(() => expect(screen.getByText(/Per kilometre: Rs 10.00 to Rs 50.00/)).toBeInTheDocument())
+    expect(screen.getByLabelText('I confirm this large change')).not.toBeChecked()
+    expect(screen.getByRole('button', { name: 'Review change' })).toBeDisabled()
+  })
+})
+
 describe('Fares tab: scheduled change', () => {
   const scheduled = rule({ id: 'r2', status: 'SCHEDULED', baseFare: 3500, effectiveFrom: '2099-01-01T00:00:00Z', cancellable: true })
 

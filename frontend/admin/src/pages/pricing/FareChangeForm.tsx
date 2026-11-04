@@ -50,7 +50,9 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
   const [values, setValues] = useState(() => initial(current))
   const [when, setWhen] = useState<'now' | 'later'>('now')
   const [laterAt, setLaterAt] = useState('')
-  const [confirmLarge, setConfirmLarge] = useState(false)
+  // The tick is tied to the exact set of large changes it was given for: editing another field so that a different
+  // field becomes a large change must ask again.
+  const [confirmedFor, setConfirmedFor] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState(false)
   const [reason, setReason] = useState('')
   const [preview, setPreview] = useState<Preview | null>(null)
@@ -118,6 +120,8 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
 
   const largeChanges = preview?.largeChanges ?? []
   const needsConfirm = largeChanges.length > 0
+  const largeSignature = JSON.stringify(largeChanges)
+  const confirmLarge = confirmedFor === largeSignature
   const canReview = !!body && !previewError && !laterProblem && (!needsConfirm || confirmLarge)
 
   async function save() {
@@ -224,7 +228,7 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
                 ))}
               </ul>
               <label>
-                <input type="checkbox" checked={confirmLarge} onChange={(e) => setConfirmLarge(e.target.checked)} /> I confirm this large change
+                <input type="checkbox" checked={confirmLarge} onChange={(e) => setConfirmedFor(e.target.checked ? largeSignature : null)} /> I confirm this large change
               </label>
             </div>
           )}
