@@ -171,7 +171,7 @@
     <string name="notification_channel_ride_updates_description">Your driver, pickup and ride status.</string>
 
     <!-- Safety: trusted contacts, SOS, share trip -->
-    <string name="trip_share_base_url" translatable="false">https://ladygo.app/track#</string>
+    <string name="trip_share_base_url" translatable="false">https://ladygoride.com/track#</string>
     <string name="contacts_title">Trusted contacts</string>
     <string name="contacts_intro">If you ever press SOS, these are the people we help you tell. They do not need the app.</string>
     <string name="contacts_empty">You have not added anyone yet.</string>
