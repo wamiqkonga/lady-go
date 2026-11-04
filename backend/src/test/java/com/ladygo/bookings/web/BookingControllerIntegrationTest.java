@@ -86,6 +86,31 @@ class BookingControllerIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void estimateReturnsTheRouteToDrawOnTheFareScreen() throws Exception {
+        newPricingRule(srinagar(), VehicleType.CAB);
+        Customer customer = newCustomer();
+        mockMvc.perform(post("/api/v1/bookings/estimate")
+                        .header("Authorization", "Bearer " + tokenFor(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pickupLatitude\":34.08,\"pickupLongitude\":74.80,"
+                                + "\"destinationLatitude\":34.10,\"destinationLongitude\":74.83,\"vehicleType\":\"CAB\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.routePolyline").isNotEmpty());
+    }
+
+    @Test
+    void driverLocationRequiresAuthenticationAndHidesBookingsThatAreNotTheCallers() throws Exception {
+        UUID someBooking = UUID.randomUUID();
+        mockMvc.perform(get("/api/v1/bookings/" + someBooking + "/driver-location"))
+                .andExpect(status().isUnauthorized());
+
+        Customer customer = newCustomer();
+        mockMvc.perform(get("/api/v1/bookings/" + someBooking + "/driver-location")
+                        .header("Authorization", "Bearer " + tokenFor(customer)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void createRequiresAuthentication() throws Exception {
         mockMvc.perform(post("/api/v1/bookings")
                         .header("Idempotency-Key", UUID.randomUUID().toString())

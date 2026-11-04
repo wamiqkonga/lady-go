@@ -8,7 +8,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.ladygo.customer.api.generated.models.FareEstimateResponse
 import com.ladygo.customer.booking.BookRideUiState
@@ -57,11 +56,12 @@ class BookRideContentTest {
     }
 
     @Test
-    fun theDestinationStepShowsThePickupAndSearchIsDisabledForAShortQuery() {
-        show(BookRideUiState(pickup = PickupState.Ready(pickup), query = "Da"))
+    fun theDestinationStepShowsThePickupAndASearchFieldButNoResultsForAShortQuery() {
+        show(BookRideUiState(pickup = PickupState.Ready(pickup), query = "Da", searched = true))
 
         composeRule.onNodeWithTag("book_pickup_address").assertExists()
-        composeRule.onNodeWithText("Search").assertIsNotEnabled()
+        composeRule.onNodeWithTag("book_destination_field").assertExists()
+        composeRule.onNodeWithTag("book_no_results").assertDoesNotExist()
     }
 
     @Test
@@ -70,12 +70,12 @@ class BookRideContentTest {
         var picked: Place? = null
         show(
             BookRideUiState(pickup = PickupState.Ready(pickup), query = "Dal", candidates = listOf(dalGate), searched = true),
-            BookRideActions(onQueryChanged = { typed = it }, onPickDestination = { picked = it }),
+            BookRideActions(onQueryChanged = { typed = it }, onSearchResultChosen = { picked = it }),
         )
 
         composeRule.onNodeWithTag("book_destination_field").performTextInput("x")
-        // The map sits above the results, so the list is below the first screenful.
-        composeRule.onNodeWithText("Dal Gate, Srinagar").performScrollTo().performClick()
+        // The results sit on top of the map; choosing one shows it on the map instead of jumping to a fare.
+        composeRule.onNodeWithText("Dal Gate, Srinagar").performClick()
 
         assertTrue(typed.orEmpty().contains("x") && typed.orEmpty().contains("Dal"))
         assertEquals(dalGate, picked)
@@ -85,7 +85,7 @@ class BookRideContentTest {
     fun noResultsIsSaidPlainly() {
         show(BookRideUiState(pickup = PickupState.Ready(pickup), query = "zzz", searched = true))
 
-        composeRule.onNodeWithText("No places found. Try a more specific address.").assertExists()
+        composeRule.onNodeWithTag("book_no_results").assertExists()
     }
 
     @Test
@@ -128,7 +128,7 @@ class BookRideContentTest {
     // --- map pin (docs/product/map-design.md section 3) ---
 
     @Test
-    fun theMapSlotIsShownAboveTheSearchShortcutOnTheDestinationStep() {
+    fun theMapSlotIsShownBelowTheSearchFieldOnTheDestinationStep() {
         composeRule.setContent {
             BookRideContent(
                 state = BookRideUiState(pickup = PickupState.Ready(pickup)),
@@ -139,9 +139,7 @@ class BookRideContentTest {
 
         composeRule.onNodeWithTag("book_map").assertExists()
         composeRule.onNodeWithText("fake map").assertExists()
-        // Search is a folded-away shortcut: closed until she asks for it.
-        composeRule.onNodeWithTag("book_destination_field").assertDoesNotExist()
-        composeRule.onNodeWithTag("book_open_search").performClick()
+        // Search is always there, above the map: no extra tap to find it.
         composeRule.onNodeWithTag("book_destination_field").assertExists()
     }
 
@@ -185,5 +183,28 @@ class BookRideContentTest {
         composeRule.onNodeWithTag("book_change_pickup").assertDoesNotExist()
         composeRule.onNodeWithText("Keep current pickup").performClick()
         assertEquals(1, cancel)
+    }
+
+    // --- route on the fare screen ---
+
+    @Test
+    fun theFareStepShowsTheRouteMapSlotAboveTheFare() {
+        composeRule.setContent {
+            BookRideContent(
+                state =
+                    BookRideUiState(
+                        step = BookStep.ESTIMATE,
+                        pickup = PickupState.Ready(pickup),
+                        destination = dalGate,
+                        estimate = FareEstimateResponse(estimatedFare = 18500L, currency = "INR", routePolyline = "_p~iF~ps|U_ulLnnqC"),
+                    ),
+                actions = BookRideActions(),
+                map = { androidx.compose.material3.Text("fake route map") },
+            )
+        }
+
+        composeRule.onNodeWithTag("book_route_map").assertExists()
+        composeRule.onNodeWithText("fake route map").assertExists()
+        composeRule.onNodeWithTag("book_fare").assertExists()
     }
 }

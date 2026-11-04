@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -30,6 +31,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ladygo.customer.R
+import com.ladygo.customer.push.NotificationPermissionEffect
 import com.ladygo.customer.ui.components.BannerKind
 import com.ladygo.customer.ui.components.InfoBanner
 import com.ladygo.customer.ui.components.LadyGoCard
@@ -37,6 +39,7 @@ import com.ladygo.customer.ui.components.LadyGoScreen
 import com.ladygo.customer.ui.components.LogoMark
 import com.ladygo.customer.ui.components.PrimaryButton
 import com.ladygo.customer.ui.components.QuietButton
+import com.ladygo.customer.ui.components.SecondaryButton
 import com.ladygo.customer.ui.components.SectionLabel
 import com.ladygo.customer.ui.components.StatusChip
 import com.ladygo.customer.ui.theme.LadyGoTheme
@@ -46,15 +49,18 @@ import java.util.UUID
 fun HomeScreen(
     onBookRide: () -> Unit,
     onResumeRide: (UUID) -> Unit,
+    onOpenContacts: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    NotificationPermissionEffect()
     HomeContent(
         state = state,
         onBookRide = onBookRide,
         onResumeRide = { state.activeBookingId?.let(onResumeRide) },
         onLogout = viewModel::onLogout,
+        onOpenContacts = onOpenContacts,
     )
 }
 
@@ -64,6 +70,7 @@ fun HomeContent(
     onBookRide: () -> Unit,
     onResumeRide: () -> Unit,
     onLogout: () -> Unit,
+    onOpenContacts: () -> Unit = {},
 ) {
     LadyGoScreen(
         bottomBar = {
@@ -113,6 +120,12 @@ fun HomeContent(
         SafetyRow(Icons.Filled.VerifiedUser, stringResource(R.string.home_safety_verified))
         SafetyRow(Icons.Filled.Lock, stringResource(R.string.home_safety_pin))
         SafetyRow(Icons.Filled.Shield, stringResource(R.string.home_safety_112))
+        SecondaryButton(
+            text = stringResource(R.string.contacts_home_action),
+            onClick = onOpenContacts,
+            icon = Icons.Filled.Shield,
+            modifier = Modifier.testTag("open_contacts"),
+        )
         InfoBanner(text = stringResource(R.string.home_cash_note), kind = BannerKind.INFO, icon = Icons.Filled.Favorite)
     }
 }

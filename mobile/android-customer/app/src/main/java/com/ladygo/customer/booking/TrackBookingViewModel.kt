@@ -45,16 +45,39 @@ fun stageFor(status: Status?): TrackStage? =
         null -> null
     }
 
+/** The cancel dialog: open exactly while this is non-null. */
+sealed interface CancelPreview {
+    data object Loading : CancelPreview
+
+    data class Ready(
+        val fee: Long,
+        val currency: String?,
+        val freeUntilMillis: Long?,
+    ) : CancelPreview
+
+    /** The fee could not be fetched; the dialog says so and still lets her cancel. */
+    data object Unavailable : CancelPreview
+}
+
 data class TrackUiState(
     val booking: BookingDetailResponse? = null,
     val stage: TrackStage? = null,
     val isCancelling: Boolean = false,
+    /** Where her driver is right now, for the map; `null` when not shown (no driver yet, not live, or the ride is over). */
+    val driver: GeoPoint? = null,
+    /** The road to draw: driver -> pickup while she is coming, pickup -> destination during the trip. Empty when unknown. */
+    val route: List<GeoPoint> = emptyList(),
+    val cancelPreview: CancelPreview? = null,
+    /** What the rider was told cancelling would cost, kept to say so on the cancelled screen. `null` when unknown. */
+    val cancelFee: Long? = null,
+    val cancelFeeCurrency: String? = null,
     val error: String? = null,
     /** The booking is not this rider's / no longer exists - the nav layer leaves the screen. */
     val gone: Boolean = false,
 )
 
 private const val DEFAULT_CANCEL_REASON = "Changed my mind"
+private const val SAFETY_CANCEL_REASON = "Safety concern"
 
 @HiltViewModel
 class TrackBookingViewModel
@@ -62,6 +85,7 @@ class TrackBookingViewModel
     constructor(
         savedStateHandle: SavedStateHandle,
         private val repository: BookingRepository,
+        private val driverLocations: DriverLocationSource,
     ) : ViewModel() {
         private val bookingId: UUID = UUID.fromString(checkNotNull(savedStateHandle.get<String>(BOOKING_ID_ARG)))
 
@@ -77,7 +101,11 @@ class TrackBookingViewModel
             refreshJob =
                 viewModelScope.launch {
                     when (val outcome = repository.fetch(bookingId)) {
-                        is BookingFetchOutcome.Found -> apply(outcome.booking)
+                        is BookingFetchOutcome.Found -> {
+                            apply(outcome.booking)
+                            refreshDriverPosition()
+                            refreshRoute()
+                        }
                         BookingFetchOutcome.NotFound -> _uiState.update { it.copy(gone = true) }
                         // Transient: keep showing the last known state; the next tick retries.
                         is BookingFetchOutcome.NetworkFailure -> _uiState.update { it.copy(error = outcome.message) }
@@ -85,13 +113,106 @@ class TrackBookingViewModel
                 }
         }
 
-        fun onCancel(reason: String) {
+        /** The driver's position only matters while she is on her way or the trip is under way; anywhere else the car
+         *  is dropped so the map never shows a driver the ride no longer has. */
+        private suspend fun refreshDriverPosition() {
+            val stage = _uiState.value.stage
+            if (stage != TrackStage.DRIVER_COMING && stage != TrackStage.IN_TRIP) {
+                _uiState.update { it.copy(driver = null) }
+                return
+            }
+            when (val outcome = driverLocations.locate(bookingId)) {
+                is DriverLocationOutcome.Live -> _uiState.update { it.copy(driver = outcome.point) }
+                DriverLocationOutcome.NotLive -> _uiState.update { it.copy(driver = null) }
+                DriverLocationOutcome.Failed -> Unit // keep the last position; the next poll retries
+            }
+        }
+
+        private var routeStage: TrackStage? = null
+        private var routeFetchedAt = 0L
+
+        /** The line on the map. The trip route never changes, so it is fetched once; the driver-to-pickup route moves
+         *  with her, so it is refreshed every [ROUTE_REFRESH_MILLIS]. Any failure just leaves the map without a line. */
+        private suspend fun refreshRoute() {
+            val state = _uiState.value
+            val booking = state.booking ?: return
+            val stage = state.stage
+            val pickup = geoOf(booking.pickupLatitude, booking.pickupLongitude)
+            val destination = geoOf(booking.destinationLatitude, booking.destinationLongitude)
+            val (from, to) =
+                when (stage) {
+                    TrackStage.IN_TRIP -> pickup to destination
+                    TrackStage.DRIVER_COMING -> state.driver to pickup
+                    else -> null to null
+                }
+            if (from == null || to == null) {
+                if (stage != TrackStage.DRIVER_COMING && state.route.isNotEmpty()) _uiState.update { it.copy(route = emptyList()) }
+                return
+            }
+            val now = System.currentTimeMillis()
+            val fresh = routeStage == stage && state.route.isNotEmpty()
+            if (fresh && (stage == TrackStage.IN_TRIP || now - routeFetchedAt < ROUTE_REFRESH_MILLIS)) return
+            val outcome = runCatching { repository.estimate(from, to) }.getOrNull()
+            routeFetchedAt = now
+            routeStage = stage
+            val line =
+                (outcome as? EstimateOutcome.Success)
+                    ?.estimate
+                    ?.routePolyline
+                    ?.let(::decodePolyline)
+                    .orEmpty()
+            _uiState.update { it.copy(route = line) }
+        }
+
+        private fun geoOf(
+            latitude: Double?,
+            longitude: Double?,
+        ): GeoPoint? = if (latitude != null && longitude != null) GeoPoint(latitude, longitude) else null
+
+        /** Opens the cancel dialog and asks the server what cancelling costs right now. */
+        fun onCancelRequested() {
             val current = _uiState.value
             if (current.isCancelling || current.stage?.canCancel != true) return
-            _uiState.update { it.copy(isCancelling = true, error = null) }
+            _uiState.update { it.copy(cancelPreview = CancelPreview.Loading) }
             viewModelScope.launch {
-                when (val outcome = repository.cancel(bookingId, reason.trim().ifEmpty { DEFAULT_CANCEL_REASON })) {
-                    is CancelOutcome.Cancelled -> apply(outcome.booking)
+                val preview =
+                    when (val outcome = repository.cancellationPreview(bookingId)) {
+                        is CancelPreviewOutcome.Ready -> CancelPreview.Ready(outcome.fee, outcome.currency, outcome.freeUntilMillis)
+                        CancelPreviewOutcome.NotCancellable -> {
+                            _uiState.update { it.copy(cancelPreview = null) }
+                            refresh() // the ride moved on while she was deciding
+                            return@launch
+                        }
+                        CancelPreviewOutcome.Failed -> CancelPreview.Unavailable
+                    }
+                // She may have closed the dialog while the fee was loading.
+                _uiState.update { if (it.cancelPreview != null) it.copy(cancelPreview = preview) else it }
+            }
+        }
+
+        fun onCancelDismissed() {
+            _uiState.update { it.copy(cancelPreview = null) }
+        }
+
+        /** [unsafe] is the "I don't feel safe" cancel: fee-free, and flagged to our team by the server. */
+        fun onCancel(
+            reason: String,
+            unsafe: Boolean = false,
+        ) {
+            val current = _uiState.value
+            if (current.isCancelling || current.stage?.canCancel != true) return
+            val told = current.cancelPreview as? CancelPreview.Ready
+            _uiState.update { it.copy(isCancelling = true, cancelPreview = null, error = null) }
+            viewModelScope.launch {
+                val text = reason.trim().ifEmpty { if (unsafe) SAFETY_CANCEL_REASON else DEFAULT_CANCEL_REASON }
+                val outcome = if (unsafe) repository.cancelForSafety(bookingId, text) else repository.cancel(bookingId, text)
+                when (outcome) {
+                    is CancelOutcome.Cancelled -> {
+                        apply(outcome.booking)
+                        // A safety cancel's fee is the server's call, so only a normal cancel repeats what she was told.
+                        val fee = if (unsafe) null else told?.fee
+                        _uiState.update { it.copy(cancelFee = fee, cancelFeeCurrency = told?.currency) }
+                    }
                     is CancelOutcome.Rejected -> {
                         _uiState.update { it.copy(isCancelling = false, error = outcome.message) }
                         refresh() // the rejection may mean the ride moved on (e.g. already started)
@@ -125,5 +246,6 @@ class TrackBookingViewModel
 
         companion object {
             const val BOOKING_ID_ARG = "bookingId"
+            const val ROUTE_REFRESH_MILLIS = 30_000L
         }
     }

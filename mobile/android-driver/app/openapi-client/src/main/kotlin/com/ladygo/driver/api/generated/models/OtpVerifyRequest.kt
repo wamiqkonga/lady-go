@@ -52,13 +52,15 @@ data class OtpVerifyRequest (
     /**
      * 
      *
-     * Values: LOGIN,PHONE_VERIFY,ADMIN_MFA
+     * Values: LOGIN,PHONE_VERIFY,ADMIN_MFA,REGISTER,PASSWORD_RESET
      */
     @JsonClass(generateAdapter = false)
     enum class Purpose(val value: kotlin.String) {
         @Json(name = "LOGIN") LOGIN("LOGIN"),
         @Json(name = "PHONE_VERIFY") PHONE_VERIFY("PHONE_VERIFY"),
-        @Json(name = "ADMIN_MFA") ADMIN_MFA("ADMIN_MFA");
+        @Json(name = "ADMIN_MFA") ADMIN_MFA("ADMIN_MFA"),
+        @Json(name = "REGISTER") REGISTER("REGISTER"),
+        @Json(name = "PASSWORD_RESET") PASSWORD_RESET("PASSWORD_RESET");
     }
     /**
      * 

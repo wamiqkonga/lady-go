@@ -7,6 +7,7 @@ import com.ladygo.customer.api.generated.models.BookingRequest
 import com.ladygo.customer.api.generated.models.FareEstimateResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +47,14 @@ sealed interface PinState {
     ) : PinState
 }
 
+/** Ask the map to move to [point] (a search result, or "my location"). [seq] makes asking for the same spot twice work. */
+data class MapFocus(
+    val point: GeoPoint,
+    val seq: Int,
+    /** The name she picked from search; shown for the pin while the map rests on that spot. */
+    val label: String? = null,
+)
+
 data class BookRideUiState(
     val step: BookStep = BookStep.DESTINATION,
     /** The pin under the map's centre, and whether the pin is currently setting the pickup, not the destination. */
@@ -55,6 +64,8 @@ data class BookRideUiState(
     val query: String = "",
     val candidates: List<Place> = emptyList(),
     val searched: Boolean = false,
+    /** A place search is running (separate from [isBusy], which blocks booking calls). */
+    val isSearching: Boolean = false,
     val destination: Place? = null,
     val estimate: FareEstimateResponse? = null,
     /** A search, estimate, upload or booking call is in flight. */
@@ -65,6 +76,7 @@ data class BookRideUiState(
     val error: String? = null,
     /** The server-created booking; one-shot - the nav layer moves on to tracking it. */
     val booked: BookingDetailResponse? = null,
+    val focus: MapFocus? = null,
 )
 
 /** A selfie is only valid for a short window server-side (30 min); re-capture well before that. */
@@ -89,6 +101,7 @@ class BookRideViewModel
         val uiState: StateFlow<BookRideUiState> = _uiState.asStateFlow()
 
         private var pinJob: Job? = null
+        private var searchJob: Job? = null
         private var selfieId: UUID? = null
         private var selfieCapturedAt = 0L
 
@@ -147,8 +160,19 @@ class BookRideViewModel
                                 PinState.Resolved(Place(addressResolver.reverse(point) ?: FALLBACK_PIN_ADDRESS, point), null)
                         }
                     // The fare may have been requested while this was resolving; do not repaint the pin over it.
-                    _uiState.update { if (it.step == BookStep.DESTINATION) it.copy(pin = resolved) else it }
+                    _uiState.update { if (it.step == BookStep.DESTINATION) it.copy(pin = named(it.focus, point, resolved)) else it }
                 }
+        }
+
+        /** A pin resting exactly where a search result put it keeps that result's own name (the lookup still decided the
+         *  service area), instead of whatever the address lookup calls the spot. */
+        private fun named(
+            focus: MapFocus?,
+            point: GeoPoint,
+            resolved: PinState.Resolved,
+        ): PinState.Resolved {
+            val label = focus?.label ?: return resolved
+            return if (isSameSpot(focus.point, point)) resolved.copy(place = Place(label, point)) else resolved
         }
 
         /** "Confirm" on the map: sets the pickup when she is moving it, otherwise asks for the fare to the pin. */
@@ -184,16 +208,58 @@ class BookRideViewModel
             _uiState.update { it.copy(editingPickup = false, pin = PinState.Idle, error = null) }
         }
 
-        fun onQueryChanged(query: String) = _uiState.update { it.copy(query = query, error = null) }
+        /** Typing searches by itself once she pauses, so she never has to find a Search button. */
+        fun onQueryChanged(query: String) {
+            searchJob?.cancel()
+            _uiState.update { it.copy(query = query, error = null, candidates = if (query.isBlank()) emptyList() else it.candidates) }
+            if (query.trim().length < MIN_QUERY_LENGTH) {
+                _uiState.update { it.copy(searched = false, candidates = emptyList()) }
+                return
+            }
+            searchJob =
+                viewModelScope.launch {
+                    delay(SEARCH_DEBOUNCE_MILLIS)
+                    runSearch(query.trim())
+                }
+        }
 
         fun onSearch() {
             val query = _uiState.value.query.trim()
-            if (query.length < MIN_QUERY_LENGTH || _uiState.value.isBusy) return
-            _uiState.update { it.copy(isBusy = true, error = null) }
+            if (query.length < MIN_QUERY_LENGTH) return
+            searchJob?.cancel()
+            searchJob = viewModelScope.launch { runSearch(query) }
+        }
+
+        private suspend fun runSearch(query: String) {
+            _uiState.update { it.copy(isSearching = true, error = null) }
+            val near = (_uiState.value.pickup as? PickupState.Ready)?.place?.point
+            val found = addressResolver.search(query, near)
+            _uiState.update { if (it.query.trim() == query) it.copy(isSearching = false, candidates = found, searched = true) else it }
+        }
+
+        /** She picked a search result: show it on the map under the pin (the map's own settle then looks up the address
+         *  and checks the service area), instead of jumping straight to a fare. She confirms from the map. */
+        fun onSearchResultChosen(place: Place) {
+            searchJob?.cancel()
+            pinJob?.cancel()
+            _uiState.update {
+                it.copy(
+                    query = "",
+                    candidates = emptyList(),
+                    searched = false,
+                    isSearching = false,
+                    pin = PinState.Resolving,
+                    focus = MapFocus(place.point, (it.focus?.seq ?: 0) + 1, place.address),
+                    error = null,
+                )
+            }
+        }
+
+        /** The "my location" button: bring the map back to where she is now. */
+        fun onRecenter() {
             viewModelScope.launch {
-                val near = (_uiState.value.pickup as? PickupState.Ready)?.place?.point
-                val found = addressResolver.search(query, near)
-                _uiState.update { it.copy(isBusy = false, candidates = found, searched = true) }
+                val found = locationProvider.current() as? CurrentLocation.Found ?: return@launch
+                _uiState.update { it.copy(focus = MapFocus(found.point, (it.focus?.seq ?: 0) + 1), error = null) }
             }
         }
 
@@ -334,6 +400,7 @@ class BookRideViewModel
 
         private companion object {
             const val MIN_QUERY_LENGTH = 3
+            const val SEARCH_DEBOUNCE_MILLIS = 450L
             const val FALLBACK_PICKUP_ADDRESS = "My current location"
             const val FALLBACK_PIN_ADDRESS = "Pinned location"
             const val SAME_SPOT_MESSAGE = "Your pickup and destination are the same place. Move the pin to where you are going."

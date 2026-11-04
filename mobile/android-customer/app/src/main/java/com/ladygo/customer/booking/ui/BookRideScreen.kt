@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -26,12 +28,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,9 +49,11 @@ import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.booking.BookRideUiState
 import com.ladygo.customer.booking.BookRideViewModel
 import com.ladygo.customer.booking.BookStep
+import com.ladygo.customer.booking.GeoPoint
 import com.ladygo.customer.booking.PickupState
 import com.ladygo.customer.booking.PinState
 import com.ladygo.customer.booking.Place
+import com.ladygo.customer.booking.decodePolyline
 import com.ladygo.customer.ui.components.BannerKind
 import com.ladygo.customer.ui.components.FareCard
 import com.ladygo.customer.ui.components.InfoBanner
@@ -63,7 +66,6 @@ import com.ladygo.customer.ui.components.PrimaryButton
 import com.ladygo.customer.ui.components.QuietButton
 import com.ladygo.customer.ui.components.RouteCard
 import com.ladygo.customer.ui.components.SecondaryButton
-import com.ladygo.customer.ui.components.SectionLabel
 import com.ladygo.customer.ui.components.StateIllustration
 import com.ladygo.customer.ui.components.StatusChip
 import com.ladygo.customer.ui.theme.LadyGoTheme
@@ -115,6 +117,8 @@ fun BookRideScreen(
                     onQueryChanged = viewModel::onQueryChanged,
                     onSearch = viewModel::onSearch,
                     onPickDestination = viewModel::onDestinationPicked,
+                    onSearchResultChosen = viewModel::onSearchResultChosen,
+                    onRecenter = viewModel::onRecenter,
                     onChangeDestination = viewModel::onChangeDestination,
                     onBook = viewModel::onBookTapped,
                     onPinMoving = viewModel::onPinMoving,
@@ -124,25 +128,7 @@ fun BookRideScreen(
                     onCancelEditPickup = viewModel::onCancelEditPickup,
                     onBack = onClose,
                 ),
-            map = { st ->
-                val pickupPlace = (st.pickup as? PickupState.Ready)?.place
-                if (pickupPlace != null) {
-                    val pinDescription =
-                        (st.pin as? PinState.Resolved)?.place?.address?.let { stringResource(R.string.book_pin_description, it) }
-                            ?: stringResource(R.string.book_map_description)
-                    // Re-keyed when the rider starts/stops moving the pickup so the map opens on the right spot.
-                    androidx.compose.runtime.key(st.editingPickup) {
-                        MapPinPicker(
-                            start = pickupPlace.point,
-                            pinDescription = pinDescription,
-                            onMoveStart = viewModel::onPinMoving,
-                            onSettled = viewModel::onPinSettled,
-                            markerAt = if (st.editingPickup) null else pickupPlace.point,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-            },
+            map = { st -> BookingMap(st, viewModel::onPinMoving, viewModel::onPinSettled, viewModel::onRecenter) },
         )
     }
 }
@@ -186,7 +172,7 @@ fun BookRideContent(
         state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("book_error")) }
         when {
             ready == null -> PickupPending(state.pickup, actions)
-            state.step == BookStep.ESTIMATE -> EstimateSection(state, ready.place)
+            state.step == BookStep.ESTIMATE -> EstimateSection(state, ready.place, map)
             else -> DestinationSection(state, ready.place, actions, map)
         }
     }
@@ -227,9 +213,6 @@ private fun ColumnScope.DestinationSection(
     actions: BookRideActions,
     map: @Composable (BookRideUiState) -> Unit,
 ) {
-    // Search is a shortcut, so it stays folded away until asked for (or until there is something to show).
-    var searchOpen by rememberSaveable { mutableStateOf(false) }
-    val showSearch = searchOpen || state.query.isNotEmpty() || state.searched || state.candidates.isNotEmpty()
     LadyGoCard {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.foundation.layout.Box(
@@ -259,11 +242,15 @@ private fun ColumnScope.DestinationSection(
             }
         }
     }
-    Text(
-        stringResource(if (state.editingPickup) R.string.book_pin_hint_pickup else R.string.book_pin_hint_destination),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    if (!state.editingPickup) {
+        LadyGoTextField(
+            value = state.query,
+            onValueChange = actions.onQueryChanged,
+            label = stringResource(R.string.book_search_hint),
+            leadingIcon = Icons.Filled.Search,
+            modifier = Modifier.testTag("book_destination_field"),
+        )
+    }
     androidx.compose.foundation.layout.Box(
         modifier =
             Modifier
@@ -274,55 +261,52 @@ private fun ColumnScope.DestinationSection(
                 .testTag("book_map"),
     ) {
         map(state)
+        SearchResults(state, actions)
     }
     PinAddressCard(state.pin)
     if (state.editingPickup) {
         QuietButton(text = stringResource(R.string.book_keep_pickup_action), onClick = actions.onCancelEditPickup)
     }
-    if (!showSearch) {
-        SecondaryButton(
-            text = stringResource(R.string.book_search_shortcut_label),
-            onClick = { searchOpen = true },
-            modifier = Modifier.testTag("book_open_search"),
-        )
-    } else {
-        Column(
-            modifier = Modifier.heightIn(max = SEARCH_MAX_HEIGHT_DP.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            SearchShortcut(state, actions)
-        }
-    }
 }
 
+/** What the search found, laid over the map so she picks one and sees it appear there before confirming. */
 @Composable
-private fun SearchShortcut(
+private fun SearchResults(
     state: BookRideUiState,
     actions: BookRideActions,
 ) {
-    LadyGoTextField(
-        value = state.query,
-        onValueChange = actions.onQueryChanged,
-        label = stringResource(R.string.book_destination_label),
-        leadingIcon = Icons.Filled.Search,
-        helper = stringResource(R.string.book_destination_helper),
-        modifier = Modifier.testTag("book_destination_field"),
-    )
-    SecondaryButton(
-        text = stringResource(R.string.book_search_action),
-        onClick = actions.onSearch,
-        enabled = state.query.trim().length >= MIN_QUERY_LENGTH && !state.isBusy,
-    )
-    if (state.isBusy) LoadingState()
-    if (state.searched && state.candidates.isEmpty() && !state.isBusy) {
-        InfoBanner(text = stringResource(R.string.book_no_results), kind = BannerKind.WARNING)
-    }
-    if (state.candidates.isNotEmpty()) SectionLabel(stringResource(R.string.book_results_label))
-    state.candidates.forEach { place ->
-        LadyGoCard(modifier = Modifier.clickable(enabled = !state.isBusy) { actions.onPickDestination(place) }) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Place, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
-                Text(place.address, style = MaterialTheme.typography.bodyLarge)
+    val showing = state.query.trim().length >= MIN_QUERY_LENGTH && (state.isSearching || state.searched)
+    if (!showing) return
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.large,
+        shadowElevation = 6.dp,
+        modifier = Modifier.fillMaxWidth().padding(8.dp).heightIn(max = SEARCH_MAX_HEIGHT_DP.dp),
+    ) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
+            when {
+                state.isSearching && state.candidates.isEmpty() -> LoadingState(message = stringResource(R.string.book_searching))
+                state.candidates.isEmpty() ->
+                    Text(
+                        stringResource(R.string.book_no_results),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp).testTag("book_no_results"),
+                    )
+                else ->
+                    state.candidates.forEach { place ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { actions.onSearchResultChosen(place) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                        ) {
+                            Icon(Icons.Filled.Place, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                            Text(place.address, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
             }
         }
     }
@@ -332,7 +316,18 @@ private fun SearchShortcut(
 private fun EstimateSection(
     state: BookRideUiState,
     pickup: Place,
+    map: @Composable (BookRideUiState) -> Unit,
 ) {
+    androidx.compose.foundation.layout.Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(ROUTE_MAP_HEIGHT_DP.dp)
+                .clip(MaterialTheme.shapes.large)
+                .testTag("book_route_map"),
+    ) {
+        map(state)
+    }
     RouteCard(
         pickupLabel = stringResource(R.string.book_pickup_label),
         pickup = pickup.address,
@@ -416,7 +411,55 @@ private fun PinConfirmBar(
 }
 
 private const val MAP_MIN_HEIGHT_DP = 160
+private const val ROUTE_MAP_HEIGHT_DP = 220
 private const val SEARCH_MAX_HEIGHT_DP = 280
 private const val MIN_QUERY_LENGTH = 3
 private const val METERS_PER_KM = 1000.0
 private const val SECONDS_PER_MINUTE = 60
+
+/** The real maps for the booking flow: the route preview on the fare step, the pin-drop map on the destination step. */
+@Composable
+private fun BookingMap(
+    state: BookRideUiState,
+    onPinMoving: () -> Unit,
+    onPinSettled: (GeoPoint) -> Unit,
+    onRecenter: () -> Unit,
+) {
+    val pickupPlace = (state.pickup as? PickupState.Ready)?.place
+    val destinationPlace = state.destination
+    if (state.step == BookStep.ESTIMATE) {
+        if (pickupPlace != null && destinationPlace != null) {
+            val route =
+                androidx.compose.runtime.remember(state.estimate?.routePolyline) {
+                    state.estimate
+                        ?.routePolyline
+                        ?.let(::decodePolyline)
+                        .orEmpty()
+                }
+            RouteMap(
+                pickup = pickupPlace.point,
+                destination = destinationPlace.point,
+                route = route,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    } else if (pickupPlace != null) {
+        val pinDescription =
+            (state.pin as? PinState.Resolved)?.place?.address?.let { stringResource(R.string.book_pin_description, it) }
+                ?: stringResource(R.string.book_map_description)
+        // Re-keyed when the rider starts/stops moving the pickup so the map opens on the right spot.
+        androidx.compose.runtime.key(state.editingPickup) {
+            MapPinPicker(
+                start = pickupPlace.point,
+                pinDescription = pinDescription,
+                onMoveStart = onPinMoving,
+                onSettled = onPinSettled,
+                markerAt = if (state.editingPickup) null else pickupPlace.point,
+                focus = state.focus,
+                showMyLocation = true,
+                onRecenter = onRecenter,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}

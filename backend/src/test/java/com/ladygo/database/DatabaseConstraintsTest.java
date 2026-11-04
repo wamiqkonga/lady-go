@@ -68,12 +68,21 @@ class DatabaseConstraintsTest extends PersistenceTestSupport {
     }
 
     @Test
-    void onlyAdminRolesCanHaveAPassword() {
-        User user = new User();
-        user.setPhone(nextPhone());
-        user.setRole(UserRole.CUSTOMER);
-        user.setPasswordHash("not-for-customers");
-        assertThatThrownBy(() -> users.saveAndFlush(user)).isInstanceOf(DataIntegrityViolationException.class);
+    void driversMayHaveAPassword() {
+        User driver = new User();
+        driver.setPhone(nextPhone());
+        driver.setRole(UserRole.DRIVER);
+        driver.setPasswordHash("bcrypt-hash");
+        assertThat(users.saveAndFlush(driver).getId()).isNotNull();
+    }
+
+    @Test
+    void customersMayHaveAPassword() {
+        User customer = new User();
+        customer.setPhone(nextPhone());
+        customer.setRole(UserRole.CUSTOMER);
+        customer.setPasswordHash("bcrypt-hash");
+        assertThat(users.saveAndFlush(customer).getId()).isNotNull();
     }
 
     @Test

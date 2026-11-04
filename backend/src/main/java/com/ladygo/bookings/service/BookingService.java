@@ -14,6 +14,8 @@ import com.ladygo.bookings.domain.BookingStatus;
 import com.ladygo.bookings.repository.BookingEventRepository;
 import com.ladygo.bookings.repository.BookingRepository;
 import com.ladygo.bookings.web.dto.BookingDetailResponse;
+import com.ladygo.bookings.web.dto.RideLegRouteResponse;
+import com.ladygo.bookings.web.dto.CancellationPreviewResponse;
 import com.ladygo.bookings.web.dto.BookingRequest;
 import com.ladygo.bookings.web.dto.DestinationChangeEstimateRequest;
 import com.ladygo.bookings.web.dto.DestinationChangeRequest;
@@ -142,7 +144,7 @@ public class BookingService {
         RouteOutcome route;
         try {
             RouteResult result = mapsService.calculateRoute(origin, destination);
-            route = new RouteOutcome(result.distanceMeters(), result.durationSeconds(), false);
+            route = new RouteOutcome(result.distanceMeters(), result.durationSeconds(), false, result.polyline());
         } catch (MapsServiceException ex) {
             route = approximateRoute(origin, destination);
         }
@@ -193,7 +195,7 @@ public class BookingService {
         FareResult fare = fareCalculator.calculate(rule, route.distanceMeters(), route.durationSeconds());
         checkFareTolerance(fare.totalFare(), request.expectedFare(),
                 toEstimateResponse(city, request.vehicleType(),
-                        new RouteOutcome(route.distanceMeters(), route.durationSeconds(), false), rule, fare));
+                        new RouteOutcome(route.distanceMeters(), route.durationSeconds(), false, route.polyline()), rule, fare));
 
         Booking booking = new Booking();
         booking.setCustomerId(customer.getId());
@@ -249,6 +251,30 @@ public class BookingService {
                         BookingViewerRole.DRIVER, b.getStatus(), BookingField.PICKUP_ADDRESS_EXACT))
                 .orElseThrow(ResourceNotFoundException::new);
         return toDetail(booking, BookingViewerRole.DRIVER);
+    }
+
+    /**
+     * The road from the driver's own position to her pickup or destination, for the map on her ride screen. Only for a
+     * booking she is on, and counted against the same per-user Maps budget as fare estimates. A provider outage is not an
+     * error: the answer is empty and the app draws a straight line instead.
+     */
+    public RideLegRouteResponse routeLegForDriver(
+            UUID driverUserId, UUID bookingId, double fromLatitude, double fromLongitude, boolean toDestination) {
+        Driver driver = drivers.findByUserId(driverUserId).orElseThrow(ResourceNotFoundException::new);
+        Booking booking = bookings.findById(bookingId)
+                .filter(b -> driver.getId().equals(b.getDriverId()))
+                .filter(b -> BookingVisibilityPolicy.isVisible(
+                        BookingViewerRole.DRIVER, b.getStatus(), BookingField.PICKUP_ADDRESS_EXACT))
+                .orElseThrow(ResourceNotFoundException::new);
+        enforceMapsRateLimit(driverUserId);
+        org.locationtech.jts.geom.Point end = toDestination ? booking.getDestinationLocation() : booking.getPickupLocation();
+        try {
+            RouteResult route = mapsService.calculateRoute(
+                    new Coordinate(fromLatitude, fromLongitude), new Coordinate(end.getY(), end.getX()));
+            return new RideLegRouteResponse(route.polyline(), route.distanceMeters(), route.durationSeconds());
+        } catch (MapsServiceException ex) {
+            return new RideLegRouteResponse(null, null, null);
+        }
     }
 
     /** docs/api/booking.md section 5. */
@@ -363,7 +389,7 @@ public class BookingService {
         RouteOutcome route;
         try {
             RouteResult result = mapsService.calculateRoute(origin, destination);
-            route = new RouteOutcome(result.distanceMeters(), result.durationSeconds(), false);
+            route = new RouteOutcome(result.distanceMeters(), result.durationSeconds(), false, result.polyline());
         } catch (MapsServiceException ex) {
             route = approximateRoute(origin, destination);
         }
@@ -389,7 +415,7 @@ public class BookingService {
         FareResult fare = fareCalculator.calculate(rule, route.distanceMeters(), route.durationSeconds());
         checkFareTolerance(fare.totalFare(), request.expectedFare(),
                 toEstimateResponse(city, booking.getVehicleType(),
-                        new RouteOutcome(route.distanceMeters(), route.durationSeconds(), false), rule, fare));
+                        new RouteOutcome(route.distanceMeters(), route.durationSeconds(), false, route.polyline()), rule, fare));
 
         booking.setDestinationLocation(GeoPoints.of(request.destinationLatitude(), request.destinationLongitude()));
         booking.setDestinationAddress(request.destinationAddress());
@@ -440,8 +466,16 @@ public class BookingService {
      * append-only {@code booking_events} table (a real bug caught by the DB's own append-only trigger).
      */
     private Map<String, Object> assessCancellationFee(Booking booking) {
+        return Map.of("cancellationFee", cancellationFeeNow(booking).fee(), "currency", booking.getCurrency());
+    }
+
+    /** The fee a rider would pay to cancel at this moment, and until when it is waived (if it is). */
+    private record CancellationAssessment(int fee, Instant freeUntil) {
+    }
+
+    private CancellationAssessment cancellationFeeNow(Booking booking) {
         if (booking.getStatus() == BookingStatus.REQUESTED || booking.getStatus() == BookingStatus.SEARCHING_DRIVER) {
-            return Map.of("cancellationFee", 0, "currency", booking.getCurrency());
+            return new CancellationAssessment(0, null);
         }
 
         Instant driverAcceptedAt = bookingEvents.findByBookingIdOrderByCreatedAtAsc(booking.getId()).stream()
@@ -451,16 +485,29 @@ public class BookingService {
                 .orElse(null);
 
         int graceSeconds = config.getInt("cancellation.grace.seconds", 120);
-        boolean withinGrace = driverAcceptedAt != null
-                && Instant.now().isBefore(driverAcceptedAt.plusSeconds(graceSeconds));
-        if (withinGrace) {
-            return Map.of("cancellationFee", 0, "currency", booking.getCurrency());
+        Instant freeUntil = driverAcceptedAt == null ? null : driverAcceptedAt.plusSeconds(graceSeconds);
+        if (freeUntil != null && Instant.now().isBefore(freeUntil)) {
+            return new CancellationAssessment(0, freeUntil);
         }
 
         int fee = pricingRules.findActive(booking.getCityId(), booking.getVehicleType(), Instant.now())
                 .map(rule -> (int) rule.getCancellationFee())
                 .orElse(0);
-        return Map.of("cancellationFee", fee, "currency", booking.getCurrency());
+        return new CancellationAssessment(fee, null);
+    }
+
+    /** docs/api/booking.md section 5: the rider sees the fee before confirming a cancel. Own booking only. */
+    @Transactional(readOnly = true)
+    public CancellationPreviewResponse cancellationPreview(UUID userId, UUID bookingId) {
+        Customer customer = resolveCustomer(userId);
+        Booking booking = bookings.findById(bookingId)
+                .filter(b -> b.getCustomerId().equals(customer.getId()))
+                .orElseThrow(ResourceNotFoundException::new);
+        if (!BookingStateMachine.isCancellable(booking.getStatus())) {
+            return new CancellationPreviewResponse(false, 0, booking.getCurrency(), null);
+        }
+        CancellationAssessment assessment = cancellationFeeNow(booking);
+        return new CancellationPreviewResponse(true, assessment.fee(), booking.getCurrency(), assessment.freeUntil());
     }
 
     private City resolveCity(double latitude, double longitude) {
@@ -498,7 +545,7 @@ public class BookingService {
         int speedKmh = config.getInt("maps.mock.average.speed.kmh", 25);
         double hours = (distanceMeters / 1000.0) / speedKmh;
         int durationSeconds = (int) Math.round(hours * 3600);
-        return new RouteOutcome((int) Math.round(distanceMeters), durationSeconds, true);
+        return new RouteOutcome((int) Math.round(distanceMeters), durationSeconds, true, null);
     }
 
     private void checkFareTolerance(long freshFare, long expectedFare, FareEstimateResponse freshEstimate) {
@@ -516,7 +563,7 @@ public class BookingService {
         return new FareEstimateResponse(
                 city.getId(), vehicleType, rule.getCurrency(),
                 route.distanceMeters(), route.durationSeconds(), route.approximate(),
-                fare.totalFare(), fare.breakdown(), rule.getId());
+                fare.totalFare(), fare.breakdown(), rule.getId(), route.polyline());
     }
 
     /** The ONE place a {@link Booking} becomes a {@link BookingDetailResponse} - every field that
@@ -538,7 +585,11 @@ public class BookingService {
                 booking.getVehicleType(), booking.getPaymentMethod(), booking.getEstimatedFare(),
                 booking.getFinalFare(), booking.getCurrency(), ridePin, driver,
                 booking.getCreatedAt(), booking.getScheduledAt(),
-                visible.contains(BookingField.CASH_CONFIRMED_AT) ? booking.getCashConfirmedAt() : null);
+                visible.contains(BookingField.CASH_CONFIRMED_AT) ? booking.getCashConfirmedAt() : null,
+                visible.contains(BookingField.PICKUP_ADDRESS_EXACT) ? booking.getPickupLocation().getY() : null,
+                visible.contains(BookingField.PICKUP_ADDRESS_EXACT) ? booking.getPickupLocation().getX() : null,
+                visible.contains(BookingField.DESTINATION_ADDRESS_EXACT) ? booking.getDestinationLocation().getY() : null,
+                visible.contains(BookingField.DESTINATION_ADDRESS_EXACT) ? booking.getDestinationLocation().getX() : null);
     }
 
     /** History list items omit {@code ridePin} and driver detail (docs/api/booking.md section 6). */
@@ -547,7 +598,7 @@ public class BookingService {
                 booking.getId(), booking.getStatus(), booking.getPickupAddress(), booking.getDestinationAddress(),
                 booking.getVehicleType(), booking.getPaymentMethod(), booking.getEstimatedFare(),
                 booking.getFinalFare(), booking.getCurrency(), null, null,
-                booking.getCreatedAt(), booking.getScheduledAt(), null);
+                booking.getCreatedAt(), booking.getScheduledAt(), null, null, null, null, null);
     }
 
     private DriverSummaryResponse buildDriverSummary(UUID driverId) {
@@ -572,6 +623,6 @@ public class BookingService {
         return customers.findByUserId(userId).orElseThrow(ResourceNotFoundException::new);
     }
 
-    private record RouteOutcome(int distanceMeters, int durationSeconds, boolean approximate) {
+    private record RouteOutcome(int distanceMeters, int durationSeconds, boolean approximate, String polyline) {
     }
 }

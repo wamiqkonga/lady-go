@@ -1,100 +1,74 @@
 package com.ladygo.customer.login
 
+import com.ladygo.customer.auth.AuthOutcome
 import com.ladygo.customer.auth.AuthRepository
-import com.ladygo.customer.auth.RequestOtpOutcome
-import com.ladygo.customer.auth.VerifyOtpOutcome
 import com.ladygo.customer.testing.MainDispatcherRule
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val authRepository = mockk<AuthRepository>()
-    private val viewModel = LoginViewModel(authRepository)
+    private val repository = mockk<AuthRepository>()
+    private val viewModel = LoginViewModel(repository)
 
     @Test
-    fun startsOnPhoneEntry() {
-        assertEquals(LoginStep.PHONE_ENTRY, viewModel.uiState.value.step)
+    fun theButtonStaysOffUntilBothFieldsAreFilled() {
+        assertFalse(viewModel.uiState.value.canSubmit)
+        viewModel.onIdentifierChanged("asha@example.com")
+        assertFalse(viewModel.uiState.value.canSubmit)
+        viewModel.onPasswordChanged("Sunrise2026")
+        assertTrue(viewModel.uiState.value.canSubmit)
     }
 
     @Test
-    fun requestingAnOtpMovesToCodeEntryOnSuccess() =
+    fun aSuccessfulLoginIsReported() =
         runTest {
-            coEvery { authRepository.requestOtp("+14155550100") } returns RequestOtpOutcome.Sent
-            viewModel.onPhoneChanged("+14155550100")
+            coEvery { repository.login("asha@example.com", "Sunrise2026") } returns AuthOutcome.Success
+            viewModel.onIdentifierChanged(" asha@example.com ")
+            viewModel.onPasswordChanged("Sunrise2026")
 
-            viewModel.onRequestOtp()
-            testScheduler.advanceUntilIdle()
+            viewModel.onLogin()
+            advanceUntilIdle()
 
-            assertEquals(LoginStep.CODE_ENTRY, viewModel.uiState.value.step)
+            assertTrue(viewModel.uiState.value.loggedIn)
+            assertFalse(viewModel.uiState.value.isLoading)
+        }
+
+    @Test
+    fun aFailureShowsTheMessageAndClearsWhenSheTypesAgain() =
+        runTest {
+            coEvery { repository.login(any(), any()) } returns AuthOutcome.Failed("Incorrect email, phone or password.")
+            viewModel.onIdentifierChanged("asha@example.com")
+            viewModel.onPasswordChanged("wrong")
+
+            viewModel.onLogin()
+            advanceUntilIdle()
+            assertEquals("Incorrect email, phone or password.", viewModel.uiState.value.error)
+            assertFalse(viewModel.uiState.value.loggedIn)
+
+            viewModel.onPasswordChanged("Sunrise2026")
             assertNull(viewModel.uiState.value.error)
         }
 
     @Test
-    fun requestingAnOtpSurfacesTheServerErrorAndStaysOnPhoneEntry() =
+    fun nothingIsSentWithAnEmptyForm() =
         runTest {
-            coEvery { authRepository.requestOtp(any()) } returns RequestOtpOutcome.Failed("Too many requests.")
-            viewModel.onPhoneChanged("+14155550100")
+            viewModel.onLogin()
+            advanceUntilIdle()
 
-            viewModel.onRequestOtp()
-            testScheduler.advanceUntilIdle()
-
-            assertEquals(LoginStep.PHONE_ENTRY, viewModel.uiState.value.step)
-            assertEquals("Too many requests.", viewModel.uiState.value.error)
+            coVerify(exactly = 0) { repository.login(any(), any()) }
         }
-
-    @Test
-    fun requestingAnOtpWithABlankPhoneIsANoOp() =
-        runTest {
-            viewModel.onRequestOtp()
-            testScheduler.advanceUntilIdle()
-
-            coVerify(exactly = 0) { authRepository.requestOtp(any()) }
-        }
-
-    @Test
-    fun verifyingAnOtpFlagsLoggedInOnSuccess() =
-        runTest {
-            coEvery { authRepository.verifyOtp("+14155550100", "123456") } returns VerifyOtpOutcome.LoggedIn
-            viewModel.onPhoneChanged("+14155550100")
-            viewModel.onCodeChanged("123456")
-
-            viewModel.onVerifyOtp()
-            testScheduler.advanceUntilIdle()
-
-            assertTrue(viewModel.uiState.value.loggedIn)
-        }
-
-    @Test
-    fun verifyingAWrongCodeSurfacesTheErrorAndDoesNotLogIn() =
-        runTest {
-            coEvery { authRepository.verifyOtp(any(), any()) } returns VerifyOtpOutcome.Failed("That code is wrong.")
-            viewModel.onPhoneChanged("+14155550100")
-            viewModel.onCodeChanged("000000")
-
-            viewModel.onVerifyOtp()
-            testScheduler.advanceUntilIdle()
-
-            assertEquals("That code is wrong.", viewModel.uiState.value.error)
-            assertEquals(false, viewModel.uiState.value.loggedIn)
-        }
-
-    @Test
-    fun goingBackToPhoneEntryClearsTheCodeAndError() {
-        viewModel.onCodeChanged("123456")
-
-        viewModel.onBackToPhoneEntry()
-
-        assertEquals(LoginStep.PHONE_ENTRY, viewModel.uiState.value.step)
-        assertEquals("", viewModel.uiState.value.code)
-    }
 }

@@ -1,10 +1,12 @@
 package com.ladygo.driver.login.ui
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import com.ladygo.driver.auth.BlockedReason
 import com.ladygo.driver.login.LoginStep
 import com.ladygo.driver.login.LoginUiState
 import org.junit.Assert.assertFalse
@@ -145,5 +147,59 @@ class LoginScreenTest {
 
         composeRule.onNodeWithText("Sign in").performClick()
         assertFalse(signedIn)
+    }
+
+    private fun showBlocked(
+        reason: BlockedReason,
+        onDismissBlocked: () -> Unit = {},
+    ) = composeRule.setContent {
+        LoginContent(
+            state = LoginUiState(blocked = reason),
+            onPhoneChanged = {},
+            onCodeChanged = {},
+            onRequestOtp = {},
+            onVerifyOtp = {},
+            onBackToPhoneEntry = {},
+            onDismissBlocked = onDismissBlocked,
+        )
+    }
+
+    @Test
+    fun aDriverUnderReviewIsToldSoAndGivenTheSupportEmail() {
+        showBlocked(BlockedReason.UNDER_REVIEW)
+
+        composeRule.onNodeWithText("Your documents are under review").assertExists()
+        composeRule.onNodeWithTag("blocked_support_email").assertExists()
+        composeRule.onNodeWithText("supportladygo@gmail.com").assertExists()
+        composeRule.onNodeWithText("Send code").assertDoesNotExist()
+    }
+
+    @Test
+    fun aNotRegisteredDriverIsSentToTheWebsite() {
+        showBlocked(BlockedReason.NOT_REGISTERED)
+        composeRule.onNodeWithText("Finish registering on our website").assertExists()
+    }
+
+    @Test
+    fun aRejectedOrSuspendedDriverIsToldToContactSupport() {
+        showBlocked(BlockedReason.REJECTED)
+        composeRule.onNodeWithText("Your application was not approved").assertExists()
+        composeRule.onNodeWithText("supportladygo@gmail.com").assertExists()
+    }
+
+    @Test
+    fun aSuspendedDriverIsToldToContactSupport() {
+        showBlocked(BlockedReason.SUSPENDED)
+        composeRule.onNodeWithText("Your account is suspended").assertExists()
+    }
+
+    @Test
+    fun backToLoginLeavesTheBlockedScreen() {
+        var dismissed = false
+        showBlocked(BlockedReason.REJECTED) { dismissed = true }
+
+        composeRule.onNodeWithText("Back to log in").performScrollTo().performClick()
+
+        assertTrue(dismissed)
     }
 }

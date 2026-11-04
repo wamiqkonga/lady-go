@@ -32,6 +32,7 @@ import com.squareup.moshi.JsonClass
  * @param estimatedFare 
  * @param breakdown 
  * @param pricingRuleId 
+ * @param routePolyline 
  */
 
 
@@ -62,7 +63,10 @@ data class FareEstimateResponse (
     val breakdown: FareBreakdown? = null,
 
     @Json(name = "pricingRuleId")
-    val pricingRuleId: java.util.UUID? = null
+    val pricingRuleId: java.util.UUID? = null,
+
+    @Json(name = "routePolyline")
+    val routePolyline: kotlin.String? = null
 
 ) {
 

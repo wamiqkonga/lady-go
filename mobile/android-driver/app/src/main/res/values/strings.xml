@@ -79,6 +79,19 @@
     <string name="login_use_password_instead">Sign in with password</string>
     <string name="login_code_title">Check your messages</string>
     <string name="login_privacy_note">We only use your number to sign you in and keep your account safe.</string>
+    <string name="support_email">supportladygo@gmail.com</string>
+    <string name="blocked_review_title">Your documents are under review</string>
+    <string name="blocked_review_body">Our team is checking your documents. You will be able to log in once you are approved. If it has been a while, or you have a question, please contact us.</string>
+    <string name="blocked_register_title">Finish registering on our website</string>
+    <string name="blocked_register_body">We could not find a completed driver registration for these details. Please register and upload your documents on our website first, then come back here to log in.</string>
+    <string name="blocked_rejected_title">Your application was not approved</string>
+    <string name="blocked_rejected_body">Please contact our support team to find out why and what you can do next.</string>
+    <string name="blocked_suspended_title">Your account is suspended</string>
+    <string name="blocked_suspended_body">Please contact our support team to find out why and what you can do next.</string>
+    <string name="blocked_contact_label">Contact us</string>
+    <string name="blocked_email_action">Email support</string>
+    <string name="blocked_email_subject">Lady Go driver account</string>
+    <string name="blocked_back_action">Back to log in</string>
 
     <string name="home_chip_online">Online</string>
     <string name="home_chip_offline">Offline</string>
@@ -231,4 +244,22 @@
     <string name="rides_payment_cash">Cash</string>
     <string name="rides_payment_online">Online</string>
     <string name="rides_payment_unknown">Not recorded</string>
+    <string name="map_offer_description">Map of the area where the rider is waiting.</string>
+    <string name="map_ride_description">Map showing your position, the pickup and the destination.</string>
+    <string name="map_home_description">Map showing where you are.</string>
+    <string name="notification_channel_ride_updates">Ride updates</string>
+    <string name="notification_channel_ride_updates_description">Your driver, pickup and ride status.</string>
+
+    <!-- SOS -->
+    <string name="sos_action">SOS</string>
+    <string name="sos_confirm_title">Send an SOS?</string>
+    <string name="sos_confirm_body">This alerts the Lady Go safety team with your live location. In danger right now, call 112 first.</string>
+    <string name="sos_confirm_action">Send SOS</string>
+    <string name="sos_cancel_action">Not now</string>
+    <string name="sos_sending">Alerting the safety team…</string>
+    <string name="sos_sent_title">The safety team has been alerted</string>
+    <string name="sos_sent_body">They can see where you are. If you are in danger, call 112 now.</string>
+    <string name="sos_failed_title">We could not send the SOS</string>
+    <string name="sos_close_action">Close</string>
+    <string name="sos_call_112_action">Call 112</string>
 </resources>

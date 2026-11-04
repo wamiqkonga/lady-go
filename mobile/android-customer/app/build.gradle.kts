@@ -26,6 +26,12 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.google.services) apply false
+}
+
+// Without the Firebase config file the app still builds and runs, with push switched off.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 apply(plugin = "org.openapi.generator")
@@ -305,6 +311,9 @@ dependencies {
     implementation(libs.play.services.location)
     implementation(libs.play.services.maps)
     implementation(libs.maps.compose)
+    // Push (FCM). Delivery needs app/google-services.json, which is not committed (see docs/development/push-notifications-setup.md).
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
     // Front-camera ride selfie (required once per booking).
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)

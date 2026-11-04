@@ -37,6 +37,44 @@ class DriverBookingControllerIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void theAssignedDriverGetsTheRoadToThePickupAndTheDestination() throws Exception {
+        City city = newCity();
+        Driver driver = newDriver(city);
+        Booking booking = newBooking(newCustomer(), city, BookingStatus.DRIVER_ACCEPTED, driver.getId());
+        String token = tokenFor(driver.getUserId(), UserRole.DRIVER);
+
+        for (String leg : new String[] {"PICKUP", "DESTINATION"}) {
+            mockMvc.perform(get("/api/v1/drivers/me/bookings/" + booking.getId() + "/route")
+                            .param("fromLatitude", "34.08").param("fromLongitude", "74.79").param("leg", leg)
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.polyline").isNotEmpty())
+                    .andExpect(jsonPath("$.data.distanceMeters").isNumber());
+        }
+    }
+
+    @Test
+    void theRouteIsOnlyForTheDriverOnThatBookingAndNeedsValidCoordinates() throws Exception {
+        City city = newCity();
+        Driver driver = newDriver(city);
+        Driver stranger = newDriver(city);
+        Booking booking = newBooking(newCustomer(), city, BookingStatus.DRIVER_ACCEPTED, driver.getId());
+
+        mockMvc.perform(get("/api/v1/drivers/me/bookings/" + booking.getId() + "/route")
+                        .param("fromLatitude", "34.08").param("fromLongitude", "74.79")
+                        .header("Authorization", "Bearer " + tokenFor(stranger.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/drivers/me/bookings/" + booking.getId() + "/route")
+                        .param("fromLatitude", "134.08").param("fromLongitude", "74.79")
+                        .header("Authorization", "Bearer " + tokenFor(driver.getUserId(), UserRole.DRIVER)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/drivers/me/bookings/" + booking.getId() + "/route")
+                        .param("fromLatitude", "34.08").param("fromLongitude", "74.79")
+                        .header("Authorization", "Bearer " + tokenFor(newCustomer().getUserId(), UserRole.CUSTOMER)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void customerCannotCallTheDriverOnlyCancelEligibilityConcernEndpoint() throws Exception {
         City city = newCity();
         Customer customer = newCustomer();

@@ -7,6 +7,7 @@ import okhttp3.RequestBody
 import com.squareup.moshi.Json
 
 import com.ladygo.driver.api.generated.models.ApiResponseBookingDetailResponse
+import com.ladygo.driver.api.generated.models.ApiResponseRideLegRouteResponse
 import com.ladygo.driver.api.generated.models.ApiResponseURI
 import com.ladygo.driver.api.generated.models.CancelBookingRequest
 
@@ -50,5 +51,21 @@ interface DriverBookingControllerApi {
      */
     @GET("api/v1/drivers/me/bookings/{id}/rider-selfie")
     suspend fun riderSelfie(@Path("id") id: java.util.UUID): Response<ApiResponseURI>
+
+    /**
+     * GET api/v1/drivers/me/bookings/{id}/route
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @param id 
+     * @param fromLatitude 
+     * @param fromLongitude 
+     * @param leg  (optional, default to "PICKUP")
+     * @return [ApiResponseRideLegRouteResponse]
+     */
+    @GET("api/v1/drivers/me/bookings/{id}/route")
+    suspend fun route(@Path("id") id: java.util.UUID, @Query("fromLatitude") fromLatitude: kotlin.Double, @Query("fromLongitude") fromLongitude: kotlin.Double, @Query("leg") leg: kotlin.String? = "PICKUP"): Response<ApiResponseRideLegRouteResponse>
 
 }

@@ -100,6 +100,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["register"];
+        delete: operations["unregister"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/maps/reverse-geocode": {
         parameters: {
             query?: never;
@@ -126,6 +142,22 @@ export interface paths {
         get: operations["getProfile_1"];
         put?: never;
         post: operations["bootstrapProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/me/sos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverSos"];
         delete?: never;
         options?: never;
         head?: never;
@@ -350,6 +382,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["rateRider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/customers/me/sos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["customerSos"];
         delete?: never;
         options?: never;
         head?: never;
@@ -772,6 +820,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/driver/app/password/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driverAppPasswordLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/driver-app/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verifyDriverAppOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/customer/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["register_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/customer/register/otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["requestRegistrationOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/customer/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/customer/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/customer/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/admin/step-up": {
         parameters: {
             query?: never;
@@ -813,7 +973,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["resetPassword"];
+        post: operations["resetPassword_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -829,7 +989,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["forgotPassword"];
+        post: operations["forgotPassword_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -941,7 +1101,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["login"];
+        post: operations["login_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1172,6 +1332,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/drivers/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suspendDriver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/drivers/{id}/reject": {
         parameters: {
             query?: never;
@@ -1198,6 +1374,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["approveDriver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["activateDriver"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1412,6 +1604,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drivers/me/bookings/{id}/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["route"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drivers/me/bookings/{id}/rider-selfie": {
         parameters: {
             query?: never;
@@ -1468,6 +1676,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/driver-location": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driverLocation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/{id}/cancellation-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cancellationPreview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1556,6 +1796,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/safety-incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["openIncidents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/rides": {
         parameters: {
             query?: never;
@@ -1628,6 +1884,38 @@ export interface paths {
             cookie?: never;
         };
         get: operations["listOpenReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listDrivers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/drivers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDriver"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1759,70 +2047,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["revokeTripShare"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/drivers/{id}/suspend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["suspendDriver"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/drivers/{id}/activate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["activateDriver"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/drivers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listDrivers"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/drivers/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getDriver"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2001,6 +2225,19 @@ export interface components {
             /** Format: date-time */
             timestamp?: string;
         };
+        RegisterDeviceRequest: {
+            token: string;
+            /** @enum {string} */
+            platform: "ANDROID" | "IOS";
+        };
+        ApiResponseVoid: {
+            success?: boolean;
+            data?: unknown;
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
         ReverseGeocodeRequest: {
             /** Format: double */
             latitude: number;
@@ -2043,6 +2280,29 @@ export interface components {
             cityId?: string;
             /** @enum {string} */
             verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+        };
+        SosRequest: {
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
+            /** Format: uuid */
+            bookingId?: string;
+            notes?: string;
+        };
+        ApiResponseSosResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SosResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        SosResponse: {
+            /** Format: uuid */
+            incidentId?: string;
+            /** Format: date-time */
+            createdAt?: string;
         };
         ApiResponseDriverDocumentResponse: {
             success?: boolean;
@@ -2103,6 +2363,14 @@ export interface components {
             scheduledAt?: string;
             /** Format: date-time */
             cashConfirmedAt?: string;
+            /** Format: double */
+            pickupLatitude?: number;
+            /** Format: double */
+            pickupLongitude?: number;
+            /** Format: double */
+            destinationLatitude?: number;
+            /** Format: double */
+            destinationLongitude?: number;
         };
         DriverSummaryResponse: {
             /** Format: uuid */
@@ -2121,14 +2389,6 @@ export interface components {
         };
         OfferRejectRequest: {
             reason?: string;
-        };
-        ApiResponseVoid: {
-            success?: boolean;
-            data?: unknown;
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
         };
         DriverLocationRequest: {
             /** Format: double */
@@ -2280,6 +2540,7 @@ export interface components {
             breakdown?: components["schemas"]["FareBreakdown"];
             /** Format: uuid */
             pricingRuleId?: string;
+            routePolyline?: string;
         };
         EligibilityReportRequest: {
             reason: string;
@@ -2341,7 +2602,7 @@ export interface components {
             phone: string;
             code: string;
             /** @enum {string} */
-            purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA";
+            purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA" | "REGISTER" | "PASSWORD_RESET";
             /** @enum {string} */
             intendedRole: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
             deviceId?: string;
@@ -2357,7 +2618,7 @@ export interface components {
         OtpRequestRequest: {
             phone: string;
             /** @enum {string} */
-            purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA";
+            purpose: "LOGIN" | "PHONE_VERIFY" | "ADMIN_MFA" | "REGISTER" | "PASSWORD_RESET";
             /** @enum {string} */
             intendedRole: "CUSTOMER" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT";
             challengeToken?: string;
@@ -2397,6 +2658,39 @@ export interface components {
         DriverPasswordChangeRequest: {
             currentPassword: string;
             newPassword: string;
+        };
+        DriverAppVerifyRequest: {
+            phone: string;
+            code: string;
+            deviceId?: string;
+        };
+        CustomerRegisterRequest: {
+            phone: string;
+            /** Format: email */
+            email: string;
+            code: string;
+            password: string;
+            deviceId?: string;
+        };
+        RegisterOtpRequest: {
+            phone: string;
+            /** Format: email */
+            email: string;
+        };
+        ResetPasswordRequest: {
+            /** Format: email */
+            email: string;
+            code: string;
+            newPassword: string;
+        };
+        ForgotPasswordRequest: {
+            /** Format: email */
+            email: string;
+        };
+        CustomerLoginRequest: {
+            identifier: string;
+            password: string;
+            deviceId?: string;
         };
         MfaEnrollConfirmRequest: {
             code: string;
@@ -2629,6 +2923,9 @@ export interface components {
             status?: "OPEN" | "REVIEWED" | "DISMISSED" | "ACTIONED";
             /** Format: date-time */
             createdAt?: string;
+        };
+        AdminDriverActionRequest: {
+            reason: string;
         };
         ApiResponseDriverDocumentAdminResponse: {
             success?: boolean;
@@ -2911,6 +3208,21 @@ export interface components {
             /** Format: date-time */
             acceptedAt?: string;
         };
+        ApiResponseRideLegRouteResponse: {
+            success?: boolean;
+            data?: components["schemas"]["RideLegRouteResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        RideLegRouteResponse: {
+            polyline?: string;
+            /** Format: int32 */
+            distanceMeters?: number;
+            /** Format: int32 */
+            durationSeconds?: number;
+        };
         ApiResponseURI: {
             success?: boolean;
             /** Format: uri */
@@ -2968,6 +3280,39 @@ export interface components {
             id?: string;
             name?: string;
             country?: string;
+        };
+        ApiResponseDriverLocationForRiderResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverLocationForRiderResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverLocationForRiderResponse: {
+            live?: boolean;
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ApiResponseCancellationPreviewResponse: {
+            success?: boolean;
+            data?: components["schemas"]["CancellationPreviewResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        CancellationPreviewResponse: {
+            cancellable?: boolean;
+            /** Format: int64 */
+            fee?: number;
+            currency?: string;
+            /** Format: date-time */
+            freeUntil?: string;
         };
         ApiResponseDriverPasswordStatusResponse: {
             success?: boolean;
@@ -3037,6 +3382,34 @@ export interface components {
             needsAcknowledging?: number;
             /** Format: int64 */
             critical?: number;
+        };
+        ApiResponseListSafetyIncidentResponse: {
+            success?: boolean;
+            data?: components["schemas"]["SafetyIncidentResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        SafetyIncidentResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            reporterId?: string;
+            /** Format: uuid */
+            bookingId?: string;
+            /** Format: uuid */
+            rideId?: string;
+            type?: string;
+            severity?: string;
+            status?: string;
+            /** Format: double */
+            latitude?: number;
+            /** Format: double */
+            longitude?: number;
+            notes?: string;
+            /** Format: date-time */
+            createdAt?: string;
         };
         AdminRideSummaryResponse: {
             /** Format: uuid */
@@ -3251,132 +3624,6 @@ export interface components {
             /** Format: int32 */
             totalPages?: number;
         };
-        ApiResponseDriverReviewSummaryResponse: {
-            success?: boolean;
-            data?: components["schemas"]["DriverReviewSummaryResponse"];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        DriverReviewSummaryResponse: {
-            /** Format: uuid */
-            driverId?: string;
-            driverName?: string;
-            driverPhoneMasked?: string;
-            /** @enum {string} */
-            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
-            declarationAccepted?: boolean;
-            vehicle?: components["schemas"]["VehicleAdminResponse"];
-            documents?: components["schemas"]["DriverDocumentAdminResponse"][];
-            readyForApproval?: boolean;
-            missingRequirements?: string[];
-        };
-        VehicleAdminResponse: {
-            /** Format: uuid */
-            id?: string;
-            registrationNumber?: string;
-            /** @enum {string} */
-            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
-            /** @enum {string} */
-            verificationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
-        };
-        ApiResponsePageResponseDriverDocumentAdminResponse: {
-            success?: boolean;
-            data?: components["schemas"]["PageResponseDriverDocumentAdminResponse"];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        PageResponseDriverDocumentAdminResponse: {
-            content?: components["schemas"]["DriverDocumentAdminResponse"][];
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
-        };
-        AdminCustomerSummaryResponse: {
-            /** Format: uuid */
-            id?: string;
-            name?: string;
-            phoneMasked?: string;
-            /** @enum {string} */
-            status?: "ACTIVE" | "SUSPENDED" | "DELETED";
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            lastLoginAt?: string;
-        };
-        ApiResponsePageResponseAdminCustomerSummaryResponse: {
-            success?: boolean;
-            data?: components["schemas"]["PageResponseAdminCustomerSummaryResponse"];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        PageResponseAdminCustomerSummaryResponse: {
-            content?: components["schemas"]["AdminCustomerSummaryResponse"][];
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
-        };
-        ApiResponseListAdminConfigEntryResponse: {
-            success?: boolean;
-            data?: components["schemas"]["AdminConfigEntryResponse"][];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        AdminAuditLogResponse: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            actorId?: string;
-            actorRole?: string;
-            action?: string;
-            targetType?: string;
-            targetId?: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
-            ip?: string;
-            /** Format: date-time */
-            createdAt?: string;
-        };
-        ApiResponsePageResponseAdminAuditLogResponse: {
-            success?: boolean;
-            data?: components["schemas"]["PageResponseAdminAuditLogResponse"];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        PageResponseAdminAuditLogResponse: {
-            content?: components["schemas"]["AdminAuditLogResponse"][];
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            size?: number;
-            /** Format: int64 */
-            totalElements?: number;
-            /** Format: int32 */
-            totalPages?: number;
-        };
-        AdminDriverActionRequest: {
-            reason: string;
-        };
         AdminDriverListItemResponse: {
             /** Format: uuid */
             id?: string;
@@ -3476,6 +3723,132 @@ export interface components {
             error?: components["schemas"]["ApiError"];
             /** Format: date-time */
             timestamp?: string;
+        };
+        VehicleAdminResponse: {
+            /** Format: uuid */
+            id?: string;
+            registrationNumber?: string;
+            /** @enum {string} */
+            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
+            /** @enum {string} */
+            verificationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+        };
+        ApiResponseDriverReviewSummaryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverReviewSummaryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverReviewSummaryResponse: {
+            /** Format: uuid */
+            driverId?: string;
+            driverName?: string;
+            driverPhoneMasked?: string;
+            /** @enum {string} */
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            declarationAccepted?: boolean;
+            vehicle?: components["schemas"]["VehicleAdminResponse"];
+            documents?: components["schemas"]["DriverDocumentAdminResponse"][];
+            readyForApproval?: boolean;
+            missingRequirements?: string[];
+        };
+        ApiResponsePageResponseDriverDocumentAdminResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseDriverDocumentAdminResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseDriverDocumentAdminResponse: {
+            content?: components["schemas"]["DriverDocumentAdminResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        AdminCustomerSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            phoneMasked?: string;
+            /** @enum {string} */
+            status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastLoginAt?: string;
+        };
+        ApiResponsePageResponseAdminCustomerSummaryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseAdminCustomerSummaryResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseAdminCustomerSummaryResponse: {
+            content?: components["schemas"]["AdminCustomerSummaryResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        ApiResponseListAdminConfigEntryResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminConfigEntryResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        AdminAuditLogResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            actorId?: string;
+            actorRole?: string;
+            action?: string;
+            targetType?: string;
+            targetId?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+            ip?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ApiResponsePageResponseAdminAuditLogResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseAdminAuditLogResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PageResponseAdminAuditLogResponse: {
+            content?: components["schemas"]["AdminAuditLogResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        UnregisterDeviceRequest: {
+            token: string;
         };
     };
     responses: never;
@@ -3740,6 +4113,54 @@ export interface operations {
             };
         };
     };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterDeviceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    unregister: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnregisterDeviceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
     reverseGeocode: {
         parameters: {
             query?: never;
@@ -3804,6 +4225,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseDriverProfileResponse"];
+                };
+            };
+        };
+    };
+    driverSos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SosRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSosResponse"];
                 };
             };
         };
@@ -4190,6 +4635,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseRatingResponse"];
+                };
+            };
+        };
+    };
+    customerSos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SosRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSosResponse"];
                 };
             };
         };
@@ -4920,6 +5389,174 @@ export interface operations {
             };
         };
     };
+    driverAppPasswordLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverPasswordLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseTokenResponse"];
+                };
+            };
+        };
+    };
+    verifyDriverAppOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverAppVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseTokenResponse"];
+                };
+            };
+        };
+    };
+    register_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseTokenResponse"];
+                };
+            };
+        };
+    };
+    requestRegistrationOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterOtpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMessageResponse"];
+                };
+            };
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMessageResponse"];
+                };
+            };
+        };
+    };
+    forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMessageResponse"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseTokenResponse"];
+                };
+            };
+        };
+    };
     stepUp: {
         parameters: {
             query?: never;
@@ -4967,7 +5604,7 @@ export interface operations {
             };
         };
     };
-    resetPassword: {
+    resetPassword_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -4991,7 +5628,7 @@ export interface operations {
             };
         };
     };
-    forgotPassword: {
+    forgotPassword_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -5150,7 +5787,7 @@ export interface operations {
             };
         };
     };
-    login: {
+    login_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -5540,6 +6177,32 @@ export interface operations {
             };
         };
     };
+    suspendDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDriverActionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
     rejectDriver: {
         parameters: {
             query?: never;
@@ -5576,6 +6239,32 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    activateDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminDriverActionRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -5885,6 +6574,32 @@ export interface operations {
             };
         };
     };
+    route: {
+        parameters: {
+            query: {
+                fromLatitude: number;
+                fromLongitude: number;
+                leg?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRideLegRouteResponse"];
+                };
+            };
+        };
+    };
     riderSelfie: {
         parameters: {
             query?: never;
@@ -5967,6 +6682,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseBookingDetailResponse"];
+                };
+            };
+        };
+    };
+    driverLocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverLocationForRiderResponse"];
+                };
+            };
+        };
+    };
+    cancellationPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseCancellationPreviewResponse"];
                 };
             };
         };
@@ -6074,6 +6833,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseSafetyOpenCountResponse"];
+                };
+            };
+        };
+    };
+    openIncidents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListSafetyIncidentResponse"];
                 };
             };
         };
@@ -6190,6 +6969,52 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePageResponseEligibilityReportAdminResponse"];
+                };
+            };
+        };
+    };
+    listDrivers: {
+        parameters: {
+            query: {
+                q?: string;
+                verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseAdminDriverListItemResponse"];
+                };
+            };
+        };
+    };
+    getDriver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminDriverDetailResponse"];
                 };
             };
         };
@@ -6373,104 +7198,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    suspendDriver: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminDriverActionRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    activateDriver: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminDriverActionRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    listDrivers: {
-        parameters: {
-            query: {
-                q?: string;
-                verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
-                pageable: components["schemas"]["Pageable"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponsePageResponseAdminDriverListItemResponse"];
-                };
-            };
-        };
-    };
-    getDriver: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseAdminDriverDetailResponse"];
                 };
             };
         };

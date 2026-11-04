@@ -1,6 +1,6 @@
 # Map experience: rider pin-drop and driver live map
 
-Status: DRAFT, 2026-10-26. Decisions 1, 3, 4 and 5 were answered on 2026-10-26 (section 7); the reverse-geocode endpoint (section 5.1) and the rider pin-drop screen (section 3) were built on 2026-10-26. The driver map, the route line on the fare screen and live driver tracking are not built. Without a Google Maps key (`MAPS_API_KEY` Gradle property) the map shows blank tiles and cannot be panned, so the pin screen has only been checked with the key missing.
+Status: BUILT, 2026-10-31. Backend (reverse-geocode, route polyline, rider driver-location), rider pin-drop, fare-screen route map, driver app maps (offer area, ride, home) and the driver's car on the rider's track screen are all implemented. Checked on an emulator with a real Maps key, except the car moving on the track screen (that screen is screenshot-blocked, so only the map's presence was confirmed, plus unit and integration tests). Still open: release key restriction (decision 6), billing owner (decision 2).
 
 ## 1. Goal
 
@@ -79,7 +79,7 @@ Rough effort: rider 1 to 2 weeks, driver about 1 week, backend about 2 to 3 days
 | 1 | Map provider | **Google Maps** (matches ADR-011 and the backend) |
 | 2 | Who owns the Google Cloud account and billing | **Still open: needs you** |
 | 3 | Rider typed search | **Keep as a shortcut** next to the pin |
-| 4 | Driver position on the rider's map in the first release | **Not in release 1.** Ship pin-drop and the driver map first; live driver tracking follows once the real-time backend is done |
+| 4 | Driver position on the rider's map in the first release | **Reversed 2026-10-31:** built now, by polling `GET /bookings/{id}/driver-location` every 5s (fresh within 60s, own booking only, active statuses only) rather than WebSocket |
 | 5 | Pickup precision | **Free drop**, no snapping to roads |
 | 6 | Release keys | **Still open:** when the upload key and Play App Signing exist, restrict the Maps key to those SHA-1 fingerprints |
 

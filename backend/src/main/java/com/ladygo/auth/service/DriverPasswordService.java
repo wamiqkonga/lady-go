@@ -72,6 +72,7 @@ public class DriverPasswordService {
     private final ConfigurationService config;
     private final EmailSender emailSender;
     private final TransactionTemplate tx;
+    private final DriverApprovalGate approvalGate;
     private final String websiteBaseUrl;
     /** Verified against when the account does not exist, so an unknown account costs the same time as a real one. */
     private final String dummyHash;
@@ -81,7 +82,8 @@ public class DriverPasswordService {
             RefreshTokenService refreshTokenService, AccessTokenIssuer accessTokenIssuer,
             PasswordEncoder passwordEncoder, DriverPasswordPolicy policy, AdminLoginThrottle throttle,
             RateLimiter rateLimiter, ConfigurationService config, ObjectProvider<EmailSender> emailSenders,
-            TransactionTemplate tx, @Value("${ladygo.website.base-url:}") String websiteBaseUrl) {
+            TransactionTemplate tx, DriverApprovalGate approvalGate,
+            @Value("${ladygo.website.base-url:}") String websiteBaseUrl) {
         this.users = users;
         this.resets = resets;
         this.auditLogs = auditLogs;
@@ -93,6 +95,7 @@ public class DriverPasswordService {
         this.rateLimiter = rateLimiter;
         this.config = config;
         this.tx = tx;
+        this.approvalGate = approvalGate;
         this.emailSender = emailSenders.getIfAvailable();
         this.websiteBaseUrl = AdminPasswordResetService.validatedBaseUrl(websiteBaseUrl);
         this.dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
@@ -111,6 +114,17 @@ public class DriverPasswordService {
 
     @Transactional(noRollbackFor = {UnauthorizedException.class, ForbiddenException.class, RateLimitExceededException.class})
     public TokenPair login(String identifier, String password, String deviceId, String clientIp) {
+        return signIn(identifier, password, deviceId, clientIp, false);
+    }
+
+    /** The driver app's sign-in: the same checks as {@link #login}, then only an approved driver gets tokens. */
+    @Transactional(noRollbackFor = {UnauthorizedException.class, ForbiddenException.class, RateLimitExceededException.class,
+            DriverLoginBlockedException.class})
+    public TokenPair loginForApp(String identifier, String password, String deviceId, String clientIp) {
+        return signIn(identifier, password, deviceId, clientIp, true);
+    }
+
+    private TokenPair signIn(String identifier, String password, String deviceId, String clientIp, boolean appOnly) {
         requireEnabled();
         int perIp = config.getInt("driver.password.login.max.per.ip", 20);
         if (clientIp != null && !rateLimiter.tryConsume("driver_pwlogin_ip:" + clientIp, perIp, ATTEMPT_WINDOW)) {
@@ -139,6 +153,9 @@ public class DriverPasswordService {
         throttle.clear(key);
         if (clientIp != null) {
             rateLimiter.release("driver_pwlogin_ip:" + clientIp);
+        }
+        if (appOnly) {
+            approvalGate.requireApproved(user);
         }
         user.setLastLoginAt(Instant.now());
         users.save(user);
