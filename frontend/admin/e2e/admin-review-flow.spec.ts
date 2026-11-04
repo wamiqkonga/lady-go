@@ -14,7 +14,7 @@ test.describe('driver review flow', () => {
 
   test('the captain queue lists the seeded captain with item counts and opens the review page', async ({ page }) => {
     await loginAs(page, env!.superAdmins.QUEUE)
-    await page.getByRole('link', { name: 'Verification' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Verification' }).click()
     await expect(page.getByRole('heading', { name: 'Driver verification' })).toBeVisible()
 
     // One row per captain, not per document: the seeded captain appears once, with a wait time and item counts.
@@ -36,14 +36,14 @@ test.describe('driver review flow', () => {
     await expect(page.getByText('JK01AB1234')).toBeVisible()
 
     // The document queue is still reachable from the Documents tab.
-    await page.getByRole('link', { name: 'Verification' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Verification' }).click()
     await page.getByRole('link', { name: 'Documents' }).click()
     await expect(page).toHaveURL(/\/driver-verification\/documents$/)
     await expect(page.locator(`a[href="/driver-verification/${env!.driverId}"]`).first()).toBeVisible()
 
     // The captain queue fits a 375px phone with no sideways scrolling (one login per account: the code is single-use).
     await page.setViewportSize({ width: 375, height: 800 })
-    await page.getByRole('link', { name: 'Verification' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Verification' }).click()
     await expect(page.locator(`a[href="/driver-verification/${env!.driverId}"]`).first()).toBeVisible()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBeLessThanOrEqual(0)

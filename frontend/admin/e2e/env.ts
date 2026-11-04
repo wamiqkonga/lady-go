@@ -34,6 +34,7 @@ const SUPER_ADMIN_KEYS = [
   'CUSTOMERS',
   'DRIVERS',
   'DASHBOARD',
+  'DASHBOARDMOBILE',
 ] as const
 
 type SuperAdminKey = (typeof SUPER_ADMIN_KEYS)[number]
