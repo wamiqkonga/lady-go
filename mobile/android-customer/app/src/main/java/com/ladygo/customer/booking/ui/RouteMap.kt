@@ -20,7 +20,6 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.ladygo.customer.R
@@ -86,12 +85,12 @@ fun RouteMap(
                 pattern = if (route.isEmpty()) listOf(Dash(DASH_LENGTH), Gap(DASH_LENGTH)) else null,
             )
             Marker(
-                state = MarkerState(LatLng(pickup.latitude, pickup.longitude)),
+                state = rememberMarkerAt(LatLng(pickup.latitude, pickup.longitude)),
                 icon = pickupIcon,
                 anchor = Offset(0.5f, 0.5f),
             )
             Marker(
-                state = MarkerState(LatLng(destination.latitude, destination.longitude)),
+                state = rememberMarkerAt(LatLng(destination.latitude, destination.longitude)),
                 icon = destinationIcon,
                 anchor = Offset(0.5f, 1f),
             )
