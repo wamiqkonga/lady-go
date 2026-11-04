@@ -22,7 +22,7 @@ class DatabaseMigrationTest {
         String latest = jdbc.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",
                 String.class);
-        assertThat(applied).isEqualTo(42);
+        assertThat(applied).isEqualTo(43);
         assertThat(latest).isEqualTo("46");
     }
 
