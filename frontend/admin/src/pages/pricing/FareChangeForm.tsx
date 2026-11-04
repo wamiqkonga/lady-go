@@ -44,6 +44,13 @@ function formatSample(preview: Preview['samples'] extends (infer S)[] | undefine
   return `${((preview.distanceMeters ?? 0) / 1000).toFixed(0)} km / ${Math.round((preview.durationSeconds ?? 0) / 60)} min`
 }
 
+/** The value format a datetime-local input takes (local time, no seconds). */
+function localInputValue(epochMs: number): string {
+  const d = new Date(epochMs)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export default function FareChangeForm({ cityId, vehicleType, view, onClose, onSaved }: Props) {
   const { runWithStepUp } = useStepUp()
   const current = view.current
@@ -80,8 +87,15 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
     const d = new Date(laterAt)
     return Number.isNaN(d.getTime()) ? undefined : d.toISOString()
   }, [when, laterAt])
+  const maxDays = view.limits?.scheduleMaxDays ?? 90
   const laterProblem =
-    when === 'later' && (!laterIso || new Date(laterIso).getTime() <= Date.now()) ? 'Choose a time in the future.' : null
+    when !== 'later'
+      ? null
+      : !laterIso || new Date(laterIso).getTime() <= Date.now()
+        ? 'Choose a time in the future.'
+        : new Date(laterIso).getTime() > Date.now() + maxDays * 86_400_000
+          ? `Choose a time within the next ${maxDays} days.`
+          : null
 
   const body = useMemo(() => {
     if (!parsed.complete || parsed.pct === undefined) return null
@@ -189,9 +203,15 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
             {when === 'later' && (
               <label>
                 Start time
-                <input type="datetime-local" value={laterAt} onChange={(e) => setLaterAt(e.target.value)} />
+                <input
+                  type="datetime-local"
+                  value={laterAt}
+                  max={localInputValue(Date.now() + maxDays * 86_400_000)}
+                  onChange={(e) => setLaterAt(e.target.value)}
+                />
               </label>
             )}
+            {when === 'later' && <p className="muted">A fare can be scheduled at most {maxDays} days ahead.</p>}
             {laterProblem && <p className="field-error">{laterProblem}</p>}
           </fieldset>
 

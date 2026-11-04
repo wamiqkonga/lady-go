@@ -175,13 +175,84 @@ class AdminPricingRuleControllerIntegrationTest extends PricingRuleHttpSupport {
     }
 
     @Test
-    void zeroIsAllowedForEveryField() throws Exception {
+    void zeroIsAllowedForServiceFeeAndCancellationFeeAndForAnySingleChargeField() throws Exception {
         City city = newCity();
         Map<String, Object> zero = createBody(city.getId(), "BIKE", null, "first fare");
-        for (String f : List.of("baseFare", "perKm", "perMinute", "minimumFare", "cancellationFee", "serviceFeePct", "serviceFeeFlat")) {
+        for (String f : List.of("baseFare", "perKm", "perMinute", "cancellationFee", "serviceFeePct", "serviceFeeFlat")) {
             zero.put(f, 0);
         }
+        // minimum fare stays above zero: the fare still charges something
         create(superAdmin(), zero).andExpect(status().isCreated());
+    }
+
+    @Test
+    void anAllZeroFareIsRefusedOnCreateEvenAsAFirstFareWithNoGuardToCompareWith() throws Exception {
+        City city = newCity();
+        Map<String, Object> free = createBody(city.getId(), "BIKE", null, "free rides");
+        for (String f : List.of("baseFare", "perKm", "perMinute", "minimumFare")) {
+            free.put(f, 0);
+        }
+
+        create(superAdmin(), free).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("must charge something")));
+
+        assertThat(ruleCount(city)).isZero();
+    }
+
+    @Test
+    void anAllZeroFareIsRefusedOnAChangeToo() throws Exception {
+        City city = newCity();
+        PricingRule current = newPricingRule(city, VehicleType.BIKE);
+        Map<String, Object> free = createBody(city.getId(), "BIKE", current.getId(), "free rides");
+        for (String f : List.of("baseFare", "perKm", "perMinute", "minimumFare")) {
+            free.put(f, 0);
+        }
+        free.put("confirmLargeChange", true);
+
+        create(superAdmin(), free).andExpect(status().isBadRequest());
+
+        assertThat(pricingRules.findById(current.getId()).orElseThrow().getEffectiveTo()).isNull();
+    }
+
+    @Test
+    void anAllZeroFareIsRefusedOnPreview() throws Exception {
+        City city = newCity();
+        Map<String, Object> free = body(city.getId(), "BIKE");
+        for (String f : List.of("baseFare", "perKm", "perMinute", "minimumFare")) {
+            free.put(f, 0);
+        }
+
+        postJson(BASE + "/preview", superAdmin(), free).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("must charge something")));
+    }
+
+    @Test
+    void aChangeScheduledWithinTheMaximumLeadIsAcceptedAndOneBeyondItIsRefused() throws Exception {
+        City city = newCity();
+        PricingRule current = newPricingRule(city, VehicleType.BIKE); // default maximum lead: 90 days
+        Map<String, Object> late = createBody(city.getId(), "BIKE", current.getId(), "too far");
+        late.put("effectiveFrom", Instant.now().plus(90, ChronoUnit.DAYS).plus(5, ChronoUnit.MINUTES).toString());
+
+        create(superAdmin(), late).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("90 days")));
+        assertThat(ruleCount(city)).isEqualTo(1);
+
+        Map<String, Object> inside = createBody(city.getId(), "BIKE", current.getId(), "in range");
+        inside.put("effectiveFrom", Instant.now().plus(90, ChronoUnit.DAYS).minus(5, ChronoUnit.MINUTES).toString());
+        create(superAdmin(), inside).andExpect(status().isCreated());
+    }
+
+    @Test
+    void theMaximumLeadComesFromConfigurationAndIsShownToTheScreen() throws Exception {
+        City city = newCity();
+        PricingRule current = newPricingRule(city, VehicleType.BIKE);
+        jdbc.update("UPDATE configuration SET value = '7' WHERE key = 'pricing.schedule.max.days' AND scope = 'GLOBAL'");
+        Map<String, Object> body = createBody(city.getId(), "BIKE", current.getId(), "eight days");
+        body.put("effectiveFrom", Instant.now().plus(8, ChronoUnit.DAYS).toString());
+
+        create(superAdmin(), body).andExpect(status().isBadRequest());
+        JsonNode view = json(list(superAdmin(), city.getId(), "BIKE").andExpect(status().isOk())).path("data");
+        assertThat(view.path("limits").path("scheduleMaxDays").asInt()).isEqualTo(7);
     }
 
     @Test

@@ -20,4 +20,6 @@ INSERT INTO configuration (key, value, value_type, scope, description) VALUES
     ('pricing.limit.service_fee_pct.max',        '30',     'DECIMAL', 'GLOBAL',
         'Fares: highest percentage service fee the portal accepts (0-100)'),
     ('pricing.change.confirm.pct',               '50',     'INTEGER', 'GLOBAL',
-        'Fares: a change of more than this percent in any field needs "I confirm this large change" (1-500)');
+        'Fares: a change of more than this percent in any field needs "I confirm this large change" (1-500)'),
+    ('pricing.schedule.max.days',                '90',     'INTEGER', 'GLOBAL',
+        'Fares: furthest a fare change can be scheduled ahead, in days (1-365); stops a wrong-year typo parking a change');

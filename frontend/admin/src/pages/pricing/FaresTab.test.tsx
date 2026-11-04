@@ -16,7 +16,7 @@ const fail = (code: string, message: string, status: number) => json({ success: 
 
 const limits = {
   baseFareMaxPaise: 50000, perKmMaxPaise: 10000, perMinuteMaxPaise: 2000, minimumFareMaxPaise: 100000,
-  cancellationFeeMaxPaise: 50000, serviceFeeFlatMaxPaise: 10000, serviceFeePctMax: 30,
+  cancellationFeeMaxPaise: 50000, serviceFeeFlatMaxPaise: 10000, serviceFeePctMax: 30, scheduleMaxDays: 90,
 }
 const rule = (over: Record<string, unknown> = {}) => ({
   id: 'r1', cityId: CITY, vehicleType: 'BIKE', currency: 'INR', baseFare: 3000, perKm: 1000, perMinute: 100,
@@ -274,13 +274,16 @@ describe('Fares tab: setting and changing a fare', () => {
     await user.type(start, '2020-01-01T10:00')
     expect(screen.getByText('Choose a time in the future.')).toBeInTheDocument()
     await user.clear(start)
-    await user.type(start, '2099-01-01T10:00')
+    const soon = new Date(Date.now() + 30 * 86_400_000)
+    soon.setSeconds(0, 0)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    await user.type(start, `${soon.getFullYear()}-${pad(soon.getMonth() + 1)}-${pad(soon.getDate())}T${pad(soon.getHours())}:${pad(soon.getMinutes())}`)
     await user.click(screen.getByRole('button', { name: 'Review change' }))
     await user.type(screen.getByLabelText('Reason (required)'), 'weekend')
     await user.click(screen.getByRole('button', { name: 'Save fare' }))
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/admin/pricing-rules')).toBe(true))
     const sent = calls.find((c) => c.method === 'POST' && c.path === '/api/v1/admin/pricing-rules')!.body as { effectiveFrom: string }
-    expect(sent.effectiveFrom).toMatch(/^2099-01-01T\d\d:00:00\.000Z$/)
+    expect(new Date(sent.effectiveFrom).getTime()).toBe(soon.getTime())
   })
 
   it('a server limit error from the preview is shown and blocks Review', async () => {
@@ -335,6 +338,40 @@ describe('Fares tab: setting and changing a fare', () => {
     await user.type(screen.getByLabelText('Reason (required)'), 'why')
     await user.click(screen.getByRole('button', { name: 'Save fare' }))
     expect(await screen.findByText(/changed by someone else/)).toBeInTheDocument()
+  })
+})
+
+describe('Fares tab: money controls', () => {
+  it('shows the server message when an all-zero fare is previewed', async () => {
+    const user = userEvent.setup()
+    mockApi((c) => (c.path.endsWith('/preview')
+      ? fail('VALIDATION_FAILED', 'A fare must charge something: at least one of base fare, per-km, per-minute or minimum fare must be above zero.', 400)
+      : undefined))
+    renderPricing()
+    await user.click(await screen.findByRole('button', { name: 'Change fare' }))
+    for (const label of ['Base fare (rupees)', 'Per kilometre (rupees)', 'Per minute (rupees)', 'Minimum fare (rupees)']) {
+      await user.clear(field(label))
+      await user.type(field(label), '0')
+    }
+    expect(await screen.findByText(/A fare must charge something/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review change' })).toBeDisabled()
+  })
+
+  it('shows the scheduling limit on the date picker and refuses a time beyond it', async () => {
+    const user = userEvent.setup()
+    mockApi(() => undefined)
+    renderPricing()
+    await user.click(await screen.findByRole('button', { name: 'Change fare' }))
+    await user.clear(field('Base fare (rupees)'))
+    await user.type(field('Base fare (rupees)'), '31')
+    await screen.findByRole('table', { name: 'Sample fares' })
+    await user.click(screen.getByLabelText('At a later time'))
+    expect(screen.getByText(/at most 90 days ahead/i)).toBeInTheDocument()
+    const start = field('Start time') as HTMLInputElement
+    expect(start.max).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+    await user.type(start, '2099-01-01T10:00')
+    expect(screen.getByText('Choose a time within the next 90 days.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review change' })).toBeDisabled()
   })
 })
 

@@ -29,6 +29,7 @@ import com.squareup.moshi.JsonClass
  * @param cancellationFeeMaxPaise 
  * @param serviceFeeFlatMaxPaise 
  * @param serviceFeePctMax 
+ * @param scheduleMaxDays 
  */
 
 
@@ -53,7 +54,10 @@ data class PricingRuleLimitsResponse (
     val serviceFeeFlatMaxPaise: kotlin.Long? = null,
 
     @Json(name = "serviceFeePctMax")
-    val serviceFeePctMax: java.math.BigDecimal? = null
+    val serviceFeePctMax: java.math.BigDecimal? = null,
+
+    @Json(name = "scheduleMaxDays")
+    val scheduleMaxDays: kotlin.Int? = null
 
 ) {
 

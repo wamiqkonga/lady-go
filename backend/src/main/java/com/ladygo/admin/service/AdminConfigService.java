@@ -97,7 +97,8 @@ public class AdminConfigService {
             Map.entry("pricing.limit.minimum_fare.max.paise", new long[] {1_000, 500_000}),
             Map.entry("pricing.limit.cancellation_fee.max.paise", new long[] {100, 200_000}),
             Map.entry("pricing.limit.service_fee_flat.max.paise", new long[] {0, 100_000}),
-            Map.entry("pricing.change.confirm.pct", new long[] {1, 500}));
+            Map.entry("pricing.change.confirm.pct", new long[] {1, 500}),
+            Map.entry("pricing.schedule.max.days", new long[] {1, 365}));
 
     /** Keys whose empty value means "not configured" and may be restored by an admin. */
     private static final Set<String> OPTIONAL_UNSET_KEYS = Set.of("earnings.commission.bps", "support.phone", "support.whatsapp");

@@ -3741,6 +3741,8 @@ export interface components {
             /** Format: int64 */
             serviceFeeFlatMaxPaise?: number;
             serviceFeePctMax?: number;
+            /** Format: int32 */
+            scheduleMaxDays?: number;
         };
         PricingRulesViewResponse: {
             /** Format: uuid */

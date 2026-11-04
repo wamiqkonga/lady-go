@@ -2890,6 +2890,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -2901,16 +2911,6 @@
               }
             }
           }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AdminUserReasonRequest"
-              }
-            }
-          },
-          "required": true
         }
       }
     },
@@ -9673,6 +9673,10 @@
           },
           "serviceFeePctMax": {
             "type": "number"
+          },
+          "scheduleMaxDays": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

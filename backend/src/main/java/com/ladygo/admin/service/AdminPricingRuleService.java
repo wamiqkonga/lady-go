@@ -68,6 +68,7 @@ public class AdminPricingRuleService {
     private static final int DEFAULT_SERVICE_FEE_FLAT_MAX = 10_000;
     private static final BigDecimal DEFAULT_SERVICE_FEE_PCT_MAX = new BigDecimal("30");
     private static final int DEFAULT_LARGE_CHANGE_PCT = 50;
+    private static final int DEFAULT_SCHEDULE_MAX_DAYS = 90;
 
     private final PricingRuleRepository rules;
     private final CityRepository cities;
@@ -187,6 +188,10 @@ public class AdminPricingRuleService {
         Instant from = request.effectiveFrom() == null ? now : request.effectiveFrom().truncatedTo(ChronoUnit.MICROS);
         if (from.isBefore(now)) {
             throw new ValidationException("A fare cannot start in the past.");
+        }
+        int maxDays = scheduleMaxDays();
+        if (from.isAfter(now.plus(maxDays, ChronoUnit.DAYS))) {
+            throw new ValidationException("A fare can be scheduled at most " + maxDays + " days ahead.");
         }
 
         City city = cities.findByIdForUpdate(request.cityId()).orElseThrow(ResourceNotFoundException::new);
@@ -335,6 +340,10 @@ public class AdminPricingRuleService {
         checkMoney("Minimum fare", minimumFare, limits.minimumFareMaxPaise());
         checkMoney("Cancellation fee", cancellationFee, limits.cancellationFeeMaxPaise());
         checkMoney("Flat service fee", serviceFeeFlat, limits.serviceFeeFlatMaxPaise());
+        if (baseFare == 0 && perKm == 0 && perMinute == 0 && minimumFare == 0) {
+            throw new ValidationException("A fare must charge something: at least one of base fare, per-km, "
+                    + "per-minute or minimum fare must be above zero.");
+        }
         if (serviceFeePct.stripTrailingZeros().scale() > 2) {
             throw new ValidationException("The service fee percentage can have at most two decimals.");
         }
@@ -359,7 +368,12 @@ public class AdminPricingRuleService {
                 config.getInt("pricing.limit.minimum_fare.max.paise", DEFAULT_MINIMUM_FARE_MAX),
                 config.getInt("pricing.limit.cancellation_fee.max.paise", DEFAULT_CANCELLATION_FEE_MAX),
                 config.getInt("pricing.limit.service_fee_flat.max.paise", DEFAULT_SERVICE_FEE_FLAT_MAX),
-                config.getBigDecimal("pricing.limit.service_fee_pct.max", DEFAULT_SERVICE_FEE_PCT_MAX));
+                config.getBigDecimal("pricing.limit.service_fee_pct.max", DEFAULT_SERVICE_FEE_PCT_MAX),
+                scheduleMaxDays());
+    }
+
+    private int scheduleMaxDays() {
+        return config.getInt("pricing.schedule.max.days", DEFAULT_SCHEDULE_MAX_DAYS);
     }
 
     private int largeChangePct() {
