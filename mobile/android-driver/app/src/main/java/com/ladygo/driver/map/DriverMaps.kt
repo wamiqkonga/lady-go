@@ -31,7 +31,6 @@ import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.ladygo.driver.R
@@ -118,9 +117,9 @@ fun RideMap(
             } else if (here != null && target != null) {
                 Polyline(points = listOf(here, target), color = roadColor, width = ROAD_WIDTH, pattern = listOf(Dash(DASH), Gap(DASH)))
             }
-            pickup?.let { Marker(state = MarkerState(it), icon = pickupIcon, anchor = Offset(0.5f, 0.5f)) }
-            destination?.let { Marker(state = MarkerState(it), icon = destinationIcon, anchor = Offset(0.5f, 1f)) }
-            here?.let { Marker(state = MarkerState(it), icon = scooter, anchor = Offset(0.5f, 0.85f), zIndex = 1f) }
+            pickup?.let { Marker(state = rememberMarkerAt(it), icon = pickupIcon, anchor = Offset(0.5f, 0.5f)) }
+            destination?.let { Marker(state = rememberMarkerAt(it), icon = destinationIcon, anchor = Offset(0.5f, 1f)) }
+            here?.let { Marker(state = rememberMarkerAt(it), icon = scooter, anchor = Offset(0.5f, 0.85f), zIndex = 1f) }
         }
     }
 }
@@ -142,7 +141,7 @@ fun HomeMap(modifier: Modifier = Modifier) {
             uiSettings = ReadOnlyMap,
             onMapLoaded = { loaded = true },
         ) {
-            glide?.let { Marker(state = MarkerState(it.position), icon = scooter, anchor = Offset(0.5f, 0.85f)) }
+            glide?.let { Marker(state = rememberMarkerAt(it.position), icon = scooter, anchor = Offset(0.5f, 0.85f)) }
         }
     }
 }

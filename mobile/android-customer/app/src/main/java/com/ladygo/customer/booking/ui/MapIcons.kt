@@ -159,3 +159,15 @@ object MapIcons {
         return bitmap
     }
 }
+
+/** A marker's state that follows [position] as it changes (and is remembered, as Compose requires). */
+@androidx.compose.runtime.Composable
+internal fun rememberMarkerAt(position: com.google.android.gms.maps.model.LatLng): com.google.maps.android.compose.MarkerState {
+    val state =
+        androidx.compose.runtime.remember {
+            com.google.maps.android.compose
+                .MarkerState(position)
+        }
+    state.position = position
+    return state
+}

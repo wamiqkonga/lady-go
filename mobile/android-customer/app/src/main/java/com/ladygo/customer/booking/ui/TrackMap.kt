@@ -26,7 +26,6 @@ import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.ladygo.customer.R
@@ -104,12 +103,12 @@ fun TrackMap(
                 )
             }
             Marker(
-                state = MarkerState(stopLatLng),
+                state = rememberMarkerAt(stopLatLng),
                 icon = stopIcon,
                 anchor = if (stopIsPickup) Offset(0.5f, 0.5f) else Offset(0.5f, 1f),
             )
             here?.let {
-                Marker(state = MarkerState(it), icon = scooter, anchor = Offset(0.5f, 0.85f), zIndex = 1f)
+                Marker(state = rememberMarkerAt(it), icon = scooter, anchor = Offset(0.5f, 0.85f), zIndex = 1f)
             }
         }
     }

@@ -39,7 +39,6 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.ladygo.customer.R
 import com.ladygo.customer.booking.GeoPoint
@@ -129,7 +128,7 @@ fun MapPinPicker(
         ) {
             markerAt?.let {
                 Marker(
-                    state = MarkerState(LatLng(it.latitude, it.longitude)),
+                    state = rememberMarkerAt(LatLng(it.latitude, it.longitude)),
                     icon = pickupIcon,
                     anchor =
                         androidx.compose.ui.geometry
