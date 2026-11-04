@@ -87,6 +87,16 @@ describe('AdminUserDetail', () => {
     expect((await bodyOf(fetchMock, 1)).body).toEqual({ reason: 'Left the company' })
   })
 
+  it('warns on Reactivate that a possibly compromised account needs an authenticator reset and a password reset link first', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(ok(staff({ status: 'SUSPENDED' }))))
+    renderDetail()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reactivate' })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: 'Reactivate' }))
+    expect(
+      screen.getByText(/may have been compromised, reset their authenticator and send a password reset link before reactivating/),
+    ).toBeInTheDocument()
+  })
+
   it('shows Unlock only for a locked account and sends its reason', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(ok(staff({ locked: true })))
@@ -126,7 +136,7 @@ describe('AdminUserDetail', () => {
     renderDetail()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Reset authenticator' })).toBeInTheDocument())
     await userEvent.click(screen.getByRole('button', { name: 'Reset authenticator' }))
-    expect(screen.queryByLabelText('Reason (required)')).not.toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Reason (required)'), 'Lost phone')
     await userEvent.click(screen.getByRole('button', { name: 'Confirm reset authenticator' }))
 
     const dialog = await screen.findByRole('dialog')
@@ -134,7 +144,9 @@ describe('AdminUserDetail', () => {
     await userEvent.click(dialog.querySelector('button[type="submit"]') ?? screen.getByRole('button', { name: 'Confirm' }))
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Reset authenticator' })).not.toBeInTheDocument())
-    expect((await bodyOf(fetchMock, 3)).url).toContain('/users/u-1/mfa/reset')
+    const reset = await bodyOf(fetchMock, 3)
+    expect(reset.url).toContain('/users/u-1/mfa/reset')
+    expect(reset.body).toEqual({ reason: 'Lost phone' })
   })
 
   it('shows the refusal when the server blocks the action (e.g. last SUPER_ADMIN) and changes nothing', async () => {

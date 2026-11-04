@@ -124,6 +124,24 @@ All run on staging first with a DB snapshot (ticket T4).
 | Email down during recovery | Break-glass script. |
 | Optional MFA vs step-up | Destructive actions require MFA enrolment (needs your confirmation). |
 
+## 6a. Reactivating a possibly compromised staff account
+
+Reactivation (`POST /api/v1/admin/users/{id}/reactivate`) deliberately does NOT force a password change: the admin
+portal has no screen that can complete a forced change on sign-in, so forcing one would lock the person out. Reactivating
+puts the old password and the old authenticator straight back in force. So, when an account was deactivated because it
+may have been compromised (stolen laptop, phished password, lost phone), the SUPER_ADMIN must do this, in order, before
+pressing Reactivate:
+
+1. **Reset authenticator** on the account (`POST /api/v1/admin/users/{id}/mfa/reset`, reason required). This also signs
+   the account out everywhere. The person enrols a fresh authenticator at their next sign-in.
+2. **Send a password reset link** (the person asks for one from the sign-in page, or the SUPER_ADMIN uses the
+   break-glass script in section 4). Reactivation does not clear a pending reset link, and the old password stays valid
+   until the link is used, so confirm the person has completed it.
+3. Only then **Reactivate**.
+
+The Reactivate confirmation in the admin web says this. Deactivation already revokes all refresh tokens and kills
+unused invite and reset links, so a deactivated account cannot be used while it stays deactivated.
+
 ## 7. Test list (failing test first)
 
 Step-up: missing, expired, valid, wrong code, replayed code, each protected endpoint. Lockout: delay curve, success
