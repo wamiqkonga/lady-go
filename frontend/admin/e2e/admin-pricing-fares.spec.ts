@@ -68,13 +68,13 @@ test.describe('Pricing > Fares', () => {
     await page.getByLabel('Start time').fill(localInput(1))
     await review(page, 'e2e scheduled change')
     await page.getByRole('button', { name: 'Save fare' }).click()
-    await expect(card.getByText('Scheduled change')).toBeVisible()
+    await expect(card.getByText('Scheduled change', { exact: true })).toBeVisible()
     await expect(card.getByRole('button', { name: 'Change fare' })).toBeHidden()
 
     await card.getByRole('button', { name: 'Cancel scheduled change' }).click()
     await card.getByLabel('Reason (required)').fill('e2e cancel')
     await card.getByRole('button', { name: 'Confirm cancel scheduled change' }).click()
-    await expect(card.getByText('Scheduled change')).toBeHidden()
+    await expect(card.getByText('Scheduled change', { exact: true })).toBeHidden()
     await expect(card.getByRole('button', { name: 'Change fare' })).toBeVisible()
 
     // phone width: no sideways page scroll, history shows as cards (header row hidden)

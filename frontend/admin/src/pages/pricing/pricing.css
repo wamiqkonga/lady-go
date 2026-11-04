@@ -29,3 +29,4 @@
   .fare-history td { border-bottom: 0; padding: 0.25rem 0; display: flex; justify-content: space-between; gap: 1rem; text-align: right; }
   .fare-history td::before { content: attr(data-label); color: var(--muted); font-weight: 700; text-align: left; flex: none; }
 }
+.fare-form fieldset label, .fare-warning label { display: flex; align-items: center; gap: 0.5rem; }
