@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import com.ladygo.locations.domain.City;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,4 +24,9 @@ public interface CityRepository extends JpaRepository<City, UUID> {
             LIMIT 1
             """, nativeQuery = true)
     Optional<City> findServingCity(@Param("lon") double lon, @Param("lat") double lat);
+
+    /** Row lock used to serialise admin changes that must not interleave per city (fare versions). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM City c WHERE c.id = :id")
+    Optional<City> findByIdForUpdate(@Param("id") UUID id);
 }

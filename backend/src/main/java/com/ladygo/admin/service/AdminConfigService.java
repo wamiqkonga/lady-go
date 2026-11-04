@@ -88,7 +88,17 @@ public class AdminConfigService {
             Map.entry("sms.send.max_global.daily", new long[] {1, 1_000_000}),
             Map.entry("earnings.commission.bps", new long[] {0, 10_000}),
             Map.entry("ratings.window.days", new long[] {1, 90}),
-            Map.entry("ratings.submit.max_per_hour", new long[] {1, 1_000}));
+            Map.entry("ratings.submit.max_per_hour", new long[] {1, 1_000}),
+            // Fares typing-slip limits (docs/development/plans/2026-11-03-admin-pricing-rules.md section 4b): the
+            // owner may move each limit, but never to a value that would block every fare or switch the guard off.
+            Map.entry("pricing.limit.base_fare.max.paise", new long[] {1_000, 200_000}),
+            Map.entry("pricing.limit.per_km.max.paise", new long[] {100, 50_000}),
+            Map.entry("pricing.limit.per_minute.max.paise", new long[] {10, 10_000}),
+            Map.entry("pricing.limit.minimum_fare.max.paise", new long[] {1_000, 500_000}),
+            Map.entry("pricing.limit.cancellation_fee.max.paise", new long[] {100, 200_000}),
+            Map.entry("pricing.limit.service_fee_flat.max.paise", new long[] {0, 100_000}),
+            Map.entry("pricing.change.confirm.pct", new long[] {1, 500}),
+            Map.entry("pricing.schedule.max.days", new long[] {1, 365}));
 
     /** Keys whose empty value means "not configured" and may be restored by an admin. */
     private static final Set<String> OPTIONAL_UNSET_KEYS = Set.of("earnings.commission.bps", "support.phone", "support.whatsapp");
@@ -98,7 +108,8 @@ public class AdminConfigService {
     private static final Pattern PHONE_NUMBER = Pattern.compile("^\\+?[0-9]{8,15}$");
 
     private static final Map<String, BigDecimal[]> DECIMAL_BOUNDS = Map.of(
-            "booking.fare.change.tolerance.pct", new BigDecimal[] {BigDecimal.ZERO, new BigDecimal("100")});
+            "booking.fare.change.tolerance.pct", new BigDecimal[] {BigDecimal.ZERO, new BigDecimal("100")},
+            "pricing.limit.service_fee_pct.max", new BigDecimal[] {BigDecimal.ZERO, new BigDecimal("100")});
 
     private final ConfigEntryRepository entries;
     private final AuditLogRepository auditLogs;

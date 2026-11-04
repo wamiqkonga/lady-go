@@ -87,6 +87,7 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
   test('a SUPER_ADMIN must give a reason, sees old→new on confirm, and the change is audited', async ({ page }) => {
     await loginAs(page, env!.superAdmins.CONFIGEDIT)
     await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Pricing' }).click()
+    await page.getByRole('link', { name: 'Settings' }).click() // Pricing opens on the Fares tab for a SUPER_ADMIN
 
     const row = page.locator('tbody tr').filter({ hasText: 'driver.search.radius.m' })
     await row.getByRole('button', { name: 'Edit' }).click()
