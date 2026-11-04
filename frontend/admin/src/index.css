@@ -246,3 +246,10 @@ a { color: var(--brand); }
   .live-map-canvas { height: 50vh; }
   .live-map-side { max-height: none; }
 }
+
+/* Verification queue: how long a captain has waited; warns once past the 24 hour target. */
+.age-badge { display: inline-block; white-space: nowrap; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.85rem; font-weight: 700; background: var(--surface-variant); }
+.age-badge.warn { background: var(--rose-container); color: var(--bad); border: 1px solid var(--bad); }
+.filters label.check { flex-direction: row; align-items: center; gap: 0.4rem; }
+.filters label.check { min-height: 40px; }
+.filters label.check input { width: auto; min-height: 0; padding: 0; margin: 0; }

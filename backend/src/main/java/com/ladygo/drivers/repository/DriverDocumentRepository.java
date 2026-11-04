@@ -15,6 +15,8 @@ public interface DriverDocumentRepository extends JpaRepository<DriverDocument, 
 
     List<DriverDocument> findByDriverId(UUID driverId);
 
+    List<DriverDocument> findByDriverIdIn(java.util.Collection<UUID> driverIds);
+
     List<DriverDocument> findByStatus(DocumentStatus status);
 
     Page<DriverDocument> findByStatusOrderByCreatedAtAsc(DocumentStatus status, Pageable pageable);

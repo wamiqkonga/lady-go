@@ -12,14 +12,46 @@ test.describe('driver review flow', () => {
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
   })
 
-  test('the review queue lists the seeded driver pending documents', async ({ page }) => {
+  test('the captain queue lists the seeded captain with item counts and opens the review page', async ({ page }) => {
     await loginAs(page, env!.superAdmins.QUEUE)
     await page.getByRole('link', { name: 'Verification' }).click()
-    // Every row for this driver's several documents links to the same driver id - any one of them
-    // proves the queue lists it.
-    await expect(
-      page.getByRole('link', { name: new RegExp(env!.driverId.slice(0, 8)) }).first(),
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Driver verification' })).toBeVisible()
+
+    // One row per captain, not per document: the seeded captain appears once, with a wait time and item counts.
+    const row = page.locator('tr', { has: page.locator(`a[href="/driver-verification/${env!.driverId}"]`) })
+    await expect(row).toHaveCount(1)
+    await expect(row).toContainText(/\d+ (pending|approved|rejected|missing)/)
+    await expect(row.locator('.age-badge')).toBeVisible()
+
+    // A search that matches nobody says so plainly instead of showing an empty table.
+    await page.getByLabel('Search').fill('no-such-captain-zzz')
+    await page.getByRole('button', { name: 'Search' }).click()
+    await expect(page.getByText('No captains match these filters.')).toBeVisible()
+
+    // Searching by the driver id finds exactly the seeded captain, and Review opens the review page.
+    await page.getByLabel('Search').fill(env!.driverId)
+    await page.getByRole('button', { name: 'Search' }).click()
+    await page.getByRole('link', { name: 'Review' }).click()
+    await expect(page).toHaveURL(new RegExp(`/driver-verification/${env!.driverId}$`))
+    await expect(page.getByText('JK01AB1234')).toBeVisible()
+  })
+
+  test('the document queue is still reachable from the Documents tab', async ({ page }) => {
+    await loginAs(page, env!.superAdmins.QUEUE)
+    await page.getByRole('link', { name: 'Verification' }).click()
+    await page.getByRole('link', { name: 'Documents' }).click()
+    await expect(page).toHaveURL(/\/driver-verification\/documents$/)
+    // Every row for this captain's several documents links to the same driver id - any one proves it is listed.
+    await expect(page.locator(`a[href="/driver-verification/${env!.driverId}"]`).first()).toBeVisible()
+  })
+
+  test('the captain queue fits a 375px phone with no sideways scrolling', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 })
+    await loginAs(page, env!.superAdmins.QUEUE)
+    await page.goto('/driver-verification')
+    await expect(page.locator(`a[href="/driver-verification/${env!.driverId}"]`).first()).toBeVisible()
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    expect(overflow).toBeLessThanOrEqual(0)
   })
 
   test('views a watermarked document, approves every document and the vehicle, and approves the driver', async ({ page }) => {
