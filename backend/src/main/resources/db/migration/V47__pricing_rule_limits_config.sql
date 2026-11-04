@@ -1,4 +1,4 @@
--- V46: absolute limits and the large-change threshold for the admin Pricing > Fares screen
+-- V47: absolute limits and the large-change threshold for the admin Pricing > Fares screen
 -- (docs/development/plans/2026-11-03-admin-pricing-rules.md section 4b). Typing-slip protection enforced on the
 -- server: a fare field above its limit is refused, and a change of more than the threshold percent in any field needs
 -- an explicit confirmation. Money limits are whole paise (ADR-007). Additive; rollback = delete these rows (the code
