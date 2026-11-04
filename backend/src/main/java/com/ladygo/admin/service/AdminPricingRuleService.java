@@ -59,7 +59,7 @@ public class AdminPricingRuleService {
             new PricingSampleRequest(2_000, 8 * 60), new PricingSampleRequest(5_000, 15 * 60),
             new PricingSampleRequest(10_000, 30 * 60));
 
-    // Safety nets only; the seeded configuration rows (V45) are the source of truth.
+    // Safety nets only; the seeded configuration rows (V46) are the source of truth.
     private static final int DEFAULT_BASE_FARE_MAX = 50_000;
     private static final int DEFAULT_PER_KM_MAX = 10_000;
     private static final int DEFAULT_PER_MINUTE_MAX = 2_000;
