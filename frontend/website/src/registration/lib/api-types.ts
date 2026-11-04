@@ -1300,6 +1300,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/pricing-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing-rules/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing-rules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/eligibility-reports/{id}/resolve": {
         parameters: {
             query?: never;
@@ -1836,6 +1884,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["listFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing-rules/cities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2908,6 +2972,138 @@ export interface components {
             /** Format: date-time */
             timestamp?: string;
         };
+        PricingRuleCreateRequest: {
+            /** Format: uuid */
+            cityId: string;
+            /** @enum {string} */
+            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            /** Format: int64 */
+            baseFare: number;
+            /** Format: int64 */
+            perKm: number;
+            /** Format: int64 */
+            perMinute: number;
+            /** Format: int64 */
+            minimumFare: number;
+            /** Format: int64 */
+            cancellationFee: number;
+            serviceFeePct: number;
+            /** Format: int64 */
+            serviceFeeFlat: number;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: uuid */
+            expectedLatestRuleId?: string;
+            reason: string;
+            confirmLargeChange?: boolean;
+        };
+        ApiResponsePricingRuleResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PricingRuleResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PricingRuleResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            cityId?: string;
+            /** @enum {string} */
+            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
+            currency?: string;
+            /** Format: int64 */
+            baseFare?: number;
+            /** Format: int64 */
+            perKm?: number;
+            /** Format: int64 */
+            perMinute?: number;
+            /** Format: int64 */
+            minimumFare?: number;
+            /** Format: int64 */
+            cancellationFee?: number;
+            serviceFeePct?: number;
+            /** Format: int64 */
+            serviceFeeFlat?: number;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+            /** Format: uuid */
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** @enum {string} */
+            status?: "IN_FORCE" | "SCHEDULED" | "ENDED";
+            cancellable?: boolean;
+        };
+        PricingRuleCancelRequest: {
+            reason: string;
+        };
+        PricingRulePreviewRequest: {
+            /** Format: uuid */
+            cityId: string;
+            /** @enum {string} */
+            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            /** Format: int64 */
+            baseFare: number;
+            /** Format: int64 */
+            perKm: number;
+            /** Format: int64 */
+            perMinute: number;
+            /** Format: int64 */
+            minimumFare: number;
+            /** Format: int64 */
+            cancellationFee: number;
+            serviceFeePct: number;
+            /** Format: int64 */
+            serviceFeeFlat: number;
+            samples?: components["schemas"]["PricingSampleRequest"][];
+        };
+        PricingSampleRequest: {
+            /** Format: int32 */
+            distanceMeters?: number;
+            /** Format: int32 */
+            durationSeconds?: number;
+        };
+        ApiResponsePricingPreviewResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PricingPreviewResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        FareQuote: {
+            /** Format: int64 */
+            totalFare?: number;
+            /** Format: int64 */
+            baseFare?: number;
+            /** Format: int64 */
+            distanceFare?: number;
+            /** Format: int64 */
+            timeFare?: number;
+            /** Format: int64 */
+            serviceFee?: number;
+        };
+        LargeChange: {
+            field?: string;
+            oldValue?: string;
+            newValue?: string;
+        };
+        PricingPreviewResponse: {
+            samples?: components["schemas"]["Sample"][];
+            largeChanges?: components["schemas"]["LargeChange"][];
+        };
+        Sample: {
+            /** Format: int32 */
+            distanceMeters?: number;
+            /** Format: int32 */
+            durationSeconds?: number;
+            current?: components["schemas"]["FareQuote"];
+            proposed?: components["schemas"]["FareQuote"];
+        };
         EligibilityReportResolveRequest: {
             /** @enum {string} */
             status: "OPEN" | "REVIEWED" | "DISMISSED" | "ACTIONED";
@@ -3522,6 +3718,59 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        ApiResponsePricingRulesViewResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PricingRulesViewResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PricingRuleLimitsResponse: {
+            /** Format: int64 */
+            baseFareMaxPaise?: number;
+            /** Format: int64 */
+            perKmMaxPaise?: number;
+            /** Format: int64 */
+            perMinuteMaxPaise?: number;
+            /** Format: int64 */
+            minimumFareMaxPaise?: number;
+            /** Format: int64 */
+            cancellationFeeMaxPaise?: number;
+            /** Format: int64 */
+            serviceFeeFlatMaxPaise?: number;
+            serviceFeePctMax?: number;
+        };
+        PricingRulesViewResponse: {
+            /** Format: uuid */
+            cityId?: string;
+            /** @enum {string} */
+            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
+            current?: components["schemas"]["PricingRuleResponse"];
+            scheduled?: components["schemas"]["PricingRuleResponse"];
+            /** Format: uuid */
+            latestRuleId?: string;
+            history?: components["schemas"]["PricingRuleResponse"][];
+            limits?: components["schemas"]["PricingRuleLimitsResponse"];
+            /** Format: int32 */
+            largeChangePct?: number;
+        };
+        ApiResponseListPricingCityResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PricingCityResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PricingCityResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            active?: boolean;
+            hasServiceArea?: boolean;
+            vehicleTypesWithFare?: ("CAB" | "SUV" | "AUTO" | "BIKE")[];
         };
         AdminLiveMapResponse: {
             /** Format: date-time */
@@ -6268,6 +6517,103 @@ export interface operations {
             };
         };
     };
+    view: {
+        parameters: {
+            query: {
+                cityId: string;
+                vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePricingRulesViewResponse"];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRuleCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePricingRuleResponse"];
+                };
+            };
+        };
+    };
+    cancel_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRuleCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePricingRuleResponse"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRulePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePricingPreviewResponse"];
+                };
+            };
+        };
+    };
     resolveReport: {
         parameters: {
             query?: never;
@@ -7046,6 +7392,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePageResponseAdminRideFlagResponse"];
+                };
+            };
+        };
+    };
+    cities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListPricingCityResponse"];
                 };
             };
         };
