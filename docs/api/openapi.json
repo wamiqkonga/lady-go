@@ -2901,6 +2901,16 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserReasonRequest"
+              }
+            }
+          },
+          "required": true
         }
       }
     },
@@ -4122,26 +4132,6 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseSafetyOpenCountResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/admin/safety-incidents": {
-      "get": {
-        "tags": [
-          "admin-safety-incident-controller"
-        ],
-        "operationId": "openIncidents",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListSafetyIncidentResponse"
                 }
               }
             }
@@ -8652,75 +8642,6 @@
           "critical": {
             "type": "integer",
             "format": "int64"
-          }
-        }
-      },
-      "ApiResponseListSafetyIncidentResponse": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SafetyIncidentResponse"
-            }
-          },
-          "message": {
-            "type": "string"
-          },
-          "error": {
-            "$ref": "#/components/schemas/ApiError"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "SafetyIncidentResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "reporterId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "bookingId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "rideId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "type": {
-            "type": "string"
-          },
-          "severity": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "latitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "longitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "notes": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },

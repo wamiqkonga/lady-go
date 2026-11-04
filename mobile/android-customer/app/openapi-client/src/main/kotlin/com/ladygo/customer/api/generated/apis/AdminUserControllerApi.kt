@@ -103,10 +103,11 @@ interface AdminUserControllerApi {
      *  - 200: OK
      *
      * @param id 
+     * @param adminUserReasonRequest 
      * @return [ApiResponseVoid]
      */
     @POST("api/v1/admin/users/{id}/mfa/reset")
-    suspend fun resetMfa(@Path("id") id: java.util.UUID): Response<ApiResponseVoid>
+    suspend fun resetMfa(@Path("id") id: java.util.UUID, @Body adminUserReasonRequest: AdminUserReasonRequest): Response<ApiResponseVoid>
 
     /**
      * POST api/v1/admin/users/{id}/unlock

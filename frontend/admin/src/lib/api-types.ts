@@ -1796,22 +1796,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/safety-incidents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["openIncidents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/admin/rides": {
         parameters: {
             query?: never;
@@ -3382,34 +3366,6 @@ export interface components {
             needsAcknowledging?: number;
             /** Format: int64 */
             critical?: number;
-        };
-        ApiResponseListSafetyIncidentResponse: {
-            success?: boolean;
-            data?: components["schemas"]["SafetyIncidentResponse"][];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        SafetyIncidentResponse: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            reporterId?: string;
-            /** Format: uuid */
-            bookingId?: string;
-            /** Format: uuid */
-            rideId?: string;
-            type?: string;
-            severity?: string;
-            status?: string;
-            /** Format: double */
-            latitude?: number;
-            /** Format: double */
-            longitude?: number;
-            notes?: string;
-            /** Format: date-time */
-            createdAt?: string;
         };
         AdminRideSummaryResponse: {
             /** Format: uuid */
@@ -5990,7 +5946,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserReasonRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -6833,26 +6793,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseSafetyOpenCountResponse"];
-                };
-            };
-        };
-    };
-    openIncidents: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseListSafetyIncidentResponse"];
                 };
             };
         };
