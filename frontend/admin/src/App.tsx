@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
 import DriverDetail from './pages/DriverDetail'
 import DriverReview from './pages/DriverReview'
+import DriverVerificationQueue from './pages/DriverVerificationQueue'
 import Drivers from './pages/Drivers'
 import ForgotPassword from './pages/ForgotPassword'
 import LiveMap from './pages/LiveMap'
@@ -48,7 +49,8 @@ export default function App() {
         <Route path="rides/:bookingId" element={<RideDetail />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="drivers/:driverId" element={<DriverDetail />} />
-        <Route path="driver-verification" element={<DriverDocumentQueue />} />
+        <Route path="driver-verification" element={<DriverVerificationQueue />} />
+        <Route path="driver-verification/documents" element={<DriverDocumentQueue />} />
         <Route path="driver-verification/:driverId" element={<DriverReview />} />
         <Route path="customers" element={<Customers />} />
         <Route path="customers/:customerId" element={<CustomerDetail />} />
