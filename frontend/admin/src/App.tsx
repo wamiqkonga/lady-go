@@ -5,7 +5,7 @@ import AdminUsers from './pages/AdminUsers'
 import AuditLog from './pages/AuditLog'
 import CustomerDetail from './pages/CustomerDetail'
 import Customers from './pages/Customers'
-import ConfigScreen from './pages/ConfigScreen'
+import Pricing from './pages/pricing/Pricing'
 import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
 import DriverDetail from './pages/DriverDetail'
@@ -52,7 +52,7 @@ export default function App() {
         <Route path="driver-verification/:driverId" element={<DriverReview />} />
         <Route path="customers" element={<Customers />} />
         <Route path="customers/:customerId" element={<CustomerDetail />} />
-        <Route path="pricing" element={<ConfigScreen />} />
+        <Route path="pricing/*" element={<Pricing />} />
         <Route path="safety" element={<SafetyQueue />} />
         <Route path="safety/:incidentId" element={<SafetyIncident />} />
         <Route path="audit-logs" element={<AuditLog />} />

@@ -3109,6 +3109,150 @@
         }
       }
     },
+    "/api/v1/admin/pricing-rules": {
+      "get": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "view",
+        "parameters": [
+          {
+            "name": "cityId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "vehicleType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CAB",
+                "SUV",
+                "AUTO",
+                "BIKE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePricingRulesViewResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "create_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingRuleCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePricingRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/pricing-rules/{id}/cancel": {
+      "post": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "cancel_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingRuleCancelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePricingRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/pricing-rules/preview": {
+      "post": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "preview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingRulePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePricingPreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/eligibility-reports/{id}/resolve": {
       "post": {
         "tags": [
@@ -4314,6 +4458,26 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponsePageResponseAdminRideFlagResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/pricing-rules/cities": {
+      "get": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "cities",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListPricingCityResponse"
                 }
               }
             }
@@ -7357,6 +7521,369 @@
           }
         }
       },
+      "PricingRuleCreateRequest": {
+        "type": "object",
+        "properties": {
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ]
+          },
+          "baseFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perKm": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perMinute": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancellationFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeePct": {
+            "type": "number"
+          },
+          "serviceFeeFlat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expectedLatestRuleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "confirmLargeChange": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "baseFare",
+          "cancellationFee",
+          "cityId",
+          "minimumFare",
+          "perKm",
+          "perMinute",
+          "reason",
+          "serviceFeeFlat",
+          "serviceFeePct",
+          "vehicleType"
+        ]
+      },
+      "ApiResponsePricingRuleResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PricingRuleResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PricingRuleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "baseFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perKm": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perMinute": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancellationFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeePct": {
+            "type": "number"
+          },
+          "serviceFeeFlat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "IN_FORCE",
+              "SCHEDULED",
+              "ENDED"
+            ]
+          },
+          "cancellable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PricingRuleCancelRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "PricingRulePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ]
+          },
+          "baseFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perKm": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perMinute": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancellationFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeePct": {
+            "type": "number"
+          },
+          "serviceFeeFlat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingSampleRequest"
+            },
+            "maxItems": 10,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "baseFare",
+          "cancellationFee",
+          "cityId",
+          "minimumFare",
+          "perKm",
+          "perMinute",
+          "serviceFeeFlat",
+          "serviceFeePct",
+          "vehicleType"
+        ]
+      },
+      "PricingSampleRequest": {
+        "type": "object",
+        "properties": {
+          "distanceMeters": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 500000,
+            "minimum": 0
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 86400,
+            "minimum": 0
+          }
+        }
+      },
+      "ApiResponsePricingPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PricingPreviewResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FareQuote": {
+        "type": "object",
+        "properties": {
+          "totalFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "baseFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "distanceFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFee": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "LargeChange": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "oldValue": {
+            "type": "string"
+          },
+          "newValue": {
+            "type": "string"
+          }
+        }
+      },
+      "PricingPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sample"
+            }
+          },
+          "largeChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LargeChange"
+            }
+          }
+        }
+      },
+      "Sample": {
+        "type": "object",
+        "properties": {
+          "distanceMeters": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "current": {
+            "$ref": "#/components/schemas/FareQuote"
+          },
+          "proposed": {
+            "$ref": "#/components/schemas/FareQuote"
+          }
+        }
+      },
       "EligibilityReportResolveRequest": {
         "type": "object",
         "properties": {
@@ -9002,6 +9529,154 @@
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "ApiResponsePricingRulesViewResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PricingRulesViewResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PricingRuleLimitsResponse": {
+        "type": "object",
+        "properties": {
+          "baseFareMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perKmMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perMinuteMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumFareMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancellationFeeMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeeFlatMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeePctMax": {
+            "type": "number"
+          }
+        }
+      },
+      "PricingRulesViewResponse": {
+        "type": "object",
+        "properties": {
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ]
+          },
+          "current": {
+            "$ref": "#/components/schemas/PricingRuleResponse"
+          },
+          "scheduled": {
+            "$ref": "#/components/schemas/PricingRuleResponse"
+          },
+          "latestRuleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingRuleResponse"
+            }
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PricingRuleLimitsResponse"
+          },
+          "largeChangePct": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponseListPricingCityResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingCityResponse"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PricingCityResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "hasServiceArea": {
+            "type": "boolean"
+          },
+          "vehicleTypesWithFare": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CAB",
+                "SUV",
+                "AUTO",
+                "BIKE"
+              ]
+            }
           }
         }
       },
