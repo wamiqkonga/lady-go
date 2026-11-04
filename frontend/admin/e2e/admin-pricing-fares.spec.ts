@@ -28,7 +28,7 @@ test.describe('Pricing > Fares', () => {
   test('set the first fare, make a large change, reject three decimals, schedule and cancel, then check a phone width', async ({ page }) => {
     const creds = env!.superAdmins.FARES
     await loginAs(page, creds)
-    await page.getByRole('link', { name: 'Pricing' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Pricing' }).click()
     await expect(page.getByRole('link', { name: 'Fares' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible()
 
