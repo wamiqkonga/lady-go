@@ -19,6 +19,12 @@ describe('public content pages', () => {
     expect(screen.getByText(/call 112 first/i)).toBeInTheDocument()
   })
 
+  it('Privacy and the FAQ list the captain\'s full name among the registration details', () => {
+    expect(text(<Privacy />)).toMatch(/Your full name/)
+    render(<MemoryRouter><Faq /></MemoryRouter>)
+    expect(screen.getByText(/Your full name as it appears on your driving licence or RC/)).toBeInTheDocument()
+  })
+
   it('FAQ has answers about the pilot terms and expandable questions', () => {
     render(<MemoryRouter><Faq /></MemoryRouter>)
     expect(screen.getByText('Is Lady Go my employer?')).toBeInTheDocument()

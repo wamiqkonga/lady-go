@@ -18,12 +18,13 @@ public record DriverVerificationQueueItemResponse(
         DriverVerificationStatus verificationStatus,
         RequiredItemCounts requiredItems,
         boolean optionalDocumentsProvided,
+        boolean nameMissing,
         boolean readyForReview,
         Instant submittedAt,
         long waitingSeconds,
         boolean overdue) {
 
-    /** Required items are the vehicle with its RC photo, the selfie, the self-declaration (and police verification when switched on). */
+    /** Required items are the full name (counted approved once given, missing otherwise), the vehicle with its RC photo, the selfie, the self-declaration (and police verification when switched on). */
     public record RequiredItemCounts(int approved, int pending, int rejected, int missing) {
     }
 }

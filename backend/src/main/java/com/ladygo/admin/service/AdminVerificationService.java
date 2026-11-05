@@ -231,6 +231,9 @@ public class AdminVerificationService {
                 .toList();
 
         List<String> missing = missingRequirements(driverId, vehicle, declarationAccepted);
+        if (contact.name() == null || contact.name().isBlank()) {
+            missing.add(NAME_MISSING);
+        }
         VehicleAdminResponse vehicleResponse = vehicle == null ? null : new VehicleAdminResponse(
                 vehicle.getId(), vehicle.getRegistrationNumber(), vehicle.getVehicleType(), vehicle.getVerificationStatus());
 
@@ -245,6 +248,10 @@ public class AdminVerificationService {
         Vehicle vehicle = vehicles.findByDriverId(driverId).stream().findFirst().orElse(null);
         boolean declarationAccepted = selfDeclarations.hasAcceptedCurrentVersion(SubjectType.DRIVER, driverId);
         List<String> missing = missingRequirements(driverId, vehicle, declarationAccepted);
+        String name = driverContact(driverId).name();
+        if (name == null || name.isBlank()) {
+            missing.add(NAME_MISSING);
+        }
         if (!missing.isEmpty()) {
             throw new ValidationException("Driver is not ready for approval: " + String.join(", ", missing));
         }
@@ -302,6 +309,9 @@ public class AdminVerificationService {
         audit(adminUserId, adminRole, "VEHICLE_REJECTED", "vehicles", vehicleId, ip);
         driverUserId(vehicle.getDriverId()).ifPresent(userId -> notifier.vehicleRejected(userId, note));
     }
+
+    /** The captain's full name is the fourth required item; without it a reviewer cannot match the documents to a person. */
+    static final String NAME_MISSING = "Name missing";
 
     private Optional<UUID> driverUserId(UUID driverId) {
         return drivers.findById(driverId).map(Driver::getUserId);

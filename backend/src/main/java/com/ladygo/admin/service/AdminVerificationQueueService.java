@@ -40,7 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
  * it is simple, it can be ordered in SQL, and it never understates how long someone has been waiting. A captain who
  * has not finished still shows how many items are missing, and {@code readyOnly} hides them.
  *
- * <p>Required items are the vehicle (with its RC photo), the selfie and the self-declaration, plus police
+ * <p>Required items are the captain's full name, the vehicle (with its RC photo), the selfie and the self-declaration, plus police
  * verification when that switch is on - the same list {@link AdminVerificationService#approveDriver} insists on.
  */
 @Service
@@ -108,11 +108,13 @@ public class AdminVerificationQueueService {
         return rows.stream().map(row -> {
             List<DriverDocument> docs = docsByDriver.getOrDefault(row.driverId(), List.of());
             Vehicle vehicle = vehicleByDriver.get(row.driverId());
-            RequiredItemCounts counts = count(docs, vehicle, declared.contains(row.driverId()), policeRequired);
+            boolean nameMissing = row.name() == null || row.name().isBlank();
+            RequiredItemCounts counts = count(docs, vehicle, declared.contains(row.driverId()), !nameMissing,
+                    policeRequired);
             long waiting = Math.max(0, Duration.between(row.submittedAt(), now).getSeconds());
             return new DriverVerificationQueueItemResponse(row.driverId(), row.name(), PhoneMask.mask(row.phone()),
                     row.city(), vehicle == null ? null : vehicle.getRegistrationNumber(), row.status(), counts,
-                    hasOptionalDocument(docs, policeRequired), counts.missing() == 0,
+                    hasOptionalDocument(docs, policeRequired), nameMissing, counts.missing() == 0,
                     row.submittedAt(), waiting, isOverdue(row.submittedAt(), now, overdueAfter));
         }).toList();
     }
@@ -128,14 +130,17 @@ public class AdminVerificationQueueService {
 
     private enum ItemState { APPROVED, PENDING, REJECTED, MISSING }
 
-    private static RequiredItemCounts count(List<DriverDocument> docs, Vehicle vehicle, boolean declared, boolean policeRequired) {
+    private static RequiredItemCounts count(List<DriverDocument> docs, Vehicle vehicle, boolean declared, boolean named,
+            boolean policeRequired) {
         DocumentStatus rc = latest(docs, DocumentType.VEHICLE_REGISTRATION);
         ItemState vehicleItem = vehicle == null || rc == null ? ItemState.MISSING
                 : combine(vehicleState(vehicle.getVerificationStatus()), state(rc));
         ItemState selfie = stateOrMissing(latest(docs, DocumentType.SELFIE));
         ItemState declaration = declared ? ItemState.APPROVED : ItemState.MISSING;
+        // The full name has no review step: given means done, absent means missing.
+        ItemState name = named ? ItemState.APPROVED : ItemState.MISSING;
 
-        List<ItemState> items = new java.util.ArrayList<>(List.of(vehicleItem, selfie, declaration));
+        List<ItemState> items = new java.util.ArrayList<>(List.of(name, vehicleItem, selfie, declaration));
         if (policeRequired) {
             items.add(stateOrMissing(latest(docs, DocumentType.POLICE_VERIFICATION)));
         }

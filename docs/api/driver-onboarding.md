@@ -143,6 +143,8 @@ constraints, same discipline as every other enum in this codebase.
 ## 3. Driver onboarding and admin review — riders are no longer in this flow at all
 
 ```
+GET    /api/v1/drivers/me                 profile: id, cityId, verificationStatus, fullName (null until given)
+PUT    /api/v1/drivers/me/name            { fullName } -> the profile (DRIVER role only)
 POST   /api/v1/drivers/me/documents       multipart: type, file
                                            type ∈ LICENSE | VEHICLE_REGISTRATION | VEHICLE_PHOTO |
                                                    INSURANCE | FITNESS_CERTIFICATE |
@@ -154,6 +156,17 @@ POST   /api/v1/drivers/me/declaration     { declarationVersion }
 PUT    /api/v1/drivers/me/vehicle         registrationNumber, vehicleType, make, model, color, manufactureYear
 GET    /api/v1/drivers/me/vehicle
 ```
+
+**Full name (the first registration step after the city).** `PUT /name` stores the captain's full name in
+`users.name` so reviewers can match documents to a person. Server rules: trimmed, repeated spaces collapsed, 2 to 80
+characters, letters of any script (with their combining marks), spaces, hyphens, apostrophes and dots only; no digits,
+markup or symbols (`400 VALIDATION_FAILED`, the message never repeats the submitted text). The first set writes
+`DRIVER_NAME_SET` and each later change writes `DRIVER_NAME_CHANGED` to `audit_logs` (target `users`/the user id; the
+name, the old name and the phone are never in the entry or in any log line); resubmitting an unchanged name writes
+nothing. The name is the fourth required item: a captain without one is not complete. The admin Verification queue
+shows `nameMissing: true` and counts it under `requiredItems.missing` (and not under `readyForReview`), the review
+summary lists `"Name missing"` under `missingRequirements`, and `POST /admin/drivers/{id}/approve` refuses until it is
+set. Existing captains without a name can still sign in; the website sends them to the name step first.
 
 `PUT /vehicle` rejects (`422 VALIDATION_FAILED`) a `manufactureYear` older than
 `vehicle.max_age.years` (default 8) at submission time, not left for an admin to notice later.

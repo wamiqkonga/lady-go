@@ -2132,6 +2132,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drivers/me/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setName"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2360,6 +2376,7 @@ export interface components {
             cityId?: string;
             /** @enum {string} */
             verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            fullName?: string;
         };
         SosRequest: {
             /** Format: double */
@@ -4018,6 +4035,7 @@ export interface components {
             /** Format: int64 */
             waitingSeconds?: number;
             overdue?: boolean;
+            nameMissing?: boolean;
         };
         PageResponseDriverVerificationQueueItemResponse: {
             content?: components["schemas"]["DriverVerificationQueueItemResponse"][];
@@ -4235,6 +4253,9 @@ export interface components {
         };
         UnregisterDeviceRequest: {
             token: string;
+        };
+        DriverNameRequest: {
+            fullName: string;
         };
     };
     responses: never;
@@ -7731,6 +7752,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    setName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverNameRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverProfileResponse"];
                 };
             };
         };

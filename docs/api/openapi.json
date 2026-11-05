@@ -5024,6 +5024,36 @@
           }
         }
       }
+    },
+    "/api/v1/drivers/me/name": {
+      "put": {
+        "tags": [
+          "driver-controller"
+        ],
+        "operationId": "setName",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5683,6 +5713,9 @@
               "REJECTED",
               "SUSPENDED"
             ]
+          },
+          "fullName": {
+            "type": "string"
           }
         }
       },
@@ -10435,6 +10468,9 @@
           },
           "overdue": {
             "type": "boolean"
+          },
+          "nameMissing": {
+            "type": "boolean"
           }
         }
       },
@@ -10959,6 +10995,17 @@
         },
         "required": [
           "token"
+        ]
+      },
+      "DriverNameRequest": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fullName"
         ]
       }
     }

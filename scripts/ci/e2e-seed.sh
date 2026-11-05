@@ -216,7 +216,7 @@ with open(sys.argv[1], "wb") as f:
 PYEOF
 
 seed_driver() {
-  local phone="$1" registration="$2"
+  local phone="$1" registration="$2" full_name="$3"
   curl -sf -X POST "$BASE/api/v1/auth/otp/request" -H 'Content-Type: application/json' \
     -d "{\"phone\":\"$phone\",\"purpose\":\"LOGIN\",\"intendedRole\":\"DRIVER\"}" >/dev/null
   sleep 1
@@ -232,6 +232,9 @@ seed_driver() {
 
   curl -sf -X POST "$BASE/api/v1/drivers/me" -H "Authorization: Bearer $driver_token" \
     -H 'Content-Type: application/json' -d "{\"cityId\":\"$CITY_ID\"}" >/dev/null
+  # Every captain gives a full name; without one the review screen reports "Name missing" and approval is refused.
+  curl -sf -X PUT "$BASE/api/v1/drivers/me/name" -H "Authorization: Bearer $driver_token" \
+    -H 'Content-Type: application/json' -d "{\"fullName\":\"$full_name\"}" >/dev/null
   curl -sf -X PUT "$BASE/api/v1/drivers/me/vehicle" -H "Authorization: Bearer $driver_token" \
     -H 'Content-Type: application/json' \
     -d "{\"registrationNumber\":\"$registration\",\"vehicleType\":\"BIKE\",\"make\":\"Honda\",\"model\":\"Activa\",\"color\":\"White\",\"manufactureYear\":2022}" >/dev/null
@@ -248,16 +251,15 @@ seed_driver() {
 }
 
 echo "== Seeding the primary driver (mutated to APPROVED by the happy-path spec) =="
-DRIVER_ID=$(seed_driver "+919900077001" "JK01AB1234")
+DRIVER_ID=$(seed_driver "+919900077001" "JK01AB1234" "E2E Primary Captain")
 echo "== Seeding the secondary driver (left PENDING for the negative-checks spec) =="
-SECONDARY_DRIVER_ID=$(seed_driver "+919900077002" "JK01CD5678")
+SECONDARY_DRIVER_ID=$(seed_driver "+919900077002" "JK01CD5678" "E2E Secondary Captain")
 
 echo "== Seeding a third, already-approved driver for the Drivers screen (search, suspend, re-activate) =="
-# Registered through the real APIs like the others, then approved and given a searchable name by SQL: the
+# Registered through the real APIs like the others, then approved by SQL: the
 # review specs own the other two drivers' status, so this one must not depend on them or on spec order.
-SUSPEND_DRIVER_ID=$(seed_driver "+919900077104" "JK01EF9012")
+SUSPEND_DRIVER_ID=$(seed_driver "+919900077104" "JK01EF9012" "E2E Suspendable Captain")
 psql -v ON_ERROR_STOP=1 -q -c "
-UPDATE users SET name = 'E2E Suspendable Captain' WHERE phone = '+919900077104';
 UPDATE drivers SET verification_status = 'APPROVED', verified_at = now() WHERE id = '$SUSPEND_DRIVER_ID';
 " || { echo "Failed to approve the Drivers-screen fixture driver" >&2; exit 1; }
 

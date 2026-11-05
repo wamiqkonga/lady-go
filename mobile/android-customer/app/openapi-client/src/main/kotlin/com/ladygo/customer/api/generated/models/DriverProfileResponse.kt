@@ -25,6 +25,7 @@ import com.squareup.moshi.JsonClass
  * @param id 
  * @param cityId 
  * @param verificationStatus 
+ * @param fullName 
  */
 
 
@@ -37,7 +38,10 @@ data class DriverProfileResponse (
     val cityId: java.util.UUID? = null,
 
     @Json(name = "verificationStatus")
-    val verificationStatus: DriverProfileResponse.VerificationStatus? = null
+    val verificationStatus: DriverProfileResponse.VerificationStatus? = null,
+
+    @Json(name = "fullName")
+    val fullName: kotlin.String? = null
 
 ) {
 
