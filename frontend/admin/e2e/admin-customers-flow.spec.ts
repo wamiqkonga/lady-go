@@ -43,8 +43,8 @@ test.describe('customers screen', () => {
 
     // Both actions are in the audit log.
     await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Audit log' }).click()
-    await page.getByPlaceholder(/CONFIGURATION_CHANGED/).fill('CUSTOMER_SUSPENDED')
+    await page.getByLabel('Action').selectOption('CUSTOMER_SUSPENDED')
     await page.getByRole('button', { name: 'Apply' }).click()
-    await expect(page.locator('tbody tr').filter({ hasText: 'CUSTOMER_SUSPENDED' }).first()).toBeVisible()
+    await expect(page.locator('tbody tr').filter({ hasText: 'Suspended a customer' }).first()).toBeVisible()
   })
 })

@@ -46,7 +46,7 @@ test.describe('Drivers screen', () => {
     await page.getByLabel('Reason').fill('e2e: complaint verified')
     await page.getByRole('button', { name: 'Confirm suspend' }).click()
     await confirmStepUp(page, creds)
-    await expect(page.getByText(/SUSPENDED · SUSPENDED/)).toBeVisible()
+    await expect(page.getByText(/Suspended on .* by .*Reason: e2e: complaint verified/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Suspend driver' })).toHaveCount(0)
 
     // The status filter finds the suspended driver in the list.
@@ -61,7 +61,8 @@ test.describe('Drivers screen', () => {
     await page.getByRole('button', { name: 'Re-activate driver' }).click()
     await page.getByLabel('Reason').fill('e2e: cleared after review')
     await page.getByRole('button', { name: 'Confirm activate' }).click()
-    await expect(page.getByText(/APPROVED · OFFLINE/)).toBeVisible()
+    await expect(page.getByText('Approved', { exact: true })).toBeVisible()
+    await expect(page.getByText('Offline', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Suspend driver' })).toBeVisible()
   })
 })

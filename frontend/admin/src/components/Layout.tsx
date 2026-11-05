@@ -78,7 +78,7 @@ export default function Layout() {
       </aside>
       <div className="main">
         {safety && safety.critical > 0 && (
-          <div className="sos-banner" role="alert">
+          <div className="sos-banner" role="status" aria-live="assertive">
             <span>
               SOS open: {safety.critical}
               {safety.oldestCriticalAt ? `, raised ${ageLabel(safety.oldestCriticalAt)}` : ''}.

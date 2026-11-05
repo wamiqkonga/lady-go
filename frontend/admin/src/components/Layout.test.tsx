@@ -46,7 +46,7 @@ describe('Layout', () => {
   it('shows a red SOS banner on every page, with its age and a link to the Safety queue', async () => {
     stub([countsBody({ unresolved: 1, critical: 1, oldestCriticalAt: new Date(Date.now() - 4 * 60_000).toISOString() })])
     renderLayout('/dashboard')
-    const banner = await screen.findByRole('alert')
+    const banner = await screen.findByRole('status')
     expect(banner).toHaveTextContent('SOS open: 1, raised 4 min ago.')
     expect(banner).toHaveClass('sos-banner')
     expect(screen.getByRole('link', { name: 'Open the queue' })).toHaveAttribute('href', '/safety')
@@ -56,9 +56,9 @@ describe('Layout', () => {
   it('re-reads the open count at once when asked to, so the badge and banner never lag', async () => {
     stub([countsBody({ unresolved: 1, critical: 1 }), countsBody({ unresolved: 0, critical: 0 })])
     renderLayout()
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toBeInTheDocument()
     act(() => refreshSafetyBadge())
-    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
     expect(screen.queryByLabelText(/unresolved/)).not.toBeInTheDocument()
   })
 

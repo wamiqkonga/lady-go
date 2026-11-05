@@ -16,7 +16,9 @@ test.describe('staff accounts: invite and role change', () => {
     await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Staff' }).click()
     await expect(page.getByRole('heading', { name: 'Staff accounts' })).toBeVisible()
 
-    const form = page.getByRole('form', { name: 'Invite a staff member' })
+    // The list comes first; the invite form opens from a button.
+    await page.getByRole('button', { name: 'Invite a staff member' }).click()
+    const form = page.getByRole('dialog', { name: 'Invite a staff member' })
     await form.getByLabel('Full name').fill('E2E Invitee')
     await form.getByLabel('Email').fill(email)
     await form.getByLabel('Role').selectOption('SUPPORT')

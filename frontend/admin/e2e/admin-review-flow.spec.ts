@@ -63,11 +63,19 @@ test.describe('driver review flow', () => {
     await expect(page.getByText('JK01AB1234')).toBeVisible()
 
     const documentRows = page.locator('li.document-row')
-    const firstView = documentRows.first().getByRole('button', { name: 'View' })
+    const firstView = documentRows.first().getByRole('button', { name: /^View / })
     await firstView.click()
-    const image = documentRows.first().locator('img')
+    // The photo opens in a dialog, fitted to the screen; Escape closes it.
+    const viewer = page.getByRole('dialog')
+    const image = viewer.locator('img')
     await expect(image).toBeVisible()
     await expect(image).toHaveAttribute('src', /driver-document-derivatives/)
+    await viewer.getByRole('button', { name: 'Zoom in' }).click()
+    await expect(image).toHaveAttribute('data-zoom', '1.25')
+    await viewer.getByRole('button', { name: 'Rotate' }).click()
+    await expect(image).toHaveAttribute('data-turns', '1')
+    await page.keyboard.press('Escape')
+    await expect(viewer).toBeHidden()
 
     const approveVehicle = page.getByRole('button', { name: 'Approve vehicle' })
     if (await approveVehicle.isVisible()) {
@@ -83,10 +91,19 @@ test.describe('driver review flow', () => {
 
     await expect(page.getByText('Ready for approval')).toBeVisible({ timeout: 15_000 })
     await page.getByRole('button', { name: 'Approve driver' }).click()
-    // Every document row and the vehicle line already say "APPROVED" too by this point, so a bare
-    // getByText('APPROVED') is ambiguous - the driver's own status line is the first .muted paragraph
-    // on the page (DriverReview.tsx renders it before the vehicle panel).
-    await expect(page.locator('p.muted').first()).toContainText('APPROVED')
+    // Approving is irreversible, so it asks first; Cancel changes nothing.
+    const confirm = page.getByRole('dialog', { name: 'Approve this driver?' })
+    await confirm.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByText('Ready for approval')).toBeVisible()
+    await page.getByRole('button', { name: 'Approve driver' }).click()
+    await page.getByRole('dialog', { name: 'Approve this driver?' }).getByRole('button', { name: 'Yes, approve driver' }).click()
+
+    // The Decision panel now shows the outcome, with no stale "Ready" text or buttons.
+    await expect(page.getByText(/^Approved on .* by /)).toBeVisible()
+    await expect(page.getByText('Driver approved.')).toBeVisible()
+    await expect(page.getByText('Ready for approval')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Approve driver' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Reject driver' })).toHaveCount(0)
   })
 
   test('idle timeout signs the admin out automatically', async ({ page }) => {

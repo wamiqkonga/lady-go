@@ -59,7 +59,7 @@ test.describe('Pricing > Fares', () => {
     await review(page, 'e2e large change')
     await page.getByRole('button', { name: 'Save fare' }).click()
     await expect(card.getByRole('table', { name: 'Fare history' }).getByRole('row')).toHaveCount(3)
-    await expect(card.getByText('Rs 25.00').first()).toBeVisible()
+    await expect(card.getByText('₹25.00').first()).toBeVisible()
 
     // schedule a small change for tomorrow, then cancel it
     await card.getByRole('button', { name: 'Change fare' }).click()
