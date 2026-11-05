@@ -15,7 +15,7 @@ const detailBody = {
     bookingId: 'booking-1', bookingStatus: 'COMPLETED', paymentMethod: 'CASH',
     customer: { name: 'Priya Shah', phoneMasked: '******1234' },
     driver: { name: 'Rahul Dev', phoneMasked: '******5678' },
-    pickupAddress: '12 MG Road, Pune', finalFare: 250, estimatedFare: 220,
+    pickupAddress: '12 MG Road, Pune', finalFare: 25000, estimatedFare: 22000,
     cashConfirmedAt: '2026-01-01T10:05:00Z', cashDisputedAt: null,
     flags: [{ id: 'flag-1', bookingId: 'booking-1', type: 'EARLY_END', riderResponse: 'ACKNOWLEDGED' }],
     timeline: [
@@ -46,6 +46,7 @@ describe('RideDetail', () => {
     expect(screen.getByText(/\*{6}1234/)).toBeInTheDocument()
     expect(screen.getByText(/\*{6}5678/)).toBeInTheDocument()
     expect(screen.getByText(/Cash confirmed/)).toBeInTheDocument()
+    expect(screen.getByText(/Fare: ₹250\.00/)).toBeInTheDocument()
     expect(screen.getByText('RIDE_STARTED')).toBeInTheDocument()
     expect(screen.getByText('ride_completed')).toBeInTheDocument()
 

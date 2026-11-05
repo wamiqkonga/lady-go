@@ -124,7 +124,21 @@ describe('Dashboard', () => {
     expect(tile('Open safety incidents')).toHaveTextContent('1 to acknowledge · 1 critical')
     const median = tile('SOS acknowledged in \\(median\\)')
     expect(median).toHaveClass('tile-bad')
-    expect(median).toHaveTextContent('an SOS has waited 7.5 min with nobody acknowledging it')
+    expect(median).toHaveTextContent('the oldest SOS has waited 7.5 min with nobody acknowledging it')
+  })
+
+  it('says an SOS is waiting, none acknowledged yet, instead of "no SOS yet" while one is unacknowledged', async () => {
+    const waiting = {
+      ...healthy,
+      safety: { ...healthy.safety, unresolved: 1, needsAcknowledging: 1, critical: 1, sosMedianAckMinutes: null, sosAckSample: 0, oldestUnacknowledgedSosMinutes: 3 },
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(ok(waiting))))
+    renderDashboard()
+    await waitFor(() => expect(screen.getByLabelText(/SOS acknowledged in \(median\): SOS waiting/)).toBeInTheDocument())
+    const median = tile('SOS acknowledged in \\(median\\)')
+    expect(median).toHaveTextContent('None acknowledged yet')
+    expect(median).not.toHaveTextContent('no SOS yet')
+    expect(median).not.toHaveTextContent('based on 0 SOS')
   })
 
   it('stays calm while an open SOS is still inside the target', async () => {

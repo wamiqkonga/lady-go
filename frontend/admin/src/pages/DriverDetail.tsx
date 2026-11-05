@@ -3,14 +3,10 @@ import { Link, useParams } from 'react-router-dom'
 import { client, unwrap, expectOk, ApiCallError } from '../lib/client'
 import { useStepUp } from '../lib/stepUpContext'
 import { useSession } from '../lib/sessionContext'
+import { formatRupees } from '../lib/money'
 import type { components } from '../lib/api-types'
 
 type Driver = components['schemas']['AdminDriverDetailResponse']
-
-/** Whole rupees from minor units (ADR-007). */
-function money(minor: number | undefined): string {
-  return `₹${((minor ?? 0) / 100).toFixed(2)}`
-}
 
 type Action = 'suspend' | 'activate'
 
@@ -161,8 +157,8 @@ export default function DriverDetail() {
       <div className="panel">
         <h2>Earnings</h2>
         <p>
-          {driver.earnings?.rides ?? 0} rides · gross {money(driver.earnings?.gross)} · commission{' '}
-          {money(driver.earnings?.commission)} · net {money(driver.earnings?.net)}
+          {driver.earnings?.rides ?? 0} rides · gross {formatRupees(driver.earnings?.gross)} · commission{' '}
+          {formatRupees(driver.earnings?.commission)} · net {formatRupees(driver.earnings?.net)}
         </p>
       </div>
 
@@ -175,7 +171,7 @@ export default function DriverDetail() {
                 <Link to={`/rides/${ride.bookingId}`}>{ride.createdAt ? new Date(ride.createdAt).toLocaleString() : ride.bookingId}</Link>{' '}
                 <span className="muted">
                   {ride.status}
-                  {ride.finalFare != null ? ` · ${money(ride.finalFare)}` : ''}
+                  {ride.finalFare != null ? ` · ${formatRupees(ride.finalFare)}` : ''}
                 </span>
               </li>
             ))}

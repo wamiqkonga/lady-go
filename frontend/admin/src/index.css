@@ -155,7 +155,7 @@ a { color: var(--brand); }
   .sidebar a { white-space: nowrap; flex: none; }
   .sidebar .sign-out, .sidebar .theme-toggle, .sidebar nav + .theme-toggle { margin-top: 0; }
   .content { padding: 1rem 20px 2rem; }
-  .filters label, .filters input, .filters select { width: 100%; box-sizing: border-box; }
+  .filters label, .filters input, .filters select, .filters .filter { width: 100%; box-sizing: border-box; }
   /* Tables marked stack-table collapse to one card per row, each cell labelled from data-label. */
   .stack-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .stack-table, .stack-table tbody, .stack-table tr, .stack-table td { display: block; width: 100%; }
@@ -329,3 +329,13 @@ input[aria-invalid='true'], textarea[aria-invalid='true'] { border-color: var(--
   .stack-table td.row-link-cell::before { content: none; }
   .stack-table td.row-link-cell > .row-link::before { content: attr(data-label); color: var(--muted); font-weight: 700; text-align: left; }
 }
+
+/* Audit log details: label/value pairs instead of raw JSON. */
+.audit-details summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+.audit-kv { margin: 0.3rem 0 0; display: grid; gap: 0.2rem; }
+.audit-kv > div { display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; }
+.audit-kv dt { color: var(--muted); font-weight: 700; }
+.audit-kv dt::after { content: ':'; }
+.audit-kv dd { margin: 0; overflow-wrap: anywhere; text-align: left; }
+.filters .filter { display: flex; flex-direction: column; gap: 0.2rem; }
+.filters .filter label { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
