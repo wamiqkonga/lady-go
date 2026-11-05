@@ -4,18 +4,19 @@
 .tabs a.active { color: var(--fg); border-bottom-color: var(--fg); }
 .fare-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-top: 1rem; }
 .fare-card h2 { margin-top: 0; }
-.fare-card.no-fare { border-color: #c62828; }
-.no-fare-text { color: #c62828; font-weight: 700; }
+.fare-card.no-fare { border-color: var(--bad); }
+.no-fare-text { color: var(--bad); font-weight: 700; }
 .fare-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.75rem; margin: 1rem 0; }
 .fare-facts > div { border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.75rem; }
 .fare-facts dt { color: var(--muted); font-size: 0.8rem; }
 .fare-facts dd { margin: 0; font-weight: 700; }
-.fare-banner { border: 1px solid var(--border); border-left: 4px solid #f9a825; border-radius: 10px; padding: 0.75rem 1rem; margin: 1rem 0; }
-.fare-warning { border: 2px solid #c62828; border-radius: 10px; padding: 0.75rem 1rem; margin: 1rem 0; color: #c62828; font-weight: 700; }
+.fare-banner { border: 1px solid var(--border); border-left: 4px solid var(--warn); border-radius: 10px; padding: 0.75rem 1rem; margin: 1rem 0; }
+.fare-warning { border: 2px solid var(--bad); border-radius: 10px; padding: 0.75rem 1rem; margin: 1rem 0; color: var(--bad); font-weight: 700; }
 .fare-form { display: grid; gap: 0.75rem; max-width: 36rem; margin-top: 1rem; }
-.fare-form label { display: grid; gap: 0.25rem; font-weight: 600; }
+.fare-form label { font-weight: 600; }
+.fare-form .field { display: grid; gap: 0.25rem; }
 .fare-form input[type='text'], .fare-form input[type='datetime-local'] { width: 100%; box-sizing: border-box; }
-.field-error { color: #c62828; font-size: 0.85rem; margin: 0; }
+.field-error { color: var(--bad); font-size: 0.85rem; margin: 0; }
 .fare-samples table { width: 100%; border-collapse: collapse; }
 .fare-samples th, .fare-samples td { text-align: right; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); }
 .fare-samples th:first-child, .fare-samples td:first-child { text-align: left; }
@@ -30,3 +31,4 @@
   .fare-history td::before { content: attr(data-label); color: var(--muted); font-weight: 700; text-align: left; flex: none; }
 }
 .fare-form fieldset label, .fare-warning label { display: flex; align-items: center; gap: 0.5rem; }
+.fare-form fieldset .field label { display: block; }

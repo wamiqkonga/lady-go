@@ -3594,6 +3594,8 @@ export interface components {
             needsAcknowledging?: number;
             /** Format: int64 */
             critical?: number;
+            /** Format: date-time */
+            oldestCriticalAt?: string;
         };
         AdminRideSummaryResponse: {
             /** Format: uuid */

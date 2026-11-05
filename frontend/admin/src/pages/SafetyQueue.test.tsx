@@ -70,4 +70,15 @@ describe('SafetyQueue', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Not allowed.'))
   })
+
+  it('makes every cell of a row a link to the incident and marks the chosen view as pressed', async () => {
+    stubFetch(() => page([sos]))
+    const { container } = render(<MemoryRouter><SafetyQueue /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByRole('link', { name: 'SOS' })).toBeInTheDocument())
+    const cellLinks = container.querySelectorAll('tbody tr td a')
+    expect(cellLinks).toHaveLength(5)
+    cellLinks.forEach((a) => expect(a).toHaveAttribute('href', '/safety/inc-1'))
+    expect(screen.getByRole('button', { name: 'Open' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Resolved' })).toHaveAttribute('aria-pressed', 'false')
+  })
 })

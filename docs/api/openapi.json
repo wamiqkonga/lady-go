@@ -9268,6 +9268,10 @@
           "critical": {
             "type": "integer",
             "format": "int64"
+          },
+          "oldestCriticalAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

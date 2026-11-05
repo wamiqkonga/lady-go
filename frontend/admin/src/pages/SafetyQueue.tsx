@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { LinkCell } from '../components/RowLink'
 import { client, unwrap, ApiCallError } from '../lib/client'
 import { ageLabel, STATUS_LABELS, TYPE_LABELS, type SafetySummary } from '../lib/safety'
 
@@ -46,7 +46,7 @@ export default function SafetyQueue() {
           An SOS is open. If someone is in danger, call 112 first, then acknowledge the incident here.
         </p>
       )}
-      <div className="row-actions">
+      <div className="toggle" role="group" aria-label="Which incidents to show">
         <button type="button" aria-pressed={view === 'open'} onClick={() => { setRows(null); setView('open') }}>
           Open
         </button>
@@ -61,7 +61,7 @@ export default function SafetyQueue() {
       )}
       {rows !== null && rows.length > 0 && (
         <div className="table-scroll">
-          <table className="list-table">
+          <table className="list-table stack-table">
             <thead>
               <tr>
                 <th>Severity</th>
@@ -72,21 +72,22 @@ export default function SafetyQueue() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>
-                    <span className={`sev sev-${(row.severity ?? 'LOW').toLowerCase()}`}>{row.severity}</span>
-                  </td>
-                  <td>
-                    <Link to={`/safety/${row.id}`}>{TYPE_LABELS[row.type ?? ''] ?? row.type}</Link>
-                  </td>
-                  <td>
-                    {row.reporter?.name ?? '—'} <span className="muted">{row.reporter?.phoneMasked ?? ''}</span>
-                  </td>
-                  <td>{STATUS_LABELS[row.status ?? ''] ?? row.status}</td>
-                  <td>{ageLabel(row.createdAt)}</td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const to = `/safety/${row.id}`
+                return (
+                  <tr key={row.id}>
+                    <LinkCell to={to} label="Severity">
+                      <span className={`sev sev-${(row.severity ?? 'LOW').toLowerCase()}`}>{row.severity}</span>
+                    </LinkCell>
+                    <LinkCell to={to} first label="Type">{TYPE_LABELS[row.type ?? ''] ?? row.type}</LinkCell>
+                    <LinkCell to={to} label="Reported by">
+                      {row.reporter?.name ?? '—'} <span className="muted">{row.reporter?.phoneMasked ?? ''}</span>
+                    </LinkCell>
+                    <LinkCell to={to} label="Status">{STATUS_LABELS[row.status ?? ''] ?? row.status}</LinkCell>
+                    <LinkCell to={to} label="Raised">{ageLabel(row.createdAt)}</LinkCell>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

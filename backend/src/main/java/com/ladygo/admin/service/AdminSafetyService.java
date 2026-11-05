@@ -76,7 +76,9 @@ public class AdminSafetyService {
         return new SafetyOpenCountResponse(
                 incidents.countByStatusIn(UNRESOLVED),
                 incidents.countByStatus(IncidentStatus.OPEN),
-                incidents.countBySeverityAndStatusIn(IncidentSeverity.CRITICAL, UNRESOLVED));
+                incidents.countBySeverityAndStatusIn(IncidentSeverity.CRITICAL, UNRESOLVED),
+                incidents.findFirstBySeverityAndStatusInOrderByCreatedAtAsc(IncidentSeverity.CRITICAL, UNRESOLVED)
+                        .map(SafetyIncident::getCreatedAt).orElse(null));
     }
 
     @Transactional(readOnly = true)

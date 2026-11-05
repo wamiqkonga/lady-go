@@ -116,8 +116,8 @@ describe('Fares tab: reading', () => {
     mockApi(() => undefined)
     renderPricing()
     const card = await screen.findByRole('region', { name: 'Two-wheeler fare' })
-    expect(within(card).getAllByText('Rs 30.00').length).toBeGreaterThan(0)
-    expect(within(card).getAllByText('Rs 40.00').length).toBeGreaterThan(0)
+    expect(within(card).getAllByText('₹30.00').length).toBeGreaterThan(0)
+    expect(within(card).getAllByText('₹40.00').length).toBeGreaterThan(0)
     expect(within(card).getByText(/In force since/)).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Cab fare' })).not.toBeInTheDocument()
   })
@@ -156,7 +156,7 @@ describe('Fares tab: reading', () => {
     expect(rows).toHaveLength(3)
     expect(within(rows[1]).getByText('In force')).toBeInTheDocument()
     expect(within(rows[2]).getByText('Ended')).toBeInTheDocument()
-    expect(within(rows[2]).getByText('Rs 25.00')).toHaveAttribute('data-label', 'Base fare')
+    expect(within(rows[2]).getByText('₹25.00')).toHaveAttribute('data-label', 'Base fare')
   })
 })
 
@@ -178,7 +178,7 @@ describe('Fares tab: setting and changing a fare', () => {
 
     await user.click(screen.getByRole('button', { name: 'Review change' }))
     const summary = screen.getByRole('table', { name: 'Change summary' })
-    expect(within(summary).getByText('Rs 30.50')).toBeInTheDocument()
+    expect(within(summary).getByText('₹30.50')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save fare' })).toBeDisabled()
     await user.type(screen.getByLabelText('Reason (required)'), 'launch fare')
     await user.click(screen.getByRole('button', { name: 'Save fare' }))
@@ -213,8 +213,8 @@ describe('Fares tab: setting and changing a fare', () => {
     await user.type(field('Base fare (rupees)'), '31')
     const table = await screen.findByRole('table', { name: 'Sample fares' })
     expect(within(table).getByText('2 km / 8 min')).toBeInTheDocument()
-    expect(within(table).getByText('Rs 50.00')).toBeInTheDocument()
-    expect(within(table).getByText('Rs 56.00')).toBeInTheDocument()
+    expect(within(table).getByText('₹50.00')).toBeInTheDocument()
+    expect(within(table).getByText('₹56.00')).toBeInTheDocument()
   })
 
   it('a large change shows the red warning with old and new numbers and needs the confirm tick before Review', async () => {
@@ -231,7 +231,7 @@ describe('Fares tab: setting and changing a fare', () => {
 
     const warning = await screen.findByText(/Large change: more than 50 percent/)
     expect(warning.closest('[role="alert"]')).toHaveClass('fare-warning')
-    expect(screen.getByText(/Base fare: Rs 30.00 to Rs 90.00/)).toBeInTheDocument()
+    expect(screen.getByText(/Base fare: ₹30.00 to ₹90.00/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Review change' })).toBeDisabled()
 
     await user.click(screen.getByLabelText('I confirm this large change'))
@@ -255,8 +255,8 @@ describe('Fares tab: setting and changing a fare', () => {
     await screen.findByRole('table', { name: 'Sample fares' })
     await user.click(screen.getByRole('button', { name: 'Review change' }))
     const row = within(screen.getByRole('table', { name: 'Change summary' })).getByText('Per kilometre').closest('tr')!
-    expect(within(row).getByText('Rs 10.00')).toBeInTheDocument()
-    expect(within(row).getByText('Rs 12.00')).toBeInTheDocument()
+    expect(within(row).getByText('₹10.00')).toBeInTheDocument()
+    expect(within(row).getByText('₹12.00')).toBeInTheDocument()
     expect(screen.getByText('now')).toBeInTheDocument()
   })
 
@@ -389,7 +389,7 @@ describe('Fares tab: confirmation is per set of large changes', () => {
     large = [{ field: 'baseFare', oldValue: '3000', newValue: '9000' }, { field: 'perKm', oldValue: '1000', newValue: '5000' }]
     await user.clear(field('Per kilometre (rupees)'))
     await user.type(field('Per kilometre (rupees)'), '50')
-    await waitFor(() => expect(screen.getByText(/Per kilometre: Rs 10.00 to Rs 50.00/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/Per kilometre: ₹10.00 to ₹50.00/)).toBeInTheDocument())
     expect(screen.getByLabelText('I confirm this large change')).not.toBeChecked()
     expect(screen.getByRole('button', { name: 'Review change' })).toBeDisabled()
   })
@@ -437,3 +437,84 @@ describe('Fares tab: scheduled change', () => {
     expect(screen.queryByText('No fare set: riders cannot book')).not.toBeInTheDocument()
   })
 })
+
+describe('Fares tab: preview problems and first fares', () => {
+  it('blocks Review change and shows the server message when the preview is refused (all-zero fare)', async () => {
+    const user = userEvent.setup()
+    const calls = mockApi((c) =>
+      c.path.endsWith('/preview') ? fail('VALIDATION_FAILED', 'A fare of zero is not allowed.', 400) : undefined)
+    renderPricing()
+    await user.click(await screen.findByRole('button', { name: 'Change fare' }))
+    await fillAll(user, { 'Base fare (rupees)': '0', 'Per kilometre (rupees)': '0', 'Per minute (rupees)': '0', 'Minimum fare (rupees)': '0' })
+
+    expect(await screen.findByText('A fare of zero is not allowed.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review change' })).toBeDisabled()
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/api/v1/admin/pricing-rules')).toBe(false)
+  })
+
+  it('does not open the review step before the preview has come back', async () => {
+    const user = userEvent.setup()
+    let release: (r: Response) => void = () => undefined
+    mockApi((c) => (c.path.endsWith('/preview') ? undefined : undefined))
+    renderPricing()
+    await user.click(await screen.findByRole('button', { name: 'Change fare' }))
+    // Make the next preview hang.
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { release = resolve })))
+    await user.clear(field('Base fare (rupees)'))
+    await user.type(field('Base fare (rupees)'), '31')
+    expect(screen.getByRole('button', { name: 'Review change' })).toBeDisabled()
+    release(ok(previewOf()))
+  })
+
+  it('shows "What a rider would pay" with only the new fare for a first fare', async () => {
+    const user = userEvent.setup()
+    mockApi((c) => {
+      if (c.path.startsWith('/api/v1/admin/pricing-rules?')) return ok(viewOf({ current: null, latestRuleId: null, history: [] }))
+      if (c.path.endsWith('/preview')) {
+        return ok({ samples: [{ distanceMeters: 2000, durationSeconds: 480, current: null, proposed: { totalFare: 5600 } }], largeChanges: [] })
+      }
+      return undefined
+    })
+    renderPricing()
+    await user.click(await screen.findByRole('button', { name: 'Set the first fare' }))
+    await fillAll(user, GOOD)
+    const table = await screen.findByRole('table', { name: 'Sample fares' })
+    expect(screen.getByRole('heading', { name: 'What a rider would pay' })).toBeInTheDocument()
+    expect(within(table).queryByRole('columnheader', { name: 'Current' })).not.toBeInTheDocument()
+    expect(within(table).getByText('₹56.00')).toBeInTheDocument()
+  })
+
+  it('clears the previous error and reason when the person goes Back, and gives every input a name', async () => {
+    const user = userEvent.setup()
+    mockApi((c) => (c.method === 'POST' && c.path === '/api/v1/admin/pricing-rules' ? fail('VALIDATION_FAILED', 'Too big a jump.', 400) : undefined))
+    renderPricing()
+    await user.click(await screen.findByRole('button', { name: 'Change fare' }))
+    for (const name of Object.keys(GOOD)) expect(screen.getByRole('textbox', { name })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Now' })).toBeChecked()
+    expect(screen.getByRole('radio', { name: 'At a later time' })).not.toBeChecked()
+    await fillAll(user, { 'Base fare (rupees)': '31' })
+    await screen.findByRole('table', { name: 'Sample fares' })
+    await user.click(screen.getByRole('button', { name: 'Review change' }))
+    await user.type(screen.getByLabelText('Reason (required)'), 'because')
+    await user.click(screen.getByRole('button', { name: 'Save fare' }))
+    expect(await screen.findByText('Too big a jump.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.queryByText('Too big a jump.')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Review change' }))
+    expect(screen.getByLabelText('Reason (required)')).toHaveValue('')
+    expect(screen.queryByText('Too big a jump.')).not.toBeInTheDocument()
+  })
+
+  it('links an inline field error to its input', async () => {
+    const user = userEvent.setup()
+    mockApi(() => undefined)
+    renderPricing()
+    await user.click(await screen.findByRole('button', { name: 'Change fare' }))
+    await user.clear(field('Base fare (rupees)'))
+    await user.type(field('Base fare (rupees)'), '30.555')
+    expect(field('Base fare (rupees)')).toBeInvalid()
+    expect(field('Base fare (rupees)')).toHaveAccessibleDescription(/at most two decimals/)
+  })
+})
+

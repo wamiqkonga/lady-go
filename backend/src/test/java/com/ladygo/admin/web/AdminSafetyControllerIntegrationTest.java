@@ -165,7 +165,17 @@ class AdminSafetyControllerIntegrationTest extends PersistenceTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.unresolved").value(3))
                 .andExpect(jsonPath("$.data.needsAcknowledging").value(1))
-                .andExpect(jsonPath("$.data.critical").value(2));
+                .andExpect(jsonPath("$.data.critical").value(2))
+                .andExpect(jsonPath("$.data.oldestCriticalAt").exists());
+    }
+
+    @Test
+    void theOpenCountHasNoOldestCriticalTimeWhenNothingCriticalIsOpen() throws Exception {
+        incident(IncidentType.OTHER, IncidentSeverity.LOW, IncidentStatus.OPEN);
+
+        getAs(staff(UserRole.SUPPORT), "/api/v1/admin/safety/incidents/open-count")
+                .andExpect(jsonPath("$.data.critical").value(0))
+                .andExpect(jsonPath("$.data.oldestCriticalAt").doesNotExist());
     }
 
     // --- detail ------------------------------------------------------------------------------------------------
