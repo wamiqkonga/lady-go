@@ -111,6 +111,15 @@ public class DriverService {
         User user = users.findById(userId).orElseThrow(ResourceNotFoundException::new);
         String previous = user.getName();
         boolean hadName = previous != null && !previous.isBlank();
+        // Reviewers matched the documents to the name they saw, so once a decision has been made (approved,
+        // rejected, suspended) a captain cannot rename themselves; support corrects it. Giving a first name
+        // is always allowed, so existing captains without one can still complete their profile.
+        DriverVerificationStatus status = driver.getVerificationStatus();
+        boolean editable = status == DriverVerificationStatus.NOT_SUBMITTED
+                || status == DriverVerificationStatus.PENDING_REVIEW;
+        if (hadName && !name.equals(previous) && !editable) {
+            throw new ValidationException("Your name can no longer be changed here. Contact support to correct it.");
+        }
         if (!name.equals(previous)) {
             user.setName(name);
             users.saveAndFlush(user);

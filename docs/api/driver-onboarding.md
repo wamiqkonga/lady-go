@@ -166,7 +166,7 @@ name, the old name and the phone are never in the entry or in any log line); res
 nothing. The name is the fourth required item: a captain without one is not complete. The admin Verification queue
 shows `nameMissing: true` and counts it under `requiredItems.missing` (and not under `readyForReview`), the review
 summary lists `"Name missing"` under `missingRequirements`, and `POST /admin/drivers/{id}/approve` refuses until it is
-set. Existing captains without a name can still sign in; the website sends them to the name step first.
+set. A name that already exists can only be changed while the captain is `NOT_SUBMITTED` or `PENDING_REVIEW`; after an approve, reject or suspend decision `PUT /name` with a different name returns `400` ("Contact support to correct it"), because reviewers matched the documents to the name they saw. Giving a first name is always allowed. Existing captains without a name can still sign in; the website sends them to the name step first.
 
 `PUT /vehicle` rejects (`422 VALIDATION_FAILED`) a `manufactureYear` older than
 `vehicle.max_age.years` (default 8) at submission time, not left for an admin to notice later.

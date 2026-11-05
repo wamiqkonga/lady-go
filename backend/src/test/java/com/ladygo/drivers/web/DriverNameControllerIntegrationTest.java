@@ -118,6 +118,23 @@ class DriverNameControllerIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void afterAReviewDecisionTheNameCannotBeChangedButAFirstNameCanStillBeGiven() throws Exception {
+        Driver decided = nameless();
+        putName(decided, "{\"fullName\":\"Aisha Khan\"}").andExpect(status().isOk());
+        decided.setVerificationStatus(com.ladygo.drivers.domain.DriverVerificationStatus.APPROVED);
+        drivers.saveAndFlush(decided);
+
+        putName(decided, "{\"fullName\":\"Someone Else\"}").andExpect(status().isBadRequest());
+        putName(decided, "{\"fullName\":\"Aisha Khan\"}").andExpect(status().isOk()); // unchanged: harmless
+        assertThat(users.findById(decided.getUserId()).orElseThrow().getName()).isEqualTo("Aisha Khan");
+
+        Driver existing = nameless(); // approved before names existed
+        existing.setVerificationStatus(com.ladygo.drivers.domain.DriverVerificationStatus.APPROVED);
+        drivers.saveAndFlush(existing);
+        putName(existing, "{\"fullName\":\"Zainab Dar\"}").andExpect(status().isOk());
+    }
+
+    @Test
     void onlyADriverMayUseIt() throws Exception {
         String body = "{\"fullName\":\"Aisha Khan\"}";
         mockMvc.perform(put(NAME).contentType(MediaType.APPLICATION_JSON).content(body)
