@@ -30,6 +30,9 @@ export default function Dialog({ title, onClose, children, initialFocusRef, wide
     const first = initialFocusRef?.current ?? node?.querySelector<HTMLElement>(FOCUSABLE) ?? node
     first?.focus()
     function onKey(e: KeyboardEvent) {
+      // Another dialog opened on top of this one (the step-up prompt): leave the keys to it.
+      const all = document.querySelectorAll('[role="dialog"]')
+      if (node && all.length > 0 && all[all.length - 1] !== node) return
       if (e.key === 'Escape') {
         e.stopPropagation()
         onCloseRef.current()

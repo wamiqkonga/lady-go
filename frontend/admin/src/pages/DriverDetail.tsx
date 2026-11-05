@@ -4,6 +4,7 @@ import { client, unwrap, expectOk, ApiCallError } from '../lib/client'
 import { useStepUp } from '../lib/stepUpContext'
 import { useSession } from '../lib/sessionContext'
 import { formatRupees } from '../lib/money'
+import { availabilityLabel, NAME_MISSING, ratingText, verificationLabel } from '../lib/driverStatus'
 import type { components } from '../lib/api-types'
 
 type Driver = components['schemas']['AdminDriverDetailResponse']
@@ -125,11 +126,27 @@ export default function DriverDetail() {
       <p>
         <Link to="/drivers">← Drivers</Link>
       </p>
-      <h1>{driver.name ?? driver.id}</h1>
+      <h1>{driver.name ?? NAME_MISSING}</h1>
       <p className="muted">
-        {driver.phoneMasked ?? '—'} · {driver.verificationStatus} · {driver.availabilityStatus} · rating{' '}
-        {driver.ratingAvg?.toFixed(2)} ({driver.ratingCount})
+        {driver.phoneMasked ?? '—'} · {ratingText(driver.ratingAvg, driver.ratingCount)}
       </p>
+      <dl className="detail-list">
+        <dt>Verification</dt>
+        <dd>{verificationLabel(driver.verificationStatus)}</dd>
+        {driver.verificationStatus !== 'SUSPENDED' && (
+          <>
+            <dt>Availability</dt>
+            <dd>{availabilityLabel(driver.availabilityStatus)}</dd>
+          </>
+        )}
+      </dl>
+      {driver.verificationStatus === 'SUSPENDED' && (
+        <p className="outcome outcome-rejected" role="status">
+          Suspended {driver.suspension?.suspendedAt ? `on ${new Date(driver.suspension.suspendedAt).toLocaleString()}` : ''}{' '}
+          by {driver.suspension?.suspendedByName ?? driver.suspension?.suspendedByEmailMasked ?? 'an admin (not recorded)'}.{' '}
+          Reason: {driver.suspension?.reason ?? 'not recorded'}
+        </p>
+      )}
       {driver.rejectionReason && <p className="muted">Rejection reason: {driver.rejectionReason}</p>}
 
       {canAct && <ActionPanel driver={driver} onDone={load} />}

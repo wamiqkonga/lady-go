@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { LinkCell } from '../components/RowLink'
+import { documentLabel, documentStatusLabel } from '../lib/documents'
 import { client, unwrap, ApiCallError } from '../lib/client'
 import VerificationTabs from '../components/VerificationTabs'
 import type { components } from '../lib/api-types'
@@ -35,7 +36,7 @@ export default function DriverDocumentQueue() {
       {!error && rows === null && <p className="muted">Loading…</p>}
       {rows !== null && rows.length === 0 && <p className="muted">No documents pending review.</p>}
       {rows !== null && rows.length > 0 && <div className="table-scroll">
-        <table className="list-table">
+        <table className="list-table stack-table">
           <thead>
             <tr>
               <th>Submitted</th>
@@ -49,21 +50,18 @@ export default function DriverDocumentQueue() {
           <tbody>
             {rows.map((row) => {
               const expired = Boolean(row.expiresAt) && new Date(row.expiresAt!) < new Date()
+              const to = `/driver-verification/${row.driverId}`
               return (
                 <tr key={row.id}>
-                  <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
-                  <td>
-                    <Link to={`/driver-verification/${row.driverId}`}>
-                      {row.driverName ?? `${row.driverId?.slice(0, 8)}…`}
-                    </Link>
-                  </td>
-                  <td>{row.driverPhoneMasked ?? '—'}</td>
-                  <td>{row.type}</td>
-                  <td>{row.status}</td>
-                  <td>
+                  <LinkCell to={to} label="Submitted">{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</LinkCell>
+                  <LinkCell to={to} first label="Driver">{row.driverName ?? 'Name not provided'}</LinkCell>
+                  <LinkCell to={to} label="Phone">{row.driverPhoneMasked ?? '—'}</LinkCell>
+                  <LinkCell to={to} label="Document type">{documentLabel(row.type)}</LinkCell>
+                  <LinkCell to={to} label="Status">{documentStatusLabel(row.status)}</LinkCell>
+                  <LinkCell to={to} label="Expires">
                     {row.expiresAt ?? '—'}
                     {expired && <span className="badge-expired"> expired</span>}
-                  </td>
+                  </LinkCell>
                 </tr>
               )
             })}

@@ -43,7 +43,7 @@ export default function AdminUserDetail() {
       <p>
         <Link to="/users">← Staff accounts</Link>
       </p>
-      <h1>{user.name || 'Unnamed'}</h1>
+      <h1>{user.name || user.maskedEmail || 'Unnamed'}</h1>
       <dl className="panel detail-list">
         <dt>Email</dt>
         <dd>{user.maskedEmail}</dd>
