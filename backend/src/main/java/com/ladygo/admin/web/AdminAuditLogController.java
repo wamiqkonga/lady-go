@@ -28,6 +28,7 @@ public class AdminAuditLogController {
     @GetMapping
     public ApiResponse<PageResponse<AdminAuditLogResponse>> list(
             @RequestParam(required = false) UUID actorId,
+            @RequestParam(required = false) String actorEmail,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String targetType,
             @RequestParam(required = false) String targetId,
@@ -35,6 +36,6 @@ public class AdminAuditLogController {
             @RequestParam(required = false) Instant createdBefore,
             Pageable pageable) {
         return ApiResponse.ok(
-                service.list(actorId, action, targetType, targetId, createdAfter, createdBefore, pageable));
+                service.list(actorId, actorEmail, action, targetType, targetId, createdAfter, createdBefore, pageable));
     }
 }

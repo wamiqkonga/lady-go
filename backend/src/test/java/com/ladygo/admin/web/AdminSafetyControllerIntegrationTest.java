@@ -284,6 +284,22 @@ class AdminSafetyControllerIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void resolvingAsOtherNeedsAnExplanatoryNote() throws Exception {
+        SafetyIncident incident = incident(IncidentType.SOS, IncidentSeverity.CRITICAL, IncidentStatus.ACKNOWLEDGED);
+        User agent = staff(UserRole.SUPPORT);
+        String url = "/api/v1/admin/safety/incidents/" + incident.getId() + "/resolve";
+
+        postAs(agent, url, "{\"outcome\":\"OTHER\"}").andExpect(status().isBadRequest());
+        postAs(agent, url, "{\"outcome\":\"OTHER\",\"note\":\"   \"}").andExpect(status().isBadRequest());
+        flushAndClear();
+        assertThat(incidents.findById(incident.getId()).orElseThrow().getStatus()).isEqualTo(IncidentStatus.ACKNOWLEDGED);
+
+        postAs(agent, url, "{\"outcome\":\"OTHER\",\"note\":\"Rider left the car, driver confirmed by phone.\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("RESOLVED"));
+    }
+
+    @Test
     void resolvingRecordsTheOutcomeAndWhoDidItAndIsAudited() throws Exception {
         SafetyIncident incident = incident(IncidentType.SOS, IncidentSeverity.CRITICAL, IncidentStatus.ACKNOWLEDGED);
         User agent = staff(UserRole.SUPPORT);

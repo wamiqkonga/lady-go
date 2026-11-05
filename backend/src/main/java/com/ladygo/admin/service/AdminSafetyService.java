@@ -110,6 +110,9 @@ public class AdminSafetyService {
     public SafetyIncidentDetailResponse resolve(UUID id, SafetyOutcome outcome, String note, UUID actorId,
                                                 String actorRole, String ip) {
         load(id);
+        if (outcome == SafetyOutcome.OTHER && (note == null || note.isBlank())) {
+            throw new ValidationException("Explain what happened in a note when the outcome is Other.");
+        }
         if (incidents.resolveIfUnresolved(id, actorId, Instant.now()) == 0) {
             throw new ValidationException("This incident is already resolved.");
         }

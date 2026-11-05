@@ -2,12 +2,17 @@ package com.ladygo.admin.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import com.ladygo.admin.domain.AuditLog;
 import com.ladygo.admin.repository.AuditLogRepository;
 import com.ladygo.admin.web.dto.AdminAuditLogResponse;
 import com.ladygo.common.api.PageResponse;
+import com.ladygo.users.domain.User;
+import com.ladygo.users.repository.UserRepository;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,8 +27,26 @@ public class AdminAuditLogService {
 
     private final AuditLogRepository auditLogs;
 
-    public AdminAuditLogService(AuditLogRepository auditLogs) {
+    private final UserRepository users;
+
+    public AdminAuditLogService(AuditLogRepository auditLogs, UserRepository users) {
         this.auditLogs = auditLogs;
+        this.users = users;
+    }
+
+    /** Resolves an actor typed as an email to their id; an unknown email matches nothing rather than everything. */
+    public PageResponse<AdminAuditLogResponse> list(
+            UUID actorId, String actorEmail, String action, String targetType, String targetId,
+            Instant createdAfter, Instant createdBefore, Pageable pageable) {
+        UUID effectiveActor = actorId;
+        if (actorEmail != null && !actorEmail.isBlank()) {
+            UUID byEmail = users.findByEmailIgnoreCase(actorEmail.trim()).map(User::getId).orElse(new UUID(0, 0));
+            if (actorId != null && !actorId.equals(byEmail)) {
+                byEmail = new UUID(0, 0);
+            }
+            effectiveActor = byEmail;
+        }
+        return list(effectiveActor, action, targetType, targetId, createdAfter, createdBefore, pageable);
     }
 
     public PageResponse<AdminAuditLogResponse> list(
@@ -36,12 +59,20 @@ public class AdminAuditLogService {
                 pageable.getPageNumber(), pageable.getPageSize(),
                 pageable.getSortOr(Sort.by(Sort.Direction.DESC, "createdAt")));
         Page<AuditLog> page = auditLogs.findAll(spec, sorted);
-        return PageResponse.of(page.map(AdminAuditLogService::toResponse));
+        // One lookup for every actor on the page - never one query per row.
+        Map<UUID, User> actors = new HashMap<>();
+        users.findAllById(new LinkedHashSet<>(page.getContent().stream()
+                .map(AuditLog::getActorId).filter(java.util.Objects::nonNull).toList()))
+                .forEach(u -> actors.put(u.getId(), u));
+        return PageResponse.of(page.map(e -> toResponse(e, actors.get(e.getActorId()))));
     }
 
-    private static AdminAuditLogResponse toResponse(AuditLog entry) {
+    private static AdminAuditLogResponse toResponse(AuditLog entry, User actor) {
+        String name = actor == null || actor.getName() == null || actor.getName().isBlank() ? null : actor.getName();
+        String masked = actor == null || actor.getEmail() == null || actor.getEmail().isBlank()
+                ? null : AdminUserManagementService.maskEmail(actor.getEmail());
         return new AdminAuditLogResponse(
-                entry.getId(), entry.getActorId(), entry.getActorRole(), entry.getAction(), entry.getTargetType(),
+                entry.getId(), entry.getActorId(), name, masked, entry.getActorRole(), entry.getAction(), entry.getTargetType(),
                 entry.getTargetId(), entry.getMetadata(), entry.getIp(), entry.getCreatedAt());
     }
 

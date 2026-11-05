@@ -95,7 +95,25 @@ public class AdminDriverService {
                 driver.getVerifiedAt(), driver.getRejectionReason(), driver.getCreatedAt(),
                 vehicle == null ? null : new VehicleAdminResponse(vehicle.getId(), vehicle.getRegistrationNumber(),
                         vehicle.getVehicleType(), vehicle.getVerificationStatus()),
-                summary, recent, queries.earningsTotals(driverId));
+                summary, recent, queries.earningsTotals(driverId), suspensionOf(driver));
+    }
+
+    private AdminDriverDetailResponse.AdminDriverSuspension suspensionOf(Driver driver) {
+        if (driver.getVerificationStatus() != com.ladygo.drivers.domain.DriverVerificationStatus.SUSPENDED) {
+            return null;
+        }
+        return auditLogs.findFirstByTargetTypeAndTargetIdAndActionOrderByCreatedAtDesc(
+                        "drivers", driver.getId().toString(), "DRIVER_SUSPENDED")
+                .map(entry -> {
+                    User actor = entry.getActorId() == null ? null : users.findById(entry.getActorId()).orElse(null);
+                    String name = actor == null || actor.getName() == null || actor.getName().isBlank() ? null : actor.getName();
+                    String masked = actor == null || actor.getEmail() == null || actor.getEmail().isBlank()
+                            ? null : AdminUserManagementService.maskEmail(actor.getEmail());
+                    Object reason = entry.getMetadata() == null ? null : entry.getMetadata().get("reason");
+                    return new AdminDriverDetailResponse.AdminDriverSuspension(
+                            entry.getCreatedAt(), name, masked, reason == null ? null : reason.toString());
+                })
+                .orElse(null);
     }
 
     /** APPROVED -> SUSPENDED + forced offline. Pending offers die at expiry; accepting one is blocked in matching. */
