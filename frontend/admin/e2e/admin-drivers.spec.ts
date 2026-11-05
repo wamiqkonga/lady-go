@@ -33,7 +33,7 @@ test.describe('Drivers screen', () => {
     await page.getByRole('button', { name: 'Search' }).click()
     await page.getByRole('link', { name: 'E2E Suspendable Captain' }).click()
     await expect(page.getByRole('heading', { name: 'E2E Suspendable Captain' })).toBeVisible()
-    await expect(page.getByText(/APPROVED/).first()).toBeVisible()
+    await expect(page.getByText('Approved', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open document review' })).toHaveAttribute(
       'href',
       `/driver-verification/${env!.suspendDriverId}`,

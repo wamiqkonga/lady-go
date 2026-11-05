@@ -28,7 +28,7 @@ test.describe('staff accounts: invite and role change', () => {
     await send.click()
     await confirmStepUp(page, creds) // login is not a step-up.
 
-    await expect(page.getByRole('status')).toContainText(`Invitation sent to ${email}`)
+    await expect(page.locator('.success')).toContainText(`Invitation sent to ${email}`)
     const row = page.locator('tbody tr').filter({ hasText: 'E2E Invitee' })
     await expect(row).toContainText('Invited')
     await expect(row).toContainText('SUPPORT')
