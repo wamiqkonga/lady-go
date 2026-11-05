@@ -153,12 +153,14 @@ class AuthRepository
                     return PasswordLoginOutcome.Failed("Could not reach the server. Check your connection and try again.")
                 }
             if (!response.isSuccessful) {
-                blockedReasonOf(parseErrorBody(response)?.code)?.let { return PasswordLoginOutcome.Blocked(it) }
+                // An error body can only be read once, so it is read here once and everything below uses [error].
+                val error = parseErrorBody(response)
+                blockedReasonOf(error?.code)?.let { return PasswordLoginOutcome.Blocked(it) }
                 return PasswordLoginOutcome.Failed(
                     when (response.code()) {
                         401 -> "Phone, email or password is not correct."
                         429 -> "Too many tries. Wait a little and try again, or sign in with a code."
-                        else -> errorMessageOrDefault(response, "Could not sign in. Try again.")
+                        else -> error?.message ?: "Could not sign in. Try again."
                     },
                 )
             }

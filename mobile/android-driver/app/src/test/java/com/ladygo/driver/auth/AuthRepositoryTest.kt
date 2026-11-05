@@ -256,4 +256,26 @@ class AuthRepositoryTest {
 
             coVerify { pushTokens.forget() }
         }
+
+    @Test
+    fun passwordLoginShowsTheServersOwnMessageForAnyOtherRefusal() =
+        runTest {
+            coEvery { driverAuthApi.driverAppPasswordLogin(any()) } returns
+                errorResponse<ApiResponseTokenResponse>(403, """{"error":{"code":"FORBIDDEN","message":"This account is not active."}}""")
+
+            val outcome = repository.loginWithPassword("+919900000001", "a password 1")
+
+            assertEquals(PasswordLoginOutcome.Failed("This account is not active."), outcome)
+        }
+
+    @Test
+    fun passwordLoginFallsBackToAPlainMessageWhenTheServerSaysNothingUseful() =
+        runTest {
+            coEvery { driverAuthApi.driverAppPasswordLogin(any()) } returns
+                errorResponse<ApiResponseTokenResponse>(502, "<html>bad gateway</html>")
+
+            val outcome = repository.loginWithPassword("+919900000001", "a password 1")
+
+            assertEquals(PasswordLoginOutcome.Failed("Could not sign in. Try again."), outcome)
+        }
 }
