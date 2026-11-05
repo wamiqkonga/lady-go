@@ -79,11 +79,12 @@ describe('admin routes, signed in', () => {
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument())
   })
 
-  it('shows every dashboard tile from the admin flow spec without fake numbers', async () => {
-    mockAuthenticatedBootstrap()
+  it('shows the dashboard with no invented numbers when the figures cannot be loaded', async () => {
+    mockAuthenticatedBootstrap() // every non-refresh GET returns an empty array, which is not a dashboard
     renderAt('/dashboard')
-    await waitFor(() => expect(screen.getByLabelText('Active drivers: no data yet')).toBeInTheDocument())
-    expect(screen.getByLabelText('System alerts: no data yet')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Active drivers: Unavailable')).toBeInTheDocument())
+    expect(screen.getByLabelText('System alerts: Unavailable')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/no data yet/)).not.toBeInTheDocument()
   })
 
   it.each([

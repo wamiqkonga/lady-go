@@ -5,11 +5,12 @@ import AdminUsers from './pages/AdminUsers'
 import AuditLog from './pages/AuditLog'
 import CustomerDetail from './pages/CustomerDetail'
 import Customers from './pages/Customers'
-import ConfigScreen from './pages/ConfigScreen'
+import Pricing from './pages/pricing/Pricing'
 import Dashboard from './pages/Dashboard'
 import DriverDocumentQueue from './pages/DriverDocumentQueue'
 import DriverDetail from './pages/DriverDetail'
 import DriverReview from './pages/DriverReview'
+import DriverVerificationQueue from './pages/DriverVerificationQueue'
 import Drivers from './pages/Drivers'
 import ForgotPassword from './pages/ForgotPassword'
 import LiveMap from './pages/LiveMap'
@@ -48,11 +49,12 @@ export default function App() {
         <Route path="rides/:bookingId" element={<RideDetail />} />
         <Route path="drivers" element={<Drivers />} />
         <Route path="drivers/:driverId" element={<DriverDetail />} />
-        <Route path="driver-verification" element={<DriverDocumentQueue />} />
+        <Route path="driver-verification" element={<DriverVerificationQueue />} />
+        <Route path="driver-verification/documents" element={<DriverDocumentQueue />} />
         <Route path="driver-verification/:driverId" element={<DriverReview />} />
         <Route path="customers" element={<Customers />} />
         <Route path="customers/:customerId" element={<CustomerDetail />} />
-        <Route path="pricing" element={<ConfigScreen />} />
+        <Route path="pricing/*" element={<Pricing />} />
         <Route path="safety" element={<SafetyQueue />} />
         <Route path="safety/:incidentId" element={<SafetyIncident />} />
         <Route path="audit-logs" element={<AuditLog />} />

@@ -14,7 +14,7 @@ test.describe('safety queue', () => {
     // The navigation badge counts the unresolved incident.
     await expect(page.getByRole('navigation', { name: 'Admin' }).getByLabel('1 unresolved')).toBeVisible()
 
-    await page.getByRole('link', { name: 'Safety' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Safety' }).click()
     await expect(page.getByRole('heading', { name: 'Safety', exact: true })).toBeVisible()
     await expect(page.getByRole('alert').filter({ hasText: 'call 112' })).toBeVisible()
     const row = page.locator('tbody tr').filter({ has: page.getByRole('link', { name: 'SOS' }) })

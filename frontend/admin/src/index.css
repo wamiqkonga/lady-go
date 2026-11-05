@@ -246,3 +246,26 @@ a { color: var(--brand); }
   .live-map-canvas { height: 50vh; }
   .live-map-side { max-height: none; }
 }
+
+/* Verification queue: how long a captain has waited; warns once past the 24 hour target. */
+.age-badge { display: inline-block; white-space: nowrap; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.85rem; font-weight: 700; background: var(--surface-variant); }
+.age-badge.warn { background: var(--rose-container); color: var(--bad); border: 1px solid var(--bad); }
+.filters label.check { flex-direction: row; align-items: center; gap: 0.4rem; }
+.filters label.check { min-height: 40px; }
+.filters label.check input { width: auto; min-height: 0; padding: 0; margin: 0; }
+.dashboard h2 { margin: 1.75rem 0 0; font-size: 1.1rem; }
+.tile-link { display: block; color: inherit; text-decoration: none; }
+.tile-link:hover, .tile-link:focus-visible { border-color: var(--brand); }
+.tile-value-quiet { color: var(--muted); font-size: 1.1rem; font-weight: 600; }
+.tile-note { color: var(--muted); font-size: 0.85rem; margin-top: 0.35rem; }
+.tile-bad { background: var(--bad-container); border-color: var(--bad); }
+.tile-bad .tile-value, .tile-bad .tile-flag { color: var(--bad); }
+.tile-flag { font-weight: 800; font-size: 0.85rem; margin-top: 0.35rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.banner-bad { background: var(--bad-container); color: var(--bad); border-radius: var(--radius-md); margin-top: 1rem; }
+.link-button { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: inherit; text-decoration: underline; cursor: pointer; }
+.week-bars { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
+.week-bars li { display: grid; grid-template-columns: minmax(7.5rem, 9rem) 1fr 3rem; align-items: center; gap: 0.6rem; }
+.week-label { color: var(--muted); font-size: 0.9rem; }
+.week-bar { display: block; height: 0.8rem; background: var(--surface-variant); border-radius: 999px; overflow: hidden; }
+.week-bar > span { display: block; height: 100%; background: var(--brand); border-radius: 999px; }
+.week-count { text-align: right; font-weight: 700; }

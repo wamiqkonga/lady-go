@@ -13,7 +13,7 @@ test.describe('staff accounts: invite and role change', () => {
     const email = `e2e.invitee.${Date.now()}@example.test`
 
     await loginAs(page, creds)
-    await page.getByRole('link', { name: 'Staff' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Staff' }).click()
     await expect(page.getByRole('heading', { name: 'Staff accounts' })).toBeVisible()
 
     const form = page.getByRole('form', { name: 'Invite a staff member' })

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { client, unwrap, ApiCallError } from '../lib/client'
+import VerificationTabs from '../components/VerificationTabs'
 import type { components } from '../lib/api-types'
 
 type DocumentRow = components['schemas']['DriverDocumentAdminResponse']
@@ -26,14 +27,14 @@ export default function DriverDocumentQueue() {
     }
   }, [])
 
-  if (error) return <p role="alert">{error}</p>
-  if (rows === null) return <p className="muted">Loading…</p>
-  if (rows.length === 0) return <p className="muted">No documents pending review.</p>
-
   return (
     <section>
       <h1>Driver verification</h1>
-      <div className="table-scroll">
+      <VerificationTabs />
+      {error && <p role="alert">{error}</p>}
+      {!error && rows === null && <p className="muted">Loading…</p>}
+      {rows !== null && rows.length === 0 && <p className="muted">No documents pending review.</p>}
+      {rows !== null && rows.length > 0 && <div className="table-scroll">
         <table className="list-table">
           <thead>
             <tr>
@@ -68,7 +69,7 @@ export default function DriverDocumentQueue() {
             })}
           </tbody>
         </table>
-      </div>
+      </div>}
     </section>
   )
 }

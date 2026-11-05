@@ -9,7 +9,7 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
 
   test('the rides list and detail show masked contacts, pickup, cash state, flags and the timeline', async ({ page }) => {
     await loginAs(page, env!.superAdmins.RIDES)
-    await page.getByRole('link', { name: 'Rides' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Rides' }).click()
     await expect(page.getByRole('heading', { name: 'Ride & flag oversight' })).toBeVisible()
 
     const row = page.locator('tbody tr').filter({ has: page.getByRole('link', { name: 'COMPLETED' }) })
@@ -36,7 +36,7 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
 
   test('reviewing a flag requires a note, which renders as literal text, never markup', async ({ page }) => {
     await loginAs(page, env!.superAdmins.FLAGS)
-    await page.getByRole('link', { name: 'Rides' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Rides' }).click()
     await page.getByRole('button', { name: 'Flags' }).click()
 
     const flagRow = page.locator('li.document-row').filter({ hasText: 'RIDER_SAFETY_CANCEL' })
@@ -60,7 +60,7 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
 
   test('the audit log shows the flag review with the note as text, filterable by action', async ({ page }) => {
     await loginAs(page, env!.superAdmins.AUDITLOG)
-    await page.getByRole('link', { name: 'Audit log' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Audit log' }).click()
     await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible()
 
     await page.getByPlaceholder(/CONFIGURATION_CHANGED/).fill('RIDE_FLAG_REVIEWED')
@@ -78,7 +78,7 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
 
   test('a plain ADMIN sees the config screen as read-only, with no edit control', async ({ page }) => {
     await loginAs(page, env!.admin2)
-    await page.getByRole('link', { name: 'Pricing' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Pricing' }).click()
     await expect(page.getByRole('heading', { name: 'Pricing & configuration' })).toBeVisible()
     await expect(page.getByText(/Read-only/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Edit' })).not.toBeVisible()
@@ -86,7 +86,8 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
 
   test('a SUPER_ADMIN must give a reason, sees old→new on confirm, and the change is audited', async ({ page }) => {
     await loginAs(page, env!.superAdmins.CONFIGEDIT)
-    await page.getByRole('link', { name: 'Pricing' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Pricing' }).click()
+    await page.getByRole('link', { name: 'Settings' }).click() // Pricing opens on the Fares tab for a SUPER_ADMIN
 
     const row = page.locator('tbody tr').filter({ hasText: 'driver.search.radius.m' })
     await row.getByRole('button', { name: 'Edit' }).click()

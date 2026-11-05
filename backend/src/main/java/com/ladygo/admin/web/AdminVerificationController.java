@@ -2,14 +2,17 @@ package com.ladygo.admin.web;
 
 import java.net.URI;
 import java.util.UUID;
+import com.ladygo.admin.service.AdminVerificationQueueService;
 import com.ladygo.admin.service.AdminVerificationService;
 import com.ladygo.admin.web.dto.DocumentReviewRequest;
 import com.ladygo.admin.web.dto.DriverDocumentAdminResponse;
 import com.ladygo.admin.web.dto.DriverReviewSummaryResponse;
+import com.ladygo.admin.web.dto.DriverVerificationQueueItemResponse;
 import com.ladygo.admin.web.dto.EligibilityReportAdminResponse;
 import com.ladygo.admin.web.dto.EligibilityReportResolveRequest;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.common.api.PageResponse;
+import com.ladygo.drivers.domain.DriverVerificationStatus;
 import com.ladygo.security.jwt.AuthPrincipal;
 import com.ladygo.security.net.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -34,11 +38,29 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminVerificationController {
 
     private final AdminVerificationService service;
+    private final AdminVerificationQueueService queueService;
     private final ClientIpResolver clientIpResolver;
 
-    public AdminVerificationController(AdminVerificationService service, ClientIpResolver clientIpResolver) {
+    public AdminVerificationController(AdminVerificationService service,
+            AdminVerificationQueueService queueService, ClientIpResolver clientIpResolver) {
         this.service = service;
+        this.queueService = queueService;
         this.clientIpResolver = clientIpResolver;
+    }
+
+    /**
+     * Captains waiting for a decision, oldest first submission first. {@code status} defaults to PENDING_REVIEW;
+     * {@code q} is a name, phone digits or driver id; {@code overdueOnly} keeps those waiting more than 24 hours;
+     * {@code readyOnly} keeps those with every required item uploaded. Same ADMIN / SUPER_ADMIN gate as the rest.
+     */
+    @GetMapping("/driver-verification/queue")
+    public ApiResponse<PageResponse<DriverVerificationQueueItemResponse>> captainQueue(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) DriverVerificationStatus status,
+            @RequestParam(defaultValue = "false") boolean overdueOnly,
+            @RequestParam(defaultValue = "false") boolean readyOnly,
+            Pageable pageable) {
+        return ApiResponse.ok(queueService.list(q, status, overdueOnly, readyOnly, pageable));
     }
 
     @GetMapping("/driver-documents")
