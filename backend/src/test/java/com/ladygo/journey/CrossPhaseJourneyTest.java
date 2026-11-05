@@ -218,6 +218,14 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         assertThat((Boolean) JsonPath.read(reviewBeforeApproval, "$.data.readyForApproval")).isFalse();
+        // The captain registered through OTP and has not given a name yet: the reviewer sees that.
+        assertThat((java.util.List<String>) JsonPath.read(reviewBeforeApproval, "$.data.missingRequirements"))
+                .contains("Name missing");
+        mockMvc.perform(put("/api/v1/drivers/me/name")
+                        .header("Authorization", "Bearer " + driverToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fullName\":\"Aisha Khan\"}"))
+                .andExpect(status().isOk());
 
         for (UUID docId : new UUID[] {licenseDocId, registrationDocId, vehiclePhotoDocId, insuranceDocId, selfieDocId}) {
             mockMvc.perform(post("/api/v1/admin/driver-documents/" + docId + "/approve")
