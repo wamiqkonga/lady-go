@@ -63,10 +63,10 @@ test.describe('ride/flag oversight, audit log, and config screens', () => {
     await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Audit log' }).click()
     await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible()
 
-    await page.getByPlaceholder(/CONFIGURATION_CHANGED/).fill('RIDE_FLAG_REVIEWED')
+    await page.getByLabel('Action').selectOption('RIDE_FLAG_REVIEWED')
     await page.getByRole('button', { name: 'Apply' }).click()
 
-    const entryRow = page.locator('tbody tr').filter({ hasText: 'RIDE_FLAG_REVIEWED' }).first()
+    const entryRow = page.locator('tbody tr').filter({ hasText: 'Reviewed a ride flag' }).first()
     await expect(entryRow).toBeVisible()
     expect(await entryRow.locator('img, script').count()).toBe(0)
 

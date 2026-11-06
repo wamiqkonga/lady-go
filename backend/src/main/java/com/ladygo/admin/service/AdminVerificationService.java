@@ -234,9 +234,17 @@ public class AdminVerificationService {
         VehicleAdminResponse vehicleResponse = vehicle == null ? null : new VehicleAdminResponse(
                 vehicle.getId(), vehicle.getRegistrationNumber(), vehicle.getVehicleType(), vehicle.getVerificationStatus());
 
+        boolean decided = driver.getVerifiedAt() != null
+                && (driver.getVerificationStatus() == DriverVerificationStatus.APPROVED
+                        || driver.getVerificationStatus() == DriverVerificationStatus.REJECTED);
+        User decider = decided && driver.getVerifiedBy() != null ? users.findById(driver.getVerifiedBy()).orElse(null) : null;
         return new DriverReviewSummaryResponse(driverId, contact.name(), contact.phoneMasked(),
                 driver.getVerificationStatus(), declarationAccepted, vehicleResponse, latestPerType,
-                missing.isEmpty(), missing);
+                missing.isEmpty(), missing, decided ? driver.getVerifiedAt() : null,
+                decider == null || decider.getName() == null || decider.getName().isBlank() ? null : decider.getName(),
+                decider == null || decider.getEmail() == null || decider.getEmail().isBlank()
+                        ? null : AdminUserManagementService.maskEmail(decider.getEmail()),
+                driver.getVerificationStatus() == DriverVerificationStatus.REJECTED ? driver.getRejectionReason() : null);
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.ladygo.admin.web.dto;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import com.ladygo.drivers.domain.DriverVerificationStatus;
@@ -14,5 +15,9 @@ public record DriverReviewSummaryResponse(
         VehicleAdminResponse vehicle,
         List<DriverDocumentAdminResponse> documents,
         boolean readyForApproval,
-        List<String> missingRequirements) {
+        List<String> missingRequirements,
+        Instant decidedAt,
+        String decidedByName,
+        String decidedByEmailMasked,
+        String rejectionReason) {
 }

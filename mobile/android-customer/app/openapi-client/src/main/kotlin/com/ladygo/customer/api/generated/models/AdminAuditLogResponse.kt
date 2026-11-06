@@ -24,6 +24,8 @@ import com.squareup.moshi.JsonClass
  *
  * @param id 
  * @param actorId 
+ * @param actorName 
+ * @param actorEmailMasked 
  * @param actorRole 
  * @param action 
  * @param targetType 
@@ -41,6 +43,12 @@ data class AdminAuditLogResponse (
 
     @Json(name = "actorId")
     val actorId: java.util.UUID? = null,
+
+    @Json(name = "actorName")
+    val actorName: kotlin.String? = null,
+
+    @Json(name = "actorEmailMasked")
+    val actorEmailMasked: kotlin.String? = null,
 
     @Json(name = "actorRole")
     val actorRole: kotlin.String? = null,

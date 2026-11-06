@@ -34,8 +34,9 @@ describe('DriverDocumentQueue', () => {
       </MemoryRouter>,
     )
 
-    await waitFor(() => expect(screen.getByText('LICENSE')).toBeInTheDocument())
-    expect(screen.getByRole('link', { name: /driver-1/ })).toHaveAttribute('href', '/driver-verification/driver-123')
+    await waitFor(() => expect(screen.getByText('Driving licence')).toBeInTheDocument())
+    expect(screen.getByRole('link', { name: 'Name not provided' })).toHaveAttribute('href', '/driver-verification/driver-123')
+    expect(screen.getByText('Waiting for review')).toBeInTheDocument()
   })
 
   it('shows the driver name, masked phone, and flags an expired document', async () => {

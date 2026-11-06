@@ -142,6 +142,7 @@ export default function Dashboard() {
 
   const sosWaitingTooLong =
     s?.oldestUnacknowledgedSosMinutes != null && s.oldestUnacknowledgedSosMinutes > (s.sosTargetMinutes ?? 5)
+  const sosWaiting = s?.oldestUnacknowledgedSosMinutes != null
   const sosMedianOver = s?.sosMedianAckMinutes != null && s.sosMedianAckMinutes > (s.sosTargetMinutes ?? 5)
   const reviewOver = (v?.waitingOverTarget ?? 0) > 0
   const reviewMedianOver = v?.medianWaitHours != null && v.medianWaitHours > (v.targetHours ?? 24)
@@ -242,12 +243,18 @@ export default function Dashboard() {
         <Tile
           label="SOS acknowledged in (median)"
           state={state}
-          value={s && minutes(s.sosMedianAckMinutes, 'no SOS yet')}
+          value={s && (sosWaiting && s.sosMedianAckMinutes == null ? 'SOS waiting' : minutes(s.sosMedianAckMinutes, 'no SOS yet'))}
           note={
             <>
-              Target {s?.sosTargetMinutes ?? 5} min · based on {number.format(s?.sosAckSample ?? 0)} SOS in the last 30 days
-              {s?.oldestUnacknowledgedSosMinutes != null && (
-                <strong> · an SOS has waited {s.oldestUnacknowledgedSosMinutes} min with nobody acknowledging it</strong>
+              {sosWaiting && s.sosMedianAckMinutes == null ? (
+                <>None acknowledged yet · target {s.sosTargetMinutes ?? 5} min</>
+              ) : (
+                <>
+                  Target {s?.sosTargetMinutes ?? 5} min · based on {number.format(s?.sosAckSample ?? 0)} acknowledged SOS in the last 30 days
+                </>
+              )}
+              {sosWaiting && (
+                <strong> · the oldest SOS has waited {s.oldestUnacknowledgedSosMinutes} min with nobody acknowledging it</strong>
               )}
             </>
           }

@@ -52,7 +52,7 @@ function EditRow({ entry, onSaved }: { entry: Entry; onSaved: () => void }) {
 
   return (
     <div className="row-actions config-edit">
-      <input type="text" value={value} onChange={(e) => setValue(e.target.value)} disabled={confirming} />
+      <input type="text" aria-label={`New value for ${entry.configKey}`} value={value} onChange={(e) => setValue(e.target.value)} disabled={confirming} />
       {!confirming ? (
         <>
           <button type="button" onClick={() => setConfirming(true)} disabled={value === entry.configValue}>
@@ -69,6 +69,7 @@ function EditRow({ entry, onSaved }: { entry: Entry; onSaved: () => void }) {
           </p>
           <input
             type="text"
+            aria-label={`Reason for changing ${entry.configKey} (required)`}
             placeholder="Reason for this change (required)"
             value={reason}
             onChange={(e) => setReason(e.target.value)}

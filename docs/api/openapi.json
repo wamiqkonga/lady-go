@@ -4921,6 +4921,14 @@
             }
           },
           {
+            "name": "actorEmail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "action",
             "in": "query",
             "required": false,
@@ -9260,6 +9268,10 @@
           "critical": {
             "type": "integer",
             "format": "int64"
+          },
+          "oldestCriticalAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -10164,6 +10176,9 @@
           },
           "earnings": {
             "$ref": "#/components/schemas/AdminDriverEarningsTotals"
+          },
+          "suspension": {
+            "$ref": "#/components/schemas/AdminDriverSuspension"
           }
         }
       },
@@ -10244,6 +10259,24 @@
             "format": "int64"
           },
           "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminDriverSuspension": {
+        "type": "object",
+        "properties": {
+          "suspendedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suspendedByName": {
+            "type": "string"
+          },
+          "suspendedByEmailMasked": {
+            "type": "string"
+          },
+          "reason": {
             "type": "string"
           }
         }
@@ -10363,6 +10396,19 @@
             "items": {
               "type": "string"
             }
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedByName": {
+            "type": "string"
+          },
+          "decidedByEmailMasked": {
+            "type": "string"
+          },
+          "rejectionReason": {
+            "type": "string"
           }
         }
       },
@@ -10874,6 +10920,12 @@
           "actorId": {
             "type": "string",
             "format": "uuid"
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "actorEmailMasked": {
+            "type": "string"
           },
           "actorRole": {
             "type": "string"

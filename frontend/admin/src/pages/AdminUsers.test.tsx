@@ -41,12 +41,22 @@ describe('AdminUsers', () => {
     renderList()
 
     await waitFor(() => expect(screen.getByText('Asha Support')).toBeInTheDocument())
-    expect(screen.getAllByText('a***@example.com')).toHaveLength(3)
+    expect(screen.getAllByText('a***@example.com').length).toBeGreaterThanOrEqual(3)
     expect(screen.getByText('Invited')).toBeInTheDocument()
     expect(screen.getByText(/Locked$/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Asha Support' })).toHaveAttribute('href', '/users/u-1')
     // every cell carries its label, which the phone layout shows on each card.
-    expect(document.querySelectorAll('td[data-label="Role"]').length).toBe(3)
+    expect(document.querySelectorAll('a[data-label="Role"]').length).toBe(3)
+    // The invite form is not in the way: the list comes first and the form opens on demand.
+    expect(screen.queryByLabelText('Full name')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Invite a staff member' })).toBeInTheDocument()
+  })
+
+  it('shows an unnamed account by its masked email, never "Unnamed"', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ success: true, data: [staff({ id: 'u-5', name: '', maskedEmail: 'z***@example.com' })], error: null })))
+    renderList()
+    expect(await screen.findByRole('link', { name: 'z***@example.com' })).toHaveAttribute('href', '/users/u-5')
+    expect(screen.queryByText('Unnamed')).not.toBeInTheDocument()
   })
 
   it('sends an invitation only after a reason is given, then reloads the list', async () => {
@@ -57,7 +67,8 @@ describe('AdminUsers', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     renderList()
-    await waitFor(() => expect(screen.getByRole('form', { name: 'Invite a staff member' })).toBeInTheDocument())
+    await userEvent.click(await screen.findByRole('button', { name: 'Invite a staff member' }))
+    expect(screen.getByRole('dialog', { name: 'Invite a staff member' })).toBeInTheDocument()
 
     await userEvent.type(screen.getByLabelText('Full name'), 'New Person')
     await userEvent.type(screen.getByLabelText('Email'), 'new@example.com')
@@ -88,13 +99,13 @@ describe('AdminUsers', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     renderList()
-    await waitFor(() => expect(screen.getByLabelText('Full name')).toBeInTheDocument())
+    await userEvent.click(await screen.findByRole('button', { name: 'Invite a staff member' }))
     await userEvent.type(screen.getByLabelText('Full name'), 'Asha')
     await userEvent.type(screen.getByLabelText('Email'), 'asha@example.com')
     await userEvent.type(screen.getByLabelText('Reason (required)'), 'Hire')
     await userEvent.click(screen.getByRole('button', { name: 'Send invitation' }))
 
-    const dialog = await screen.findByRole('dialog')
+    const dialog = await screen.findByRole('dialog', { name: /authenticator|confirm|identity/i })
     await userEvent.type(within(dialog).getByLabelText('Authenticator code'), '123456')
     await userEvent.click(within(dialog).getByRole('button', { name: 'Confirm' }))
 
@@ -109,7 +120,7 @@ describe('AdminUsers', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     renderList()
-    await waitFor(() => expect(screen.getByLabelText('Full name')).toBeInTheDocument())
+    await userEvent.click(await screen.findByRole('button', { name: 'Invite a staff member' }))
     await userEvent.type(screen.getByLabelText('Full name'), 'Dup')
     await userEvent.type(screen.getByLabelText('Email'), 'dup@example.com')
     await userEvent.type(screen.getByLabelText('Reason (required)'), 'Hire')

@@ -8,6 +8,8 @@ import java.util.UUID;
 public record AdminAuditLogResponse(
         UUID id,
         UUID actorId,
+        String actorName,
+        String actorEmailMasked,
         String actorRole,
         String action,
         String targetType,

@@ -18,7 +18,7 @@ const ridesPage = {
         bookingId: 'booking-1', bookingStatus: 'RIDE_STARTED',
         customer: { name: 'Priya Shah', phoneMasked: '******1234' },
         driver: { name: 'Rahul Dev', phoneMasked: '******5678' },
-        finalFare: 250, openFlagCount: 1, createdAt: '2026-01-01T00:00:00Z',
+        finalFare: 9000, openFlagCount: 1, createdAt: '2026-01-01T00:00:00Z',
       },
     ],
     page: 0, size: 50, totalElements: 1, totalPages: 1,
@@ -59,8 +59,11 @@ describe('RideOversight', () => {
     await waitFor(() => expect(screen.getByRole('link', { name: 'RIDE_STARTED' })).toBeInTheDocument())
     expect(screen.getByText(/Priya Shah/)).toBeInTheDocument()
     expect(screen.getByText(/\*{6}1234/)).toBeInTheDocument()
-    expect(screen.getByText('250')).toBeInTheDocument()
+    expect(screen.getByText('₹90.00')).toBeInTheDocument()
+    expect(screen.queryByText('9000')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'RIDE_STARTED' })).toHaveAttribute('href', '/rides/booking-1')
+    // Every cell of the row is the same link, so the whole row opens the ride.
+    expect(document.querySelectorAll('tbody tr td a[href="/rides/booking-1"]')).toHaveLength(6)
   })
 
   it('switches to the flags tab and submits a required review note', async () => {

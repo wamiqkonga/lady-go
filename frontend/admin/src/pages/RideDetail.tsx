@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { client, unwrap, ApiCallError } from '../lib/client'
+import { formatRupees } from '../lib/money'
 import type { components } from '../lib/api-types'
 
 type Detail = components['schemas']['AdminRideDetailResponse']
@@ -74,7 +75,7 @@ export default function RideDetail() {
         <h2>Pickup &amp; fare</h2>
         <p>Pickup: {detail.pickupAddress ?? '—'}</p>
         <p>
-          Fare: {detail.finalFare ?? detail.estimatedFare ?? '—'} · Payment: {detail.paymentMethod ?? '—'}
+          Fare: {formatRupees(detail.finalFare ?? detail.estimatedFare)} · Payment: {detail.paymentMethod ?? '—'}
         </p>
         {detail.paymentMethod === 'CASH' && (
           <p className="muted">

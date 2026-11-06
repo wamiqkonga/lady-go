@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiCallError, client, unwrap } from '../../lib/client'
 import { useStepUp } from '../../lib/stepUpContext'
@@ -64,6 +64,8 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
   const [reason, setReason] = useState('')
   const [preview, setPreview] = useState<Preview | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [previewing, setPreviewing] = useState(false)
+  const uid = useId()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [needsSetup, setNeedsSetup] = useState(false)
@@ -108,9 +110,13 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
     if (!body) {
       setPreview(null)
       setPreviewError(null)
+      setPreviewing(false)
       return
     }
     let cancelled = false
+    setPreview(null)
+    setPreviewError(null)
+    setPreviewing(true)
     const timer = setTimeout(() => {
       client
         .POST('/api/v1/admin/pricing-rules/preview', { body })
@@ -119,10 +125,12 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
           if (cancelled) return
           setPreview(data)
           setPreviewError(null)
+          setPreviewing(false)
         })
         .catch((err: unknown) => {
           if (cancelled) return
           setPreview(null)
+          setPreviewing(false)
           setPreviewError(err instanceof ApiCallError ? err.message : 'Could not calculate sample fares.')
         })
     }, 300)
@@ -136,10 +144,11 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
   const needsConfirm = largeChanges.length > 0
   const largeSignature = JSON.stringify(largeChanges)
   const confirmLarge = confirmedFor === largeSignature
-  const canReview = !!body && !previewError && !laterProblem && (!needsConfirm || confirmLarge)
+  // The server's own check of the numbers (for example an all-zero fare) must pass before the review step opens.
+  const canReview = !!body && !!preview && !previewing && !previewError && !laterProblem && (!needsConfirm || confirmLarge)
 
   async function save() {
-    if (!body || !reason.trim()) return
+    if (!body || !reason.trim() || previewError) return
     setBusy(true)
     setError(null)
     setNeedsSetup(false)
@@ -165,70 +174,87 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
     }
   }
 
+  function setField(key: MoneyKey | 'serviceFeePct', value: string) {
+    setValues((v) => ({ ...v, [key]: value }))
+    setError(null)
+    setNeedsSetup(false)
+    setReason('')
+  }
+
+  function goBack() {
+    setReviewing(false)
+    setError(null)
+    setNeedsSetup(false)
+    setReason('')
+  }
+
+  function fieldFor(key: MoneyKey | 'serviceFeePct', label: string): ReactNode {
+    const id = `${uid}-${key}`
+    const errorId = `${id}-error`
+    const message = values[key] !== '' ? parsed.errors[key] : undefined
+    return (
+      <div className="field" key={key}>
+        <label htmlFor={id}>{label}</label>
+        <input
+          id={id}
+          type="text"
+          inputMode="decimal"
+          value={values[key]}
+          onChange={(e) => setField(key, e.target.value)}
+          aria-invalid={message ? true : undefined}
+          aria-describedby={message ? errorId : undefined}
+        />
+        {message && <p id={errorId} className="field-error">{message}</p>}
+      </div>
+    )
+  }
+
   const oldText = (key: MoneyKey) => (current ? formatRupees(current[key]) : '-')
 
   return (
     <div className="fare-form-wrap" role="group" aria-label={current ? 'Change fare' : 'Set the first fare'}>
       {!reviewing ? (
         <form className="fare-form" onSubmit={(e) => { e.preventDefault(); if (canReview) setReviewing(true) }}>
-          {MONEY_FIELDS.map((f) => (
-            <label key={f.key}>
-              {f.label}
-              <input
-                type="text"
-                inputMode="decimal"
-                value={values[f.key]}
-                onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-                aria-invalid={!!parsed.errors[f.key]}
-              />
-              {values[f.key] !== '' && parsed.errors[f.key] && <p className="field-error">{parsed.errors[f.key]}</p>}
-            </label>
-          ))}
-          <label>
-            Service fee (percent)
-            <input
-              type="text"
-              inputMode="decimal"
-              value={values.serviceFeePct}
-              onChange={(e) => setValues({ ...values, serviceFeePct: e.target.value })}
-              aria-invalid={!!parsed.errors.serviceFeePct}
-            />
-            {values.serviceFeePct !== '' && parsed.errors.serviceFeePct && <p className="field-error">{parsed.errors.serviceFeePct}</p>}
-          </label>
+          {MONEY_FIELDS.map((f) => fieldFor(f.key, f.label))}
+          {fieldFor('serviceFeePct', 'Service fee (percent)')}
 
           <fieldset>
             <legend>When should it start?</legend>
-            <label><input type="radio" name="when" checked={when === 'now'} onChange={() => setWhen('now')} /> Now</label>
-            <label><input type="radio" name="when" checked={when === 'later'} onChange={() => setWhen('later')} /> At a later time</label>
+            <label><input type="radio" name={`${uid}-when`} value="now" checked={when === 'now'} onChange={() => setWhen('now')} /> Now</label>
+            <label><input type="radio" name={`${uid}-when`} value="later" checked={when === 'later'} onChange={() => setWhen('later')} /> At a later time</label>
             {when === 'later' && (
-              <label>
-                Start time
+              <div className="field">
+                <label htmlFor={`${uid}-start`}>Start time</label>
                 <input
+                  id={`${uid}-start`}
                   type="datetime-local"
                   value={laterAt}
                   max={localInputValue(Date.now() + maxDays * 86_400_000)}
                   onChange={(e) => setLaterAt(e.target.value)}
+                  aria-describedby={`${uid}-start-help${laterProblem ? ` ${uid}-start-error` : ''}`}
+                  aria-invalid={laterProblem ? true : undefined}
                 />
-              </label>
+              </div>
             )}
-            {when === 'later' && <p className="muted">A fare can be scheduled at most {maxDays} days ahead.</p>}
-            {laterProblem && <p className="field-error">{laterProblem}</p>}
+            {when === 'later' && <p id={`${uid}-start-help`} className="muted">A fare can be scheduled at most {maxDays} days ahead.</p>}
+            {laterProblem && <p id={`${uid}-start-error`} className="field-error">{laterProblem}</p>}
           </fieldset>
 
           {previewError && <p role="alert" className="field-error">{previewError}</p>}
+          {previewing && !previewError && <p className="muted" role="status">Checking these numbers…</p>}
 
           {preview && (
             <div className="fare-samples">
               <h3>What a rider would pay</h3>
               <table aria-label="Sample fares">
                 <thead>
-                  <tr><th>Trip</th><th>Current</th><th>New</th></tr>
+                  <tr><th>Trip</th>{current && <th>Current</th>}<th>New</th></tr>
                 </thead>
                 <tbody>
                   {(preview.samples ?? []).map((s) => (
                     <tr key={`${s.distanceMeters}-${s.durationSeconds}`}>
                       <td>{formatSample(s)}</td>
-                      <td>{s.current ? formatRupees(s.current.totalFare) : '-'}</td>
+                      {current && <td>{s.current ? formatRupees(s.current.totalFare) : '-'}</td>}
                       <td>{formatRupees(s.proposed?.totalFare)}</td>
                     </tr>
                   ))}
@@ -254,7 +280,7 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
           )}
 
           <div className="row-actions">
-            <button type="submit" disabled={!canReview}>Review change</button>
+            <button type="submit" className="btn-primary" disabled={!canReview}>Review change</button>
             <button type="button" onClick={onClose}>Cancel</button>
           </div>
         </form>
@@ -279,13 +305,14 @@ export default function FareChangeForm({ cityId, vehicleType, view, onClose, onS
             </tbody>
           </table>
           <p>Starts: <strong>{when === 'now' ? 'now' : new Date(laterIso ?? '').toLocaleString()}</strong></p>
-          <label>
-            Reason (required)
-            <input type="text" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
-          </label>
+          {previewError && <p role="alert" className="field-error">{previewError} Go back and change the numbers.</p>}
+          <div className="field">
+            <label htmlFor={`${uid}-reason`}>Reason (required)</label>
+            <input id={`${uid}-reason`} type="text" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
           <div className="row-actions">
-            <button type="button" onClick={save} disabled={busy || !reason.trim()}>Save fare</button>
-            <button type="button" onClick={() => setReviewing(false)} disabled={busy}>Back</button>
+            <button type="button" className="btn-primary" onClick={save} disabled={busy || !reason.trim() || !!previewError}>Save fare</button>
+            <button type="button" onClick={goBack} disabled={busy}>Back</button>
           </div>
           {error && <p role="alert">{error}</p>}
           {needsSetup && <Link to="/security">Go to Security to set up an authenticator</Link>}
