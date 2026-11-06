@@ -76,7 +76,9 @@ public class AdminSafetyService {
         return new SafetyOpenCountResponse(
                 incidents.countByStatusIn(UNRESOLVED),
                 incidents.countByStatus(IncidentStatus.OPEN),
-                incidents.countBySeverityAndStatusIn(IncidentSeverity.CRITICAL, UNRESOLVED));
+                incidents.countBySeverityAndStatusIn(IncidentSeverity.CRITICAL, UNRESOLVED),
+                incidents.findFirstBySeverityAndStatusInOrderByCreatedAtAsc(IncidentSeverity.CRITICAL, UNRESOLVED)
+                        .map(SafetyIncident::getCreatedAt).orElse(null));
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +112,9 @@ public class AdminSafetyService {
     public SafetyIncidentDetailResponse resolve(UUID id, SafetyOutcome outcome, String note, UUID actorId,
                                                 String actorRole, String ip) {
         load(id);
+        if (outcome == SafetyOutcome.OTHER && (note == null || note.isBlank())) {
+            throw new ValidationException("Explain what happened in a note when the outcome is Other.");
+        }
         if (incidents.resolveIfUnresolved(id, actorId, Instant.now()) == 0) {
             throw new ValidationException("This incident is already resolved.");
         }
@@ -174,7 +179,9 @@ public class AdminSafetyService {
         userIds.add(i.getReporterId());
         timeline.stream().map(SafetyIncidentEvent::getActorId).filter(java.util.Objects::nonNull).forEach(userIds::add);
         Map<UUID, User> byId = usersById(userIds);
-        UUID bookingId = rides.findById(i.getRideId()).map(r -> r.getBookingId()).orElse(null);
+        // An SOS carries its own booking, and may have no ride at all (raised before the ride row exists, or with no trip).
+        UUID bookingId = i.getBookingId() != null ? i.getBookingId()
+                : i.getRideId() == null ? null : rides.findById(i.getRideId()).map(r -> r.getBookingId()).orElse(null);
         SafetyLocationResponse location = i.getLocation() == null
                 ? null : new SafetyLocationResponse(i.getLocation().getY(), i.getLocation().getX());
         List<SafetyEventResponse> eventResponses = timeline.stream().map(e -> {

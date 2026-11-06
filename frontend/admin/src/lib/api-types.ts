@@ -1300,6 +1300,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/pricing-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["view"];
+        put?: never;
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing-rules/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing-rules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/eligibility-reports/{id}/resolve": {
         parameters: {
             query?: never;
@@ -1796,22 +1844,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/safety-incidents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["openIncidents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/admin/rides": {
         parameters: {
             query?: never;
@@ -1852,6 +1884,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["listFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/pricing-rules/cities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1940,6 +1988,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/driver-verification/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["captainQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/driver-documents": {
         parameters: {
             query?: never;
@@ -1964,6 +2028,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["viewDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["dashboard"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2892,6 +2972,138 @@ export interface components {
             /** Format: date-time */
             timestamp?: string;
         };
+        PricingRuleCreateRequest: {
+            /** Format: uuid */
+            cityId: string;
+            /** @enum {string} */
+            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            /** Format: int64 */
+            baseFare: number;
+            /** Format: int64 */
+            perKm: number;
+            /** Format: int64 */
+            perMinute: number;
+            /** Format: int64 */
+            minimumFare: number;
+            /** Format: int64 */
+            cancellationFee: number;
+            serviceFeePct: number;
+            /** Format: int64 */
+            serviceFeeFlat: number;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: uuid */
+            expectedLatestRuleId?: string;
+            reason: string;
+            confirmLargeChange?: boolean;
+        };
+        ApiResponsePricingRuleResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PricingRuleResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PricingRuleResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            cityId?: string;
+            /** @enum {string} */
+            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
+            currency?: string;
+            /** Format: int64 */
+            baseFare?: number;
+            /** Format: int64 */
+            perKm?: number;
+            /** Format: int64 */
+            perMinute?: number;
+            /** Format: int64 */
+            minimumFare?: number;
+            /** Format: int64 */
+            cancellationFee?: number;
+            serviceFeePct?: number;
+            /** Format: int64 */
+            serviceFeeFlat?: number;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+            /** Format: uuid */
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** @enum {string} */
+            status?: "IN_FORCE" | "SCHEDULED" | "ENDED";
+            cancellable?: boolean;
+        };
+        PricingRuleCancelRequest: {
+            reason: string;
+        };
+        PricingRulePreviewRequest: {
+            /** Format: uuid */
+            cityId: string;
+            /** @enum {string} */
+            vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            /** Format: int64 */
+            baseFare: number;
+            /** Format: int64 */
+            perKm: number;
+            /** Format: int64 */
+            perMinute: number;
+            /** Format: int64 */
+            minimumFare: number;
+            /** Format: int64 */
+            cancellationFee: number;
+            serviceFeePct: number;
+            /** Format: int64 */
+            serviceFeeFlat: number;
+            samples?: components["schemas"]["PricingSampleRequest"][];
+        };
+        PricingSampleRequest: {
+            /** Format: int32 */
+            distanceMeters?: number;
+            /** Format: int32 */
+            durationSeconds?: number;
+        };
+        ApiResponsePricingPreviewResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PricingPreviewResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        FareQuote: {
+            /** Format: int64 */
+            totalFare?: number;
+            /** Format: int64 */
+            baseFare?: number;
+            /** Format: int64 */
+            distanceFare?: number;
+            /** Format: int64 */
+            timeFare?: number;
+            /** Format: int64 */
+            serviceFee?: number;
+        };
+        LargeChange: {
+            field?: string;
+            oldValue?: string;
+            newValue?: string;
+        };
+        PricingPreviewResponse: {
+            samples?: components["schemas"]["Sample"][];
+            largeChanges?: components["schemas"]["LargeChange"][];
+        };
+        Sample: {
+            /** Format: int32 */
+            distanceMeters?: number;
+            /** Format: int32 */
+            durationSeconds?: number;
+            current?: components["schemas"]["FareQuote"];
+            proposed?: components["schemas"]["FareQuote"];
+        };
         EligibilityReportResolveRequest: {
             /** @enum {string} */
             status: "OPEN" | "REVIEWED" | "DISMISSED" | "ACTIONED";
@@ -3382,34 +3594,8 @@ export interface components {
             needsAcknowledging?: number;
             /** Format: int64 */
             critical?: number;
-        };
-        ApiResponseListSafetyIncidentResponse: {
-            success?: boolean;
-            data?: components["schemas"]["SafetyIncidentResponse"][];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
             /** Format: date-time */
-            timestamp?: string;
-        };
-        SafetyIncidentResponse: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            reporterId?: string;
-            /** Format: uuid */
-            bookingId?: string;
-            /** Format: uuid */
-            rideId?: string;
-            type?: string;
-            severity?: string;
-            status?: string;
-            /** Format: double */
-            latitude?: number;
-            /** Format: double */
-            longitude?: number;
-            notes?: string;
-            /** Format: date-time */
-            createdAt?: string;
+            oldestCriticalAt?: string;
         };
         AdminRideSummaryResponse: {
             /** Format: uuid */
@@ -3534,6 +3720,61 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        ApiResponsePricingRulesViewResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PricingRulesViewResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PricingRuleLimitsResponse: {
+            /** Format: int64 */
+            baseFareMaxPaise?: number;
+            /** Format: int64 */
+            perKmMaxPaise?: number;
+            /** Format: int64 */
+            perMinuteMaxPaise?: number;
+            /** Format: int64 */
+            minimumFareMaxPaise?: number;
+            /** Format: int64 */
+            cancellationFeeMaxPaise?: number;
+            /** Format: int64 */
+            serviceFeeFlatMaxPaise?: number;
+            serviceFeePctMax?: number;
+            /** Format: int32 */
+            scheduleMaxDays?: number;
+        };
+        PricingRulesViewResponse: {
+            /** Format: uuid */
+            cityId?: string;
+            /** @enum {string} */
+            vehicleType?: "CAB" | "SUV" | "AUTO" | "BIKE";
+            current?: components["schemas"]["PricingRuleResponse"];
+            scheduled?: components["schemas"]["PricingRuleResponse"];
+            /** Format: uuid */
+            latestRuleId?: string;
+            history?: components["schemas"]["PricingRuleResponse"][];
+            limits?: components["schemas"]["PricingRuleLimitsResponse"];
+            /** Format: int32 */
+            largeChangePct?: number;
+        };
+        ApiResponseListPricingCityResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PricingCityResponse"][];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        PricingCityResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            active?: boolean;
+            hasServiceArea?: boolean;
+            vehicleTypesWithFare?: ("CAB" | "SUV" | "AUTO" | "BIKE")[];
         };
         AdminLiveMapResponse: {
             /** Format: date-time */
@@ -3683,6 +3924,7 @@ export interface components {
             documents?: components["schemas"]["AdminDriverDocumentsSummary"];
             recentRides?: components["schemas"]["AdminDriverRecentRide"][];
             earnings?: components["schemas"]["AdminDriverEarningsTotals"];
+            suspension?: components["schemas"]["AdminDriverSuspension"];
         };
         AdminDriverDocumentsSummary: {
             /** Format: int32 */
@@ -3715,6 +3957,13 @@ export interface components {
             /** Format: int64 */
             finalFare?: number;
             currency?: string;
+        };
+        AdminDriverSuspension: {
+            /** Format: date-time */
+            suspendedAt?: string;
+            suspendedByName?: string;
+            suspendedByEmailMasked?: string;
+            reason?: string;
         };
         ApiResponseAdminDriverDetailResponse: {
             success?: boolean;
@@ -3753,6 +4002,58 @@ export interface components {
             documents?: components["schemas"]["DriverDocumentAdminResponse"][];
             readyForApproval?: boolean;
             missingRequirements?: string[];
+            /** Format: date-time */
+            decidedAt?: string;
+            decidedByName?: string;
+            decidedByEmailMasked?: string;
+            rejectionReason?: string;
+        };
+        ApiResponsePageResponseDriverVerificationQueueItemResponse: {
+            success?: boolean;
+            data?: components["schemas"]["PageResponseDriverVerificationQueueItemResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverVerificationQueueItemResponse: {
+            /** Format: uuid */
+            driverId?: string;
+            driverName?: string;
+            phoneMasked?: string;
+            city?: string;
+            vehicleNumber?: string;
+            /** @enum {string} */
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            requiredItems?: components["schemas"]["RequiredItemCounts"];
+            optionalDocumentsProvided?: boolean;
+            readyForReview?: boolean;
+            /** Format: date-time */
+            submittedAt?: string;
+            /** Format: int64 */
+            waitingSeconds?: number;
+            overdue?: boolean;
+        };
+        PageResponseDriverVerificationQueueItemResponse: {
+            content?: components["schemas"]["DriverVerificationQueueItemResponse"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        RequiredItemCounts: {
+            /** Format: int32 */
+            approved?: number;
+            /** Format: int32 */
+            pending?: number;
+            /** Format: int32 */
+            rejected?: number;
+            /** Format: int32 */
+            missing?: number;
         };
         ApiResponsePageResponseDriverDocumentAdminResponse: {
             success?: boolean;
@@ -3772,6 +4073,106 @@ export interface components {
             totalElements?: number;
             /** Format: int32 */
             totalPages?: number;
+        };
+        AdminDashboardResponse: {
+            /** Format: date-time */
+            generatedAt?: string;
+            timeZone?: string;
+            /** Format: date */
+            today?: string;
+            drivers?: components["schemas"]["Drivers"];
+            rides?: components["schemas"]["Rides"];
+            customers?: components["schemas"]["Customers"];
+            verification?: components["schemas"]["Verification"];
+            safety?: components["schemas"]["Safety"];
+            adoption?: components["schemas"]["Adoption"];
+            loginAlerts?: components["schemas"]["LoginAlerts"];
+        };
+        Adoption: {
+            /** Format: int64 */
+            captainsRegistered?: number;
+            /** Format: int64 */
+            captainsCompletedAllSteps?: number;
+            /** Format: int64 */
+            captainsApproved?: number;
+            /** Format: int64 */
+            ridersWhoCompletedARide?: number;
+            weeklyRides?: components["schemas"]["WeeklyRides"][];
+        };
+        ApiResponseAdminDashboardResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminDashboardResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        Customers: {
+            /** Format: int64 */
+            total?: number;
+            /** Format: int64 */
+            newLast7Days?: number;
+        };
+        Drivers: {
+            /** Format: int64 */
+            active?: number;
+            /** Format: int64 */
+            online?: number;
+            /** Format: int32 */
+            onlineMaxAgeMinutes?: number;
+        };
+        LoginAlerts: {
+            /** Format: int64 */
+            accountsWithRepeatedFailures?: number;
+            /** Format: int32 */
+            failureThreshold?: number;
+            /** Format: int32 */
+            windowMinutes?: number;
+        };
+        Rides: {
+            /** Format: int64 */
+            active?: number;
+            /** Format: int64 */
+            pendingBookings?: number;
+            /** Format: int64 */
+            completedToday?: number;
+            /** Format: int64 */
+            cancelledToday?: number;
+            cashFaresTodayRupees?: number;
+        };
+        Safety: {
+            /** Format: int64 */
+            unresolved?: number;
+            /** Format: int64 */
+            needsAcknowledging?: number;
+            /** Format: int64 */
+            critical?: number;
+            /** Format: double */
+            sosMedianAckMinutes?: number;
+            /** Format: int64 */
+            sosAckSample?: number;
+            /** Format: double */
+            oldestUnacknowledgedSosMinutes?: number;
+            /** Format: int32 */
+            sosTargetMinutes?: number;
+        };
+        Verification: {
+            /** Format: int64 */
+            waiting?: number;
+            /** Format: int64 */
+            waitingOverTarget?: number;
+            /** Format: double */
+            medianWaitHours?: number;
+            /** Format: double */
+            longestWaitHours?: number;
+            /** Format: int32 */
+            targetHours?: number;
+        };
+        WeeklyRides: {
+            /** Format: date */
+            weekStart?: string;
+            /** Format: int64 */
+            completed?: number;
         };
         AdminCustomerSummaryResponse: {
             /** Format: uuid */
@@ -3817,6 +4218,8 @@ export interface components {
             id?: string;
             /** Format: uuid */
             actorId?: string;
+            actorName?: string;
+            actorEmailMasked?: string;
             actorRole?: string;
             action?: string;
             targetType?: string;
@@ -5990,7 +6393,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserReasonRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -6125,6 +6532,103 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseAdminRideFlagResponse"];
+                };
+            };
+        };
+    };
+    view: {
+        parameters: {
+            query: {
+                cityId: string;
+                vehicleType: "CAB" | "SUV" | "AUTO" | "BIKE";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePricingRulesViewResponse"];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRuleCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePricingRuleResponse"];
+                };
+            };
+        };
+    };
+    cancel_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRuleCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePricingRuleResponse"];
+                };
+            };
+        };
+    };
+    preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PricingRulePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePricingPreviewResponse"];
                 };
             };
         };
@@ -6837,26 +7341,6 @@ export interface operations {
             };
         };
     };
-    openIncidents: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseListSafetyIncidentResponse"];
-                };
-            };
-        };
-    };
     listRides: {
         parameters: {
             query: {
@@ -6927,6 +7411,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponsePageResponseAdminRideFlagResponse"];
+                };
+            };
+        };
+    };
+    cities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListPricingCityResponse"];
                 };
             };
         };
@@ -7041,6 +7545,32 @@ export interface operations {
             };
         };
     };
+    captainQueue: {
+        parameters: {
+            query: {
+                q?: string;
+                status?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+                overdueOnly?: boolean;
+                readyOnly?: boolean;
+                pageable: components["schemas"]["Pageable"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseDriverVerificationQueueItemResponse"];
+                };
+            };
+        };
+    };
     listPendingDocuments: {
         parameters: {
             query: {
@@ -7081,6 +7611,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseURI"];
+                };
+            };
+        };
+    };
+    dashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminDashboardResponse"];
                 };
             };
         };
@@ -7155,6 +7705,7 @@ export interface operations {
         parameters: {
             query: {
                 actorId?: string;
+                actorEmail?: string;
                 action?: string;
                 targetType?: string;
                 targetId?: string;

@@ -118,7 +118,8 @@ class AdminStepUpIntegrationTest extends PersistenceTestSupport {
         User target = newUser(UserRole.ADMIN);
 
         mockMvc.perform(post("/api/v1/admin/users/" + target.getId() + "/mfa/reset")
-                        .header("Authorization", "Bearer " + token(admin, null)))
+                        .header("Authorization", "Bearer " + token(admin, null))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"Lost phone\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("STEP_UP_REQUIRED"));
     }

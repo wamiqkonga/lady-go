@@ -39,7 +39,18 @@ describe('Drivers list', () => {
     expect(link).toHaveAttribute('href', '/drivers/driver-1')
     expect(screen.getByText('******4321')).toBeInTheDocument()
     // Cells carry data-label so the table can collapse to cards on a phone.
-    expect(screen.getByText('******4321')).toHaveAttribute('data-label', 'Phone')
+    expect(screen.getByText('******4321').closest('a')).toHaveAttribute('data-label', 'Phone')
+    expect(screen.getByText('4.50')).toBeInTheDocument()
+  })
+
+  it('shows each status once in words, "No ratings yet" for an unrated driver and a fallback for no name', async () => {
+    const unrated = { ...asha, id: 'driver-2', name: null, ratingAvg: 0, verificationStatus: 'SUSPENDED', availabilityStatus: 'SUSPENDED' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(page([unrated]))))
+    renderPage()
+    expect(await screen.findByText('Name not provided')).toBeInTheDocument()
+    expect(screen.getByText('No ratings yet')).toBeInTheDocument()
+    expect(screen.queryByText('0.00')).not.toBeInTheDocument()
+    expect(document.querySelectorAll('tbody tr td a[href="/drivers/driver-2"]')).toHaveLength(6)
   })
 
   it('sends the search text and the status filter to the server', async () => {

@@ -2890,6 +2890,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -3092,6 +3102,150 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseAdminRideFlagResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/pricing-rules": {
+      "get": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "view",
+        "parameters": [
+          {
+            "name": "cityId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "vehicleType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CAB",
+                "SUV",
+                "AUTO",
+                "BIKE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePricingRulesViewResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "create_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingRuleCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePricingRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/pricing-rules/{id}/cancel": {
+      "post": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "cancel_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingRuleCancelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePricingRuleResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/pricing-rules/preview": {
+      "post": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "preview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricingRulePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePricingPreviewResponse"
                 }
               }
             }
@@ -4129,26 +4283,6 @@
         }
       }
     },
-    "/api/v1/admin/safety-incidents": {
-      "get": {
-        "tags": [
-          "admin-safety-incident-controller"
-        ],
-        "operationId": "openIncidents",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseListSafetyIncidentResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/admin/rides": {
       "get": {
         "tags": [
@@ -4331,6 +4465,26 @@
         }
       }
     },
+    "/api/v1/admin/pricing-rules/cities": {
+      "get": {
+        "tags": [
+          "admin-pricing-rule-controller"
+        ],
+        "operationId": "cities",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListPricingCityResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/live-map": {
       "get": {
         "tags": [
@@ -4496,6 +4650,77 @@
         }
       }
     },
+    "/api/v1/admin/driver-verification/queue": {
+      "get": {
+        "tags": [
+          "admin-verification-controller"
+        ],
+        "operationId": "captainQueue",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_SUBMITTED",
+                "PENDING_REVIEW",
+                "APPROVED",
+                "REJECTED",
+                "SUSPENDED"
+              ]
+            }
+          },
+          {
+            "name": "overdueOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "readyOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "pageable",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Pageable"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseDriverVerificationQueueItemResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/driver-documents": {
       "get": {
         "tags": [
@@ -4550,6 +4775,26 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseURI"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/dashboard": {
+      "get": {
+        "tags": [
+          "admin-dashboard-controller"
+        ],
+        "operationId": "dashboard",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAdminDashboardResponse"
                 }
               }
             }
@@ -4673,6 +4918,14 @@
             "schema": {
               "type": "string",
               "format": "uuid"
+            }
+          },
+          {
+            "name": "actorEmail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -7367,6 +7620,369 @@
           }
         }
       },
+      "PricingRuleCreateRequest": {
+        "type": "object",
+        "properties": {
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ]
+          },
+          "baseFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perKm": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perMinute": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancellationFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeePct": {
+            "type": "number"
+          },
+          "serviceFeeFlat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expectedLatestRuleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          },
+          "confirmLargeChange": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "baseFare",
+          "cancellationFee",
+          "cityId",
+          "minimumFare",
+          "perKm",
+          "perMinute",
+          "reason",
+          "serviceFeeFlat",
+          "serviceFeePct",
+          "vehicleType"
+        ]
+      },
+      "ApiResponsePricingRuleResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PricingRuleResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PricingRuleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "baseFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perKm": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perMinute": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancellationFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeePct": {
+            "type": "number"
+          },
+          "serviceFeeFlat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "IN_FORCE",
+              "SCHEDULED",
+              "ENDED"
+            ]
+          },
+          "cancellable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PricingRuleCancelRequest": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "PricingRulePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ]
+          },
+          "baseFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perKm": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perMinute": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancellationFee": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeePct": {
+            "type": "number"
+          },
+          "serviceFeeFlat": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingSampleRequest"
+            },
+            "maxItems": 10,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "baseFare",
+          "cancellationFee",
+          "cityId",
+          "minimumFare",
+          "perKm",
+          "perMinute",
+          "serviceFeeFlat",
+          "serviceFeePct",
+          "vehicleType"
+        ]
+      },
+      "PricingSampleRequest": {
+        "type": "object",
+        "properties": {
+          "distanceMeters": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 500000,
+            "minimum": 0
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 86400,
+            "minimum": 0
+          }
+        }
+      },
+      "ApiResponsePricingPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PricingPreviewResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FareQuote": {
+        "type": "object",
+        "properties": {
+          "totalFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "baseFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "distanceFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "timeFare": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFee": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "LargeChange": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "oldValue": {
+            "type": "string"
+          },
+          "newValue": {
+            "type": "string"
+          }
+        }
+      },
+      "PricingPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sample"
+            }
+          },
+          "largeChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LargeChange"
+            }
+          }
+        }
+      },
+      "Sample": {
+        "type": "object",
+        "properties": {
+          "distanceMeters": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "durationSeconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "current": {
+            "$ref": "#/components/schemas/FareQuote"
+          },
+          "proposed": {
+            "$ref": "#/components/schemas/FareQuote"
+          }
+        }
+      },
       "EligibilityReportResolveRequest": {
         "type": "object",
         "properties": {
@@ -8652,73 +9268,8 @@
           "critical": {
             "type": "integer",
             "format": "int64"
-          }
-        }
-      },
-      "ApiResponseListSafetyIncidentResponse": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
           },
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SafetyIncidentResponse"
-            }
-          },
-          "message": {
-            "type": "string"
-          },
-          "error": {
-            "$ref": "#/components/schemas/ApiError"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "SafetyIncidentResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "reporterId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "bookingId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "rideId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "type": {
-            "type": "string"
-          },
-          "severity": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "latitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "longitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "notes": {
-            "type": "string"
-          },
-          "createdAt": {
+          "oldestCriticalAt": {
             "type": "string",
             "format": "date-time"
           }
@@ -9081,6 +9632,158 @@
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "ApiResponsePricingRulesViewResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PricingRulesViewResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PricingRuleLimitsResponse": {
+        "type": "object",
+        "properties": {
+          "baseFareMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perKmMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "perMinuteMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "minimumFareMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancellationFeeMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeeFlatMaxPaise": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "serviceFeePctMax": {
+            "type": "number"
+          },
+          "scheduleMaxDays": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "PricingRulesViewResponse": {
+        "type": "object",
+        "properties": {
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicleType": {
+            "type": "string",
+            "enum": [
+              "CAB",
+              "SUV",
+              "AUTO",
+              "BIKE"
+            ]
+          },
+          "current": {
+            "$ref": "#/components/schemas/PricingRuleResponse"
+          },
+          "scheduled": {
+            "$ref": "#/components/schemas/PricingRuleResponse"
+          },
+          "latestRuleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingRuleResponse"
+            }
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PricingRuleLimitsResponse"
+          },
+          "largeChangePct": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponseListPricingCityResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PricingCityResponse"
+            }
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PricingCityResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "hasServiceArea": {
+            "type": "boolean"
+          },
+          "vehicleTypesWithFare": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CAB",
+                "SUV",
+                "AUTO",
+                "BIKE"
+              ]
+            }
           }
         }
       },
@@ -9473,6 +10176,9 @@
           },
           "earnings": {
             "$ref": "#/components/schemas/AdminDriverEarningsTotals"
+          },
+          "suspension": {
+            "$ref": "#/components/schemas/AdminDriverSuspension"
           }
         }
       },
@@ -9553,6 +10259,24 @@
             "format": "int64"
           },
           "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "AdminDriverSuspension": {
+        "type": "object",
+        "properties": {
+          "suspendedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suspendedByName": {
+            "type": "string"
+          },
+          "suspendedByEmailMasked": {
+            "type": "string"
+          },
+          "reason": {
             "type": "string"
           }
         }
@@ -9672,6 +10396,139 @@
             "items": {
               "type": "string"
             }
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedByName": {
+            "type": "string"
+          },
+          "decidedByEmailMasked": {
+            "type": "string"
+          },
+          "rejectionReason": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponsePageResponseDriverVerificationQueueItemResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResponseDriverVerificationQueueItemResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DriverVerificationQueueItemResponse": {
+        "type": "object",
+        "properties": {
+          "driverId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "driverName": {
+            "type": "string"
+          },
+          "phoneMasked": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "vehicleNumber": {
+            "type": "string"
+          },
+          "verificationStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_SUBMITTED",
+              "PENDING_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ]
+          },
+          "requiredItems": {
+            "$ref": "#/components/schemas/RequiredItemCounts"
+          },
+          "optionalDocumentsProvided": {
+            "type": "boolean"
+          },
+          "readyForReview": {
+            "type": "boolean"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "waitingSeconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "overdue": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PageResponseDriverVerificationQueueItemResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DriverVerificationQueueItemResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RequiredItemCounts": {
+        "type": "object",
+        "properties": {
+          "approved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pending": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rejected": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missing": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -9720,6 +10577,233 @@
           "totalPages": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "AdminDashboardResponse": {
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "today": {
+            "type": "string",
+            "format": "date"
+          },
+          "drivers": {
+            "$ref": "#/components/schemas/Drivers"
+          },
+          "rides": {
+            "$ref": "#/components/schemas/Rides"
+          },
+          "customers": {
+            "$ref": "#/components/schemas/Customers"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/Verification"
+          },
+          "safety": {
+            "$ref": "#/components/schemas/Safety"
+          },
+          "adoption": {
+            "$ref": "#/components/schemas/Adoption"
+          },
+          "loginAlerts": {
+            "$ref": "#/components/schemas/LoginAlerts"
+          }
+        }
+      },
+      "Adoption": {
+        "type": "object",
+        "properties": {
+          "captainsRegistered": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "captainsCompletedAllSteps": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "captainsApproved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ridersWhoCompletedARide": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "weeklyRides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeeklyRides"
+            }
+          }
+        }
+      },
+      "ApiResponseAdminDashboardResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AdminDashboardResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Customers": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "newLast7Days": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "Drivers": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "online": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "onlineMaxAgeMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "LoginAlerts": {
+        "type": "object",
+        "properties": {
+          "accountsWithRepeatedFailures": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failureThreshold": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "windowMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Rides": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pendingBookings": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "completedToday": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancelledToday": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cashFaresTodayRupees": {
+            "type": "number"
+          }
+        }
+      },
+      "Safety": {
+        "type": "object",
+        "properties": {
+          "unresolved": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "needsAcknowledging": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "critical": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sosMedianAckMinutes": {
+            "type": "number",
+            "format": "double"
+          },
+          "sosAckSample": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "oldestUnacknowledgedSosMinutes": {
+            "type": "number",
+            "format": "double"
+          },
+          "sosTargetMinutes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Verification": {
+        "type": "object",
+        "properties": {
+          "waiting": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "waitingOverTarget": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "medianWaitHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "longestWaitHours": {
+            "type": "number",
+            "format": "double"
+          },
+          "targetHours": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "WeeklyRides": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -9836,6 +10920,12 @@
           "actorId": {
             "type": "string",
             "format": "uuid"
+          },
+          "actorName": {
+            "type": "string"
+          },
+          "actorEmailMasked": {
+            "type": "string"
           },
           "actorRole": {
             "type": "string"

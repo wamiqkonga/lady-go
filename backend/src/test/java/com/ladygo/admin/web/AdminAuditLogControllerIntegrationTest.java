@@ -25,6 +25,8 @@ class AdminAuditLogControllerIntegrationTest extends PersistenceTestSupport {
     private JwtService jwtService;
     @Autowired
     private AuditLogRepository auditLogs;
+    @Autowired
+    private jakarta.persistence.EntityManagerFactory entityManagerFactory;
 
     private String tokenFor(UUID userId, UserRole role) {
         return jwtService.issueAccessToken(userId, role, Duration.ofMinutes(15));
@@ -81,5 +83,56 @@ class AdminAuditLogControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(get("/api/v1/admin/audit-logs")
                         .header("Authorization", "Bearer " + tokenFor(customer.getUserId(), UserRole.CUSTOMER)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void showsTheActorsNameOrAMaskedEmailAndFiltersByEmail() throws Exception {
+        var viewer = newUser(UserRole.ADMIN);
+        var named = newUser(UserRole.SUPPORT);
+        named.setName("Asma Support");
+        named.setEmail("asma.support@example.com");
+        users.saveAndFlush(named);
+        var unnamed = newUser(UserRole.SUPPORT);
+        unnamed.setName(null);
+        unnamed.setEmail("zed@example.com");
+        users.saveAndFlush(unnamed);
+        newEntry(named.getId(), "DRIVER_APPROVED");
+        newEntry(unnamed.getId(), "DRIVER_REJECTED");
+
+        mockMvc.perform(get("/api/v1/admin/audit-logs").param("action", "DRIVER_APPROVED")
+                        .header("Authorization", "Bearer " + tokenFor(viewer.getId(), UserRole.ADMIN)))
+                .andExpect(jsonPath("$.data.content[0].actorName").value("Asma Support"))
+                .andExpect(jsonPath("$.data.content[0].actorEmailMasked").value("a***@example.com"));
+        mockMvc.perform(get("/api/v1/admin/audit-logs").param("action", "DRIVER_REJECTED")
+                        .header("Authorization", "Bearer " + tokenFor(viewer.getId(), UserRole.ADMIN)))
+                .andExpect(jsonPath("$.data.content[0].actorName").doesNotExist())
+                .andExpect(jsonPath("$.data.content[0].actorEmailMasked").value("z***@example.com"));
+
+        mockMvc.perform(get("/api/v1/admin/audit-logs").param("actorEmail", "ZED@example.com")
+                        .header("Authorization", "Bearer " + tokenFor(viewer.getId(), UserRole.ADMIN)))
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].action").value("DRIVER_REJECTED"));
+        mockMvc.perform(get("/api/v1/admin/audit-logs").param("actorEmail", "nobody@example.com")
+                        .header("Authorization", "Bearer " + tokenFor(viewer.getId(), UserRole.ADMIN)))
+                .andExpect(jsonPath("$.data.content.length()").value(0));
+    }
+
+    @Test
+    void lookingUpActorsIsBatchedNotOneQueryPerRow() throws Exception {
+        var viewer = newUser(UserRole.ADMIN);
+        for (int i = 0; i < 5; i++) {
+            newEntry(newUser(UserRole.SUPPORT).getId(), "DRIVER_APPROVED");
+        }
+        flushAndClear();
+        var stats = entityManagerFactory.unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        stats.setStatisticsEnabled(true);
+        stats.clear();
+
+        mockMvc.perform(get("/api/v1/admin/audit-logs").param("size", "10")
+                        .header("Authorization", "Bearer " + tokenFor(viewer.getId(), UserRole.ADMIN)))
+                .andExpect(status().isOk());
+
+        // list page + count + ONE batched user lookup, however many distinct actors the page has.
+        org.assertj.core.api.Assertions.assertThat(stats.getPrepareStatementCount()).isLessThanOrEqualTo(4);
     }
 }

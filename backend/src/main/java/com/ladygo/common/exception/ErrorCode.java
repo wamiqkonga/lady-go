@@ -40,6 +40,9 @@ public enum ErrorCode {
             "Your application was not approved. Please contact our support team."),
     DRIVER_SUSPENDED(HttpStatus.FORBIDDEN,
             "Your driver account is suspended. Please contact our support team."),
+    PRICING_RULE_CONFLICT(HttpStatus.CONFLICT, "This fare change cannot be made right now."),
+    LARGE_CHANGE_NOT_CONFIRMED(HttpStatus.UNPROCESSABLE_ENTITY,
+            "This is a large fare change. Confirm it explicitly to continue."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.");
 
     private final HttpStatus status;

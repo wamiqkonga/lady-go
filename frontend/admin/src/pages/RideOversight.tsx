@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { LinkCell } from '../components/RowLink'
 import { client, unwrap, ApiCallError } from '../lib/client'
+import { formatRupees } from '../lib/money'
 import type { components } from '../lib/api-types'
 
 type RideRow = components['schemas']['AdminRideSummaryResponse']
@@ -83,7 +85,7 @@ function RidesTab() {
       {!error && rows !== null && rows.length === 0 && <p className="muted">No rides match these filters.</p>}
       {!error && rows !== null && rows.length > 0 && (
         <div className="table-scroll">
-          <table className="list-table">
+          <table className="list-table stack-table">
             <thead>
               <tr>
                 <th>Created</th>
@@ -95,24 +97,21 @@ function RidesTab() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.bookingId}>
-                  <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
-                  <td>
-                    <Link to={`/rides/${row.bookingId}`}>{row.bookingStatus}</Link>
-                  </td>
-                  <td>{row.customer?.name ?? '—'} {row.customer?.phoneMasked ? `(${row.customer.phoneMasked})` : ''}</td>
-                  <td>{row.driver?.name ?? '—'} {row.driver?.phoneMasked ? `(${row.driver.phoneMasked})` : ''}</td>
-                  <td>{row.finalFare ?? row.estimatedFare ?? '—'}</td>
-                  <td>
-                    {row.openFlagCount && row.openFlagCount > 0 ? (
-                      <span className="badge-expired">{row.openFlagCount}</span>
-                    ) : (
-                      0
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const to = `/rides/${row.bookingId}`
+                return (
+                  <tr key={row.bookingId}>
+                    <LinkCell to={to} label="Created">{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</LinkCell>
+                    <LinkCell to={to} first label="Status">{row.bookingStatus}</LinkCell>
+                    <LinkCell to={to} label="Customer">{row.customer?.name ?? '—'} {row.customer?.phoneMasked ? `(${row.customer.phoneMasked})` : ''}</LinkCell>
+                    <LinkCell to={to} label="Driver">{row.driver?.name ?? '—'} {row.driver?.phoneMasked ? `(${row.driver.phoneMasked})` : ''}</LinkCell>
+                    <LinkCell to={to} label="Fare">{formatRupees(row.finalFare ?? row.estimatedFare)}</LinkCell>
+                    <LinkCell to={to} label="Open flags">
+                      {row.openFlagCount && row.openFlagCount > 0 ? <span className="badge-expired">{row.openFlagCount}</span> : 0}
+                    </LinkCell>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -148,6 +147,7 @@ function FlagReviewForm({ flag, onReviewed }: { flag: FlagRow; onReviewed: () =>
     <div className="row-actions">
       <input
         type="text"
+        aria-label="Review note (required)"
         placeholder="Review note (required)"
         value={note}
         onChange={(e) => setNote(e.target.value)}

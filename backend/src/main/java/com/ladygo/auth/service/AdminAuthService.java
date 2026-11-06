@@ -292,7 +292,7 @@ public class AdminAuthService {
 
     /** SUPER_ADMIN-only lost-device recovery for another staff member (section 3.3). Never self-service. */
     @Transactional
-    public void resetMfa(UUID actorId, UserRole actorRole, UUID targetUserId, String ip) {
+    public void resetMfa(UUID actorId, UserRole actorRole, UUID targetUserId, String reason, String ip) {
         User target = users.findById(targetUserId).orElseThrow(UnauthorizedException::new);
         target.setMfaEnabled(false);
         target.setMfaSecretEnc(null);
@@ -306,6 +306,7 @@ public class AdminAuthService {
         entry.setAction("ADMIN_MFA_RESET");
         entry.setTargetType("users");
         entry.setTargetId(targetUserId.toString());
+        entry.setMetadata(java.util.Map.of("reason", reason));
         entry.setIp(ip);
         auditLogs.save(entry);
     }

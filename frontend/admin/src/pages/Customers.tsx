@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { LinkCell } from '../components/RowLink'
 import { client, unwrap, ApiCallError } from '../lib/client'
 import type { components } from '../lib/api-types'
 import './customers.css'
@@ -74,7 +74,7 @@ export default function Customers() {
             ))}
           </select>
         </label>
-        <button type="submit">Search</button>
+        <button type="submit" className="btn-primary">Search</button>
       </form>
 
       {error && <p role="alert">{error}</p>}
@@ -93,17 +93,18 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td data-label="Name">
-                    <Link to={`/customers/${row.id}`}>{row.name || 'Unnamed customer'}</Link>
-                  </td>
-                  <td data-label="Phone">{row.phoneMasked ?? '—'}</td>
-                  <td data-label="Status"><StatusBadge status={row.status} /></td>
-                  <td data-label="Joined">{row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—'}</td>
-                  <td data-label="Last sign-in">{row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString() : 'Never'}</td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const to = `/customers/${row.id}`
+                return (
+                  <tr key={row.id}>
+                    <LinkCell to={to} first label="Name">{row.name || 'Unnamed customer'}</LinkCell>
+                    <LinkCell to={to} label="Phone">{row.phoneMasked ?? '—'}</LinkCell>
+                    <LinkCell to={to} label="Status"><StatusBadge status={row.status} /></LinkCell>
+                    <LinkCell to={to} label="Joined">{row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—'}</LinkCell>
+                    <LinkCell to={to} label="Last sign-in">{row.lastLoginAt ? new Date(row.lastLoginAt).toLocaleString() : 'Never'}</LinkCell>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

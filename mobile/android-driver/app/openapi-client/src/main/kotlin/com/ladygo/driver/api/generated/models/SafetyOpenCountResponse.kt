@@ -25,6 +25,7 @@ import com.squareup.moshi.JsonClass
  * @param unresolved 
  * @param needsAcknowledging 
  * @param critical 
+ * @param oldestCriticalAt 
  */
 
 
@@ -37,7 +38,10 @@ data class SafetyOpenCountResponse (
     val needsAcknowledging: kotlin.Long? = null,
 
     @Json(name = "critical")
-    val critical: kotlin.Long? = null
+    val critical: kotlin.Long? = null,
+
+    @Json(name = "oldestCriticalAt")
+    val oldestCriticalAt: kotlin.String? = null
 
 ) {
 

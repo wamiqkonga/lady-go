@@ -23,6 +23,7 @@ interface AdminAuditLogControllerApi {
      * @param size  (optional)
      * @param sort  (optional)
      * @param actorId  (optional)
+     * @param actorEmail  (optional)
      * @param action  (optional)
      * @param targetType  (optional)
      * @param targetId  (optional)
@@ -31,6 +32,6 @@ interface AdminAuditLogControllerApi {
      * @return [ApiResponsePageResponseAdminAuditLogResponse]
      */
     @GET("api/v1/admin/audit-logs")
-    suspend fun list3(@Query("page") page: kotlin.Int? = null, @Query("size") size: kotlin.Int? = null, @Query("sort") sort: kotlin.collections.List<kotlin.String>? = null, @Query("actorId") actorId: java.util.UUID? = null, @Query("action") action: kotlin.String? = null, @Query("targetType") targetType: kotlin.String? = null, @Query("targetId") targetId: kotlin.String? = null, @Query("createdAfter") createdAfter: kotlin.String? = null, @Query("createdBefore") createdBefore: kotlin.String? = null): Response<ApiResponsePageResponseAdminAuditLogResponse>
+    suspend fun list3(@Query("page") page: kotlin.Int? = null, @Query("size") size: kotlin.Int? = null, @Query("sort") sort: kotlin.collections.List<kotlin.String>? = null, @Query("actorId") actorId: java.util.UUID? = null, @Query("actorEmail") actorEmail: kotlin.String? = null, @Query("action") action: kotlin.String? = null, @Query("targetType") targetType: kotlin.String? = null, @Query("targetId") targetId: kotlin.String? = null, @Query("createdAfter") createdAfter: kotlin.String? = null, @Query("createdBefore") createdBefore: kotlin.String? = null): Response<ApiResponsePageResponseAdminAuditLogResponse>
 
 }

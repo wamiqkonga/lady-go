@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { client, unwrap, ApiCallError } from '../lib/client'
+import { formatRupees } from '../lib/money'
 import type { components } from '../lib/api-types'
 import { useSession } from '../lib/sessionContext'
 import { useStepUp } from '../lib/stepUpContext'
@@ -9,15 +10,6 @@ import './customers.css'
 
 type Detail = components['schemas']['AdminCustomerDetailResponse']
 type Action = 'suspend' | 'activate'
-
-function fare(minor?: number, currency?: string) {
-  if (minor === undefined || minor === null) return '—'
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'INR' }).format(minor / 100)
-  } catch {
-    return String(minor / 100)
-  }
-}
 
 function StatusAction({ customerId, status, onChanged }: { customerId: string; status?: string; onChanged: (d: Detail) => void }) {
   const action: Action | null = status === 'ACTIVE' ? 'suspend' : status === 'SUSPENDED' ? 'activate' : null
@@ -66,12 +58,10 @@ function StatusAction({ customerId, status, onChanged }: { customerId: string; s
           ? 'The customer is signed out everywhere and cannot book until re-activated.'
           : 'The customer will be able to sign in and book again.'}
       </p>
-      <label>
-        Reason (required, kept in the audit log)
-        <input type="text" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
-      </label>
+      <label htmlFor="customer-action-reason">Reason (required, kept in the audit log)</label>
+      <input id="customer-action-reason" type="text" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
       <div className="row-actions">
-        <button type="button" onClick={confirm} disabled={busy || !reason.trim()}>
+        <button type="button" className="btn-primary" onClick={confirm} disabled={busy || !reason.trim()}>
           {label}
         </button>
         <button type="button" onClick={() => { setOpen(false); setError(null) }} disabled={busy}>
@@ -136,7 +126,7 @@ export default function CustomerDetail() {
                 <tr key={ride.bookingId}>
                   <td data-label="Date">{ride.createdAt ? new Date(ride.createdAt).toLocaleString() : '—'}</td>
                   <td data-label="Status"><Link to={`/rides/${ride.bookingId}`}>{ride.status}</Link></td>
-                  <td data-label="Fare">{fare(ride.finalFare ?? ride.estimatedFare, ride.currency)}</td>
+                  <td data-label="Fare">{formatRupees(ride.finalFare ?? ride.estimatedFare)}</td>
                 </tr>
               ))}
             </tbody>

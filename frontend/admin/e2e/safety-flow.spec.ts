@@ -14,7 +14,11 @@ test.describe('safety queue', () => {
     // The navigation badge counts the unresolved incident.
     await expect(page.getByRole('navigation', { name: 'Admin' }).getByLabel('1 unresolved')).toBeVisible()
 
-    await page.getByRole('link', { name: 'Safety' }).click()
+    // A critical SOS shows a red banner on every page, with a link to the queue.
+    const banner = page.locator('.sos-banner')
+    await expect(banner).toContainText('SOS open: 1')
+    await banner.getByRole('link', { name: 'Open the queue' }).click()
+    await expect(page).toHaveURL(/\/safety$/)
     await expect(page.getByRole('heading', { name: 'Safety', exact: true })).toBeVisible()
     await expect(page.getByRole('alert').filter({ hasText: 'call 112' })).toBeVisible()
     const row = page.locator('tbody tr').filter({ has: page.getByRole('link', { name: 'SOS' }) })
@@ -28,6 +32,7 @@ test.describe('safety queue', () => {
     expect(await page.locator('body').innerText()).not.toMatch(/\+?919900077003/)
 
     await page.getByRole('button', { name: 'Acknowledge' }).click()
+    await expect(page.getByText('Incident acknowledged.')).toBeVisible()
     await expect(page.getByText(/Acknowledged/).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Acknowledge' })).not.toBeVisible()
 
@@ -38,8 +43,15 @@ test.describe('safety queue', () => {
     // Resolving needs an outcome.
     const resolve = page.getByRole('button', { name: 'Resolve incident' })
     await expect(resolve).toBeDisabled()
+    // "Other" cannot be resolved without a note.
+    await page.getByLabel('Resolve with outcome').selectOption('OTHER')
+    await resolve.click()
+    await expect(page.getByText(/required when the outcome is Other/)).toBeVisible()
     await page.getByLabel('Resolve with outcome').selectOption('FALSE_ALARM')
     await resolve.click()
+    // The banner and menu badge update at once, not after the 30 s refresh.
+    await expect(page.getByText('Incident resolved.')).toBeVisible()
+    await expect(banner).toBeHidden({ timeout: 5_000 })
     await expect(page.getByText(/Resolved/).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Resolve incident' })).not.toBeVisible()
 

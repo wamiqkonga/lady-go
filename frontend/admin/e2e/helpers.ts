@@ -14,7 +14,8 @@ export async function loginAs(page: Page, creds: Credentials): Promise<void> {
 
 /** Answers the step-up prompt that a destructive action (config edit) raises after login. */
 export async function confirmStepUp(page: Page, creds: Credentials): Promise<void> {
-  const dialog = page.getByRole('dialog')
+  // Another dialog (an invite form) can be open underneath: pick the one that asks for the code.
+  const dialog = page.getByRole('dialog').filter({ has: page.getByLabel('Authenticator code') })
   await expect(dialog).toBeVisible()
   await dialog.getByLabel('Authenticator code').fill(nextTotpCode(creds.totpSecret))
   await dialog.getByRole('button', { name: 'Confirm' }).click()

@@ -10,6 +10,7 @@ import com.ladygo.driver.api.generated.models.ApiResponseDriverDocumentAdminResp
 import com.ladygo.driver.api.generated.models.ApiResponseDriverReviewSummaryResponse
 import com.ladygo.driver.api.generated.models.ApiResponseEligibilityReportAdminResponse
 import com.ladygo.driver.api.generated.models.ApiResponsePageResponseDriverDocumentAdminResponse
+import com.ladygo.driver.api.generated.models.ApiResponsePageResponseDriverVerificationQueueItemResponse
 import com.ladygo.driver.api.generated.models.ApiResponsePageResponseEligibilityReportAdminResponse
 import com.ladygo.driver.api.generated.models.ApiResponseURI
 import com.ladygo.driver.api.generated.models.ApiResponseVoid
@@ -59,6 +60,37 @@ interface AdminVerificationControllerApi {
      */
     @POST("api/v1/admin/vehicles/{id}/approve")
     suspend fun approveVehicle(@Path("id") id: java.util.UUID): Response<ApiResponseVoid>
+
+
+    /**
+    * enum for parameter status
+    */
+    enum class StatusCaptainQueue(val value: kotlin.String) {
+        @Json(name = "NOT_SUBMITTED") NOT_SUBMITTED("NOT_SUBMITTED"),
+        @Json(name = "PENDING_REVIEW") PENDING_REVIEW("PENDING_REVIEW"),
+        @Json(name = "APPROVED") APPROVED("APPROVED"),
+        @Json(name = "REJECTED") REJECTED("REJECTED"),
+        @Json(name = "SUSPENDED") SUSPENDED("SUSPENDED")
+    }
+
+    /**
+     * GET api/v1/admin/driver-verification/queue
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @param page  (optional)
+     * @param size  (optional)
+     * @param sort  (optional)
+     * @param q  (optional)
+     * @param status  (optional)
+     * @param overdueOnly  (optional, default to false)
+     * @param readyOnly  (optional, default to false)
+     * @return [ApiResponsePageResponseDriverVerificationQueueItemResponse]
+     */
+    @GET("api/v1/admin/driver-verification/queue")
+    suspend fun captainQueue(@Query("page") page: kotlin.Int? = null, @Query("size") size: kotlin.Int? = null, @Query("sort") sort: kotlin.collections.List<kotlin.String>? = null, @Query("q") q: kotlin.String? = null, @Query("status") status: StatusCaptainQueue? = null, @Query("overdueOnly") overdueOnly: kotlin.Boolean? = false, @Query("readyOnly") readyOnly: kotlin.Boolean? = false): Response<ApiResponsePageResponseDriverVerificationQueueItemResponse>
 
     /**
      * GET api/v1/admin/drivers/{id}/review

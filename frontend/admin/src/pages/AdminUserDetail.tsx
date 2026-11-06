@@ -43,7 +43,7 @@ export default function AdminUserDetail() {
       <p>
         <Link to="/users">← Staff accounts</Link>
       </p>
-      <h1>{user.name || 'Unnamed'}</h1>
+      <h1>{user.name || user.maskedEmail || 'Unnamed'}</h1>
       <dl className="panel detail-list">
         <dt>Email</dt>
         <dd>{user.maskedEmail}</dd>
@@ -92,7 +92,7 @@ export default function AdminUserDetail() {
         ) : (
           <ReasonAction
             label="Reactivate"
-            description="They can sign in again with their existing password and authenticator."
+            description="They can sign in again with their existing password and authenticator. If this account may have been compromised, reset their authenticator and send a password reset link before reactivating."
             perform={async (reason) =>
               unwrap(await client.POST('/api/v1/admin/users/{id}/reactivate', { ...path, body: { reason } }))
             }
@@ -112,9 +112,8 @@ export default function AdminUserDetail() {
         {user.mfaEnrolled && (
           <ReasonAction
             label="Reset authenticator"
-            askReason={false}
-            description="Removes their authenticator so they can set up a new one (lost phone). Only do this after confirming who is asking."
-            perform={async () => expectOk(await client.POST('/api/v1/admin/users/{id}/mfa/reset', path))}
+            description="Removes their authenticator so they can set up a new one (lost phone) and signs them out everywhere. Only do this after confirming who is asking."
+            perform={async (reason) => expectOk(await client.POST('/api/v1/admin/users/{id}/mfa/reset', { ...path, body: { reason } }))}
             onDone={load}
           />
         )}

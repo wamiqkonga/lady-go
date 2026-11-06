@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
 import { client, unwrap, ApiCallError } from '../lib/client'
 import type { components } from '../lib/api-types'
+import { LinkCell } from '../components/RowLink'
+import { availabilityLabel, NAME_MISSING, verificationLabel } from '../lib/driverStatus'
 
 type DriverRow = components['schemas']['AdminDriverListItemResponse']
 type VerificationStatus = NonNullable<DriverRow['verificationStatus']>
@@ -66,7 +67,7 @@ export default function Drivers() {
             <option value="">All</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {verificationLabel(s)}
               </option>
             ))}
           </select>
@@ -94,18 +95,19 @@ export default function Drivers() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td data-label="Driver">
-                      <Link to={`/drivers/${row.id}`}>{row.name ?? `${row.id?.slice(0, 8)}…`}</Link>
-                    </td>
-                    <td data-label="Phone">{row.phoneMasked ?? '—'}</td>
-                    <td data-label="Verification">{row.verificationStatus}</td>
-                    <td data-label="Availability">{row.availabilityStatus}</td>
-                    <td data-label="Rating">{row.ratingAvg?.toFixed(2) ?? '—'}</td>
-                    <td data-label="Rides">{row.totalRides ?? 0}</td>
-                  </tr>
-                ))}
+                {rows.map((row) => {
+                  const to = `/drivers/${row.id}`
+                  return (
+                    <tr key={row.id}>
+                      <LinkCell to={to} first label="Driver">{row.name ?? NAME_MISSING}</LinkCell>
+                      <LinkCell to={to} label="Phone">{row.phoneMasked ?? '—'}</LinkCell>
+                      <LinkCell to={to} label="Verification">{verificationLabel(row.verificationStatus)}</LinkCell>
+                      <LinkCell to={to} label="Availability">{availabilityLabel(row.availabilityStatus)}</LinkCell>
+                      <LinkCell to={to} label="Rating">{row.ratingAvg ? row.ratingAvg.toFixed(2) : 'No ratings yet'}</LinkCell>
+                      <LinkCell to={to} label="Rides">{row.totalRides ?? 0}</LinkCell>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

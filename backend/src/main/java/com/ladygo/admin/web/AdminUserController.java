@@ -6,7 +6,6 @@ import com.ladygo.admin.web.dto.AdminUserInviteRequest;
 import com.ladygo.admin.web.dto.AdminUserReasonRequest;
 import com.ladygo.admin.web.dto.AdminUserResponse;
 import com.ladygo.admin.web.dto.AdminUserRoleRequest;
-import com.ladygo.auth.service.AdminAuthService;
 import com.ladygo.auth.web.dto.AdminUnlockRequest;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
@@ -33,37 +32,37 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/admin/users")
 public class AdminUserController {
 
-    private final AdminAuthService adminAuthService;
     private final ClientIpResolver clientIpResolver;
     private final com.ladygo.auth.service.StepUpGuard stepUpGuard;
     private final AdminUserManagementService management;
 
-    public AdminUserController(AdminAuthService adminAuthService, ClientIpResolver clientIpResolver,
+    public AdminUserController(ClientIpResolver clientIpResolver,
             com.ladygo.auth.service.StepUpGuard stepUpGuard, AdminUserManagementService management) {
         this.management = management;
-        this.adminAuthService = adminAuthService;
         this.clientIpResolver = clientIpResolver;
         this.stepUpGuard = stepUpGuard;
     }
 
+    /** Removes a staff member's authenticator so they can enrol a new one. SUPER_ADMIN, fresh step-up, written reason,
+     *  staff targets only, never your own account; the target is signed out everywhere. */
     @PostMapping("/{id}/mfa/reset")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ApiResponse<Void> resetMfa(
-            @PathVariable UUID id, @AuthenticationPrincipal AuthPrincipal principal, HttpServletRequest request) {
+            @PathVariable UUID id, @Valid @RequestBody AdminUserReasonRequest body,
+            @AuthenticationPrincipal AuthPrincipal principal, HttpServletRequest request) {
         stepUpGuard.require(principal);
-        adminAuthService.resetMfa(principal.userId(), principal.role(), id, clientIpResolver.resolve(request));
+        management.resetMfa(principal.userId(), id, body.reason(), clientIpResolver.resolve(request));
         return ApiResponse.ok(null);
     }
 
-    /** Clears the failed-login wait for a locked-out admin. SUPER_ADMIN, fresh step-up, written reason, audited. */
+    /** Clears the failed-login wait for a locked-out staff member. SUPER_ADMIN, fresh step-up, written reason, audited. */
     @PostMapping("/{id}/unlock")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ApiResponse<Void> unlock(
             @PathVariable UUID id, @Valid @RequestBody AdminUnlockRequest body,
             @AuthenticationPrincipal AuthPrincipal principal, HttpServletRequest request) {
         stepUpGuard.require(principal);
-        adminAuthService.unlockLogin(principal.userId(), principal.role(), id, body.reason().trim(),
-                clientIpResolver.resolve(request));
+        management.unlock(principal.userId(), id, body.reason(), clientIpResolver.resolve(request));
         return ApiResponse.ok(null);
     }
 

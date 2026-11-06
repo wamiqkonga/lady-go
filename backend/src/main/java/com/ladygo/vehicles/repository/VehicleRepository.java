@@ -12,6 +12,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
 
     List<Vehicle> findByDriverId(UUID driverId);
 
+    List<Vehicle> findByDriverIdIn(java.util.Collection<UUID> driverIds);
+
     boolean existsByRegistrationNumberIgnoreCase(String registrationNumber);
 
     Page<Vehicle> findByVerificationStatusOrderByCreatedAtAsc(VehicleVerificationStatus status, Pageable pageable);

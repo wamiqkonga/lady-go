@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { client, unwrap, ApiCallError } from '../lib/client'
+import { refreshSafetyBadge } from '../lib/useSafetyBadge'
 import {
   ageLabel, OUTCOMES, STATUS_LABELS, TYPE_LABELS, type SafetyDetail, type SafetyOutcome,
 } from '../lib/safety'
@@ -11,6 +12,8 @@ export default function SafetyIncident() {
   const [incident, setIncident] = useState<SafetyDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const [outcome, setOutcome] = useState<SafetyOutcome | ''>('')
@@ -32,11 +35,15 @@ export default function SafetyIncident() {
     return () => window.clearTimeout(first)
   }, [load])
 
-  async function run(failure: string, action: () => Promise<SafetyDetail>) {
+  async function run(failure: string, success: string, action: () => Promise<SafetyDetail>) {
     setBusy(true)
     setActionError(null)
+    setNotice(null)
     try {
       setIncident(await action())
+      setNotice(success)
+      // The menu badge and the SOS banner must not lag behind what was just done.
+      refreshSafetyBadge()
     } catch (err) {
       setActionError(err instanceof ApiCallError ? err.message : failure)
     } finally {
@@ -46,14 +53,14 @@ export default function SafetyIncident() {
 
   function acknowledge() {
     if (!incidentId) return
-    return run('Could not acknowledge this incident.', async () =>
+    return run('Could not acknowledge this incident.', 'Incident acknowledged.', async () =>
       unwrap(await client.POST('/api/v1/admin/safety/incidents/{id}/acknowledge', { params: { path: { id: incidentId } } })))
   }
 
   function addNote(e: FormEvent) {
     e.preventDefault()
     if (!incidentId || !note.trim()) return
-    return run('Could not add the note.', async () => {
+    return run('Could not add the note.', 'Note added.', async () => {
       const updated = unwrap(await client.POST('/api/v1/admin/safety/incidents/{id}/notes', {
         params: { path: { id: incidentId } }, body: { note: note.trim() },
       }))
@@ -65,7 +72,12 @@ export default function SafetyIncident() {
   function resolve(e: FormEvent) {
     e.preventDefault()
     if (!incidentId || !outcome) return
-    return run('Could not resolve this incident.', async () => {
+    if (outcome === 'OTHER' && !resolveNote.trim()) {
+      setResolveError('Explain what happened in the note: it is required when the outcome is Other.')
+      return
+    }
+    setResolveError(null)
+    return run('Could not resolve this incident.', 'Incident resolved.', async () => {
       const updated = unwrap(await client.POST('/api/v1/admin/safety/incidents/{id}/resolve', {
         params: { path: { id: incidentId } }, body: { outcome, note: resolveNote.trim() || undefined },
       }))
@@ -94,6 +106,7 @@ export default function SafetyIncident() {
         <span className={`sev sev-${(incident.severity ?? 'LOW').toLowerCase()}`}>{incident.severity}</span>{' '}
         · {STATUS_LABELS[incident.status ?? ''] ?? incident.status} · raised {ageLabel(incident.createdAt)}
       </p>
+      {notice && <p className="success" role="status">{notice}</p>}
       {actionError && <p role="alert">{actionError}</p>}
 
       <div className="panel">
@@ -143,23 +156,33 @@ export default function SafetyIncident() {
           <h2>Actions</h2>
           {incident.status === 'OPEN' && (
             <div className="row-actions">
-              <button type="button" onClick={acknowledge} disabled={busy}>Acknowledge</button>
+              <button type="button" className="btn-primary" onClick={acknowledge} disabled={busy}>Acknowledge</button>
             </div>
           )}
           <form onSubmit={addNote} className="form">
             <label htmlFor="safety-note">Add a note</label>
             <textarea id="safety-note" rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
-            <button type="submit" disabled={busy || !note.trim()}>Add note</button>
+            <button type="submit" className="btn-primary" disabled={busy || !note.trim()}>Add note</button>
           </form>
           <form onSubmit={resolve} className="form">
             <label htmlFor="safety-outcome">Resolve with outcome</label>
-            <select id="safety-outcome" value={outcome} onChange={(e) => setOutcome(e.target.value as SafetyOutcome | '')}>
+            <select id="safety-outcome" value={outcome} onChange={(e) => { setOutcome(e.target.value as SafetyOutcome | ''); setResolveError(null) }}>
               <option value="">Choose what happened…</option>
               {OUTCOMES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <label htmlFor="safety-resolve-note">Note (optional)</label>
-            <textarea id="safety-resolve-note" rows={2} maxLength={2000} value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} />
-            <button type="submit" disabled={busy || !outcome}>Resolve incident</button>
+            <label htmlFor="safety-resolve-note">{outcome === 'OTHER' ? 'Note (required for Other)' : 'Note (optional)'}</label>
+            <textarea
+              id="safety-resolve-note"
+              rows={2}
+              maxLength={2000}
+              value={resolveNote}
+              onChange={(e) => { setResolveNote(e.target.value); setResolveError(null) }}
+              aria-required={outcome === 'OTHER' ? true : undefined}
+              aria-invalid={resolveError ? true : undefined}
+              aria-describedby={resolveError ? 'safety-resolve-note-error' : undefined}
+            />
+            {resolveError && <p id="safety-resolve-note-error" role="alert" className="error">{resolveError}</p>}
+            <button type="submit" className="btn-primary" disabled={busy || !outcome}>Resolve incident</button>
           </form>
         </div>
       )}

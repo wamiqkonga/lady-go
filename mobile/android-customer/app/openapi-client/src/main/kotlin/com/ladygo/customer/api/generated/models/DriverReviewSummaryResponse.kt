@@ -33,6 +33,10 @@ import com.squareup.moshi.JsonClass
  * @param documents 
  * @param readyForApproval 
  * @param missingRequirements 
+ * @param decidedAt 
+ * @param decidedByName 
+ * @param decidedByEmailMasked 
+ * @param rejectionReason 
  */
 
 
@@ -63,7 +67,19 @@ data class DriverReviewSummaryResponse (
     val readyForApproval: kotlin.Boolean? = null,
 
     @Json(name = "missingRequirements")
-    val missingRequirements: kotlin.collections.List<kotlin.String>? = null
+    val missingRequirements: kotlin.collections.List<kotlin.String>? = null,
+
+    @Json(name = "decidedAt")
+    val decidedAt: kotlin.String? = null,
+
+    @Json(name = "decidedByName")
+    val decidedByName: kotlin.String? = null,
+
+    @Json(name = "decidedByEmailMasked")
+    val decidedByEmailMasked: kotlin.String? = null,
+
+    @Json(name = "rejectionReason")
+    val rejectionReason: kotlin.String? = null
 
 ) {
 

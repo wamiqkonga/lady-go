@@ -11,7 +11,7 @@ test.describe('customers screen', () => {
   // re-activated, so the account is back to ACTIVE for every other spec.
   test('search, suspend with a reason and step-up, then re-activate', async ({ page }) => {
     await loginAs(page, env!.superAdmins.CUSTOMERS)
-    await page.getByRole('link', { name: 'Customers' }).click()
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Customers' }).click()
     await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
 
     await page.getByPlaceholder(/Name, phone or customer id/).fill('7003')
@@ -42,9 +42,9 @@ test.describe('customers screen', () => {
     await expect(page.locator('.status-badge')).toHaveText('ACTIVE')
 
     // Both actions are in the audit log.
-    await page.getByRole('link', { name: 'Audit log' }).click()
-    await page.getByPlaceholder(/CONFIGURATION_CHANGED/).fill('CUSTOMER_SUSPENDED')
+    await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Audit log' }).click()
+    await page.getByLabel('Action').selectOption('CUSTOMER_SUSPENDED')
     await page.getByRole('button', { name: 'Apply' }).click()
-    await expect(page.locator('tbody tr').filter({ hasText: 'CUSTOMER_SUSPENDED' }).first()).toBeVisible()
+    await expect(page.locator('tbody tr').filter({ hasText: 'Suspended a customer' }).first()).toBeVisible()
   })
 })
