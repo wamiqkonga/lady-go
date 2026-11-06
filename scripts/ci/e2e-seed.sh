@@ -251,14 +251,14 @@ seed_driver() {
 }
 
 echo "== Seeding the primary driver (mutated to APPROVED by the happy-path spec) =="
-DRIVER_ID=$(seed_driver "+919900077001" "JK01AB1234" "E2E Primary Captain")
+DRIVER_ID=$(seed_driver "+919900077001" "JK01AB1234" "Seeded Primary Captain")
 echo "== Seeding the secondary driver (left PENDING for the negative-checks spec) =="
-SECONDARY_DRIVER_ID=$(seed_driver "+919900077002" "JK01CD5678" "E2E Secondary Captain")
+SECONDARY_DRIVER_ID=$(seed_driver "+919900077002" "JK01CD5678" "Seeded Secondary Captain")
 
 echo "== Seeding a third, already-approved driver for the Drivers screen (search, suspend, re-activate) =="
 # Registered through the real APIs like the others, then approved by SQL: the
 # review specs own the other two drivers' status, so this one must not depend on them or on spec order.
-SUSPEND_DRIVER_ID=$(seed_driver "+919900077104" "JK01EF9012" "E2E Suspendable Captain")
+SUSPEND_DRIVER_ID=$(seed_driver "+919900077104" "JK01EF9012" "Seeded Suspendable Captain")
 psql -v ON_ERROR_STOP=1 -q -c "
 UPDATE drivers SET verification_status = 'APPROVED', verified_at = now() WHERE id = '$SUSPEND_DRIVER_ID';
 " || { echo "Failed to approve the Drivers-screen fixture driver" >&2; exit 1; }

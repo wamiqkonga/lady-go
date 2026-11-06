@@ -34,7 +34,7 @@ async function startApplication(page: import('@playwright/test').Page) {
 }
 
 /** Gives the full name on the first step and moves on to the vehicle step. */
-async function giveName(page: import('@playwright/test').Page, fullName = 'E2E Test Captain') {
+async function giveName(page: import('@playwright/test').Page, fullName = 'Seeded Test Captain') {
   await page.getByLabel('Full name').fill(fullName)
   await page.getByRole('button', { name: 'Save name' }).click()
   await expect(page.getByRole('status')).toHaveText('Name saved.')

@@ -78,7 +78,7 @@ curl -sf -X POST "$BASE/api/v1/drivers/me" -H "Authorization: Bearer $token" \
 # This captain already gave their name, so the wizard resumes on the vehicle step; every other seeded phone has
 # no name and lands on the new "Your name" step right after choosing the city.
 curl -sf -X PUT "$BASE/api/v1/drivers/me/name" -H "Authorization: Bearer $token" \
-  -H 'Content-Type: application/json' -d '{"fullName":"E2E Reject Captain"}' >/dev/null
+  -H 'Content-Type: application/json' -d '{"fullName":"Seeded Reject Captain"}' >/dev/null
 curl -sf -X POST "$BASE/api/v1/drivers/me/documents?type=LICENSE" \
   -H "Authorization: Bearer $token" -F "file=@${SEED_IMAGE};type=image/png" >/dev/null
 
