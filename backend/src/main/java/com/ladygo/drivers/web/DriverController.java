@@ -11,14 +11,17 @@ import com.ladygo.drivers.web.dto.DriverAvailabilityRequest;
 import com.ladygo.drivers.web.dto.DriverAvailabilityResponse;
 import com.ladygo.drivers.web.dto.DriverDocumentResponse;
 import com.ladygo.drivers.web.dto.DriverLocationRequest;
+import com.ladygo.drivers.web.dto.DriverNameRequest;
 import com.ladygo.drivers.web.dto.DriverProfileRequest;
 import com.ladygo.drivers.web.dto.DriverProfileResponse;
 import com.ladygo.drivers.web.dto.VehicleRequest;
 import com.ladygo.drivers.web.dto.VehicleResponse;
 import com.ladygo.security.jwt.AuthPrincipal;
+import com.ladygo.security.net.ClientIpResolver;
 import com.ladygo.verification.web.dto.DeclarationAcceptRequest;
 import com.ladygo.verification.web.dto.DeclarationResponse;
 import com.ladygo.verification.web.dto.DeclarationStatusResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,13 +44,15 @@ public class DriverController {
     private final DriverService driverService;
     private final DriverAvailabilityService availabilityService;
     private final DriverLocationService locationService;
+    private final ClientIpResolver clientIpResolver;
 
     public DriverController(
             DriverService driverService, DriverAvailabilityService availabilityService,
-            DriverLocationService locationService) {
+            DriverLocationService locationService, ClientIpResolver clientIpResolver) {
         this.driverService = driverService;
         this.availabilityService = availabilityService;
         this.locationService = locationService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @GetMapping("/availability")
@@ -77,6 +82,14 @@ public class DriverController {
     @GetMapping
     public ApiResponse<DriverProfileResponse> getProfile(@AuthenticationPrincipal AuthPrincipal principal) {
         return ApiResponse.ok(driverService.getProfile(principal.userId()));
+    }
+
+    /** Sets the captain's full name, the first step of registration (docs/api/driver-onboarding.md section 3). */
+    @PutMapping("/name")
+    public ApiResponse<DriverProfileResponse> setName(
+            @AuthenticationPrincipal AuthPrincipal principal, @Valid @RequestBody DriverNameRequest request,
+            HttpServletRequest http) {
+        return ApiResponse.ok(driverService.updateName(principal.userId(), request.fullName(), clientIpResolver.resolve(http)));
     }
 
     @PostMapping("/documents")

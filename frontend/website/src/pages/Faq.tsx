@@ -48,11 +48,11 @@ const groups: Group[] = [
       },
       {
         q: 'How do I register?',
-        a: 'Register on this website from your phone. You enter your phone number and email, type the 6-digit code we email you, create a password, choose your city, then complete the steps. Your progress is saved, so you can stop and come back.',
+        a: 'Register on this website from your phone. You enter your phone number and email, type the 6-digit code we email you, create a password, choose your city, then complete the steps, starting with your full name. Your progress is saved, so you can stop and come back.',
       },
       {
         q: 'What do I need to register?',
-        a: 'Your vehicle registration number and a clear photo of your vehicle registration certificate (RC), a selfie, and your acceptance of the captain self-declaration. A driving licence photo and a fitness certificate photo are optional at registration.',
+        a: 'Your full name as it appears on your driving licence or RC, your vehicle registration number and a clear photo of your vehicle registration certificate (RC), a selfie, and your acceptance of the captain self-declaration. A driving licence photo and a fitness certificate photo are optional at registration.',
       },
       {
         q: 'What happens after I finish all the steps?',

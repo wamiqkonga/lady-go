@@ -8,7 +8,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [ta
  * label, focus moves in and is trapped, Escape and the Done button close it, focus returns to where it came from.
  * It promises no review time: none has been decided.
  */
-export default function CongratulationsDialog({ onClose }: { onClose: () => void }) {
+export default function CongratulationsDialog({ onClose, firstName }: { onClose: () => void; firstName?: string | null }) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const doneRef = useRef<HTMLButtonElement>(null)
 
@@ -50,7 +50,7 @@ export default function CongratulationsDialog({ onClose }: { onClose: () => void
         aria-describedby="congrats-body"
         onKeyDown={onKeyDown}
       >
-        <h2 id="congrats-title">Congratulations, captain!</h2>
+        <h2 id="congrats-title">{firstName ? `Congratulations, ${firstName}!` : 'Congratulations, captain!'}</h2>
         <div id="congrats-body">
           <p>
             You finished every step of your registration. That takes real effort, and we are glad you want to drive

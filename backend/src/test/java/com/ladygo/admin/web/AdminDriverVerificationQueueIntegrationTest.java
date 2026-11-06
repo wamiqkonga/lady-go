@@ -163,7 +163,8 @@ class AdminDriverVerificationQueueIntegrationTest extends PersistenceTestSupport
 
         JsonNode row = queue("?q=" + tag).get("content").get(0);
 
-        assertThat(row.get("requiredItems").get("approved").asInt()).isEqualTo(1);
+        // The full name is the fourth required item: given, so it counts as approved.
+        assertThat(row.get("requiredItems").get("approved").asInt()).isEqualTo(2);
         assertThat(row.get("requiredItems").get("pending").asInt()).isZero();
         assertThat(row.get("requiredItems").get("rejected").asInt()).isEqualTo(1);
         assertThat(row.get("requiredItems").get("missing").asInt()).isEqualTo(1);
@@ -183,9 +184,9 @@ class AdminDriverVerificationQueueIntegrationTest extends PersistenceTestSupport
 
         JsonNode row = queue("?q=" + tag).get("content").get(0);
 
-        // vehicle (RC photo + vehicle) and selfie await review; the accepted declaration needs no review.
+        // vehicle (RC photo + vehicle) and selfie await review; the declaration and the name need no review.
         assertThat(row.get("requiredItems").get("pending").asInt()).isEqualTo(2);
-        assertThat(row.get("requiredItems").get("approved").asInt()).isEqualTo(1);
+        assertThat(row.get("requiredItems").get("approved").asInt()).isEqualTo(2);
         assertThat(row.get("requiredItems").get("rejected").asInt()).isZero();
         assertThat(row.get("requiredItems").get("missing").asInt()).isZero();
         assertThat(row.get("readyForReview").asBoolean()).isTrue();
@@ -231,6 +232,41 @@ class AdminDriverVerificationQueueIntegrationTest extends PersistenceTestSupport
         acceptCurrentDeclaration(SubjectType.DRIVER, ready.getId());
 
         assertThat(names(queue("?q=" + tag + "&readyOnly=true"))).containsExactly(tag + " ready");
+    }
+
+    // ---- full name ---------------------------------------------------------------------------
+
+    private void clearName(Driver driver) {
+        jdbc.update("UPDATE users SET name = ? WHERE id = ?", null, driver.getUserId());
+    }
+
+    @Test
+    void aCaptainWithoutANameIsIncompleteAndFlaggedNameMissing() throws Exception {
+        String tag = "Nm" + UUID.randomUUID().toString().substring(0, 6);
+        Driver d = captain(tag, DriverVerificationStatus.PENDING_REVIEW, 60);
+        vehicle(d, VehicleVerificationStatus.PENDING, "JK07" + tag.toUpperCase());
+        upload(d, DocumentType.SELFIE, DocumentStatus.PENDING, 50);
+        acceptCurrentDeclaration(SubjectType.DRIVER, d.getId());
+        clearName(d);
+
+        JsonNode row = queue("?q=" + d.getId()).get("content").get(0);
+
+        assertThat(row.get("driverName").isNull()).isTrue();
+        assertThat(row.get("nameMissing").asBoolean()).isTrue();
+        assertThat(row.get("requiredItems").get("missing").asInt()).isEqualTo(1);
+        assertThat(row.get("readyForReview").asBoolean()).isFalse();
+        assertThat(queue("?readyOnly=true&q=" + d.getId()).get("content")).isEmpty();
+    }
+
+    @Test
+    void aBlankNameCountsAsMissingAndAGivenNameDoesNot() throws Exception {
+        String tag = "Bl" + UUID.randomUUID().toString().substring(0, 6);
+        Driver blank = captain(tag, DriverVerificationStatus.PENDING_REVIEW, 60);
+        jdbc.update("UPDATE users SET name = '   ' WHERE id = ?", blank.getUserId());
+        Driver named = captain(tag + " named", DriverVerificationStatus.PENDING_REVIEW, 50);
+
+        assertThat(queue("?q=" + blank.getId()).get("content").get(0).get("nameMissing").asBoolean()).isTrue();
+        assertThat(queue("?q=" + named.getId()).get("content").get(0).get("nameMissing").asBoolean()).isFalse();
     }
 
     // ---- paging ------------------------------------------------------------------------------

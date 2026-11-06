@@ -59,7 +59,7 @@ export interface E2eEnv {
    *  rejection-note tests have pending documents to work with regardless of file execution order. */
   secondaryDriverId: string
   unknownDriverId: string
-  /** An APPROVED captain named 'E2E Suspendable Captain', seeded for admin-drivers.spec.ts only. */
+  /** An APPROVED captain named 'Seeded Suspendable Captain', seeded for admin-drivers.spec.ts only. */
   suspendDriverId: string
   /** A COMPLETED cash booking with one open (unreviewed) RIDER_SAFETY_CANCEL flag, seeded directly via
    *  SQL (scripts/ci/e2e-seed.sh) rather than driven through the real matching/ride-lifecycle APIs -
