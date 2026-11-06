@@ -245,6 +245,10 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         Driver reloaded = drivers.findById(driver.getId()).orElseThrow();
         assertThat(reloaded.getVerificationStatus()).isEqualTo(DriverVerificationStatus.APPROVED);
         assertThat(reloaded.getVerifiedBy()).isEqualTo(adminId);
+        var decided = service.getDriverReview(driver.getId());
+        assertThat(decided.decidedAt()).isNotNull();
+        assertThat(decided.decidedByName()).isEqualTo(users.findById(adminId).orElseThrow().getName());
+        assertThat(decided.rejectionReason()).isNull();
         assertThat(auditLogs.findAll()).anySatisfy(entry -> assertThat(entry.getAction()).isEqualTo("DRIVER_APPROVED"));
     }
 
@@ -272,6 +276,9 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         Driver reloaded = drivers.findById(driver.getId()).orElseThrow();
         assertThat(reloaded.getVerificationStatus()).isEqualTo(DriverVerificationStatus.REJECTED);
         assertThat(reloaded.getRejectionReason()).isEqualTo("fake licence");
+        var decided = service.getDriverReview(driver.getId());
+        assertThat(decided.rejectionReason()).isEqualTo("fake licence");
+        assertThat(decided.decidedAt()).isNotNull();
         assertThat(auditLogs.findAll()).anySatisfy(entry -> assertThat(entry.getAction()).isEqualTo("DRIVER_REJECTED"));
     }
 

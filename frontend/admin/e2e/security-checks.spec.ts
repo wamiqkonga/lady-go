@@ -54,9 +54,9 @@ test.describe('negative security checks', () => {
     await loginAs(page, env!.superAdmins.DOCEXPIRY)
     await page.goto(`/driver-verification/${env!.secondaryDriverId}`)
 
-    const firstView = page.locator('li.document-row').first().getByRole('button', { name: 'View' })
+    const firstView = page.locator('li.document-row').first().getByRole('button', { name: /^View / })
     await firstView.click()
-    const image = page.locator('li.document-row').first().locator('img')
+    const image = page.getByRole('dialog').locator('img')
     await expect(image).toBeVisible()
     const url = await image.getAttribute('src')
     expect(url).toBeTruthy()
@@ -117,17 +117,23 @@ test.describe('negative security checks', () => {
       .first()
     const payload = '<img src=x onerror=alert(1)>still just text'
 
-    let dialogFired = false
-    page.once('dialog', (dialog) => {
-      if (dialog.type() === 'alert') dialogFired = true
-      dialog.accept(payload)
+    // Rejecting asks for the reason in an in-page dialog (no window.prompt).
+    let nativeDialogFired = false
+    page.on('dialog', (dialog) => {
+      nativeDialogFired = true
+      void dialog.dismiss()
     })
     await pendingRow.getByRole('button', { name: 'Reject' }).click()
+    const reasonDialog = page.getByRole('dialog', { name: /^Reject / })
+    await reasonDialog.getByRole('button', { name: 'Reject document' }).click()
+    await expect(reasonDialog.getByText(/Write a reason/)).toBeVisible()
+    await reasonDialog.getByLabel('Reason (required)').fill(payload)
+    await reasonDialog.getByRole('button', { name: 'Reject document' }).click()
 
     const noteLocator = page.locator('.review-note').filter({ hasText: 'still just text' })
     await expect(noteLocator).toBeVisible()
     expect(await noteLocator.locator('img').count()).toBe(0)
-    expect(dialogFired).toBe(false)
+    expect(nativeDialogFired).toBe(false)
   })
 
   test('a plain ADMIN cannot update config; SUPER_ADMIN can only after a step-up', async ({ page }) => {

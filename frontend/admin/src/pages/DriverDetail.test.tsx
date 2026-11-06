@@ -46,6 +46,27 @@ function renderAs(role: string) {
 }
 
 describe('DriverDetail', () => {
+  it('shows a suspended driver once, with who suspended them, when and why', async () => {
+    const body = driverBody('SUSPENDED', 'SUSPENDED')
+    Object.assign(body.data, { suspension: { suspendedAt: '2026-02-03T10:00:00Z', suspendedByName: 'Ayesha Admin', reason: 'Complaint verified' } })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(body)))
+    renderAs('SUPPORT')
+    expect(await screen.findByText(/by Ayesha Admin/)).toBeInTheDocument()
+    expect(screen.getByText(/Reason: Complaint verified/)).toBeInTheDocument()
+    expect(screen.getAllByText('Suspended')).toHaveLength(1)
+    expect(document.body.textContent).not.toContain('SUSPENDED')
+  })
+
+  it('says "No ratings yet" and "Name not provided" instead of 0.00 and an id', async () => {
+    const body = driverBody('APPROVED', 'ONLINE')
+    Object.assign(body.data, { name: null, ratingAvg: 0, ratingCount: 0 })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(body)))
+    renderAs('SUPPORT')
+    expect(await screen.findByRole('heading', { name: 'Name not provided' })).toBeInTheDocument()
+    expect(screen.getByText(/No ratings yet/)).toBeInTheDocument()
+    expect(screen.queryByText(/rating 0.00/)).not.toBeInTheDocument()
+  })
+
   it('shows the profile, earnings, recent rides and a link to the document review screen', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(driverBody('APPROVED', 'ONLINE'))))
 

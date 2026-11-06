@@ -190,6 +190,26 @@ class AdminDriverControllerIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void detailOfASuspendedDriverShowsWhoSuspendedWhenAndWhyAndAnApprovedOneShowsNothing() throws Exception {
+        Driver driver = approvedDriver();
+        User admin = staff(UserRole.ADMIN);
+        admin.setName("Ayesha Admin");
+        users.saveAndFlush(admin);
+        User support = staff(UserRole.SUPPORT);
+        mockMvc.perform(get(BASE + "/" + driver.getId()).header("Authorization", "Bearer " + fresh(support)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suspension").doesNotExist());
+
+        suspend(driver.getId(), fresh(admin), "{\"reason\":\"Complaint verified by support\"}").andExpect(status().isOk());
+
+        mockMvc.perform(get(BASE + "/" + driver.getId()).header("Authorization", "Bearer " + fresh(support)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suspension.suspendedByName").value("Ayesha Admin"))
+                .andExpect(jsonPath("$.data.suspension.reason").value("Complaint verified by support"))
+                .andExpect(jsonPath("$.data.suspension.suspendedAt").exists());
+    }
+
+    @Test
     void suspendWithoutReasonIs400AndChangesNothing() throws Exception {
         Driver driver = approvedDriver();
         User admin = staff(UserRole.ADMIN);

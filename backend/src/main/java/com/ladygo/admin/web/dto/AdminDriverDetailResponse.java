@@ -25,13 +25,18 @@ public record AdminDriverDetailResponse(
         VehicleAdminResponse vehicle,
         AdminDriverDocumentsSummary documents,
         List<AdminDriverRecentRide> recentRides,
-        AdminDriverEarningsTotals earnings) {
+        AdminDriverEarningsTotals earnings,
+        AdminDriverSuspension suspension) {
 
     /** {@code reviewPath} is the admin-app route of the existing driver review screen. */
     public record AdminDriverDocumentsSummary(int total, int pending, int approved, int rejected, String reviewPath) {
     }
 
     public record AdminDriverRecentRide(UUID bookingId, BookingStatus status, Instant createdAt, Long finalFare, String currency) {
+    }
+
+    /** Who suspended the driver, when and why - from the audit log; present only while the driver is suspended. */
+    public record AdminDriverSuspension(Instant suspendedAt, String suspendedByName, String suspendedByEmailMasked, String reason) {
     }
 
     public record AdminDriverEarningsTotals(long rides, long gross, long commission, long net) {

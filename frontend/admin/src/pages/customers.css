@@ -17,3 +17,7 @@
   .stack-table td { border-bottom: 0; padding: 0.25rem 0; display: flex; justify-content: space-between; gap: 1rem; text-align: right; overflow-wrap: anywhere; }
   .stack-table td::before { content: attr(data-label); color: var(--muted); font-weight: 700; text-align: left; flex: none; }
 }
+
+/* The action buttons keep their pill shape instead of stretching across the grid. */
+.customer-action > button, .customer-action .row-actions button { justify-self: start; width: auto; }
+.customer-action label { display: grid; gap: 0.25rem; font-weight: 600; }

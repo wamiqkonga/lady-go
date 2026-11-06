@@ -165,7 +165,17 @@ class AdminSafetyControllerIntegrationTest extends PersistenceTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.unresolved").value(3))
                 .andExpect(jsonPath("$.data.needsAcknowledging").value(1))
-                .andExpect(jsonPath("$.data.critical").value(2));
+                .andExpect(jsonPath("$.data.critical").value(2))
+                .andExpect(jsonPath("$.data.oldestCriticalAt").exists());
+    }
+
+    @Test
+    void theOpenCountHasNoOldestCriticalTimeWhenNothingCriticalIsOpen() throws Exception {
+        incident(IncidentType.OTHER, IncidentSeverity.LOW, IncidentStatus.OPEN);
+
+        getAs(staff(UserRole.SUPPORT), "/api/v1/admin/safety/incidents/open-count")
+                .andExpect(jsonPath("$.data.critical").value(0))
+                .andExpect(jsonPath("$.data.oldestCriticalAt").doesNotExist());
     }
 
     // --- detail ------------------------------------------------------------------------------------------------
@@ -281,6 +291,22 @@ class AdminSafetyControllerIntegrationTest extends PersistenceTestSupport {
 
         postAs(agent, url, "{}").andExpect(status().isBadRequest());
         postAs(agent, url, "{\"outcome\":\"MADE_UP\"}").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void resolvingAsOtherNeedsAnExplanatoryNote() throws Exception {
+        SafetyIncident incident = incident(IncidentType.SOS, IncidentSeverity.CRITICAL, IncidentStatus.ACKNOWLEDGED);
+        User agent = staff(UserRole.SUPPORT);
+        String url = "/api/v1/admin/safety/incidents/" + incident.getId() + "/resolve";
+
+        postAs(agent, url, "{\"outcome\":\"OTHER\"}").andExpect(status().isBadRequest());
+        postAs(agent, url, "{\"outcome\":\"OTHER\",\"note\":\"   \"}").andExpect(status().isBadRequest());
+        flushAndClear();
+        assertThat(incidents.findById(incident.getId()).orElseThrow().getStatus()).isEqualTo(IncidentStatus.ACKNOWLEDGED);
+
+        postAs(agent, url, "{\"outcome\":\"OTHER\",\"note\":\"Rider left the car, driver confirmed by phone.\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("RESOLVED"));
     }
 
     @Test

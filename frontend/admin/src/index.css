@@ -155,7 +155,7 @@ a { color: var(--brand); }
   .sidebar a { white-space: nowrap; flex: none; }
   .sidebar .sign-out, .sidebar .theme-toggle, .sidebar nav + .theme-toggle { margin-top: 0; }
   .content { padding: 1rem 20px 2rem; }
-  .filters label, .filters input, .filters select { width: 100%; box-sizing: border-box; }
+  .filters label, .filters input, .filters select, .filters .filter { width: 100%; box-sizing: border-box; }
   /* Tables marked stack-table collapse to one card per row, each cell labelled from data-label. */
   .stack-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .stack-table, .stack-table tbody, .stack-table tr, .stack-table td { display: block; width: 100%; }
@@ -174,6 +174,42 @@ a { color: var(--brand); }
 .timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
 .panel textarea, .panel select { width: 100%; box-sizing: border-box; font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: inherit; }
 .panel form + form { margin-top: 1.25rem; }
+
+/* One look for every control. Element selectors are the low-specificity default, so the more specific
+ * classes above (.form button, .tab, .theme-toggle, ...) still win; nothing renders as a grey browser default. */
+button {
+  min-height: 40px; padding: 0.4rem 1.1rem; border-radius: 999px; border: 1.5px solid var(--brand);
+  background: transparent; color: var(--brand); font: inherit; font-weight: 700; cursor: pointer;
+}
+button:hover:not(:disabled) { background: var(--brand-container); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.btn-primary, .form button[type='submit'] { background: var(--brand); color: var(--brand-contrast); }
+button.btn-primary:hover:not(:disabled) { background: var(--brand-deep); color: #fff; }
+input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea {
+  padding: 0.65rem 0.9rem; min-height: 44px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  font: inherit; background: var(--surface-variant); color: var(--fg);
+}
+input[type='checkbox'], input[type='radio'] { accent-color: var(--brand); width: 1.1rem; height: 1.1rem; }
+input[aria-invalid='true'], textarea[aria-invalid='true'] { border-color: var(--bad); }
+.field-error, .error { color: var(--bad); }
+.success { background: var(--ok-container); color: var(--ok); border-radius: var(--radius-md); padding: 0.6rem 1rem; margin: 1rem 0; font-weight: 700; }
+.dialog-title { margin: 0 0 0.75rem; font-size: 1.15rem; }
+.dialog-wide { max-width: min(960px, 100%); max-height: 100%; display: flex; flex-direction: column; }
+.sos-banner { background: var(--bad); color: #fff; padding: 0.6rem 1rem; font-weight: 800; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+.sos-banner a { color: #fff; text-decoration: underline; }
+.row-link { color: inherit; text-decoration: none; display: block; }
+.table-row-link td { padding: 0; }
+.muted-row { opacity: 0.6; }
+.toggle { display: inline-flex; gap: 0.25rem; }
+.toggle button[aria-pressed='true'] { background: var(--brand); color: var(--brand-contrast); }
+.nav-wrap { position: relative; grid-column: 1 / -1; min-width: 0; }
+.nav-wrap .nav-fade { display: none; }
+@media (max-width: 760px) {
+  .nav-wrap .nav-fade { display: block; position: absolute; top: 0; bottom: 0.25rem; width: 28px; pointer-events: none; }
+  .nav-fade-right { right: 0; background: linear-gradient(to right, transparent, var(--surface)); }
+  .nav-fade-left { left: 0; background: linear-gradient(to left, transparent, var(--surface)); }
+  .nav-fade[hidden] { display: none; }
+}
 
 /* Motion: calm, short, ease-out. Everything stops under prefers-reduced-motion. */
 @keyframes lg-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
@@ -269,3 +305,37 @@ a { color: var(--brand); }
 .week-bar { display: block; height: 0.8rem; background: var(--surface-variant); border-radius: 999px; overflow: hidden; }
 .week-bar > span { display: block; height: 100%; background: var(--brand); border-radius: 999px; }
 .week-count { text-align: right; font-weight: 700; }
+
+/* Document viewer dialog: the image is fitted to the screen, then scaled/rotated from the centre. */
+.viewer-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
+.viewer-toolbar .viewer-close { margin-left: auto; }
+.viewer-stage { overflow: auto; flex: 1; min-height: 0; max-height: 70vh; display: flex; align-items: center; justify-content: center; background: var(--surface-variant); border-radius: var(--radius-md); padding: 0.5rem; }
+.viewer-image { max-width: 100%; max-height: 66vh; object-fit: contain; transition: transform 0.15s ease; transform-origin: center; }
+.doc-not-required { opacity: 0.6; }
+.req-badge { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: var(--surface-variant); color: var(--muted); }
+.req-badge.required { background: var(--brand-container); color: var(--brand); }
+.outcome { border-radius: var(--radius-md); padding: 0.75rem 1rem; font-weight: 700; }
+.outcome-approved { background: var(--ok-container); color: var(--ok); }
+.outcome-rejected { background: var(--bad-container); color: var(--bad); }
+
+/* Whole-row links: every cell of a row is the same link (see components/RowLink). */
+.list-table td.row-link-cell { padding: 0; }
+.list-table tbody tr:hover { background: var(--surface-variant); }
+.row-link-cell > .row-link { display: block; padding: 0.6rem 0.75rem; color: inherit; text-decoration: none; min-height: 40px; }
+.row-link-cell[data-first] > .row-link { color: var(--brand); font-weight: 700; text-decoration: underline; }
+@media (max-width: 760px) {
+  .stack-table td.row-link-cell { display: block; padding: 0; }
+  .stack-table td.row-link-cell > .row-link { display: flex; justify-content: space-between; gap: 1rem; padding: 0.3rem 0; text-align: right; }
+  .stack-table td.row-link-cell::before { content: none; }
+  .stack-table td.row-link-cell > .row-link::before { content: attr(data-label); color: var(--muted); font-weight: 700; text-align: left; }
+}
+
+/* Audit log details: label/value pairs instead of raw JSON. */
+.audit-details summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+.audit-kv { margin: 0.3rem 0 0; display: grid; gap: 0.2rem; }
+.audit-kv > div { display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; }
+.audit-kv dt { color: var(--muted); font-weight: 700; }
+.audit-kv dt::after { content: ':'; }
+.audit-kv dd { margin: 0; overflow-wrap: anywhere; text-align: left; }
+.filters .filter { display: flex; flex-direction: column; gap: 0.2rem; }
+.filters .filter label { font-size: 0.85rem; color: var(--muted); font-weight: 600; }

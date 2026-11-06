@@ -25,7 +25,7 @@ describe('rupeesToPaise', () => {
 describe('formatting', () => {
   it('formats paise as rupees', () => {
     expect(paiseToRupeesText(5)).toBe('0.05')
-    expect(formatRupees(5550)).toBe('Rs 55.50')
+    expect(formatRupees(5550)).toBe('₹55.50')
     expect(formatRupees(undefined)).toBe('-')
   })
 

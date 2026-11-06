@@ -119,4 +119,45 @@ describe('SafetyIncident', () => {
     expect(screen.queryByRole('button', { name: 'Resolve incident' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add note' })).not.toBeInTheDocument()
   })
+
+  it('needs a note when the outcome is Other, says so, and sends nothing until there is one', async () => {
+    const fetchMock = stubFetch(ok(detail({ status: 'ACKNOWLEDGED' })), ok(detail({ status: 'RESOLVED' })))
+
+    renderIncident()
+    const resolve = await screen.findByRole('button', { name: 'Resolve incident' })
+    await userEvent.selectOptions(screen.getByLabelText('Resolve with outcome'), 'OTHER')
+    expect(screen.getByLabelText('Note (required for Other)')).toBeRequired()
+    await userEvent.click(resolve)
+
+    expect(screen.getByText(/required when the outcome is Other/)).toHaveAttribute('role', 'alert')
+    expect(screen.getByLabelText('Note (required for Other)')).toHaveAccessibleDescription(/required/)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await userEvent.type(screen.getByLabelText('Note (required for Other)'), 'Rider left the car')
+    await userEvent.click(resolve)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(JSON.parse(await requestBody(fetchMock, 1))).toEqual({ outcome: 'OTHER', note: 'Rider left the car' })
+  })
+
+  it('shows a success message and refreshes the navigation badge after each action', async () => {
+    const refresh = vi.fn()
+    window.addEventListener('ladygo:safety-badge-refresh', refresh)
+    stubFetch(ok(detail()), ok(detail({ status: 'ACKNOWLEDGED' })), ok(detail({ status: 'ACKNOWLEDGED' })), ok(detail({ status: 'RESOLVED' })))
+
+    renderIncident()
+    await userEvent.click(await screen.findByRole('button', { name: 'Acknowledge' }))
+    expect(await screen.findByText('Incident acknowledged.')).toBeInTheDocument()
+    expect(refresh).toHaveBeenCalledTimes(1)
+
+    await userEvent.type(screen.getByLabelText('Add a note'), 'Called the rider')
+    await userEvent.click(screen.getByRole('button', { name: 'Add note' }))
+    expect(await screen.findByText('Note added.')).toBeInTheDocument()
+    expect(refresh).toHaveBeenCalledTimes(2)
+
+    await userEvent.selectOptions(screen.getByLabelText('Resolve with outcome'), 'FALSE_ALARM')
+    await userEvent.click(screen.getByRole('button', { name: 'Resolve incident' }))
+    expect(await screen.findByText('Incident resolved.')).toBeInTheDocument()
+    expect(refresh).toHaveBeenCalledTimes(3)
+    window.removeEventListener('ladygo:safety-badge-refresh', refresh)
+  })
 })

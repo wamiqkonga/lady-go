@@ -18,6 +18,7 @@ package com.ladygo.customer.api.generated.models
 import com.ladygo.customer.api.generated.models.AdminDriverDocumentsSummary
 import com.ladygo.customer.api.generated.models.AdminDriverEarningsTotals
 import com.ladygo.customer.api.generated.models.AdminDriverRecentRide
+import com.ladygo.customer.api.generated.models.AdminDriverSuspension
 import com.ladygo.customer.api.generated.models.VehicleAdminResponse
 
 import com.squareup.moshi.Json
@@ -42,6 +43,7 @@ import com.squareup.moshi.JsonClass
  * @param documents 
  * @param recentRides 
  * @param earnings 
+ * @param suspension 
  */
 
 
@@ -93,7 +95,10 @@ data class AdminDriverDetailResponse (
     val recentRides: kotlin.collections.List<AdminDriverRecentRide>? = null,
 
     @Json(name = "earnings")
-    val earnings: AdminDriverEarningsTotals? = null
+    val earnings: AdminDriverEarningsTotals? = null,
+
+    @Json(name = "suspension")
+    val suspension: AdminDriverSuspension? = null
 
 ) {
 

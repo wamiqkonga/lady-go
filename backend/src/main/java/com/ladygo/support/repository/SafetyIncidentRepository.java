@@ -39,6 +39,8 @@ public interface SafetyIncidentRepository extends JpaRepository<SafetyIncident, 
 
     long countBySeverityAndStatusIn(IncidentSeverity severity, Collection<IncidentStatus> statuses);
 
+    java.util.Optional<SafetyIncident> findFirstBySeverityAndStatusInOrderByCreatedAtAsc(IncidentSeverity severity, Collection<IncidentStatus> statuses);
+
     /** Atomic: only one of two simultaneous acknowledgements can win. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

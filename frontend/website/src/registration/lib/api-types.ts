@@ -3611,6 +3611,8 @@ export interface components {
             needsAcknowledging?: number;
             /** Format: int64 */
             critical?: number;
+            /** Format: date-time */
+            oldestCriticalAt?: string;
         };
         AdminRideSummaryResponse: {
             /** Format: uuid */
@@ -3939,6 +3941,7 @@ export interface components {
             documents?: components["schemas"]["AdminDriverDocumentsSummary"];
             recentRides?: components["schemas"]["AdminDriverRecentRide"][];
             earnings?: components["schemas"]["AdminDriverEarningsTotals"];
+            suspension?: components["schemas"]["AdminDriverSuspension"];
         };
         AdminDriverDocumentsSummary: {
             /** Format: int32 */
@@ -3971,6 +3974,13 @@ export interface components {
             /** Format: int64 */
             finalFare?: number;
             currency?: string;
+        };
+        AdminDriverSuspension: {
+            /** Format: date-time */
+            suspendedAt?: string;
+            suspendedByName?: string;
+            suspendedByEmailMasked?: string;
+            reason?: string;
         };
         ApiResponseAdminDriverDetailResponse: {
             success?: boolean;
@@ -4009,6 +4019,11 @@ export interface components {
             documents?: components["schemas"]["DriverDocumentAdminResponse"][];
             readyForApproval?: boolean;
             missingRequirements?: string[];
+            /** Format: date-time */
+            decidedAt?: string;
+            decidedByName?: string;
+            decidedByEmailMasked?: string;
+            rejectionReason?: string;
         };
         ApiResponsePageResponseDriverVerificationQueueItemResponse: {
             success?: boolean;
@@ -4221,6 +4236,8 @@ export interface components {
             id?: string;
             /** Format: uuid */
             actorId?: string;
+            actorName?: string;
+            actorEmailMasked?: string;
             actorRole?: string;
             action?: string;
             targetType?: string;
@@ -7709,6 +7726,7 @@ export interface operations {
         parameters: {
             query: {
                 actorId?: string;
+                actorEmail?: string;
                 action?: string;
                 targetType?: string;
                 targetId?: string;

@@ -16,16 +16,7 @@ export function rupeesToPaise(text: string): ParsedRupees {
   return { ok: true, paise: whole * 100 + fraction }
 }
 
-/** 5550 -> "55.50" (no float maths). */
-export function paiseToRupeesText(paise: number): string {
-  const whole = Math.trunc(paise / 100)
-  const fraction = String(paise % 100).padStart(2, '0')
-  return `${whole}.${fraction}`
-}
-
-export function formatRupees(paise: number | undefined): string {
-  return paise === undefined ? '-' : `Rs ${paiseToRupeesText(paise)}`
-}
+export { formatRupees, paiseToRupeesText } from '../../lib/money'
 
 /** Percent with at most two decimals, as a number. */
 export function parsePercent(text: string): { ok: true; value: number } | { ok: false; error: string } {
