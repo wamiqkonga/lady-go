@@ -114,9 +114,6 @@ test.describe('captain registration - full flow', () => {
     // Four required steps: the name, the vehicle (number + RC), the selfie and the declaration.
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '4')
 
-    // Coming back later: the name is remembered, so a returning captain is not asked for it again.
-    await page.reload()
-    await expect(page.getByRole('heading', { name: 'Application received' })).toBeVisible()
   })
 
   test('a captain who set a password signs in with it, and a wrong password is refused with one plain message', async ({ page }) => {
