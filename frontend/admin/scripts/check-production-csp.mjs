@@ -69,6 +69,7 @@ const apiBaseUrl = process.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 // The live map's tile server (VITE_MAP_TILE_URL, default OpenStreetMap) is the one allowed third-party
 // origin, and only in img-src; a map tile is an image, so it needs no script/connect permission.
 const tileUrl = process.env.VITE_MAP_TILE_URL ?? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+const storageImageOrigin = process.env.VITE_STORAGE_IMAGE_ORIGIN ? new URL(process.env.VITE_STORAGE_IMAGE_ORIGIN).origin : ''
 const tileOrigin = new URL(tileUrl.replace(/\{[zxyr]\}/g, '0')).origin
 
 const directives = csp
@@ -86,6 +87,7 @@ for (const { name, tokens } of directives) {
     if (ALLOWED_BARE_TOKENS.has(token)) continue
     if (token === apiBaseUrl) continue
     if (name === 'img-src' && token === tileOrigin) continue
+    if (name === 'img-src' && storageImageOrigin && token === storageImageOrigin) continue
     errors.push(`${name} has a source outside 'self'/'none'/'data:'/the configured API origin (or the map tile origin in img-src): ${token}`)
   }
 }

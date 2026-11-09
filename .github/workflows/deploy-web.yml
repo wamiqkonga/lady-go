@@ -77,6 +77,8 @@ jobs:
     env:
       # The real API address; the build and the upload script both refuse anything pointing at localhost.
       VITE_API_BASE_URL: https://api.ladygoride.com
+      # Origin of the S3 bucket behind signed document-photo URLs; goes into the admin CSP img-src (repo variable).
+      VITE_STORAGE_IMAGE_ORIGIN: ${{ vars.ADMIN_STORAGE_IMAGE_ORIGIN }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

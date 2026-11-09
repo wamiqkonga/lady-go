@@ -13,12 +13,14 @@ export default function DocumentViewer({ documentId, title }: { documentId: stri
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [imageFailed, setImageFailed] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [turns, setTurns] = useState(0)
   const opener = useRef<HTMLButtonElement>(null)
 
   async function open() {
     setError(null)
+    setImageFailed(false)
     setLoading(true)
     try {
       setUrl(unwrap(await client.GET('/api/v1/admin/driver-documents/{id}/view', { params: { path: { id: documentId } } })))
@@ -48,7 +50,14 @@ export default function DocumentViewer({ documentId, title }: { documentId: stri
             <button type="button" className="btn-primary viewer-close" onClick={() => setUrl(null)}>Close</button>
           </div>
           <div className="viewer-stage">
+            {imageFailed ? (
+              <div role="alert">
+                <p>Could not load this photo. Try again.</p>
+                <button type="button" onClick={open} disabled={loading}>Retry</button>
+              </div>
+            ) : (
             <img
+              onError={() => setImageFailed(true)}
               src={url}
               alt={title}
               className="viewer-image"
@@ -56,6 +65,7 @@ export default function DocumentViewer({ documentId, title }: { documentId: stri
               data-zoom={zoom}
               data-turns={turns}
             />
+            )}
           </div>
         </Dialog>
       )}
