@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
 import java.util.UUID;
+import com.ladygo.admin.domain.AuditLog;
+import com.ladygo.admin.repository.AuditLogRepository;
 import com.ladygo.common.exception.ResourceNotFoundException;
 import com.ladygo.common.exception.ValidationException;
 import com.ladygo.config.ConfigurationService;
@@ -25,6 +27,8 @@ import com.ladygo.locations.repository.CityRepository;
 import com.ladygo.storage.FileStorage;
 import com.ladygo.storage.FileStorageException;
 import com.ladygo.storage.UploadValidator;
+import com.ladygo.users.domain.User;
+import com.ladygo.users.repository.UserRepository;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleType;
 import com.ladygo.vehicles.repository.VehicleRepository;
@@ -49,6 +53,8 @@ public class DriverService {
     private final ConfigurationService config;
     private final SelfDeclarationService selfDeclarations;
     private final DriverReverificationService reverificationService;
+    private final UserRepository users;
+    private final AuditLogRepository auditLogs;
 
     public DriverService(
             DriverRepository drivers,
@@ -58,7 +64,9 @@ public class DriverService {
             FileStorage fileStorage,
             ConfigurationService config,
             SelfDeclarationService selfDeclarations,
-            DriverReverificationService reverificationService) {
+            DriverReverificationService reverificationService,
+            UserRepository users,
+            AuditLogRepository auditLogs) {
         this.drivers = drivers;
         this.documents = documents;
         this.vehicles = vehicles;
@@ -67,6 +75,8 @@ public class DriverService {
         this.config = config;
         this.selfDeclarations = selfDeclarations;
         this.reverificationService = reverificationService;
+        this.users = users;
+        this.auditLogs = auditLogs;
     }
 
     /** Idempotent - a repeat call for an existing driver just returns the existing profile. */
@@ -87,6 +97,42 @@ public class DriverService {
 
     public DriverProfileResponse getProfile(UUID userId) {
         return toProfileResponse(resolveDriver(userId));
+    }
+
+    /**
+     * Sets the signed-in captain's full name (trimmed, validated by {@link DriverFullName}). The first set and every
+     * change that alters the name are audit-logged; the entry names the user but never the name, the old name or the
+     * phone, and the name is never written to an application log.
+     */
+    @Transactional
+    public DriverProfileResponse updateName(UUID userId, String rawName, String clientIp) {
+        String name = DriverFullName.normalise(rawName);
+        Driver driver = resolveDriver(userId);
+        User user = users.findById(userId).orElseThrow(ResourceNotFoundException::new);
+        String previous = user.getName();
+        boolean hadName = previous != null && !previous.isBlank();
+        // Reviewers matched the documents to the name they saw, so once a decision has been made (approved,
+        // rejected, suspended) a captain cannot rename themselves; support corrects it. Giving a first name
+        // is always allowed, so existing captains without one can still complete their profile.
+        DriverVerificationStatus status = driver.getVerificationStatus();
+        boolean editable = status == DriverVerificationStatus.NOT_SUBMITTED
+                || status == DriverVerificationStatus.PENDING_REVIEW;
+        if (hadName && !name.equals(previous) && !editable) {
+            throw new ValidationException("Your name can no longer be changed here. Contact support to correct it.");
+        }
+        if (!name.equals(previous)) {
+            user.setName(name);
+            users.saveAndFlush(user);
+            AuditLog entry = new AuditLog();
+            entry.setActorId(userId);
+            entry.setActorRole(user.getRole().name());
+            entry.setAction(hadName ? "DRIVER_NAME_CHANGED" : "DRIVER_NAME_SET");
+            entry.setTargetType("users");
+            entry.setTargetId(userId.toString());
+            entry.setIp(clientIp);
+            auditLogs.save(entry);
+        }
+        return toProfileResponse(driver);
     }
 
     private static final int MAX_DOCUMENT_NUMBER_LENGTH = 100;
@@ -224,8 +270,10 @@ public class DriverService {
         return drivers.findByUserId(userId).orElseThrow(ResourceNotFoundException::new);
     }
 
-    private static DriverProfileResponse toProfileResponse(Driver driver) {
-        return new DriverProfileResponse(driver.getId(), driver.getCityId(), driver.getVerificationStatus());
+    private DriverProfileResponse toProfileResponse(Driver driver) {
+        String name = users.findById(driver.getUserId()).map(User::getName)
+                .filter(n -> !n.isBlank()).orElse(null);
+        return new DriverProfileResponse(driver.getId(), driver.getCityId(), driver.getVerificationStatus(), name);
     }
 
     private static DriverDocumentResponse toDocumentResponse(DriverDocument document) {

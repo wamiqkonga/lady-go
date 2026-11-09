@@ -45,7 +45,8 @@ public class AdminVerificationQueueRepository {
                    OR (:digitsOn = true AND regexp_replace(u.phone, '\\D', '', 'g') LIKE :digitsPattern))
               AND (:overdueOnly = false OR coalesce(s.first_at, d.created_at) < CAST(:overdueBefore AS timestamptz))
               AND (:readyOnly = false OR (
-                    EXISTS (SELECT 1 FROM vehicles v2 WHERE v2.driver_id = d.id)
+                    btrim(coalesce(u.name, '')) <> ''
+                    AND EXISTS (SELECT 1 FROM vehicles v2 WHERE v2.driver_id = d.id)
                     AND EXISTS (SELECT 1 FROM driver_documents r WHERE r.driver_id = d.id AND r.type = 'VEHICLE_REGISTRATION')
                     AND EXISTS (SELECT 1 FROM driver_documents f WHERE f.driver_id = d.id AND f.type = 'SELFIE')
                     AND EXISTS (SELECT 1 FROM self_declarations a WHERE a.subject_type = 'DRIVER'

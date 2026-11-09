@@ -18,6 +18,10 @@ config this build ships (see §4).
    `POST /auth/otp/verify` → access token (memory only) + refresh cookie, same pattern as admin-web's
    `auth.ts`.
 2. **City** — `POST /drivers/me` (bootstrap, idempotent) if no profile yet.
+   **Your name** (first step after the city, required) — full name as on the licence or RC →
+   `PUT /drivers/me/name`; `GET /drivers/me` returns `fullName` (null until given), and a captain without
+   one resumes here. Four required steps in all: name, vehicle + RC photo, selfie, declaration (licence and
+   fitness certificate are optional).
 3. **Profile/status** — `GET /drivers/me`, `GET /drivers/me/vehicle`, `GET /drivers/me/documents`,
    `GET /drivers/me/declaration` (new, §2) in one dashboard: overall `verificationStatus`
    (`NOT_SUBMITTED`/`PENDING_REVIEW`/`APPROVED`/`REJECTED`/`SUSPENDED`), each document's own

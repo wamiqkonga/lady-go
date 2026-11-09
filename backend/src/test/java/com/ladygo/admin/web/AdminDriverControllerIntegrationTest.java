@@ -96,6 +96,7 @@ class AdminDriverControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(get(BASE).param("q", phoneOwner.getName()).header("Authorization", "Bearer " + stale(support)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[0].id").value(driver.getId().toString()))
+                .andExpect(jsonPath("$.data.content[0].name").value(phoneOwner.getName()))
                 .andExpect(jsonPath("$.data.content[0].phoneMasked").value(
                         org.hamcrest.Matchers.endsWith(phoneOwner.getPhone().substring(phoneOwner.getPhone().length() - 4))))
                 .andExpect(jsonPath("$.data.content[0].phoneMasked").value(org.hamcrest.Matchers.startsWith("*")));
@@ -153,6 +154,7 @@ class AdminDriverControllerIntegrationTest extends PersistenceTestSupport {
         mockMvc.perform(get(BASE + "/" + driver.getId()).header("Authorization", "Bearer " + stale(support)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(driver.getId().toString()))
+                .andExpect(jsonPath("$.data.name").value("Test DRIVER"))
                 .andExpect(jsonPath("$.data.verificationStatus").value("APPROVED"))
                 .andExpect(jsonPath("$.data.availabilityStatus").value("ONLINE"))
                 .andExpect(jsonPath("$.data.earnings.rides").value(0))
