@@ -44,7 +44,7 @@ describe('Dashboard', () => {
   })
 
   const ALL_TYPES = ['LICENSE', 'VEHICLE_REGISTRATION', 'FITNESS_CERTIFICATE', 'SELFIE']
-  const profile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'PENDING_REVIEW' }, error: null }
+  const profile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'PENDING_REVIEW', fullName: 'Aisha Khan' }, error: null }
   const vehicle = { success: true, data: { id: 'v-1', registrationNumber: 'JK01AB1234', vehicleType: 'BIKE', verificationStatus: 'PENDING' }, error: null }
   const notFound = { success: false, data: null, error: { code: 'NOT_FOUND', message: 'not found' } }
   const pendingDeclaration = { success: true, data: { currentVersion: 'v1', currentText: 'I declare that...', accepted: false, acceptedVersion: null, acceptedAt: null }, error: null }
@@ -73,8 +73,9 @@ describe('Dashboard', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Vehicle registration (RC) photo' })).toBeInTheDocument())
     expect(screen.getByText('Photo is blurry')).toBeInTheDocument()
-    // Required steps done: selfie only (the RC needs a new photo, the declaration is pending).
-    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1')
+    // Required steps done: the name and the selfie (the RC needs a new photo, the declaration is pending), of 4.
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2')
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '4')
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
     // A rejection note renders as plain text, never markup - no element created from it.
     expect(document.querySelector('.review-note')?.innerHTML).not.toContain('<')
@@ -184,7 +185,7 @@ describe('Dashboard', () => {
   })
 
   it('does not say "Application received" to a rejected captain', async () => {
-    const rejectedProfile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'REJECTED' }, error: null }
+    const rejectedProfile = { success: true, data: { id: 'driver-1', cityId: 'city-1', verificationStatus: 'REJECTED', fullName: 'Aisha Khan' }, error: null }
     const accepted = { success: true, data: { currentVersion: 'v1', currentText: 'x', accepted: true, acceptedVersion: 'v1', acceptedAt: 'x' }, error: null }
     vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
       const url = input.url
@@ -224,6 +225,75 @@ describe('Dashboard', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
   })
+  describe('the name step', () => {
+    const noName = { ...profile, data: { ...profile.data, fullName: null } }
+    function stubNameless(put?: (body: unknown) => Response) {
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input: Request) => {
+        const url = input.url
+        if (url.endsWith('/api/v1/drivers/me/name') && input.method === 'PUT') return put ? put(await input.json()) : jsonResponse(profile)
+        if (url.endsWith('/api/v1/drivers/me/vehicle')) return jsonResponse(vehicle)
+        if (url.endsWith('/api/v1/drivers/me/documents')) return jsonResponse(docs())
+        if (url.endsWith('/api/v1/drivers/me/declaration')) return jsonResponse({ ...pendingDeclaration, data: { ...pendingDeclaration.data, accepted: true } })
+        return jsonResponse(noName)
+      }))
+    }
+
+    it('lands a captain who has no name on the name step first, even if everything else is done', async () => {
+      stubNameless()
+      renderDashboard()
+
+      expect(await screen.findByLabelText('Full name')).toBeInTheDocument()
+      expect(screen.getByText(/As it appears on your driving licence or RC/)).toBeInTheDocument()
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3')
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument() // not "all done" without a name
+      expect(screen.queryByRole('heading', { name: /Application received/ })).not.toBeInTheDocument()
+    })
+
+    it('shows an accessible inline error and sends nothing for an invalid name', async () => {
+      stubNameless()
+      renderDashboard()
+      const input = await screen.findByLabelText('Full name')
+
+      await userEvent.type(input, 'Aisha 7')
+      await userEvent.click(screen.getByRole('button', { name: 'Save name' }))
+
+      const alert = await screen.findByRole('alert')
+      expect(alert).toHaveTextContent(/letters, spaces, hyphens, apostrophes and dots only/)
+      expect(input).toHaveAttribute('aria-invalid', 'true')
+      expect(input.getAttribute('aria-describedby')).toContain(alert.id)
+      const puts = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(([r]) => (r as Request).method === 'PUT')
+      expect(puts).toHaveLength(0)
+    })
+
+    it('saves the cleaned name with a loader, then lets the captain continue', async () => {
+      let sent: unknown
+      stubNameless((body) => {
+        sent = body
+        return jsonResponse({ ...profile, data: { ...profile.data, fullName: 'Aisha Khan' } })
+      })
+      renderDashboard()
+      const input = await screen.findByLabelText('Full name')
+
+      await userEvent.type(input, '  Aisha    Khan ')
+      await userEvent.click(screen.getByRole('button', { name: 'Save name' }))
+
+      await waitFor(() => expect(sent).toEqual({ fullName: 'Aisha Khan' }))
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled())
+      expect(screen.getByRole('status')).toHaveTextContent('Name saved.')
+    })
+
+    it('shows the server message when it refuses the name and keeps the captain on the step', async () => {
+      stubNameless(() => jsonResponse({ success: false, data: null, error: { code: 'VALIDATION_ERROR', message: 'Enter your full name using letters.' } }, 400))
+      renderDashboard()
+      await userEvent.type(await screen.findByLabelText('Full name'), 'Aisha Khan')
+      await userEvent.click(screen.getByRole('button', { name: 'Save name' }))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Enter your full name using letters.')
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    })
+  })
+
   describe('when every required step is done', () => {
     const accepted = { success: true, data: { currentVersion: 'v1', currentText: 'x', accepted: true, acceptedVersion: 'v1', acceptedAt: 'x' }, error: null }
     function stubComplete() {
@@ -247,6 +317,15 @@ describe('Dashboard', () => {
       expect(mail).toHaveAttribute('href', 'mailto:supportladygo@gmail.com')
       expect(dialog).not.toHaveTextContent(/within \d|hours|days/i) // no invented review time
       expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus()
+    })
+
+    it('greets the captain by first name and shows the name on the review screen', async () => {
+      stubComplete()
+      renderDashboard()
+
+      expect(await screen.findByRole('dialog', { name: 'Congratulations, Aisha!' })).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+      expect(screen.getByText('Aisha Khan')).toBeInTheDocument()
     })
 
     it('closes with Done and with Escape, and does not reopen for the same captain', async () => {

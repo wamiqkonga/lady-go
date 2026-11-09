@@ -35,6 +35,7 @@ import com.squareup.moshi.JsonClass
  * @param submittedAt 
  * @param waitingSeconds 
  * @param overdue 
+ * @param nameMissing 
  */
 
 
@@ -74,7 +75,10 @@ data class DriverVerificationQueueItemResponse (
     val waitingSeconds: kotlin.Long? = null,
 
     @Json(name = "overdue")
-    val overdue: kotlin.Boolean? = null
+    val overdue: kotlin.Boolean? = null,
+
+    @Json(name = "nameMissing")
+    val nameMissing: kotlin.Boolean? = null
 
 ) {
 

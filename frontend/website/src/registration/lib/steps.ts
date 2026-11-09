@@ -6,15 +6,17 @@ type DeclarationStatusResponse = components['schemas']['DeclarationStatusRespons
 export type DocumentType = NonNullable<DriverDocumentResponse['type']>
 
 export type Step =
+  | { id: 'name'; kind: 'name'; title: string }
   | { id: 'vehicle'; kind: 'vehicle'; title: string }
   | { id: DocumentType; kind: 'document'; title: string; tip: string; needsNumber?: boolean; needsExpiry?: boolean; optional?: boolean }
   | { id: 'SELFIE'; kind: 'selfie'; title: string }
   | { id: 'declaration'; kind: 'declaration'; title: string }
   | { id: 'review'; kind: 'review'; title: string }
 
-/** Captains register on a two-wheeler with: (1) vehicle number + RC photo (+ optional fitness certificate),
- *  (2) an optional driving licence, (3) a selfie, (4) the self-declaration. */
+/** Captains register on a two-wheeler with: (1) their full name, (2) vehicle number + RC photo (+ optional fitness
+ *  certificate), (3) an optional driving licence, (4) a selfie, (5) the self-declaration. Four required steps. */
 export const STEPS: Step[] = [
+  { id: 'name', kind: 'name', title: 'Your name' },
   { id: 'vehicle', kind: 'vehicle', title: 'Your two-wheeler' },
   { id: 'LICENSE', kind: 'document', title: 'Driving licence (optional)', needsNumber: true, needsExpiry: true, optional: true,
     tip: 'Photograph the front of your licence on a flat surface in good light. All four corners and the text must be sharp. You can skip this and add it later.' },
@@ -38,6 +40,8 @@ export const FITNESS_STEP = {
 export type StepState = 'done' | 'fix' | 'todo'
 
 export type RegistrationData = {
+  /** The captain's full name from their profile; null/empty until they have given one. */
+  fullName: string | null
   vehicle: VehicleResponse | null
   documents: DriverDocumentResponse[]
   declaration: DeclarationStatusResponse | null
@@ -51,6 +55,8 @@ export function latestDocument(documents: DriverDocumentResponse[], type: Docume
 
 export function stepState(step: Step, data: RegistrationData): StepState {
   switch (step.kind) {
+    case 'name':
+      return data.fullName?.trim() ? 'done' : 'todo'
     case 'vehicle': {
       const rc = latestDocument(data.documents, RC_STEP.id)
       if (rc?.status === 'REJECTED') return 'fix'

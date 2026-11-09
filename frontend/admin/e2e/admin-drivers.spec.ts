@@ -21,7 +21,7 @@ test.describe('Drivers screen', () => {
     // Search by name narrows the list; a search with no match says so.
     await page.getByLabel('Search').fill('Suspendable')
     await page.getByRole('button', { name: 'Search' }).click()
-    const row = page.locator('tbody tr').filter({ hasText: 'E2E Suspendable Captain' })
+    const row = page.locator('tbody tr').filter({ hasText: 'Seeded Suspendable Captain' })
     await expect(row).toHaveCount(1)
     await expect(row.getByText(/\*{4,}7104/)).toBeVisible()
     await page.getByLabel('Search').fill('no-such-captain-xyz')
@@ -31,8 +31,8 @@ test.describe('Drivers screen', () => {
     // Search by id opens straight to the detail page.
     await page.getByLabel('Search').fill(env!.suspendDriverId)
     await page.getByRole('button', { name: 'Search' }).click()
-    await page.getByRole('link', { name: 'E2E Suspendable Captain' }).click()
-    await expect(page.getByRole('heading', { name: 'E2E Suspendable Captain' })).toBeVisible()
+    await page.getByRole('link', { name: 'Seeded Suspendable Captain' }).click()
+    await expect(page.getByRole('heading', { name: 'Seeded Suspendable Captain' })).toBeVisible()
     await expect(page.getByText('Approved', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open document review' })).toHaveAttribute(
       'href',
@@ -54,10 +54,10 @@ test.describe('Drivers screen', () => {
     await page.getByLabel('Status').selectOption('SUSPENDED')
     await page.getByLabel('Search').fill('Suspendable')
     await page.getByRole('button', { name: 'Search' }).click()
-    await expect(page.locator('tbody tr').filter({ hasText: 'E2E Suspendable Captain' })).toHaveCount(1)
+    await expect(page.locator('tbody tr').filter({ hasText: 'Seeded Suspendable Captain' })).toHaveCount(1)
 
     // Re-activate: the step-up from a moment ago is still fresh, so only the reason is asked.
-    await page.getByRole('link', { name: 'E2E Suspendable Captain' }).click()
+    await page.getByRole('link', { name: 'Seeded Suspendable Captain' }).click()
     await page.getByRole('button', { name: 'Re-activate driver' }).click()
     await page.getByLabel('Reason').fill('e2e: cleared after review')
     await page.getByRole('button', { name: 'Confirm activate' }).click()

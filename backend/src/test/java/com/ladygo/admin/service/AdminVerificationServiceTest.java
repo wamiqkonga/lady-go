@@ -385,6 +385,44 @@ class AdminVerificationServiceTest extends PersistenceTestSupport {
         assertThat(review.driverPhoneMasked()).doesNotContain(rawPhone.substring(0, rawPhone.length() - 4));
     }
 
+    @Test
+    void aCaptainWithoutANameShowsNameMissingAndCannotBeApprovedUntilTheyGiveOne() {
+        Driver driver = newDriver(newCity());
+        Vehicle vehicle = newVehicle(driver);
+        selfDeclarations.accept(SubjectType.DRIVER, driver.getId(), "driver-v2");
+        UUID adminId = newAdminUserId();
+        for (DocumentType type : List.of(DocumentType.LICENSE, DocumentType.VEHICLE_REGISTRATION,
+                DocumentType.VEHICLE_PHOTO, DocumentType.INSURANCE, DocumentType.SELFIE)) {
+            service.approveDocument(pendingDocument(driver, type).getId(), adminId, "ADMIN", "ok", "127.0.0.1");
+        }
+        service.approveVehicle(vehicle.getId(), adminId, "ADMIN", "127.0.0.1");
+        var user = users.findById(driver.getUserId()).orElseThrow();
+        user.setName(null);
+        users.saveAndFlush(user);
+
+        var review = service.getDriverReview(driver.getId());
+        assertThat(review.driverName()).isNull();
+        assertThat(review.readyForApproval()).isFalse();
+        assertThat(review.missingRequirements()).containsExactly("Name missing");
+        assertThatThrownBy(() -> service.approveDriver(driver.getId(), adminId, "ADMIN", "127.0.0.1"))
+                .isInstanceOf(ValidationException.class).hasMessageContaining("Name missing");
+
+        user.setName("Aisha Khan");
+        users.saveAndFlush(user);
+        assertThat(service.getDriverReview(driver.getId()).readyForApproval()).isTrue();
+    }
+
+    @Test
+    void theDocumentQueueNamesTheCaptainWhenTheyHaveAName() {
+        Driver driver = newDriver(newCity());
+        pendingDocument(driver, DocumentType.SELFIE);
+
+        var page = service.listPendingDocuments(PageRequest.of(0, 500));
+
+        assertThat(page.content()).filteredOn(d -> d.driverId().equals(driver.getId()))
+                .singleElement().satisfies(d -> assertThat(d.driverName()).isEqualTo("Test DRIVER"));
+    }
+
     /** Records what was actually in force at approval time, since the config flag can be toggled
      *  after the fact with no other record of what applied to this specific decision. */
     @Test

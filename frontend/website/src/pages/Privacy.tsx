@@ -8,6 +8,7 @@ export default function Privacy() {
       <h2>What we collect from captains when they register</h2>
       <ul>
         <li>Your phone number and email address (to create your account and send you sign-in codes and account emails).</li>
+        <li>Your full name, as it appears on your driving licence or RC (so our team can match your documents to you).</li>
         <li>Your city and your vehicle registration number.</li>
         <li>
           Photos you upload: your vehicle registration certificate (RC), a selfie, and, if you choose to add them, your
