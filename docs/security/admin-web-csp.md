@@ -65,7 +65,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 
 Replace `https://api.ladygo.example` with the actual production API origin. If document images move
 to a direct S3/CDN origin instead of proxying through the API (`FileStorage.presignedDownloadUrl`),
-add that exact origin to `img-src` too - never a wildcard like `https:`, which would defeat the point
+set `VITE_STORAGE_IMAGE_ORIGIN` at build time to that exact origin (e.g. `https://<bucket>.s3.<region>.amazonaws.com`); it is added to `img-src` only. Production uses S3 signed URLs, so this MUST be set or document photos are blocked. Add that exact origin to `img-src` too - never a wildcard like `https:`, which would defeat the point
 of an allow-list.
 
 ## 3. Launch gate

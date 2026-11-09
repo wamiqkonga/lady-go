@@ -35,13 +35,28 @@ function tileOrigin(tileUrl: string): string {
   }
 }
 
-function buildCsp(apiBaseUrl: string, isDevServer: boolean, tileUrl: string): string {
+/** Origin that document photos are served from when the API returns a signed object-storage URL
+ *  (VITE_STORAGE_IMAGE_ORIGIN, e.g. https://<bucket>.s3.<region>.amazonaws.com). Allowed in img-src only.
+ *  Empty when photos come through the API origin. */
+function storageOrigin(raw: string | undefined): string {
+  if (!raw) return ''
+  let origin: string
+  try {
+    origin = new URL(raw).origin
+  } catch {
+    throw new Error(`VITE_STORAGE_IMAGE_ORIGIN must be an origin like https://bucket.s3.region.amazonaws.com: ${raw}`)
+  }
+  if (raw.includes('*')) throw new Error('VITE_STORAGE_IMAGE_ORIGIN must be one exact origin, no wildcard')
+  return origin
+}
+
+function buildCsp(apiBaseUrl: string, isDevServer: boolean, tileUrl: string, storageImageOrigin = ''): string {
   return [
     "default-src 'self'",
     `script-src 'self'${isDevServer ? " 'unsafe-inline'" : ''}`,
     // Dev only: Vite injects CSS as inline <style> tags for HMR, which 'self' blocks (unstyled UI).
     `style-src 'self'${isDevServer ? " 'unsafe-inline'" : ''}`,
-    `img-src 'self' data: ${apiBaseUrl} ${tileOrigin(tileUrl)}`,
+    `img-src 'self' data: ${apiBaseUrl} ${tileOrigin(tileUrl)}${storageImageOrigin ? ` ${storageImageOrigin}` : ''}`,
     "font-src 'self'",
     `connect-src 'self' ${apiBaseUrl}`,
     "frame-src 'none'",
@@ -55,11 +70,11 @@ function buildCsp(apiBaseUrl: string, isDevServer: boolean, tileUrl: string): st
  *  `dist/` isn't configured to add the header itself - belt, not suspenders: the HTTP header
  *  (documented for production in docs/security/admin-web-csp.md) is still what should actually be
  *  set, since a meta tag can't carry frame-ancestors at all. */
-function cspMetaPlugin(apiBaseUrl: string, isDevServer: boolean, tileUrl: string): Plugin {
+function cspMetaPlugin(apiBaseUrl: string, isDevServer: boolean, tileUrl: string, storageImageOrigin: string): Plugin {
   return {
     name: 'ladygo-csp-meta',
     transformIndexHtml(html) {
-      const tag = `<meta http-equiv="Content-Security-Policy" content="${buildCsp(apiBaseUrl, isDevServer, tileUrl)}">`
+      const tag = `<meta http-equiv="Content-Security-Policy" content="${buildCsp(apiBaseUrl, isDevServer, tileUrl, storageImageOrigin)}">`
       return html.replace('</head>', `    ${tag}\n  </head>`)
     },
   }
@@ -70,11 +85,12 @@ export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   const apiBaseUrl = env.VITE_API_BASE_URL ?? 'http://localhost:8080'
   const tileUrl = env.VITE_MAP_TILE_URL ?? DEFAULT_MAP_TILE_URL
+  const storageImageOrigin = storageOrigin(env.VITE_STORAGE_IMAGE_ORIGIN)
   const isDevServer = command === 'serve'
-  const csp = buildCsp(apiBaseUrl, isDevServer, tileUrl)
+  const csp = buildCsp(apiBaseUrl, isDevServer, tileUrl, storageImageOrigin)
 
   return {
-    plugins: [react(), cspMetaPlugin(apiBaseUrl, isDevServer, tileUrl)],
+    plugins: [react(), cspMetaPlugin(apiBaseUrl, isDevServer, tileUrl, storageImageOrigin)],
     server: {
       port: 5174,
       strictPort: true,
@@ -82,7 +98,7 @@ export default defineConfig(({ mode, command }) => {
     },
     preview: {
       // vite preview serves the real production build - never the relaxed dev-only policy.
-      headers: { 'Content-Security-Policy': buildCsp(apiBaseUrl, false, tileUrl) },
+      headers: { 'Content-Security-Policy': buildCsp(apiBaseUrl, false, tileUrl, storageImageOrigin) },
     },
     test: {
       environment: 'jsdom',
