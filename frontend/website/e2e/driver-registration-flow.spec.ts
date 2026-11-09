@@ -29,6 +29,16 @@ async function goToStep(page: import('@playwright/test').Page, title: string) {
 async function startApplication(page: import('@playwright/test').Page) {
   await page.getByRole('combobox').selectOption('Srinagar')
   await page.getByRole('button', { name: 'Start application' }).click()
+  // A captain with no name lands on the name step first.
+  await expect(page.getByRole('heading', { name: 'Your name', exact: true })).toBeVisible()
+}
+
+/** Gives the full name on the first step and moves on to the vehicle step. */
+async function giveName(page: import('@playwright/test').Page, fullName = 'Seeded Test Captain') {
+  await page.getByLabel('Full name').fill(fullName)
+  await page.getByRole('button', { name: 'Save name' }).click()
+  await expect(page.getByRole('status')).toHaveText('Name saved.')
+  await next(page)
   await expect(page.getByRole('heading', { name: 'Your two-wheeler', exact: true })).toBeVisible()
 }
 
@@ -40,7 +50,7 @@ async function next(page: import('@playwright/test').Page) {
 test.describe('captain registration - full flow', () => {
   test.skip(!env, 'DRIVER_REG_E2E_* env vars not set - see scripts/ci/driver-registration-e2e-seed.sh')
 
-  test('happy path: login, city, vehicle number, RC photo, selfie, declaration reach the done screen', async ({ page }) => {
+  test('happy path: login, city, name, vehicle number, RC photo, selfie, declaration reach the done screen', async ({ page }) => {
     test.setTimeout(90_000)
     await loginAs(page, env!.phones.HAPPY_PATH, env!.backendLog)
 
@@ -51,7 +61,14 @@ test.describe('captain registration - full flow', () => {
     await expect(page.getByText('In progress')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
 
-    // Step 1: the vehicle number and the RC photo (the fitness certificate on this step is optional).
+    // Step 1: the full name. A bad name is refused inline and nothing is saved; a good one unlocks Continue.
+    await page.getByLabel('Full name').fill('Aisha 7')
+    await page.getByRole('button', { name: 'Save name' }).click()
+    await expect(page.getByRole('alert')).toContainText('letters, spaces, hyphens, apostrophes and dots only')
+    await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
+    await giveName(page, 'Aisha   Khan')
+
+    // Step 2: the vehicle number and the RC photo (the fitness certificate on this step is optional).
     await page.getByLabel('Vehicle number').fill('jk01hp' + (Date.now() % 10000))
     await page.getByRole('button', { name: 'Save vehicle number' }).click()
     await expect(page.getByText(/JK01HP/)).toBeVisible()
@@ -61,7 +78,7 @@ test.describe('captain registration - full flow', () => {
     await expect(rc.getByText('Pending review')).toBeVisible()
     await next(page)
 
-    // Step 2: the driving licence is optional, so the captain can skip it.
+    // Step 3: the driving licence is optional, so the captain can skip it.
     await expect(page.getByRole('heading', { name: 'Driving licence (optional)', exact: true })).toBeVisible()
     await next(page)
 
@@ -83,6 +100,7 @@ test.describe('captain registration - full flow', () => {
     // Every required step is done: the congratulations dialog opens and the Back button is gone.
     const congrats = page.getByRole('dialog', { name: /Congratulations/ })
     await expect(congrats).toBeVisible()
+    await expect(congrats.getByRole('heading', { name: 'Congratulations, Aisha!' })).toBeVisible()
     await expect(congrats.getByRole('link', { name: 'supportladygo@gmail.com' })).toHaveAttribute('href', 'mailto:supportladygo@gmail.com')
     await expect(page.getByRole('button', { name: 'Back' })).toHaveCount(0)
     await page.keyboard.press('Escape')
@@ -92,8 +110,10 @@ test.describe('captain registration - full flow', () => {
 
     await expect(page.getByRole('heading', { name: 'Application received' })).toBeVisible()
     await expect(page.getByText('Under review').first()).toBeVisible()
-    // Three required steps: the vehicle (number + RC), the selfie and the declaration.
-    await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '3')
+    await expect(page.getByText('Aisha Khan')).toBeVisible() // the cleaned name, shown on the review screen
+    // Four required steps: the name, the vehicle (number + RC), the selfie and the declaration.
+    await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '4')
+
   })
 
   test('a captain who set a password signs in with it, and a wrong password is refused with one plain message', async ({ page }) => {
@@ -118,7 +138,7 @@ test.describe('captain registration - full flow', () => {
   test('a non-image file is rejected client-side with no status change', async ({ page }) => {
     await loginAs(page, env!.phones.WRONG_FILE_TYPE, env!.backendLog)
     await startApplication(page)
-    await goToStep(page, 'Your two-wheeler')
+    await giveName(page)
 
     const sectionLocator = section(page, 'Vehicle registration (RC) photo')
     await sectionLocator.locator('input[type="file"]').setInputFiles(NOT_AN_IMAGE)
@@ -131,7 +151,7 @@ test.describe('captain registration - full flow', () => {
   test('an oversized file is rejected client-side with no status change', async ({ page }) => {
     await loginAs(page, env!.phones.OVERSIZED_FILE, env!.backendLog)
     await startApplication(page)
-    await goToStep(page, 'Your two-wheeler')
+    await giveName(page)
 
     const oversizedPath = path.join(os.tmpdir(), `oversized-${Date.now()}.png`)
     // A real (if minimal) PNG header followed by padding, not just random bytes - the size check
@@ -149,6 +169,7 @@ test.describe('captain registration - full flow', () => {
   test('an already-expired expiry date is rejected by the server, not silently accepted', async ({ page }) => {
     await loginAs(page, env!.phones.EXPIRED_INSURANCE, env!.backendLog)
     await startApplication(page)
+    await giveName(page)
     await goToStep(page, 'Driving licence (optional)')
 
     const sectionLocator = section(page, 'Driving licence (optional)')

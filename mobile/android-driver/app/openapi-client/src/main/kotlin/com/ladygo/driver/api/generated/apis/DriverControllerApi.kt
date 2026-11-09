@@ -17,6 +17,7 @@ import com.ladygo.driver.api.generated.models.ApiResponseVoid
 import com.ladygo.driver.api.generated.models.DeclarationAcceptRequest
 import com.ladygo.driver.api.generated.models.DriverAvailabilityRequest
 import com.ladygo.driver.api.generated.models.DriverLocationRequest
+import com.ladygo.driver.api.generated.models.DriverNameRequest
 import com.ladygo.driver.api.generated.models.DriverProfileRequest
 import com.ladygo.driver.api.generated.models.UploadSelfieRequest
 import com.ladygo.driver.api.generated.models.VehicleRequest
@@ -120,6 +121,19 @@ interface DriverControllerApi {
      */
     @PUT("api/v1/drivers/me/availability")
     suspend fun setAvailability(@Body driverAvailabilityRequest: DriverAvailabilityRequest): Response<ApiResponseDriverAvailabilityResponse>
+
+    /**
+     * PUT api/v1/drivers/me/name
+     * 
+     * 
+     * Responses:
+     *  - 200: OK
+     *
+     * @param driverNameRequest 
+     * @return [ApiResponseDriverProfileResponse]
+     */
+    @PUT("api/v1/drivers/me/name")
+    suspend fun setName(@Body driverNameRequest: DriverNameRequest): Response<ApiResponseDriverProfileResponse>
 
     /**
      * POST api/v1/drivers/me/location

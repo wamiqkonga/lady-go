@@ -4,6 +4,8 @@ import { useSession } from '../lib/sessionContext'
 import DocumentUploadSection from '../components/DocumentUploadSection'
 import SelfieCapture from '../components/SelfieCapture'
 import CongratulationsDialog from '../components/CongratulationsDialog'
+import NameStep from '../components/NameStep'
+import { firstName } from '../lib/fullName'
 import {
   STEPS, WORK_STEPS, REQUIRED_STEPS, FITNESS_STEP, RC_STEP, countDone, firstIncompleteIndex, isOptional, latestDocument, stepState,
   type RegistrationData, type Step,
@@ -18,7 +20,7 @@ type CityResponse = { id?: string; name?: string; country?: string }
 
 /** Opens the congratulations dialog once per captain on this browser: when the last required step is done, or the
  *  first time a captain who already finished opens the page. Closing it is remembered (best effort). */
-function CongratsGate({ allDone, profileId }: { allDone: boolean; profileId: string }) {
+function CongratsGate({ allDone, profileId, fullName }: { allDone: boolean; profileId: string; fullName: string | null }) {
   const key = `lg_congrats_seen_${profileId}`
   const [dismissed, setDismissed] = useState(false)
   const [seenBefore] = useState(() => {
@@ -27,6 +29,7 @@ function CongratsGate({ allDone, profileId }: { allDone: boolean; profileId: str
   if (!allDone || dismissed || seenBefore) return null
   return (
     <CongratulationsDialog
+      firstName={firstName(fullName)}
       onClose={() => {
         try { localStorage.setItem(key, '1') } catch { /* ignore */ }
         setDismissed(true)
@@ -207,7 +210,7 @@ export default function Dashboard() {
     if (profile) loadRest()
   }, [profile, loadRest])
 
-  const data: RegistrationData = { vehicle, documents: documents ?? [], declaration }
+  const data: RegistrationData = { fullName: profile?.fullName ?? null, vehicle, documents: documents ?? [], declaration }
   const ready = profile !== null && vehicleLoaded && documents !== null && declaration !== null
 
   // Resume: once everything has loaded, jump to the first step the captain still has to do. Runs once,
@@ -215,9 +218,9 @@ export default function Dashboard() {
   useEffect(() => {
     if (ready && !positioned.current) {
       positioned.current = true
-      setStepIndex(firstIncompleteIndex({ vehicle, documents: documents ?? [], declaration }))
+      setStepIndex(firstIncompleteIndex({ fullName: profile?.fullName ?? null, vehicle, documents: documents ?? [], declaration }))
     }
-  }, [ready, vehicle, documents, declaration])
+  }, [ready, profile, vehicle, documents, declaration])
 
   /** The backend flips verificationStatus to PENDING_REVIEW on a captain's first meaningful action
    *  (vehicle/document/declaration - DriverService.markPendingReviewIfNotSubmitted), so the status
@@ -398,6 +401,12 @@ export default function Dashboard() {
             <p>Your application is only reviewed once every required step below is done.</p>
           </>
         )}
+        {profile?.fullName && (
+          <p>
+            <span className="muted">Name on your application: </span>
+            <strong>{profile.fullName}</strong>
+          </p>
+        )}
         <ul className="review-list">
           {WORK_STEPS.map((s) => {
             const state = stepState(s, data)
@@ -424,6 +433,8 @@ export default function Dashboard() {
 
   function renderStep() {
     switch (step.kind) {
+      case 'name':
+        return <NameStep initial={profile?.fullName ?? null} onSaved={setProfile} />
       case 'vehicle':
         return renderVehicleStep()
       case 'document':
@@ -485,7 +496,7 @@ export default function Dashboard() {
           </>
         )}
       </div>
-      {profile?.id && <CongratsGate key={profile.id} allDone={allDone && ready} profileId={profile.id} />}
+      {profile?.id && <CongratsGate key={profile.id} allDone={allDone && ready} profileId={profile.id} fullName={profile.fullName ?? null} />}
       {profile && ready && (
         <div className="primary-action">
           <div className="action-bar">
