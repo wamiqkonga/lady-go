@@ -30,6 +30,7 @@ import com.squareup.moshi.JsonClass
  * @param vehicleModel 
  * @param vehicleColor 
  * @param vehicleRegistration 
+ * @param phone 
  */
 
 
@@ -57,7 +58,10 @@ data class DriverSummaryResponse (
     val vehicleColor: kotlin.String? = null,
 
     @Json(name = "vehicleRegistration")
-    val vehicleRegistration: kotlin.String? = null
+    val vehicleRegistration: kotlin.String? = null,
+
+    @Json(name = "phone")
+    val phone: kotlin.String? = null
 
 ) {
 

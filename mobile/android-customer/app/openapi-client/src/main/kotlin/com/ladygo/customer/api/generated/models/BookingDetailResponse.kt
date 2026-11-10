@@ -41,6 +41,7 @@ import com.squareup.moshi.JsonClass
  * @param pickupLongitude 
  * @param destinationLatitude 
  * @param destinationLongitude 
+ * @param riderPhone 
  */
 
 
@@ -98,7 +99,10 @@ data class BookingDetailResponse (
     val destinationLatitude: kotlin.Double? = null,
 
     @Json(name = "destinationLongitude")
-    val destinationLongitude: kotlin.Double? = null
+    val destinationLongitude: kotlin.Double? = null,
+
+    @Json(name = "riderPhone")
+    val riderPhone: kotlin.String? = null
 
 ) {
 

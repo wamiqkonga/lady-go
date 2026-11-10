@@ -95,6 +95,7 @@ fun ActiveRideScreen(
 
     val noMapsMessage = stringResource(R.string.ride_no_navigation_app)
     val dialerFailedMessage = stringResource(R.string.ride_dialer_failed)
+    val callRiderFailedMessage = stringResource(R.string.ride_call_rider_failed)
     ActiveRideContent(
         state = state,
         actions =
@@ -110,6 +111,9 @@ fun ActiveRideScreen(
                     if (!ExternalIntents.navigateTo(context, address)) {
                         Toast.makeText(context, noMapsMessage, Toast.LENGTH_SHORT).show()
                     }
+                },
+                onCallRider = { phone ->
+                    if (!ExternalIntents.dial(context, phone)) Toast.makeText(context, callRiderFailedMessage, Toast.LENGTH_LONG).show()
                 },
                 onCall112 = {
                     // Long, and worded as an instruction: in an emergency a silent no-op is the worst outcome.
@@ -170,6 +174,17 @@ fun ActiveRideContent(
         }
         state.error?.let { InfoBanner(text = it, kind = BannerKind.ERROR, modifier = Modifier.testTag("ride_error")) }
         if (stage.showsEmergencyCall) safety(booking.id)
+        // Server sends the rider's number only while the ride is accepted/active; a plain dialer hand-off.
+        val riderPhone = booking.riderPhone?.takeIf { it.isNotBlank() }
+        if (riderPhone != null && stage.canCallRider) {
+            SecondaryButton(
+                text = stringResource(R.string.ride_call_rider_action),
+                onClick = { actions.onCallRider(riderPhone) },
+                icon = Icons.Filled.Phone,
+                modifier = Modifier.testTag("call_rider"),
+            )
+            Text(riderPhone, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("rider_phone"))
+        }
         StageContent(state, stage, booking, actions)
     }
 }
@@ -543,3 +558,7 @@ private fun latLngOrNull(
 ): LatLng? = if (latitude != null && longitude != null) LatLng(latitude, longitude) else null
 
 private const val RIDE_MAP_HEIGHT_DP = 220
+
+/** Accepted-to-in-trip stages, matching when the server sends the rider's number. */
+private val RideStage.canCallRider: Boolean
+    get() = this == RideStage.TO_PICKUP || this == RideStage.ARRIVED || this == RideStage.IN_TRIP
