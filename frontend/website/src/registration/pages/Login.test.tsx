@@ -11,6 +11,32 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe('Login', () => {
+  it('shows inline messages, and sends nothing, for an empty or invalid phone/email', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    render(<MemoryRouter><Login /></MemoryRouter>)
+    const send = screen.getByRole('button', { name: 'Send code' })
+
+    await userEvent.click(send)
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter your mobile number.')
+
+    await userEvent.type(screen.getByLabelText('Phone number'), '9900000000')
+    await userEvent.click(send)
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter your email address')
+
+    await userEvent.type(screen.getByLabelText('Email'), 'not-an-email')
+    await userEvent.click(send)
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid email address')
+
+    await userEvent.clear(screen.getByLabelText('Phone number'))
+    await userEvent.type(screen.getByLabelText('Phone number'), '123')
+    await userEvent.clear(screen.getByLabelText('Email'))
+    await userEvent.type(screen.getByLabelText('Email'), 'a@b.co')
+    await userEvent.click(send)
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter your 10-digit mobile number')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('shows a busy loader on Send code until the code screen is visible', async () => {
     let release!: (r: Response) => void
     const pending = new Promise<Response>((resolve) => { release = resolve })

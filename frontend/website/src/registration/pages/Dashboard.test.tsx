@@ -81,6 +81,18 @@ describe('Dashboard', () => {
     expect(document.querySelector('.review-note')?.innerHTML).not.toContain('<')
   })
 
+  it('tells a captain to choose a city when Start application is pressed with none chosen', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
+      if (input.url.endsWith('/api/v1/cities')) {
+        return Promise.resolve(jsonResponse({ success: true, data: [{ id: 'c1', name: 'Srinagar', country: 'IN' }], error: null }))
+      }
+      return Promise.resolve(jsonResponse(notFound, 404))
+    }))
+    renderDashboard()
+    await userEvent.click(await screen.findByRole('button', { name: 'Start application' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose the city you will ride in.')
+  })
+
   it('shows an inline error and sends nothing for a malformed vehicle number, and normalises a valid one', async () => {
     const put = vi.fn()
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input: Request) => {

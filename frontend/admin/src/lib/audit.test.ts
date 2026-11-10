@@ -6,6 +6,9 @@ describe('audit wording', () => {
     expect(actionLabel('DRIVER_APPROVED')).toBe('Approved a driver')
     expect(actionLabel('SOMETHING_NEW_HAPPENED')).toBe('Something new happened')
     expect(targetLabel('driver_documents')).toBe('Driver document')
+    expect(targetLabel('users', 'DRIVER_PASSWORD_SET')).toBe('Captain account')
+    expect(targetLabel('users', 'CUSTOMER_SUSPENDED')).toBe('Customer')
+    expect(targetLabel('users', 'ADMIN_USER_INVITED')).toBe('Staff account')
   })
 
   it('turns metadata into readable pairs, with money in rupees', () => {

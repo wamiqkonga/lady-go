@@ -62,7 +62,10 @@ function CityPicker({ onBootstrapped }: { onBootstrapped: (profile: DriverProfil
   }, [])
 
   async function submit() {
-    if (!cityId) return
+    if (!cityId) {
+      setError('Choose the city you will ride in.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -84,14 +87,14 @@ function CityPicker({ onBootstrapped }: { onBootstrapped: (profile: DriverProfil
       ) : (
         <div className="form">
           <label htmlFor="city">City</label>
-          <select id="city" value={cityId} onChange={(e) => setCityId(e.target.value)}>
+          <select id="city" value={cityId} onChange={(e) => { setCityId(e.target.value); setError(null) }}>
             <option value="">Select a city</option>
             {(cities ?? []).map((city) => (
               <option key={city.id} value={city.id}>{city.name}</option>
             ))}
           </select>
           {error && <p role="alert" className="error">{error}</p>}
-          <button type="button" onClick={submit} disabled={busy || !cityId}>
+          <button type="button" onClick={submit} disabled={busy}>
             Start application
           </button>
         </div>
