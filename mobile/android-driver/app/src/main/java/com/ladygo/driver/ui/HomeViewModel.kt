@@ -60,6 +60,11 @@ class HomeViewModel
                 locationServiceEvents.events.collect { event ->
                     when (event) {
                         LocationServiceEvent.DriverSetOfflineByServer -> {
+                            // A location upload that was already in flight when the driver tapped "Go offline" is
+                            // refused by the server for the same reason - that is her own tap, not Lady Go's doing.
+                            if (_uiState.value.availability == Availability.OFFLINE || _uiState.value.isTogglingAvailability) {
+                                return@collect
+                            }
                             stompConnectionManager.disconnect()
                             _uiState.value =
                                 _uiState.value.copy(
