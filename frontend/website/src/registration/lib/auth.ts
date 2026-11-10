@@ -1,15 +1,34 @@
 import { API_BASE_URL } from '../../config'
 
 /**
- * Session model: both the access token AND the refresh token live in memory only, never
- * localStorage/sessionStorage/a cookie. This differs from frontend/admin's pattern (refresh token in
- * an HttpOnly cookie) because the customer/driver OTP endpoints this app calls return the refresh
- * token in the response body, not a cookie (that API is shared with the mobile apps, which have no
- * cookie jar in the same sense) - there is no cookie option to use here. The tradeoff: a page reload
- * loses the session entirely and requires a fresh OTP, since nothing durable is ever written. Already-
- * submitted application data (profile/vehicle/documents/declaration) is not lost on a reload - it
- * lives on the server and is re-fetched - only the "am I logged in right now" state is memory-only.
+ * Session model: the access token lives in memory only. The refresh token is kept in sessionStorage
+ * (per tab, gone when the tab closes, never localStorage) so a page reload or a deep link can restore the
+ * session through the normal refresh endpoint instead of asking for a new OTP. This differs from
+ * frontend/admin (refresh token in an HttpOnly cookie) because the customer/driver OTP endpoints return
+ * the refresh token in the response body (that API is shared with the mobile apps). Trade-off: script
+ * running on this page could read the token; the strict CSP (no inline or third-party scripts) is what
+ * limits that. Sign-out, and a rejected or revoked token, remove it. Moving captains to an HttpOnly
+ * cookie like admin is the stronger option if we later want it.
  */
+
+const STORAGE_KEY = 'ladygo_captain_rt'
+
+function storeRefreshToken(token: string | null) {
+  try {
+    if (token) sessionStorage.setItem(STORAGE_KEY, token)
+    else sessionStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Storage blocked: the session simply stays memory-only, as before.
+  }
+}
+
+function readStoredRefreshToken(): string | null {
+  try {
+    return sessionStorage.getItem(STORAGE_KEY)
+  } catch {
+    return null
+  }
+}
 
 let accessToken: string | null = null
 let refreshToken: string | null = null
@@ -18,6 +37,7 @@ const listeners = new Set<(token: string | null) => void>()
 function setTokens(access: string | null, refresh: string | null) {
   accessToken = access
   refreshToken = refresh
+  storeRefreshToken(refresh)
   listeners.forEach((listener) => listener(access))
 }
 
@@ -137,10 +157,37 @@ export async function refresh(): Promise<boolean> {
     })
     setTokens(data.accessToken, data.refreshToken)
     return true
-  } catch {
-    setTokens(null, null)
+  } catch (err) {
+    // Only a rejected token ends the session; a network failure keeps it so a retry can succeed.
+    if (err instanceof AuthError) setTokens(null, null)
     return false
   }
+}
+
+/** True when a restore attempt is worth making (a refresh token is already held or stored for this tab). */
+export function hasStoredSession(): boolean {
+  return refreshToken !== null || readStoredRefreshToken() !== null
+}
+
+let restoreInFlight: Promise<boolean> | null = null
+
+/** Silent session restore on page load: swaps the stored refresh token for a fresh pair. Concurrent callers
+ *  share one request (the refresh token rotates on use, so a second parallel call would be rejected and
+ *  sign the captain out - React StrictMode runs mount effects twice in dev). */
+export function restoreSession(): Promise<boolean> {
+  if (accessToken) return Promise.resolve(true)
+  if (restoreInFlight) return restoreInFlight
+  restoreInFlight = (async () => {
+    const stored = refreshToken ?? readStoredRefreshToken()
+    if (!stored) return false
+    refreshToken = stored
+    const ok = await refresh()
+    if (ok) scheduleProactiveRefresh()
+    return ok
+  })().finally(() => {
+    restoreInFlight = null
+  })
+  return restoreInFlight
 }
 
 export async function logout(): Promise<void> {

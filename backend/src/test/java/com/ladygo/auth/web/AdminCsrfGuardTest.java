@@ -80,4 +80,32 @@ class AdminCsrfGuardTest {
         assertThatCode(() -> guard.verify(request("http://localhost:5173", null, "token-1"), "token-1"))
                 .doesNotThrowAnyException();
     }
+
+    private final AdminCsrfGuard sharedCookieGuard = new AdminCsrfGuard(
+            new CorsProperties(List.of("https://ladygoride.com", "https://admin.ladygoride.com")),
+            "ladygoride.com", "https://admin.ladygoride.com/");
+
+    @Test
+    void withASharedCookieDomainOnlyTheAdminOriginPasses() {
+        assertThatCode(() -> sharedCookieGuard.verify(
+                request("https://admin.ladygoride.com", "https://admin.ladygoride.com/dashboard", "t"), "t"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void withASharedCookieDomainAnotherSiblingOriginIsRejectedEvenIfOnTheCorsList() {
+        assertThatThrownBy(() -> sharedCookieGuard.verify(request("https://ladygoride.com", null, "t"), "t"))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> sharedCookieGuard.verify(
+                request("https://admin.ladygoride.com", "https://ladygoride.com/x", "t"), "t"))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void withASharedCookieDomainButNoAdminUrlConfiguredEverythingIsRejected() {
+        AdminCsrfGuard misconfigured = new AdminCsrfGuard(
+                new CorsProperties(List.of("https://admin.ladygoride.com")), "ladygoride.com", "");
+        assertThatThrownBy(() -> misconfigured.verify(request("https://admin.ladygoride.com", null, "t"), "t"))
+                .isInstanceOf(ForbiddenException.class);
+    }
 }

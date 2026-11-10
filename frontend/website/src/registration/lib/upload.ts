@@ -51,3 +51,18 @@ async function doUpload(path: string, body: FormData): Promise<DriverDocumentRes
   }
   return envelope.data
 }
+
+/** The captain's own uploaded image as a `data:` URI (allowed by the strict CSP, and the file itself is only
+ *  ever served through this authenticated endpoint - never a public or storage link). */
+export async function fetchDocumentImage(documentId: string): Promise<string> {
+  const token = getAccessToken()
+  const response = await fetch(`${API_BASE_URL}/api/v1/drivers/me/documents/${encodeURIComponent(documentId)}/content`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!response.ok) throw new Error('Could not load the photo.')
+  const type = response.headers.get('Content-Type') ?? 'image/jpeg'
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return `data:${type};base64,${btoa(binary)}`
+}
