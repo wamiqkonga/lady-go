@@ -11,7 +11,7 @@ chars), plus non-secret config (`LADYGO_CORS_ALLOWED_ORIGINS`, `LADYGO_WEBSOCKET
 S3 and SES credentials come from the instance role (no access keys on the host).
 `LADYGO_GOOGLE_MAPS_API_KEY` is required by the prod profile at startup; driver registration never calls Maps, so a
 placeholder is fine until ride booking is enabled, then set the real key.
-`LADYGO_ADMIN_CSRF_COOKIE_DOMAIN=ladygoride.com` must be set in `/opt/ladygo/.env` so `admin.ladygoride.com` can read the admin CSRF cookie set by `api.ladygoride.com`; without it a reload or deep link signs admins out (it is a non-secret cookie; the refresh cookie stays host-only and HttpOnly).
+`LADYGO_ADMIN_CSRF_COOKIE_DOMAIN=ladygoride.com` must be set in `/opt/ladygo/.env` so `admin.ladygoride.com` can read the admin CSRF cookie set by `api.ladygoride.com`; without it a reload or deep link signs admins out (it is a non-secret cookie; the refresh cookie stays host-only and HttpOnly). With it set, the admin refresh/logout endpoints accept only the origin of `LADYGO_ADMIN_WEB_BASE_URL` (already `https://admin.ladygoride.com`), not the other CORS origins.
 
 Run compose with `--env-file /opt/ladygo/.env` (it supplies the interpolated values). Enable HTTPS only once
 `api.<domain>` resolves to the host: `docker compose --env-file /opt/ladygo/.env --profile tls up -d caddy`.
