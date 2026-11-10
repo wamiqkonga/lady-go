@@ -1,6 +1,7 @@
 package com.ladygo.customer.booking
 
 import com.ladygo.customer.api.generated.apis.BookingControllerApi
+import com.ladygo.customer.api.generated.apis.CityControllerApi
 import com.ladygo.customer.api.generated.infrastructure.Serializer
 import com.ladygo.customer.api.generated.models.ApiResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.ApiResponseFareEstimateResponse
@@ -123,6 +124,17 @@ sealed interface ActiveBookingOutcome {
     data object Failed : ActiveBookingOutcome
 }
 
+private const val NO_RIDES_MESSAGE = "Rides are not available here yet."
+private val VEHICLE_TYPE_PREFERENCE = listOf("BIKE")
+
+private sealed interface VehicleTypeLookup {
+    data class Found(val type: FareEstimateRequest.VehicleType) : VehicleTypeLookup
+
+    data object NoFare : VehicleTypeLookup
+
+    data class Failed(val message: String) : VehicleTypeLookup
+}
+
 private const val NETWORK_ERROR_MESSAGE = "Could not reach the server. Check your connection and try again."
 private const val HTTP_SERVER_ERROR_FLOOR = 500
 private const val HTTP_NOT_FOUND = 404
@@ -147,26 +159,48 @@ class BookingRepository
     constructor(
         private val bookingApi: BookingControllerApi,
         private val selfieApi: RideSelfieApi,
+        private val cityApi: CityControllerApi,
     ) {
         suspend fun estimate(
             pickup: GeoPoint,
             destination: GeoPoint,
         ): EstimateOutcome {
+            val vehicleType =
+                when (val lookup = servedVehicleType()) {
+                    is VehicleTypeLookup.Found -> lookup.type
+                    is VehicleTypeLookup.NoFare -> return EstimateOutcome.Rejected(NO_RIDES_MESSAGE)
+                    is VehicleTypeLookup.Failed -> return EstimateOutcome.NetworkFailure(lookup.message)
+                }
             val request =
                 FareEstimateRequest(
                     pickupLatitude = pickup.latitude,
                     pickupLongitude = pickup.longitude,
                     destinationLatitude = destination.latitude,
                     destinationLongitude = destination.longitude,
-                    vehicleType = FareEstimateRequest.VehicleType.CAB,
+                    vehicleType = vehicleType,
                 )
             val response = send { bookingApi.estimate(request) } ?: return EstimateOutcome.NetworkFailure(NETWORK_ERROR_MESSAGE)
             if (!response.isSuccessful) {
+                // 404 = no fare in force for this area and vehicle type (an older server says only "not found").
+                if (response.code() == HTTP_NOT_FOUND) return EstimateOutcome.Rejected(NO_RIDES_MESSAGE)
                 val message = errorMessageOrDefault(response, "Could not get a fare estimate.")
                 return if (isServerFailure(response)) EstimateOutcome.NetworkFailure(message) else EstimateOutcome.Rejected(message)
             }
             val estimate = response.body()?.data ?: return EstimateOutcome.NetworkFailure("Unexpected response from the server.")
             return EstimateOutcome.Success(estimate)
+        }
+
+        /** The vehicle type the pilot actually serves: one a city has a fare for today (the server says which), BIKE
+         *  first. Never guessed - asking for a type without a fare is what made every estimate fail. */
+        private suspend fun servedVehicleType(): VehicleTypeLookup {
+            val response = send { cityApi.list() } ?: return VehicleTypeLookup.Failed(NETWORK_ERROR_MESSAGE)
+            if (!response.isSuccessful) {
+                return VehicleTypeLookup.Failed(errorMessageOrDefault(response, "Could not check ride availability."))
+            }
+            val cities = response.body()?.data ?: return VehicleTypeLookup.Failed("Unexpected response from the server.")
+            val served = cities.flatMap { it.vehicleTypesWithFare.orEmpty() }.map { it.name }.toSet()
+            val chosen = VEHICLE_TYPE_PREFERENCE.firstOrNull { it in served } ?: served.firstOrNull()
+            return chosen?.let { name -> VehicleTypeLookup.Found(FareEstimateRequest.VehicleType.valueOf(name)) } ?: VehicleTypeLookup.NoFare
         }
 
         suspend fun uploadSelfie(jpeg: ByteArray): SelfieUploadOutcome {

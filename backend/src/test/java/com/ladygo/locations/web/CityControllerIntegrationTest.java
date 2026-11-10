@@ -8,6 +8,7 @@ import com.ladygo.locations.domain.City;
 import com.ladygo.security.jwt.JwtService;
 import com.ladygo.testsupport.PersistenceTestSupport;
 import com.ladygo.users.domain.UserRole;
+import com.ladygo.vehicles.domain.VehicleType;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,30 @@ class CityControllerIntegrationTest extends PersistenceTestSupport {
                         .header("Authorization", "Bearer " + tokenFor(driverUserId, UserRole.DRIVER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[?(@.id == '" + city.getId() + "')]").exists());
+    }
+
+    @Test
+    void listsOnlyTheVehicleTypesThatHaveAFareInForce() throws Exception {
+        City city = newCity();
+        newPricingRule(city, VehicleType.BIKE);
+        UUID customerUserId = newUser(UserRole.CUSTOMER).getId();
+
+        mockMvc.perform(get("/api/v1/cities")
+                        .header("Authorization", "Bearer " + tokenFor(customerUserId, UserRole.CUSTOMER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.id == '" + city.getId() + "')].vehicleTypesWithFare[*]")
+                        .value(org.hamcrest.Matchers.contains("BIKE")));
+    }
+
+    @Test
+    void aCityWithNoFareHasAnEmptyVehicleTypeList() throws Exception {
+        City city = newCity();
+        UUID customerUserId = newUser(UserRole.CUSTOMER).getId();
+
+        mockMvc.perform(get("/api/v1/cities")
+                        .header("Authorization", "Bearer " + tokenFor(customerUserId, UserRole.CUSTOMER)))
+                .andExpect(jsonPath("$.data[?(@.id == '" + city.getId() + "')].vehicleTypesWithFare[*]")
+                        .value(org.hamcrest.Matchers.empty()));
     }
 
     @Test

@@ -515,7 +515,8 @@ public class BookingService {
     }
 
     private PricingRule activeRule(UUID cityId, VehicleType vehicleType) {
-        return pricingRules.findActive(cityId, vehicleType, Instant.now()).orElseThrow(ResourceNotFoundException::new);
+        return pricingRules.findActive(cityId, vehicleType, Instant.now())
+                .orElseThrow(() -> new ResourceNotFoundException("Rides are not available here yet."));
     }
 
     /**

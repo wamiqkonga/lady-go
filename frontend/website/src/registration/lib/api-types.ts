@@ -3509,6 +3509,7 @@ export interface components {
             id?: string;
             name?: string;
             country?: string;
+            vehicleTypesWithFare?: ("CAB" | "SUV" | "AUTO" | "BIKE")[];
         };
         ApiResponseDriverLocationForRiderResponse: {
             success?: boolean;

@@ -9045,6 +9045,18 @@
           },
           "country": {
             "type": "string"
+          },
+          "vehicleTypesWithFare": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CAB",
+                "SUV",
+                "AUTO",
+                "BIKE"
+              ]
+            }
           }
         }
       },
