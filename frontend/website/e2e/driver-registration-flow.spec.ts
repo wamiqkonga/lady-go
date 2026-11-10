@@ -69,13 +69,24 @@ test.describe('captain registration - full flow', () => {
     await giveName(page, 'Aisha   Khan')
 
     // Step 2: the vehicle number and the RC photo (the fitness certificate on this step is optional).
-    await page.getByLabel('Vehicle number').fill('jk01hp' + (Date.now() % 10000))
+    // A malformed number is refused inline and nothing is sent; spaces/lower case are normalised.
+    await page.getByLabel('Vehicle number').fill('abc')
+    await page.getByRole('button', { name: 'Save vehicle number' }).click()
+    await expect(page.getByRole('alert')).toContainText('Enter a valid vehicle number')
+    await page.getByLabel('Vehicle number').fill('jk 01-hp ' + String(Date.now() % 10000).padStart(4, '0'))
     await page.getByRole('button', { name: 'Save vehicle number' }).click()
     await expect(page.getByText(/JK01HP/)).toBeVisible()
     const rc = section(page, 'Vehicle registration (RC) photo')
     await rc.locator('input[type="file"]').setInputFiles(VALID_IMAGE)
     await rc.getByRole('button', { name: 'Upload' }).click()
     await expect(rc.getByText('Pending review')).toBeVisible()
+    // The captain sees what was sent, and can replace it while the application is not approved.
+    await expect(rc.getByAltText('Vehicle registration (RC) photo you submitted')).toBeVisible()
+    await rc.getByRole('button', { name: 'Replace photo' }).click()
+    await rc.locator('input[type="file"]').setInputFiles(VALID_IMAGE)
+    await rc.getByRole('button', { name: 'Resubmit' }).click()
+    await expect(rc.getByRole('button', { name: 'Replace photo' })).toBeVisible()
+    await expect(rc.getByAltText('Vehicle registration (RC) photo you submitted')).toBeVisible()
     await next(page)
 
     // Step 3: the driving licence is optional, so the captain can skip it.

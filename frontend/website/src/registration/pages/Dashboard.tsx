@@ -6,6 +6,7 @@ import SelfieCapture from '../components/SelfieCapture'
 import CongratulationsDialog from '../components/CongratulationsDialog'
 import NameStep from '../components/NameStep'
 import { firstName } from '../lib/fullName'
+import { normaliseVehicleNumber, vehicleNumberError } from '../lib/vehicleNumber'
 import {
   STEPS, WORK_STEPS, REQUIRED_STEPS, FITNESS_STEP, RC_STEP, countDone, firstIncompleteIndex, isOptional, latestDocument, stepState,
   type RegistrationData, type Step,
@@ -232,12 +233,17 @@ export default function Dashboard() {
   }
 
   async function submitVehicle() {
+    const invalid = vehicleNumberError(vehicleForm.registrationNumber)
+    if (invalid) {
+      setVehicleError(invalid)
+      return
+    }
     setVehicleError(null)
     setVehicleBusy(true)
     try {
       const result = await client.PUT('/api/v1/drivers/me/vehicle', {
         body: {
-          registrationNumber: vehicleForm.registrationNumber.trim().toUpperCase(),
+          registrationNumber: normaliseVehicleNumber(vehicleForm.registrationNumber),
           vehicleType: 'BIKE',
         },
       })
@@ -314,9 +320,14 @@ export default function Dashboard() {
               autoComplete="off"
               placeholder="e.g. JK01AB1234"
               value={vehicleForm.registrationNumber}
-              onChange={(e) => setVehicleForm({ ...vehicleForm, registrationNumber: e.target.value })}
+              aria-invalid={vehicleError ? true : undefined}
+              aria-describedby={vehicleError ? 'v-reg-error' : undefined}
+              onChange={(e) => {
+                setVehicleForm({ ...vehicleForm, registrationNumber: e.target.value })
+                setVehicleError(null)
+              }}
             />
-            {vehicleError && <p role="alert" className="error">{vehicleError}</p>}
+            {vehicleError && <p id="v-reg-error" role="alert" className="error">{vehicleError}</p>}
             <button type="submit" disabled={vehicleBusy || !vehicleForm.registrationNumber.trim()}>
               {vehicleBusy ? 'Saving…' : 'Save vehicle number'}
             </button>
@@ -328,6 +339,7 @@ export default function Dashboard() {
           label={RC_STEP.title}
           tip={RC_STEP.tip}
           existing={latestDocument(data.documents, RC_STEP.id)}
+          replaceable={profile?.verificationStatus !== 'APPROVED'}
           onUploaded={onDocumentUploaded}
         />
         <DocumentUploadSection
@@ -336,6 +348,7 @@ export default function Dashboard() {
           label={FITNESS_STEP.title}
           tip={FITNESS_STEP.tip}
           existing={latestDocument(data.documents, FITNESS_STEP.id)}
+          replaceable={profile?.verificationStatus !== 'APPROVED'}
           onUploaded={onDocumentUploaded}
         />
       </>
@@ -447,11 +460,12 @@ export default function Dashboard() {
             needsNumber={step.needsNumber}
             needsExpiry={step.needsExpiry}
             existing={latestDocument(data.documents, step.id)}
+            replaceable={profile?.verificationStatus !== 'APPROVED'}
             onUploaded={onDocumentUploaded}
           />
         )
       case 'selfie':
-        return <SelfieCapture existing={latestDocument(data.documents, 'SELFIE')} onUploaded={onDocumentUploaded} />
+        return <SelfieCapture existing={latestDocument(data.documents, 'SELFIE')} replaceable={profile?.verificationStatus !== 'APPROVED'} onUploaded={onDocumentUploaded} />
       case 'declaration':
         return renderDeclarationStep()
       case 'review':

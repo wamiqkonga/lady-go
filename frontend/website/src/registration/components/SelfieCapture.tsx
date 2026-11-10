@@ -4,6 +4,7 @@ import { ApiCallError } from '../lib/client'
 import { validateImageFile } from '../lib/fileValidation'
 import { fileToDataUrl } from '../lib/preview'
 import DocumentStatusBadge from './DocumentStatusBadge'
+import SubmittedPreview from './SubmittedPreview'
 import type { components } from '../lib/api-types'
 
 type DriverDocumentResponse = components['schemas']['DriverDocumentResponse']
@@ -11,9 +12,11 @@ type DriverDocumentResponse = components['schemas']['DriverDocumentResponse']
 /** Camera capture via getUserMedia, with a plain file-input fallback for a browser/device that
  *  doesn't support it (or denies permission) - never required, always an alternative path. */
 export default function SelfieCapture({
-  existing, onUploaded,
+  existing, replaceable = true, onUploaded,
 }: {
   existing?: DriverDocumentResponse
+  /** False once the application is approved. */
+  replaceable?: boolean
   onUploaded: (doc: DriverDocumentResponse) => void
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -24,6 +27,7 @@ export default function SelfieCapture({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [replacing, setReplacing] = useState(false)
 
   useEffect(() => stopCamera, [])
 
@@ -82,6 +86,7 @@ export default function SelfieCapture({
     try {
       const doc = await uploadSelfie(file)
       onUploaded(doc)
+      setReplacing(false)
       setFile(null)
       setPreviewUrl(null)
     } catch (err) {
@@ -91,7 +96,7 @@ export default function SelfieCapture({
     }
   }
 
-  const canResubmit = !existing || existing.status === 'REJECTED'
+  const canResubmit = !existing || existing.status === 'REJECTED' || replacing
 
   return (
     <div className="section">
@@ -105,6 +110,7 @@ export default function SelfieCapture({
           )}
         </p>
       )}
+      {existing && <SubmittedPreview documentId={existing.id!} label="Selfie" />}
 
       {canResubmit && (
         <>
@@ -158,7 +164,17 @@ export default function SelfieCapture({
             </>
           )}
           {error && !previewUrl && <p role="alert" className="error">{error}</p>}
+          {replacing && !previewUrl && !cameraActive && (
+            <div className="row-actions">
+              <button type="button" className="secondary" onClick={() => { setReplacing(false); setError(null) }}>Cancel</button>
+            </div>
+          )}
         </>
+      )}
+      {existing && !canResubmit && replaceable && (
+        <div className="row-actions">
+          <button type="button" className="secondary" onClick={() => setReplacing(true)}>Replace photo</button>
+        </div>
       )}
     </div>
   )
