@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import About from './pages/About'
@@ -15,6 +16,7 @@ import RegistrationApp from './registration/RegistrationApp'
 import RequireAuth from './registration/lib/RequireAuth'
 import RegistrationDashboard from './registration/pages/Dashboard'
 import RegistrationLogin from './registration/pages/Login'
+import { useSession } from './registration/lib/sessionContext'
 import ResetPassword from './registration/pages/ResetPassword'
 
 export default function App() {
@@ -38,7 +40,7 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Route>
       <Route element={<RegistrationApp />}>
-        <Route path="captain/registration" element={<RegistrationLogin />} />
+        <Route path="captain/registration" element={<LoginUnlessSignedIn />} />
         <Route path="captain/reset-password" element={<ResetPassword />} />
         <Route
           path="captain/register"
@@ -51,4 +53,13 @@ export default function App() {
       </Route>
     </Routes>
   )
+}
+
+/** A captain whose session was just restored (reload or a pasted link) goes straight to the application instead of
+ *  seeing the sign-in form. Judged once, at mount: the sign-in flow itself becomes "signed in" part-way through
+ *  (after the code, before the password step) and must not be redirected away mid-flow. */
+function LoginUnlessSignedIn() {
+  const { signedIn } = useSession()
+  const [restored] = useState(signedIn)
+  return restored ? <Navigate to="/captain/register" replace /> : <RegistrationLogin />
 }
