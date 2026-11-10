@@ -48,8 +48,11 @@ export function actionLabel(action: string | undefined): string {
   return ACTION_LABELS[action] ?? sentence(action)
 }
 
-export function targetLabel(targetType: string | undefined): string {
+/** `users` is the target type for every account kind, so the action says whose account it was. */
+export function targetLabel(targetType: string | undefined, action?: string): string {
   if (!targetType) return '-'
+  if (targetType === 'users' && action?.startsWith('DRIVER_')) return 'Captain account'
+  if (targetType === 'users' && action?.startsWith('CUSTOMER_')) return 'Customer'
   return TARGET_LABELS[targetType] ?? sentence(targetType)
 }
 
