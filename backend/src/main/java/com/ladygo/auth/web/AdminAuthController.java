@@ -56,12 +56,14 @@ public class AdminAuthController {
     private final UserRepository users;
     private final ConfigurationService config;
     private final AdminCsrfGuard csrfGuard;
+    private final String csrfCookieDomain;
 
     public AdminAuthController(
             AdminAuthService adminAuthService, AdminPasswordResetService passwordResetService,
             ClientIpResolver clientIpResolver,
             RefreshTokenService refreshTokenService, AccessTokenIssuer accessTokenIssuer, UserRepository users,
-            ConfigurationService config, AdminCsrfGuard csrfGuard) {
+            ConfigurationService config, AdminCsrfGuard csrfGuard,
+            @org.springframework.beans.factory.annotation.Value("${ladygo.admin.csrf-cookie-domain:}") String csrfCookieDomain) {
         this.adminAuthService = adminAuthService;
         this.passwordResetService = passwordResetService;
         this.clientIpResolver = clientIpResolver;
@@ -70,6 +72,7 @@ public class AdminAuthController {
         this.users = users;
         this.config = config;
         this.csrfGuard = csrfGuard;
+        this.csrfCookieDomain = csrfCookieDomain;
     }
 
     @PostMapping("/login")
@@ -113,7 +116,7 @@ public class AdminAuthController {
         }
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, AdminAuthCookies.clearedRefreshTokenCookie().toString())
-                .header(HttpHeaders.SET_COOKIE, AdminAuthCookies.clearedCsrfTokenCookie().toString())
+                .header(HttpHeaders.SET_COOKIE, AdminAuthCookies.clearedCsrfTokenCookie(csrfCookieDomain).toString())
                 .body(ApiResponse.ok(null));
     }
 
@@ -122,7 +125,7 @@ public class AdminAuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, AdminAuthCookies.refreshTokenCookie(refreshToken, maxAge).toString())
                 .header(HttpHeaders.SET_COOKIE,
-                        AdminAuthCookies.csrfTokenCookie(AdminAuthCookies.newCsrfToken(), maxAge).toString())
+                        AdminAuthCookies.csrfTokenCookie(AdminAuthCookies.newCsrfToken(), maxAge, csrfCookieDomain).toString())
                 .body(body);
     }
 

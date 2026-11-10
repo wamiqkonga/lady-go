@@ -4,6 +4,7 @@ import { ApiCallError } from '../lib/client'
 import { validateImageFile } from '../lib/fileValidation'
 import { fileToDataUrl } from '../lib/preview'
 import DocumentStatusBadge from './DocumentStatusBadge'
+import SubmittedPreview from './SubmittedPreview'
 import type { components } from '../lib/api-types'
 
 type DocumentType = NonNullable<components['schemas']['DriverDocumentResponse']['type']>
@@ -17,7 +18,7 @@ function localToday(): string {
 }
 
 export default function DocumentUploadSection({
-  type, label, tip, existing, needsNumber, needsExpiry, onUploaded,
+  type, label, tip, existing, needsNumber, needsExpiry, replaceable = true, onUploaded,
 }: {
   type: DocumentType
   label: string
@@ -25,6 +26,8 @@ export default function DocumentUploadSection({
   existing?: DriverDocumentResponse
   needsNumber?: boolean
   needsExpiry?: boolean
+  /** False once the application is approved: a captain may swap a photo only before approval. */
+  replaceable?: boolean
   onUploaded: (doc: DriverDocumentResponse) => void
 }) {
   const [file, setFile] = useState<File | null>(null)
@@ -33,6 +36,7 @@ export default function DocumentUploadSection({
   const [expiresAt, setExpiresAt] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [replacing, setReplacing] = useState(false)
   const [today] = useState(localToday)
 
   function onFileChosen(chosen: File | null) {
@@ -63,6 +67,7 @@ export default function DocumentUploadSection({
         expiresAt: needsExpiry ? expiresAt : undefined,
       })
       onUploaded(doc)
+      setReplacing(false)
       onFileChosen(null)
       setNumber('')
       setExpiresAt('')
@@ -73,7 +78,7 @@ export default function DocumentUploadSection({
     }
   }
 
-  const canResubmit = !existing || existing.status === 'REJECTED'
+  const canResubmit = !existing || existing.status === 'REJECTED' || replacing
 
   return (
     <div className="section">
@@ -89,6 +94,7 @@ export default function DocumentUploadSection({
           )}
         </p>
       )}
+      {existing && <SubmittedPreview documentId={existing.id!} label={label} />}
       {existing?.documentNumber && <p className="muted">Number: {existing.documentNumber}</p>}
       {existing?.expiresAt && <p className="muted">Expires: {existing.expiresAt}</p>}
 
@@ -134,8 +140,18 @@ export default function DocumentUploadSection({
             <button type="button" onClick={submit} disabled={busy || !file}>
               {busy ? 'Uploading…' : existing ? 'Resubmit' : 'Upload'}
             </button>
+            {replacing && (
+              <button type="button" className="secondary" onClick={() => { setReplacing(false); onFileChosen(null) }} disabled={busy}>
+                Cancel
+              </button>
+            )}
           </div>
         </>
+      )}
+      {existing && !canResubmit && replaceable && (
+        <div className="row-actions">
+          <button type="button" className="secondary" onClick={() => setReplacing(true)}>Replace photo</button>
+        </div>
       )}
     </div>
   )

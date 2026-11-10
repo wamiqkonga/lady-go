@@ -2,6 +2,7 @@ package com.ladygo.drivers.web;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import com.ladygo.common.api.ApiResponse;
 import com.ladygo.drivers.domain.DocumentType;
 import com.ladygo.drivers.service.DriverAvailabilityService;
@@ -23,9 +24,12 @@ import com.ladygo.verification.web.dto.DeclarationResponse;
 import com.ladygo.verification.web.dto.DeclarationStatusResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -104,6 +108,18 @@ public class DriverController {
     @GetMapping("/documents")
     public ApiResponse<List<DriverDocumentResponse>> listDocuments(@AuthenticationPrincipal AuthPrincipal principal) {
         return ApiResponse.ok(driverService.listDocuments(principal.userId()));
+    }
+
+    /** Image bytes of one of the caller's own uploads (404 for anyone else's). Never cached by browsers or proxies. */
+    @GetMapping("/documents/{id}/content")
+    public ResponseEntity<byte[]> documentContent(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID id) {
+        DriverService.StoredImage image = driverService.documentContent(principal.userId(), id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(image.contentType()))
+                .header("Cache-Control", "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(image.bytes());
     }
 
     @PostMapping("/selfie")
