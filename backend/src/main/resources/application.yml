@@ -75,6 +75,9 @@ ladygo:
   admin:
     # Where the emailed password-reset link points. Dev default is the local admin web; blank = feature off.
     web-base-url: ${LADYGO_ADMIN_WEB_BASE_URL:http://localhost:5174}
+    # Parent domain for the (non-secret) admin CSRF cookie when admin-web and the API are on different
+    # subdomains, e.g. ladygoride.com in production. Empty = host-only (fine for localhost).
+    csrf-cookie-domain: ${LADYGO_ADMIN_CSRF_COOKIE_DOMAIN:}
   website:
     # Where the emailed driver password-reset link points (the public captain website). Blank = reset emails off.
     base-url: ${LADYGO_WEBSITE_BASE_URL:http://localhost:5173}
