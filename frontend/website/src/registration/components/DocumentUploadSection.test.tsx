@@ -102,4 +102,57 @@ describe('DocumentUploadSection', () => {
     expect(screen.getByText('Approved')).toBeInTheDocument()
     expect(document.querySelector('input[type="file"]')).toBeNull()
   })
+
+  describe('submitted photo preview and replace', () => {
+    const pending = { id: 'doc-1', type: 'LICENSE' as const, status: 'PENDING' as const }
+
+    function stubFetch(uploadResponse?: Response) {
+      const fetchMock = vi.fn().mockImplementation(async (input: string | Request) => {
+        const url = typeof input === 'string' ? input : input.url
+        if (url.endsWith('/documents/doc-1/content')) {
+          return new Response(new Uint8Array([0xff, 0xd8, 0xff]), { status: 200, headers: { 'Content-Type': 'image/jpeg' } })
+        }
+        return uploadResponse ?? jsonResponse({ success: true, data: { ...pending, id: 'doc-2' }, error: null })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      return fetchMock
+    }
+
+    it('shows a thumbnail of the submitted photo and a Replace button while not approved', async () => {
+      stubFetch()
+      render(<DocumentUploadSection type="LICENSE" label="Driving licence" existing={pending} onUploaded={vi.fn()} />)
+
+      expect(await screen.findByAltText('Driving licence you submitted')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Replace photo' })).toBeInTheDocument()
+      expect(document.querySelector('input[type="file"]')).toBeNull()
+    })
+
+    it('hides Replace once the application is approved', async () => {
+      stubFetch()
+      render(<DocumentUploadSection type="LICENSE" label="Driving licence" existing={pending} replaceable={false} onUploaded={vi.fn()} />)
+
+      await screen.findByAltText('Driving licence you submitted')
+      expect(screen.queryByRole('button', { name: 'Replace photo' })).not.toBeInTheDocument()
+    })
+
+    it('replaces the photo: opens the picker, uploads, and reports the new pending submission', async () => {
+      const fetchMock = stubFetch()
+      const onUploaded = vi.fn()
+      render(<DocumentUploadSection type="LICENSE" label="Driving licence" existing={pending} onUploaded={onUploaded} />)
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Replace photo' }))
+      await userEvent.upload(document.querySelector('input[type="file"]') as HTMLInputElement, jpegFile())
+      await userEvent.click(screen.getByRole('button', { name: 'Resubmit' }))
+
+      await waitFor(() => expect(onUploaded).toHaveBeenCalledWith(expect.objectContaining({ id: 'doc-2', status: 'PENDING' })))
+      expect(fetchMock.mock.calls.some(([u]) => String(typeof u === 'string' ? u : u.url).includes('/api/v1/drivers/me/documents?type=LICENSE'))).toBe(true)
+    })
+
+    it('shows a note instead of a broken image when the preview cannot load', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('nope', { status: 404 })))
+      render(<DocumentUploadSection type="LICENSE" label="Driving licence" existing={pending} onUploaded={vi.fn()} />)
+
+      expect(await screen.findByText(/could not show it here/)).toBeInTheDocument()
+    })
+  })
 })

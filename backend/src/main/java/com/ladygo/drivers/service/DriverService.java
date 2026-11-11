@@ -29,6 +29,7 @@ import com.ladygo.storage.FileStorageException;
 import com.ladygo.storage.UploadValidator;
 import com.ladygo.users.domain.User;
 import com.ladygo.users.repository.UserRepository;
+import com.ladygo.vehicles.domain.RegistrationNumbers;
 import com.ladygo.vehicles.domain.Vehicle;
 import com.ladygo.vehicles.domain.VehicleType;
 import com.ladygo.vehicles.repository.VehicleRepository;
@@ -162,6 +163,23 @@ public class DriverService {
         return documents.findByDriverId(driver.getId()).stream().map(DriverService::toDocumentResponse).toList();
     }
 
+    /** The captain's own uploaded image, so the wizard can show what was sent. Only the owner can read it
+     *  (anyone else's id, a purged file and an unknown id all look like "not found"). Served through the
+     *  authenticated API rather than a storage link, so the file is never reachable without a login. */
+    public StoredImage documentContent(UUID userId, UUID documentId) {
+        Driver driver = resolveDriver(userId);
+        DriverDocument document = documents.findById(documentId)
+                .filter(d -> d.getDriverId().equals(driver.getId()))
+                .filter(d -> d.getContentDeletedAt() == null)
+                .orElseThrow(ResourceNotFoundException::new);
+        byte[] bytes = fileStorage.download(document.getStorageKey());
+        boolean png = bytes.length > 3 && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G';
+        return new StoredImage(bytes, png ? "image/png" : "image/jpeg");
+    }
+
+    public record StoredImage(byte[] bytes, String contentType) {
+    }
+
     @Transactional
     public DriverDocumentResponse uploadSelfie(UUID userId, MultipartFile file) {
         Driver driver = resolveDriver(userId);
@@ -210,10 +228,12 @@ public class DriverService {
             }
         }
 
+        String registrationNumber = RegistrationNumbers.normalise(request.registrationNumber());
+
         markPendingReviewIfNotSubmitted(driver);
         Vehicle vehicle = vehicles.findByDriverId(driver.getId()).stream().findFirst().orElseGet(Vehicle::new);
         vehicle.setDriverId(driver.getId());
-        vehicle.setRegistrationNumber(request.registrationNumber());
+        vehicle.setRegistrationNumber(registrationNumber);
         vehicle.setVehicleType(request.vehicleType());
         vehicle.setMake(request.make());
         vehicle.setModel(request.model());

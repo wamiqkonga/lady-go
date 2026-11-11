@@ -81,6 +81,46 @@ describe('Dashboard', () => {
     expect(document.querySelector('.review-note')?.innerHTML).not.toContain('<')
   })
 
+  it('tells a captain to choose a city when Start application is pressed with none chosen', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
+      if (input.url.endsWith('/api/v1/cities')) {
+        return Promise.resolve(jsonResponse({ success: true, data: [{ id: 'c1', name: 'Srinagar', country: 'IN' }], error: null }))
+      }
+      return Promise.resolve(jsonResponse(notFound, 404))
+    }))
+    renderDashboard()
+    await userEvent.click(await screen.findByRole('button', { name: 'Start application' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose the city you will ride in.')
+  })
+
+  it('shows an inline error and sends nothing for a malformed vehicle number, and normalises a valid one', async () => {
+    const put = vi.fn()
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (input: Request) => {
+      const url = input.url
+      if (url.endsWith('/api/v1/drivers/me/vehicle') && input.method === 'PUT') {
+        put(await input.clone().json())
+        return jsonResponse(vehicle)
+      }
+      if (url.endsWith('/api/v1/drivers/me/vehicle')) return jsonResponse(notFound, 404)
+      if (url.endsWith('/api/v1/drivers/me/documents')) return jsonResponse({ success: true, data: [], error: null })
+      if (url.endsWith('/api/v1/drivers/me/declaration')) return jsonResponse(pendingDeclaration)
+      return jsonResponse(profile)
+    }))
+    const user = userEvent.setup()
+    renderDashboard()
+
+    const input = await screen.findByLabelText('Vehicle number')
+    await user.type(input, 'abc')
+    await user.click(screen.getByRole('button', { name: 'Save vehicle number' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid vehicle number, for example JK01AB1234.')
+    expect(put).not.toHaveBeenCalled()
+
+    await user.clear(input)
+    await user.type(input, 'jk-01 ab 1234')
+    await user.click(screen.getByRole('button', { name: 'Save vehicle number' }))
+    await waitFor(() => expect(put).toHaveBeenCalledWith(expect.objectContaining({ registrationNumber: 'JK01AB1234' })))
+  })
+
   it('does not call the application "under review" while steps are still missing', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation((input: Request) => {
       const url = input.url

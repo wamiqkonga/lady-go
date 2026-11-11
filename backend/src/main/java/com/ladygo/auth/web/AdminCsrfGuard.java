@@ -35,9 +35,33 @@ import org.springframework.stereotype.Component;
 class AdminCsrfGuard {
 
     private final CorsProperties corsProperties;
+    /** Non-null only when the CSRF cookie is shared across subdomains: then only admin-web's own origin may call. */
+    private final String adminOnlyOrigin;
 
     AdminCsrfGuard(CorsProperties corsProperties) {
+        this(corsProperties, "", "");
+    }
+
+    /**
+     * With {@code ladygo.admin.csrf-cookie-domain} set, the CSRF cookie is readable by every sibling subdomain, so
+     * the Origin/Referer check can no longer rely on the shared CORS list (which also holds the public website):
+     * a script bug on another subdomain must not be able to call the admin refresh endpoint. In that mode only the
+     * origin of {@code ladygo.admin.web-base-url} is accepted.
+     */
+    @org.springframework.beans.factory.annotation.Autowired
+    AdminCsrfGuard(
+            CorsProperties corsProperties,
+            @org.springframework.beans.factory.annotation.Value("${ladygo.admin.csrf-cookie-domain:}") String cookieDomain,
+            @org.springframework.beans.factory.annotation.Value("${ladygo.admin.web-base-url:}") String adminWebBaseUrl) {
         this.corsProperties = corsProperties;
+        this.adminOnlyOrigin = cookieDomain == null || cookieDomain.isBlank() ? null : originOf(adminWebBaseUrl.trim());
+    }
+
+    private boolean originAllowed(String origin) {
+        if (adminOnlyOrigin != null) {
+            return !adminOnlyOrigin.isEmpty() && adminOnlyOrigin.equals(origin);
+        }
+        return corsProperties.allowedOrigins().contains(origin);
     }
 
     void verify(HttpServletRequest request, String csrfCookieValue) {
@@ -46,11 +70,11 @@ class AdminCsrfGuard {
             throw new ForbiddenException("Missing or invalid CSRF token.");
         }
         String origin = request.getHeader("Origin");
-        if (origin == null || !corsProperties.allowedOrigins().contains(origin)) {
+        if (origin == null || !originAllowed(origin)) {
             throw new ForbiddenException("Request origin is not allowed.");
         }
         String referer = request.getHeader("Referer");
-        if (referer != null && !corsProperties.allowedOrigins().contains(originOf(referer))) {
+        if (referer != null && !originAllowed(originOf(referer))) {
             throw new ForbiddenException("Request referer is not allowed.");
         }
     }

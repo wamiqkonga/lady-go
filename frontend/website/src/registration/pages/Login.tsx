@@ -33,6 +33,18 @@ export default function Login() {
 
   async function sendCode() {
     // The API needs "+<country code><number>"; a captain usually types her plain 10-digit mobile number.
+    if (!phone.trim()) {
+      setError('Enter your mobile number.')
+      return
+    }
+    if (!email.trim()) {
+      setError('Enter your email address. We send your verification code there.')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Enter a valid email address, for example you@example.com.')
+      return
+    }
     const normalized = normalizePhone(phone)
     if ('error' in normalized) {
       setError(normalized.error)
@@ -166,6 +178,7 @@ export default function Login() {
         {stage === 'phone' ? (
           <form
             className="form"
+            noValidate
             aria-busy={busy}
             onSubmit={(e) => {
               e.preventDefault()
@@ -199,7 +212,7 @@ export default function Login() {
               time you register.
             </p>
             {error && <p role="alert" className="error">{error}</p>}
-            <button type="submit" disabled={busy || !phone.trim() || !email.trim()}>
+            <button type="submit" disabled={busy}>
               {busy ? (
                 <>
                   <span className="spinner" aria-hidden="true" /> Sending your code…

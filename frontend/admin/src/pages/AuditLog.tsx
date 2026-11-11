@@ -134,7 +134,7 @@ export default function AuditLog() {
                   <td data-label="When">{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
                   <td data-label="Actor"><Actor row={row} /></td>
                   <td data-label="Action">{actionLabel(row.action)}</td>
-                  <td data-label="Target">{targetLabel(row.targetType)} {row.targetId ? <span className="muted">({row.targetId.slice(0, 8)}…)</span> : ''}</td>
+                  <td data-label="Target">{targetLabel(row.targetType, row.action)} {row.targetId ? <span className="muted">({row.targetId.slice(0, 8)}…)</span> : ''}</td>
                   <td data-label="Details"><MetadataCell metadata={row.metadata} narrow={narrow} /></td>
                 </tr>
               ))}

@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drivers/me/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setName"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drivers/me/availability": {
         parameters: {
             query?: never;
@@ -1636,6 +1652,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drivers/me/documents/{id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["documentContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drivers/me/bookings/{id}": {
         parameters: {
             query?: never;
@@ -2132,22 +2164,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/drivers/me/name": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: operations["setName"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2193,6 +2209,26 @@ export interface components {
             manufactureYear?: number;
             /** @enum {string} */
             verificationStatus?: "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+        };
+        DriverNameRequest: {
+            fullName: string;
+        };
+        ApiResponseDriverProfileResponse: {
+            success?: boolean;
+            data?: components["schemas"]["DriverProfileResponse"];
+            message?: string;
+            error?: components["schemas"]["ApiError"];
+            /** Format: date-time */
+            timestamp?: string;
+        };
+        DriverProfileResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            cityId?: string;
+            /** @enum {string} */
+            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            fullName?: string;
         };
         DriverAvailabilityRequest: {
             /** @enum {string} */
@@ -2360,23 +2396,6 @@ export interface components {
         DriverProfileRequest: {
             /** Format: uuid */
             cityId: string;
-        };
-        ApiResponseDriverProfileResponse: {
-            success?: boolean;
-            data?: components["schemas"]["DriverProfileResponse"];
-            message?: string;
-            error?: components["schemas"]["ApiError"];
-            /** Format: date-time */
-            timestamp?: string;
-        };
-        DriverProfileResponse: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            cityId?: string;
-            /** @enum {string} */
-            verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
-            fullName?: string;
         };
         SosRequest: {
             /** Format: double */
@@ -4047,13 +4066,13 @@ export interface components {
             verificationStatus?: "NOT_SUBMITTED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "SUSPENDED";
             requiredItems?: components["schemas"]["RequiredItemCounts"];
             optionalDocumentsProvided?: boolean;
+            nameMissing?: boolean;
             readyForReview?: boolean;
             /** Format: date-time */
             submittedAt?: string;
             /** Format: int64 */
             waitingSeconds?: number;
             overdue?: boolean;
-            nameMissing?: boolean;
         };
         PageResponseDriverVerificationQueueItemResponse: {
             content?: components["schemas"]["DriverVerificationQueueItemResponse"][];
@@ -4274,9 +4293,6 @@ export interface components {
         UnregisterDeviceRequest: {
             token: string;
         };
-        DriverNameRequest: {
-            fullName: string;
-        };
     };
     responses: never;
     parameters: never;
@@ -4326,6 +4342,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVehicleResponse"];
+                };
+            };
+        };
+    };
+    setName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverNameRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseDriverProfileResponse"];
                 };
             };
         };
@@ -7080,6 +7120,28 @@ export interface operations {
             };
         };
     };
+    documentContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
     get: {
         parameters: {
             query?: never;
@@ -7773,30 +7835,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
-                };
-            };
-        };
-    };
-    setName: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DriverNameRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiResponseDriverProfileResponse"];
                 };
             };
         };

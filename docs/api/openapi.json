@@ -59,6 +59,36 @@
         }
       }
     },
+    "/api/v1/drivers/me/name": {
+      "put": {
+        "tags": [
+          "driver-controller"
+        ],
+        "operationId": "setName",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseDriverProfileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/drivers/me/availability": {
       "get": {
         "tags": [
@@ -3870,6 +3900,38 @@
         }
       }
     },
+    "/api/v1/drivers/me/documents/{id}/content": {
+      "get": {
+        "tags": [
+          "driver-controller"
+        ],
+        "operationId": "documentContent",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/drivers/me/bookings/{id}": {
       "get": {
         "tags": [
@@ -5032,36 +5094,6 @@
           }
         }
       }
-    },
-    "/api/v1/drivers/me/name": {
-      "put": {
-        "tags": [
-          "driver-controller"
-        ],
-        "operationId": "setName",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DriverNameRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponseDriverProfileResponse"
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
@@ -5193,6 +5225,64 @@
               "REJECTED",
               "SUSPENDED"
             ]
+          }
+        }
+      },
+      "DriverNameRequest": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fullName"
+        ]
+      },
+      "ApiResponseDriverProfileResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DriverProfileResponse"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DriverProfileResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "verificationStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_SUBMITTED",
+              "PENDING_REVIEW",
+              "APPROVED",
+              "REJECTED",
+              "SUSPENDED"
+            ]
+          },
+          "fullName": {
+            "type": "string"
           }
         }
       },
@@ -5679,53 +5769,6 @@
         "required": [
           "cityId"
         ]
-      },
-      "ApiResponseDriverProfileResponse": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "data": {
-            "$ref": "#/components/schemas/DriverProfileResponse"
-          },
-          "message": {
-            "type": "string"
-          },
-          "error": {
-            "$ref": "#/components/schemas/ApiError"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "DriverProfileResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "cityId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "verificationStatus": {
-            "type": "string",
-            "enum": [
-              "NOT_SUBMITTED",
-              "PENDING_REVIEW",
-              "APPROVED",
-              "REJECTED",
-              "SUSPENDED"
-            ]
-          },
-          "fullName": {
-            "type": "string"
-          }
-        }
       },
       "SosRequest": {
         "type": "object",
@@ -10519,6 +10562,9 @@
           "optionalDocumentsProvided": {
             "type": "boolean"
           },
+          "nameMissing": {
+            "type": "boolean"
+          },
           "readyForReview": {
             "type": "boolean"
           },
@@ -10531,9 +10577,6 @@
             "format": "int64"
           },
           "overdue": {
-            "type": "boolean"
-          },
-          "nameMissing": {
             "type": "boolean"
           }
         }
@@ -11065,17 +11108,6 @@
         },
         "required": [
           "token"
-        ]
-      },
-      "DriverNameRequest": {
-        "type": "object",
-        "properties": {
-          "fullName": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "fullName"
         ]
       }
     }

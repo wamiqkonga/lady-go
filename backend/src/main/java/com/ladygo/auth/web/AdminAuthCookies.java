@@ -58,14 +58,24 @@ public final class AdminAuthCookies {
                 .build();
     }
 
-    static ResponseCookie csrfTokenCookie(String value, Duration maxAge) {
-        return ResponseCookie.from(CSRF_TOKEN, value)
+    /**
+     * @param domain optional parent domain (e.g. {@code ladygoride.com}). When admin-web and the API live on
+     *     different subdomains, a host-only cookie set by the API host is invisible to admin-web's JS, so the
+     *     double-submit header can never be sent and every refresh fails. Setting the parent domain makes it
+     *     readable by sibling subdomains. Only this non-secret cookie ever gets a domain; the HttpOnly
+     *     refresh cookie always stays host-only.
+     */
+    static ResponseCookie csrfTokenCookie(String value, Duration maxAge, String domain) {
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(CSRF_TOKEN, value)
                 .httpOnly(false)
                 .secure(true)
                 .sameSite("Strict")
                 .path(CSRF_COOKIE_PATH)
-                .maxAge(maxAge)
-                .build();
+                .maxAge(maxAge);
+        if (domain != null && !domain.isBlank()) {
+            builder.domain(domain.trim());
+        }
+        return builder.build();
     }
 
     static ResponseCookie clearedRefreshTokenCookie() {
@@ -73,8 +83,8 @@ public final class AdminAuthCookies {
                 .sameSite("Strict").path(REFRESH_COOKIE_PATH).maxAge(Duration.ZERO).build();
     }
 
-    static ResponseCookie clearedCsrfTokenCookie() {
-        return ResponseCookie.from(CSRF_TOKEN, "").httpOnly(false).secure(true)
-                .sameSite("Strict").path(CSRF_COOKIE_PATH).maxAge(Duration.ZERO).build();
+    /** Must carry the same domain it was set with, or the browser keeps the original. */
+    static ResponseCookie clearedCsrfTokenCookie(String domain) {
+        return csrfTokenCookie("", Duration.ZERO, domain);
     }
 }

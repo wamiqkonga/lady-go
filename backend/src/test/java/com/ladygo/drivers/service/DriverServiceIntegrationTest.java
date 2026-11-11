@@ -64,6 +64,36 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void documentContentReturnsTheOwnersImageButNotAnotherCaptains() {
+        City city = newCity();
+        UUID ownerId = newDriverUserId(city);
+        UUID otherId = newDriverUserId(city);
+        DriverDocumentResponse uploaded = service.uploadDocument(ownerId, DocumentType.LICENSE, jpegFile(), null, null);
+
+        var image = service.documentContent(ownerId, uploaded.id());
+
+        assertThat(image.bytes()).isNotEmpty();
+        assertThat(image.contentType()).isEqualTo("image/jpeg");
+        assertThatThrownBy(() -> service.documentContent(otherId, uploaded.id()))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> service.documentContent(ownerId, UUID.randomUUID()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void replacingADocumentCreatesAPendingSubmissionThatSupersedesTheOldOne() {
+        City city = newCity();
+        UUID userId = newDriverUserId(city);
+        DriverDocumentResponse first = service.uploadDocument(userId, DocumentType.LICENSE, jpegFile(), null, null);
+        DriverDocumentResponse second = service.uploadDocument(userId, DocumentType.LICENSE, jpegFile(), null, null);
+
+        assertThat(second.id()).isNotEqualTo(first.id());
+        assertThat(second.status()).isEqualTo(com.ladygo.drivers.domain.DocumentStatus.PENDING);
+        assertThat(service.listDocuments(userId)).extracting(DriverDocumentResponse::id)
+                .contains(first.id(), second.id());
+    }
+
+    @Test
     void uploadDocumentRejectsANonImageFile() {
         City city = newCity();
         UUID userId = newDriverUserId(city);
@@ -201,7 +231,7 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         City city = newCity();
         UUID userId = newDriverUserId(city);
         VehicleRequest request = new VehicleRequest(
-                "JK01AB" + System.nanoTime() % 10000, VehicleType.BIKE, "Maruti", "Dzire", "White",
+                "JK01AB" + String.format("%04d", System.nanoTime() % 10000), VehicleType.BIKE, "Maruti", "Dzire", "White",
                 (short) (Year.now().getValue() - 2));
 
         VehicleResponse created = service.upsertVehicle(userId, request);
@@ -214,7 +244,7 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         City city = newCity();
         UUID userId = newDriverUserId(city);
         VehicleRequest request = new VehicleRequest(
-                "JK01GH" + System.nanoTime() % 10000, VehicleType.CAB, "Maruti", "Dzire", "White",
+                "JK01GH" + String.format("%04d", System.nanoTime() % 10000), VehicleType.CAB, "Maruti", "Dzire", "White",
                 (short) (Year.now().getValue() - 2));
 
         assertThatThrownBy(() -> service.upsertVehicle(userId, request))
@@ -227,10 +257,58 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         City city = newCity();
         UUID userId = newDriverUserId(city);
         VehicleRequest request = new VehicleRequest(
-                "JK01CD" + System.nanoTime() % 10000, VehicleType.BIKE, "Maruti", "Dzire", "White",
+                "JK01CD" + String.format("%04d", System.nanoTime() % 10000), VehicleType.BIKE, "Maruti", "Dzire", "White",
                 (short) (Year.now().getValue() - 20));
 
         assertThatThrownBy(() -> service.upsertVehicle(userId, request)).isInstanceOf(ValidationException.class);
+    }
+
+    @Test
+    void upsertVehicleNormalisesCaseSpacesAndHyphens() {
+        UUID userId = newDriverUserId(newCity());
+        String digits = String.format("%04d", System.nanoTime() % 10000);
+
+        VehicleResponse saved = service.upsertVehicle(userId, new VehicleRequest(
+                " jk-01 ab " + digits, VehicleType.BIKE, null, null, null, null));
+
+        assertThat(saved.registrationNumber()).isEqualTo("JK01AB" + digits);
+    }
+
+    @Test
+    void upsertVehicleRejectsMalformedRegistrationNumbers() {
+        UUID userId = newDriverUserId(newCity());
+        for (String bad : new String[] {"abc", "JK01AB123", "1234", "JK-AB-1234", "JKK01AB1234", "JK01ABCD1234", "JK01AB12345", "!!"}) {
+            assertThatThrownBy(() -> service.upsertVehicle(userId, new VehicleRequest(
+                    bad, VehicleType.BIKE, null, null, null, null)))
+                    .as(bad).isInstanceOf(ValidationException.class)
+                    .hasMessage("Enter a valid vehicle number, for example JK01AB1234.");
+        }
+    }
+
+    @Test
+    void upsertVehicleAcceptsBharatSeries() {
+        UUID userId = newDriverUserId(newCity());
+        String digits = String.format("%04d", System.nanoTime() % 10000);
+
+        VehicleResponse saved = service.upsertVehicle(userId, new VehicleRequest(
+                "22bh" + digits + "aa", VehicleType.BIKE, null, null, null, null));
+
+        assertThat(saved.registrationNumber()).isEqualTo("22BH" + digits + "AA");
+    }
+
+    @Test
+    void upsertVehicleTreatsDifferentlyFormattedSameNumberAsDuplicate() {
+        City city = newCity();
+        UUID firstUserId = newDriverUserId(city);
+        UUID secondUserId = newDriverUserId(city);
+        String digits = String.format("%04d", System.nanoTime() % 10000);
+        service.upsertVehicle(firstUserId, new VehicleRequest(
+                "JK01GH" + digits, VehicleType.BIKE, null, null, null, null));
+
+        assertThatThrownBy(() -> service.upsertVehicle(secondUserId, new VehicleRequest(
+                "jk 01 gh-" + digits, VehicleType.BIKE, null, null, null, null)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("That registration number is already in use.");
     }
 
     @Test
@@ -238,7 +316,7 @@ class DriverServiceIntegrationTest extends PersistenceTestSupport {
         City city = newCity();
         UUID firstUserId = newDriverUserId(city);
         UUID secondUserId = newDriverUserId(city);
-        String registration = "JK01EF" + System.nanoTime() % 10000;
+        String registration = "JK01EF" + String.format("%04d", System.nanoTime() % 10000);
         service.upsertVehicle(firstUserId, new VehicleRequest(
                 registration, VehicleType.BIKE, "Maruti", "Dzire", "White", (short) (Year.now().getValue() - 1)));
 

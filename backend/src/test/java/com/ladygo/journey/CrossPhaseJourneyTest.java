@@ -202,7 +202,7 @@ class CrossPhaseJourneyTest extends PersistenceTestSupport {
         String vehicleResponse = mockMvc.perform(put("/api/v1/drivers/me/vehicle")
                         .header("Authorization", "Bearer " + driverToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"registrationNumber\":\"JK01AB" + System.nanoTime() % 10000
+                        .content("{\"registrationNumber\":\"JK01AB" + String.format("%04d", System.nanoTime() % 10000)
                                 + "\",\"vehicleType\":\"BIKE\",\"make\":\"Maruti\",\"model\":\"Dzire\","
                                 + "\"color\":\"White\",\"manufactureYear\":" + (Year.now().getValue() - 1) + "}"))
                 .andExpect(status().isOk())
