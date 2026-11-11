@@ -324,6 +324,29 @@ class HomeViewModelTest {
         }
 
     @Test
+    fun aRefusedLocationUploadWhileGoingOfflineIsNotReportedAsSetOfflineByLadyGo() =
+        runTest {
+            val offlineCall = kotlinx.coroutines.CompletableDeferred<SetAvailabilityOutcome>()
+            coEvery { availabilityRepository.goOnline() } returns SetAvailabilityOutcome.Success
+            coEvery { availabilityRepository.goOffline() } coAnswers { offlineCall.await() }
+            val vm = viewModel()
+            vm.onToggleAvailability()
+            advanceUntilIdle()
+
+            vm.onToggleAvailability() // her own "Go offline" tap, still waiting on the server
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.isTogglingAvailability)
+            eventsFlow.emit(LocationServiceEvent.DriverSetOfflineByServer) // the in-flight upload gets refused
+            advanceUntilIdle()
+            offlineCall.complete(SetAvailabilityOutcome.Success)
+            advanceUntilIdle()
+
+            assertEquals(Availability.OFFLINE, vm.uiState.value.availability)
+            assertEquals(null, vm.uiState.value.infoMessage)
+            assertFalse(vm.uiState.value.isTogglingAvailability)
+        }
+
+    @Test
     fun batteryGuidanceShownFlagReflectsAppPreferencesAtStartup() {
         every { appPreferences.hasShownBatteryOptimizationGuidance() } returns true
         assertTrue(viewModel().uiState.value.hasShownBatteryGuidance)

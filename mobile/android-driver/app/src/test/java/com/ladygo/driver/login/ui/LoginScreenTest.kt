@@ -38,6 +38,23 @@ class LoginScreenTest {
     }
 
     @Test
+    fun phoneEntryAsksForTheEmailTheCodeIsSentTo() {
+        composeRule.setContent {
+            LoginContent(
+                state = LoginUiState(),
+                onPhoneChanged = {},
+                onCodeChanged = {},
+                onRequestOtp = {},
+                onVerifyOtp = {},
+                onBackToPhoneEntry = {},
+            )
+        }
+
+        composeRule.onNodeWithText("Email").assertExists()
+        composeRule.onNodeWithText("We email your sign-in code to this address, so use the same email each time.").assertExists()
+    }
+
+    @Test
     fun sendCodeIsDisabledUntilAPhoneIsEntered() {
         var requested = false
         composeRule.setContent {
@@ -79,7 +96,7 @@ class LoginScreenTest {
     fun codeEntryShowsSignInAndTheEnteredPhoneNumber() {
         composeRule.setContent {
             LoginContent(
-                state = LoginUiState(step = LoginStep.CODE_ENTRY, phone = "+14155550100"),
+                state = LoginUiState(step = LoginStep.CODE_ENTRY, phone = "+14155550100", email = "captain@example.com"),
                 onPhoneChanged = {},
                 onCodeChanged = {},
                 onRequestOtp = {},
@@ -89,7 +106,11 @@ class LoginScreenTest {
         }
 
         composeRule.onNodeWithText("Sign in").assertExists()
-        composeRule.onNodeWithText("Enter the code sent to +14155550100.").assertExists()
+        composeRule
+            .onNodeWithText(
+                "We emailed a 6-digit code to captain@example.com. " +
+                    "It can take a minute to arrive, so check your spam folder too.",
+            ).assertExists()
     }
 
     @Test

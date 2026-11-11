@@ -19,6 +19,8 @@ enum class LoginStep { PASSWORD_ENTRY, PHONE_ENTRY, CODE_ENTRY }
 data class LoginUiState(
     val step: LoginStep = LoginStep.PHONE_ENTRY,
     val phone: String = "",
+    /** Where the sign-in code is emailed. Optional here: the server only needs it while it sends codes by email. */
+    val email: String = "",
     val code: String = "",
     val identifier: String = "",
     val password: String = "",
@@ -40,6 +42,10 @@ class LoginViewModel
 
         fun onPhoneChanged(phone: String) {
             _uiState.value = _uiState.value.copy(phone = phone, error = null)
+        }
+
+        fun onEmailChanged(email: String) {
+            _uiState.value = _uiState.value.copy(email = email, error = null)
         }
 
         fun onCodeChanged(code: String) {
@@ -89,10 +95,11 @@ class LoginViewModel
 
         fun onRequestOtp() {
             val phone = _uiState.value.phone
+            val email = _uiState.value.email
             if (phone.isBlank() || _uiState.value.isLoading) return
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             viewModelScope.launch {
-                when (val outcome = authRepository.requestOtp(phone)) {
+                when (val outcome = authRepository.requestOtp(phone, email)) {
                     RequestOtpOutcome.Sent ->
                         _uiState.value = _uiState.value.copy(isLoading = false, step = LoginStep.CODE_ENTRY)
                     is RequestOtpOutcome.Failed ->

@@ -87,7 +87,15 @@ class AuthRepository
          *  server's reuse detection, matching the web client's same reasoning. */
         private val deviceId: String = UUID.randomUUID().toString()
 
-        suspend fun requestOtp(phone: String): RequestOtpOutcome {
+        /**
+         * [email] is where the code is sent while the server delivers codes by email (production today); the server
+         * ignores it when codes go by SMS, so a blank one is simply left out and the server's own "Email is required."
+         * message is what the driver sees if it was needed.
+         */
+        suspend fun requestOtp(
+            phone: String,
+            email: String? = null,
+        ): RequestOtpOutcome {
             val response =
                 runCatching {
                     authApi.requestOtp(
@@ -95,6 +103,7 @@ class AuthRepository
                             phone = phone,
                             purpose = OtpRequestRequest.Purpose.LOGIN,
                             intendedRole = OtpRequestRequest.IntendedRole.DRIVER,
+                            email = email?.trim()?.takeIf { it.isNotEmpty() },
                         ),
                     )
                 }.getOrElse {

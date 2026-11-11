@@ -58,6 +58,36 @@ class AuthRepositoryTest {
         }
 
     @Test
+    fun requestOtpSendsTheTrimmedEmailAndLeavesABlankOneOut() =
+        runTest {
+            val sent = mutableListOf<com.ladygo.driver.api.generated.models.OtpRequestRequest>()
+            coEvery { authApi.requestOtp(capture(sent)) } returns
+                Response.success(ApiResponseMessageResponse(data = MessageResponse("ok")))
+
+            repository.requestOtp("+14155550100", "  captain@example.com ")
+            repository.requestOtp("+14155550100", "   ")
+            repository.requestOtp("+14155550100")
+
+            assertEquals("captain@example.com", sent[0].email)
+            assertEquals(null, sent[1].email)
+            assertEquals(null, sent[2].email)
+        }
+
+    @Test
+    fun requestOtpShowsTheServersEmailRequiredMessage() =
+        runTest {
+            coEvery { authApi.requestOtp(any()) } returns
+                errorResponse<ApiResponseMessageResponse>(
+                    400,
+                    """{"success":false,"error":{"code":"VALIDATION_FAILED","message":"Email is required.","details":[]}}""",
+                )
+
+            val outcome = repository.requestOtp("+14155550100", null)
+
+            assertEquals("Email is required.", (outcome as RequestOtpOutcome.Failed).message)
+        }
+
+    @Test
     fun requestOtpSurfacesTheServerErrorMessage() =
         runTest {
             coEvery { authApi.requestOtp(any()) } returns

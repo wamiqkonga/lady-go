@@ -307,6 +307,8 @@ fun HomeContent(
                     },
                 onClick = onToggleAvailability,
                 enabled = !state.isTogglingAvailability,
+                // A spinner as well as the words: the call can take seconds on a slow mobile connection.
+                loading = state.isTogglingAvailability,
                 icon = Icons.Filled.PowerSettingsNew,
             )
             QuietButton(text = "Log out", onClick = onLogout)

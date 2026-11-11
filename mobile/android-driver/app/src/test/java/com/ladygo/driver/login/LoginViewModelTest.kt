@@ -77,7 +77,7 @@ class LoginViewModelTest {
     @Test
     fun requestingAnOtpMovesToCodeEntryOnSuccess() =
         runTest {
-            coEvery { authRepository.requestOtp("+14155550100") } returns RequestOtpOutcome.Sent
+            coEvery { authRepository.requestOtp("+14155550100", "") } returns RequestOtpOutcome.Sent
             viewModel.onPhoneChanged("+14155550100")
 
             viewModel.onRequestOtp()
@@ -88,9 +88,23 @@ class LoginViewModelTest {
         }
 
     @Test
+    fun requestingAnOtpSendsTheEmailWithThePhone() =
+        runTest {
+            coEvery { authRepository.requestOtp("+14155550100", "captain@example.com") } returns RequestOtpOutcome.Sent
+            viewModel.onPhoneChanged("+14155550100")
+            viewModel.onEmailChanged("captain@example.com")
+
+            viewModel.onRequestOtp()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(LoginStep.CODE_ENTRY, viewModel.uiState.value.step)
+            coVerify { authRepository.requestOtp("+14155550100", "captain@example.com") }
+        }
+
+    @Test
     fun requestingAnOtpSurfacesTheServerErrorAndStaysOnPhoneEntry() =
         runTest {
-            coEvery { authRepository.requestOtp(any()) } returns RequestOtpOutcome.Failed("Too many requests.")
+            coEvery { authRepository.requestOtp(any(), any()) } returns RequestOtpOutcome.Failed("Too many requests.")
             viewModel.onUseCodeInstead()
             viewModel.onPhoneChanged("+14155550100")
 
@@ -107,7 +121,7 @@ class LoginViewModelTest {
             viewModel.onRequestOtp()
             testScheduler.advanceUntilIdle()
 
-            coVerify(exactly = 0) { authRepository.requestOtp(any()) }
+            coVerify(exactly = 0) { authRepository.requestOtp(any(), any()) }
         }
 
     @Test
