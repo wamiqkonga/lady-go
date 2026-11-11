@@ -107,8 +107,10 @@ class LoginScreenTest {
 
         composeRule.onNodeWithText("Sign in").assertExists()
         composeRule
-            .onNodeWithText("We emailed a 6-digit code to captain@example.com. It can take a minute to arrive, so check your spam folder too.")
-            .assertExists()
+            .onNodeWithText(
+                "We emailed a 6-digit code to captain@example.com. " +
+                    "It can take a minute to arrive, so check your spam folder too.",
+            ).assertExists()
     }
 
     @Test
