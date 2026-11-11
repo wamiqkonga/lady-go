@@ -37,6 +37,8 @@
     <string name="ride_navigate_action">Navigate</string>
     <string name="ride_arrived_action">I\'ve arrived</string>
     <string name="ride_call_112_action">Call 112</string>
+    <string name="ride_call_rider_action">Call rider</string>
+    <string name="ride_call_rider_failed">No phone app found on this device. Use the number shown here to call from another phone.</string>
     <string name="ride_pin_label">Ride PIN</string>
     <string name="ride_pin_hint">Ask the rider to read out her PIN.</string>
     <string name="ride_start_action">Start ride</string>

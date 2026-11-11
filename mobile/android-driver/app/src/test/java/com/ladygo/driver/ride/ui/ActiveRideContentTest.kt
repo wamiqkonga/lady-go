@@ -33,6 +33,7 @@ class ActiveRideContentTest {
         error: String? = null,
         cashConfirmed: Boolean = false,
         selfie: SelfieState = SelfieState.Unavailable,
+        riderPhone: String? = null,
     ) = ActiveRideUiState(
         booking =
             BookingDetailResponse(
@@ -43,6 +44,7 @@ class ActiveRideContentTest {
                 paymentMethod = payment,
                 estimatedFare = 250L,
                 currency = "INR",
+                riderPhone = riderPhone,
             ),
         stage = RideStateMachine.stageFor(status),
         isActionInFlight = inFlight,
@@ -55,6 +57,36 @@ class ActiveRideContentTest {
         state: ActiveRideUiState,
         actions: ActiveRideActions = ActiveRideActions(),
     ) = composeRule.setContent { ActiveRideContent(state = state, actions = actions) }
+
+    private fun assertCallRiderDials(status: Status) {
+        var dialed: String? = null
+        show(state(status, riderPhone = "+919812345678"), ActiveRideActions(onCallRider = { dialed = it }))
+
+        composeRule.onNodeWithText("Call rider").assertExists()
+        composeRule.onNodeWithTag("rider_phone").assertExists()
+        composeRule.onNodeWithTag("call_rider").performScrollTo().performClick()
+        assertEquals("+919812345678", dialed)
+    }
+
+    @Test
+    fun callRiderDialsThePhoneOnTheWayToPickup() = assertCallRiderDials(Status.DRIVER_ACCEPTED)
+
+    @Test
+    fun callRiderDialsThePhoneDuringTheTrip() = assertCallRiderDials(Status.RIDE_STARTED)
+
+    @Test
+    fun noCallRiderButtonWhenTheServerSendsNoPhone() {
+        show(state(Status.DRIVER_ARRIVING))
+
+        composeRule.onNodeWithTag("call_rider").assertDoesNotExist()
+    }
+
+    @Test
+    fun noCallRiderButtonOnceTheRideIsOver() {
+        show(state(Status.RIDE_COMPLETED, riderPhone = "+919812345678"))
+
+        composeRule.onNodeWithTag("call_rider").assertDoesNotExist()
+    }
 
     @Test
     fun toPickupShowsNavigateArrivedAndCall112ButNoStartOrComplete() {

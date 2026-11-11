@@ -10,6 +10,8 @@ data class ActiveRideActions(
     val onConfirmCash: () -> Unit = {},
     val onRetrySelfie: () -> Unit = {},
     val onNavigate: (address: String) -> Unit = {},
+    /** "Call rider": opens the dialer with the rider's number. */
+    val onCallRider: (phone: String) -> Unit = {},
     val onCall112: () -> Unit = {},
     val onDone: () -> Unit = {},
 )

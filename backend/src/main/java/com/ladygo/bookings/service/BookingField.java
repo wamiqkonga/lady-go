@@ -24,5 +24,10 @@ public enum BookingField {
     RIDER_SELFIE,
     /** When the driver confirmed receiving cash for this booking - driver-only (a rider has no
      *  equivalent field), so a driver app killed mid-ride can restore its cash step. */
-    CASH_CONFIRMED_AT
+    CASH_CONFIRMED_AT,
+    /** The OTHER party's real phone number (rider sees the captain's, captain sees the rider's), so the two
+     *  can call each other with a plain dialer once a ride is accepted. Privacy: deliberate owner decision for
+     *  the pilot (both sides are women); visible only from acceptance until the ride starts/ends - never
+     *  before acceptance, never after completion or cancellation. Masked calling is a later project. */
+    COUNTERPART_PHONE
 }

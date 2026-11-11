@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse.PaymentMethod
@@ -57,6 +58,41 @@ class TrackBookingContentTest {
         state: TrackUiState,
         actions: TrackActions = TrackActions(),
     ) = composeRule.setContent { TrackBookingContent(state, actions) }
+
+    private fun assertCallCaptainDials(status: Status) {
+        var dialed: String? = null
+        composeRule.setContent {
+            TrackBookingContent(
+                state(status, driver = DriverSummaryResponse(name = "Aisha", phone = "+919876543210")),
+                TrackActions(onCallDriver = { dialed = it }),
+            )
+        }
+        composeRule.onNodeWithText("Call captain").assertExists()
+        composeRule.onNodeWithTag("captain_phone").assertTextContains("+919876543210")
+        composeRule.onNodeWithTag("call_captain").performScrollTo().performClick()
+        assertEquals("+919876543210", dialed)
+    }
+
+    @Test
+    fun callCaptainDialsThePhoneWhileTheDriverIsComing() = assertCallCaptainDials(Status.DRIVER_ARRIVING)
+
+    @Test
+    fun callCaptainDialsThePhoneDuringTheTrip() = assertCallCaptainDials(Status.RIDE_STARTED)
+
+    @Test
+    fun noCallButtonWhenTheServerSendsNoPhone() {
+        show(state(Status.DRIVER_ARRIVING, driver = DriverSummaryResponse(name = "Aisha")))
+
+        composeRule.onNodeWithText("Aisha").assertExists()
+        composeRule.onNodeWithTag("call_captain").assertDoesNotExist()
+    }
+
+    @Test
+    fun noCallButtonAfterTheRideIsFinished() {
+        show(state(Status.COMPLETED, driver = DriverSummaryResponse(name = "Aisha", phone = "+919876543210")))
+
+        composeRule.onNodeWithTag("call_captain").assertDoesNotExist()
+    }
 
     @Test
     fun searchingShowsTheNoteAndAnEnabledCancelButNoPinOrCall112() {

@@ -9,5 +9,7 @@ data class TrackActions(
     /** "I don't feel safe": the fee-free cancel. */
     val onCancelUnsafe: (reason: String) -> Unit = {},
     val onCall112: () -> Unit = {},
+    /** "Call captain": opens the dialer with the captain's number. */
+    val onCallDriver: (phone: String) -> Unit = {},
     val onDone: () -> Unit = {},
 )
