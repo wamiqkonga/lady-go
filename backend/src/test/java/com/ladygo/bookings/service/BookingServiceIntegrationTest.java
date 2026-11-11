@@ -113,6 +113,20 @@ class BookingServiceIntegrationTest extends PersistenceTestSupport {
     }
 
     @Test
+    void estimateForAVehicleTypeWithNoFareSaysRidesAreNotAvailable() {
+        City city = srinagar();
+        newPricingRule(city, VehicleType.BIKE);
+        Customer customer = newCustomer();
+
+        assertThatThrownBy(() -> bookingService.estimate(customer.getUserId(),
+                new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.CAB)))
+                .isInstanceOf(com.ladygo.common.exception.ResourceNotFoundException.class)
+                .hasMessage("Rides are not available here yet.");
+        assertThat(bookingService.estimate(customer.getUserId(),
+                new FareEstimateRequest(34.08, 74.80, 34.13, 74.87, VehicleType.BIKE)).estimatedFare()).isPositive();
+    }
+
+    @Test
     void estimateOutsideAnyServiceAreaIsRejected() {
         Customer customer = newCustomer();
         assertThatThrownBy(() -> bookingService.estimate(customer.getUserId(),

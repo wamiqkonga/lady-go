@@ -2468,6 +2468,7 @@ export interface components {
             destinationLatitude?: number;
             /** Format: double */
             destinationLongitude?: number;
+            riderPhone?: string;
         };
         DriverSummaryResponse: {
             /** Format: uuid */
@@ -2479,6 +2480,7 @@ export interface components {
             vehicleModel?: string;
             vehicleColor?: string;
             vehicleRegistration?: string;
+            phone?: string;
         };
         EndRideEarlyRequest: {
             reason: string;
@@ -3509,6 +3511,7 @@ export interface components {
             id?: string;
             name?: string;
             country?: string;
+            vehicleTypesWithFare?: ("CAB" | "SUV" | "AUTO" | "BIKE")[];
         };
         ApiResponseDriverLocationForRiderResponse: {
             success?: boolean;
