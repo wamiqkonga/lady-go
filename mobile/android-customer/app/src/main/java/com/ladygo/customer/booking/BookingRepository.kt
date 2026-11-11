@@ -128,11 +128,15 @@ private const val NO_RIDES_MESSAGE = "Rides are not available here yet."
 private val VEHICLE_TYPE_PREFERENCE = listOf("BIKE")
 
 private sealed interface VehicleTypeLookup {
-    data class Found(val type: FareEstimateRequest.VehicleType) : VehicleTypeLookup
+    data class Found(
+        val type: FareEstimateRequest.VehicleType,
+    ) : VehicleTypeLookup
 
     data object NoFare : VehicleTypeLookup
 
-    data class Failed(val message: String) : VehicleTypeLookup
+    data class Failed(
+        val message: String,
+    ) : VehicleTypeLookup
 }
 
 private const val NETWORK_ERROR_MESSAGE = "Could not reach the server. Check your connection and try again."
@@ -164,13 +168,18 @@ class BookingRepository
         suspend fun estimate(
             pickup: GeoPoint,
             destination: GeoPoint,
+        ): EstimateOutcome =
+            when (val lookup = servedVehicleType()) {
+                is VehicleTypeLookup.Found -> requestEstimate(pickup, destination, lookup.type)
+                is VehicleTypeLookup.NoFare -> EstimateOutcome.Rejected(NO_RIDES_MESSAGE)
+                is VehicleTypeLookup.Failed -> EstimateOutcome.NetworkFailure(lookup.message)
+            }
+
+        private suspend fun requestEstimate(
+            pickup: GeoPoint,
+            destination: GeoPoint,
+            vehicleType: FareEstimateRequest.VehicleType,
         ): EstimateOutcome {
-            val vehicleType =
-                when (val lookup = servedVehicleType()) {
-                    is VehicleTypeLookup.Found -> lookup.type
-                    is VehicleTypeLookup.NoFare -> return EstimateOutcome.Rejected(NO_RIDES_MESSAGE)
-                    is VehicleTypeLookup.Failed -> return EstimateOutcome.NetworkFailure(lookup.message)
-                }
             val request =
                 FareEstimateRequest(
                     pickupLatitude = pickup.latitude,
@@ -200,7 +209,8 @@ class BookingRepository
             val cities = response.body()?.data ?: return VehicleTypeLookup.Failed("Unexpected response from the server.")
             val served = cities.flatMap { it.vehicleTypesWithFare.orEmpty() }.map { it.name }.toSet()
             val chosen = VEHICLE_TYPE_PREFERENCE.firstOrNull { it in served } ?: served.firstOrNull()
-            return chosen?.let { name -> VehicleTypeLookup.Found(FareEstimateRequest.VehicleType.valueOf(name)) } ?: VehicleTypeLookup.NoFare
+            return chosen?.let { name -> VehicleTypeLookup.Found(FareEstimateRequest.VehicleType.valueOf(name)) }
+                ?: VehicleTypeLookup.NoFare
         }
 
         suspend fun uploadSelfie(jpeg: ByteArray): SelfieUploadOutcome {

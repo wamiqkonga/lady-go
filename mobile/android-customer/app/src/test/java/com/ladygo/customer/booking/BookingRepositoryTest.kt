@@ -2,18 +2,18 @@ package com.ladygo.customer.booking
 
 import com.ladygo.customer.api.generated.apis.BookingControllerApi
 import com.ladygo.customer.api.generated.apis.CityControllerApi
-import com.ladygo.customer.api.generated.models.ApiResponseListCityResponse
-import com.ladygo.customer.api.generated.models.CityResponse
-import com.ladygo.customer.api.generated.models.FareEstimateRequest
 import com.ladygo.customer.api.generated.models.ApiResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.ApiResponseCancellationPreviewResponse
 import com.ladygo.customer.api.generated.models.ApiResponseFareEstimateResponse
+import com.ladygo.customer.api.generated.models.ApiResponseListCityResponse
 import com.ladygo.customer.api.generated.models.ApiResponsePageResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.ApiResponseRideSelfieResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse.Status
 import com.ladygo.customer.api.generated.models.BookingRequest
 import com.ladygo.customer.api.generated.models.CancellationPreviewResponse
+import com.ladygo.customer.api.generated.models.CityResponse
+import com.ladygo.customer.api.generated.models.FareEstimateRequest
 import com.ladygo.customer.api.generated.models.FareEstimateResponse
 import com.ladygo.customer.api.generated.models.PageResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.RideSelfieResponse
@@ -40,6 +40,7 @@ class BookingRepositoryTest {
         val city = CityResponse(id = UUID.randomUUID(), name = "Srinagar", vehicleTypesWithFare = types.toList())
         coEvery { cityApi.list() } returns Response.success(ApiResponseListCityResponse(data = listOf(city)))
     }
+
     private val id = UUID.randomUUID()
 
     private fun <T> error(
