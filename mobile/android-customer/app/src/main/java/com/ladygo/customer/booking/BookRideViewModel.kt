@@ -329,6 +329,8 @@ class BookRideViewModel
             val pickup = (state.pickup as? PickupState.Ready)?.place ?: return
             val destination = state.destination ?: return
             val fare = state.estimate?.estimatedFare ?: return
+            // The type the server priced the estimate for - the booking must ask for the same one.
+            val vehicleType = state.estimate.vehicleType?.let { BookingRequest.VehicleType.valueOf(it.name) } ?: return
             val selfie = selfieId ?: return
             val key = idempotencyKey ?: UUID.randomUUID().toString().also { idempotencyKey = it }
             _uiState.update { it.copy(isBusy = true, error = null, step = BookStep.ESTIMATE) }
@@ -340,7 +342,7 @@ class BookRideViewModel
                     destinationLatitude = destination.point.latitude,
                     destinationLongitude = destination.point.longitude,
                     destinationAddress = destination.address,
-                    vehicleType = BookingRequest.VehicleType.CAB,
+                    vehicleType = vehicleType,
                     paymentMethod = BookingRequest.PaymentMethod.CASH,
                     expectedFare = fare,
                     rideSelfieId = selfie,

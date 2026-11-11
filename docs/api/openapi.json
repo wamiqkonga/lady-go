@@ -6029,6 +6029,9 @@
           "destinationLongitude": {
             "type": "number",
             "format": "double"
+          },
+          "riderPhone": {
+            "type": "string"
           }
         }
       },
@@ -6058,6 +6061,9 @@
             "type": "string"
           },
           "vehicleRegistration": {
+            "type": "string"
+          },
+          "phone": {
             "type": "string"
           }
         }
@@ -9088,6 +9094,18 @@
           },
           "country": {
             "type": "string"
+          },
+          "vehicleTypesWithFare": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CAB",
+                "SUV",
+                "AUTO",
+                "BIKE"
+              ]
+            }
           }
         }
       },

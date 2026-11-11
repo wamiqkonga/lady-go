@@ -25,6 +25,13 @@ public interface PricingRuleRepository extends JpaRepository<PricingRule, UUID> 
     Optional<PricingRule> findActive(@Param("cityId") UUID cityId, @Param("vehicleType") VehicleType vehicleType,
                                      @Param("at") Instant at);
 
+    /** City and vehicle type pairs with a fare in force at {@code at} (what a rider can actually book today). */
+    @Query("""
+            SELECT DISTINCT r.cityId, r.vehicleType FROM PricingRule r
+            WHERE r.effectiveFrom <= :at AND (r.effectiveTo IS NULL OR r.effectiveTo > :at)
+            """)
+    List<Object[]> findActiveCityVehicleTypePairs(@Param("at") Instant at);
+
     /** Every version for a city and vehicle type, newest first (admin Fares history). */
     List<PricingRule> findByCityIdAndVehicleTypeOrderByEffectiveFromDesc(UUID cityId, VehicleType vehicleType);
 

@@ -25,6 +25,7 @@ import com.squareup.moshi.JsonClass
  * @param id 
  * @param name 
  * @param country 
+ * @param vehicleTypesWithFare 
  */
 
 
@@ -37,10 +38,25 @@ data class CityResponse (
     val name: kotlin.String? = null,
 
     @Json(name = "country")
-    val country: kotlin.String? = null
+    val country: kotlin.String? = null,
+
+    @Json(name = "vehicleTypesWithFare")
+    val vehicleTypesWithFare: kotlin.collections.List<CityResponse.VehicleTypesWithFare>? = null
 
 ) {
 
+    /**
+     * 
+     *
+     * Values: CAB,SUV,AUTO,BIKE
+     */
+    @JsonClass(generateAdapter = false)
+    enum class VehicleTypesWithFare(val value: kotlin.String) {
+        @Json(name = "CAB") CAB("CAB"),
+        @Json(name = "SUV") SUV("SUV"),
+        @Json(name = "AUTO") AUTO("AUTO"),
+        @Json(name = "BIKE") BIKE("BIKE");
+    }
 
 }
 

@@ -1,20 +1,26 @@
 package com.ladygo.customer.booking
 
 import com.ladygo.customer.api.generated.apis.BookingControllerApi
+import com.ladygo.customer.api.generated.apis.CityControllerApi
 import com.ladygo.customer.api.generated.models.ApiResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.ApiResponseCancellationPreviewResponse
 import com.ladygo.customer.api.generated.models.ApiResponseFareEstimateResponse
+import com.ladygo.customer.api.generated.models.ApiResponseListCityResponse
 import com.ladygo.customer.api.generated.models.ApiResponsePageResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.ApiResponseRideSelfieResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse
 import com.ladygo.customer.api.generated.models.BookingDetailResponse.Status
 import com.ladygo.customer.api.generated.models.BookingRequest
 import com.ladygo.customer.api.generated.models.CancellationPreviewResponse
+import com.ladygo.customer.api.generated.models.CityResponse
+import com.ladygo.customer.api.generated.models.FareEstimateRequest
 import com.ladygo.customer.api.generated.models.FareEstimateResponse
 import com.ladygo.customer.api.generated.models.PageResponseBookingDetailResponse
 import com.ladygo.customer.api.generated.models.RideSelfieResponse
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -27,7 +33,14 @@ import java.util.UUID
 class BookingRepositoryTest {
     private val bookingApi = mockk<BookingControllerApi>()
     private val selfieApi = mockk<RideSelfieApi>()
-    private val repository = BookingRepository(bookingApi, selfieApi)
+    private val cityApi = mockk<CityControllerApi>()
+    private val repository = BookingRepository(bookingApi, selfieApi, cityApi)
+
+    private fun citiesWithFares(vararg types: CityResponse.VehicleTypesWithFare) {
+        val city = CityResponse(id = UUID.randomUUID(), name = "Srinagar", vehicleTypesWithFare = types.toList())
+        coEvery { cityApi.list() } returns Response.success(ApiResponseListCityResponse(data = listOf(city)))
+    }
+
     private val id = UUID.randomUUID()
 
     private fun <T> error(
@@ -50,8 +63,68 @@ class BookingRepositoryTest {
         )
 
     @Test
+    fun estimateAsksForTheVehicleTypeTheCityHasAFareFor() =
+        runTest {
+            citiesWithFares(CityResponse.VehicleTypesWithFare.BIKE)
+            val sent = slot<FareEstimateRequest>()
+            coEvery { bookingApi.estimate(capture(sent)) } returns
+                Response.success(ApiResponseFareEstimateResponse(data = FareEstimateResponse(estimatedFare = 9000L)))
+
+            repository.estimate(GeoPoint(1.0, 2.0), GeoPoint(3.0, 4.0))
+
+            assertEquals(FareEstimateRequest.VehicleType.BIKE, sent.captured.vehicleType)
+        }
+
+    @Test
+    fun estimatePrefersBikeWhenSeveralTypesHaveAFare() =
+        runTest {
+            citiesWithFares(CityResponse.VehicleTypesWithFare.CAB, CityResponse.VehicleTypesWithFare.BIKE)
+            val sent = slot<FareEstimateRequest>()
+            coEvery { bookingApi.estimate(capture(sent)) } returns
+                Response.success(ApiResponseFareEstimateResponse(data = FareEstimateResponse(estimatedFare = 9000L)))
+
+            repository.estimate(GeoPoint(1.0, 2.0), GeoPoint(3.0, 4.0))
+
+            assertEquals(FareEstimateRequest.VehicleType.BIKE, sent.captured.vehicleType)
+        }
+
+    @Test
+    fun estimateWithNoFareAnywhereSaysRidesAreNotAvailableWithoutCallingTheEstimateApi() =
+        runTest {
+            citiesWithFares()
+
+            assertEquals(
+                EstimateOutcome.Rejected("Rides are not available here yet."),
+                repository.estimate(GeoPoint(1.0, 2.0), GeoPoint(3.0, 4.0)),
+            )
+            coVerify(exactly = 0) { bookingApi.estimate(any()) }
+        }
+
+    @Test
+    fun estimateNotFoundFromTheServerSaysRidesAreNotAvailable() =
+        runTest {
+            citiesWithFares(CityResponse.VehicleTypesWithFare.BIKE)
+            coEvery { bookingApi.estimate(any()) } returns
+                error(404, """{"success":false,"error":{"code":"RESOURCE_NOT_FOUND","message":"The requested resource was not found."}}""")
+
+            assertEquals(
+                EstimateOutcome.Rejected("Rides are not available here yet."),
+                repository.estimate(GeoPoint(1.0, 2.0), GeoPoint(3.0, 4.0)),
+            )
+        }
+
+    @Test
+    fun estimateWhenTheCityListCannotBeFetchedIsANetworkFailure() =
+        runTest {
+            coEvery { cityApi.list() } throws java.io.IOException("offline")
+
+            assertTrue(repository.estimate(GeoPoint(1.0, 2.0), GeoPoint(3.0, 4.0)) is EstimateOutcome.NetworkFailure)
+        }
+
+    @Test
     fun estimateSuccessReturnsTheServersQuote() =
         runTest {
+            citiesWithFares(CityResponse.VehicleTypesWithFare.BIKE)
             val quote = FareEstimateResponse(estimatedFare = 18500L, currency = "INR")
             coEvery { bookingApi.estimate(any()) } returns Response.success(ApiResponseFareEstimateResponse(data = quote))
 
@@ -61,6 +134,7 @@ class BookingRepositoryTest {
     @Test
     fun anOutOfServiceAreaEstimateIsARejectionWithTheServersMessage() =
         runTest {
+            citiesWithFares(CityResponse.VehicleTypesWithFare.BIKE)
             coEvery { bookingApi.estimate(any()) } returns
                 error(422, """{"error":{"code":"OUT_OF_SERVICE_AREA","message":"Lady Go is not available in this area yet."}}""")
 
@@ -73,6 +147,7 @@ class BookingRepositoryTest {
     @Test
     fun estimateIoOr5xxIsRetryableNotARejection() =
         runTest {
+            citiesWithFares(CityResponse.VehicleTypesWithFare.BIKE)
             coEvery { bookingApi.estimate(any()) } throws java.io.IOException("offline")
             assertTrue(repository.estimate(GeoPoint(1.0, 2.0), GeoPoint(3.0, 4.0)) is EstimateOutcome.NetworkFailure)
 

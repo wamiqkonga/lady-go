@@ -515,7 +515,8 @@ public class BookingService {
     }
 
     private PricingRule activeRule(UUID cityId, VehicleType vehicleType) {
-        return pricingRules.findActive(cityId, vehicleType, Instant.now()).orElseThrow(ResourceNotFoundException::new);
+        return pricingRules.findActive(cityId, vehicleType, Instant.now())
+                .orElseThrow(() -> new ResourceNotFoundException("Rides are not available here yet."));
     }
 
     /**
@@ -574,7 +575,12 @@ public class BookingService {
     private BookingDetailResponse toDetail(Booking booking, BookingViewerRole viewer) {
         Set<BookingField> visible = BookingVisibilityPolicy.visibleFields(viewer, booking.getStatus());
         DriverSummaryResponse driver = (visible.contains(BookingField.DRIVER_SUMMARY) && booking.getDriverId() != null)
-                ? buildDriverSummary(booking.getDriverId())
+                ? buildDriverSummary(booking.getDriverId(), visible.contains(BookingField.COUNTERPART_PHONE)
+                        && viewer == BookingViewerRole.CUSTOMER)
+                : null;
+        String riderPhone = (visible.contains(BookingField.COUNTERPART_PHONE) && viewer == BookingViewerRole.DRIVER)
+                ? customers.findById(booking.getCustomerId())
+                        .flatMap(c -> users.findById(c.getUserId())).map(User::getPhone).orElse(null)
                 : null;
         String ridePin = visible.contains(BookingField.RIDE_PIN) ? ridePinService.derive(booking.getId()) : null;
         String pickupAddress = visible.contains(BookingField.PICKUP_ADDRESS_EXACT) ? booking.getPickupAddress() : null;
@@ -589,7 +595,8 @@ public class BookingService {
                 visible.contains(BookingField.PICKUP_ADDRESS_EXACT) ? booking.getPickupLocation().getY() : null,
                 visible.contains(BookingField.PICKUP_ADDRESS_EXACT) ? booking.getPickupLocation().getX() : null,
                 visible.contains(BookingField.DESTINATION_ADDRESS_EXACT) ? booking.getDestinationLocation().getY() : null,
-                visible.contains(BookingField.DESTINATION_ADDRESS_EXACT) ? booking.getDestinationLocation().getX() : null);
+                visible.contains(BookingField.DESTINATION_ADDRESS_EXACT) ? booking.getDestinationLocation().getX() : null,
+                riderPhone);
     }
 
     /** History list items omit {@code ridePin} and driver detail (docs/api/booking.md section 6). */
@@ -598,10 +605,10 @@ public class BookingService {
                 booking.getId(), booking.getStatus(), booking.getPickupAddress(), booking.getDestinationAddress(),
                 booking.getVehicleType(), booking.getPaymentMethod(), booking.getEstimatedFare(),
                 booking.getFinalFare(), booking.getCurrency(), null, null,
-                booking.getCreatedAt(), booking.getScheduledAt(), null, null, null, null, null);
+                booking.getCreatedAt(), booking.getScheduledAt(), null, null, null, null, null, null);
     }
 
-    private DriverSummaryResponse buildDriverSummary(UUID driverId) {
+    private DriverSummaryResponse buildDriverSummary(UUID driverId, boolean includePhone) {
         Driver driver = drivers.findById(driverId).orElse(null);
         if (driver == null) {
             return null;
@@ -616,7 +623,8 @@ public class BookingService {
                 vehicle != null ? vehicle.getMake() : null,
                 vehicle != null ? vehicle.getModel() : null,
                 vehicle != null ? vehicle.getColor() : null,
-                vehicle != null ? vehicle.getRegistrationNumber() : null);
+                vehicle != null ? vehicle.getRegistrationNumber() : null,
+                includePhone && driverUser != null ? driverUser.getPhone() : null);
     }
 
     private Customer resolveCustomer(UUID userId) {

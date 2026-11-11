@@ -53,7 +53,7 @@ class BookRideViewModelTest {
     private val clock = MutableClock()
     private val here = GeoPoint(34.08, 74.80)
     private val there = Place("Dal Gate, Srinagar", GeoPoint(34.10, 74.83))
-    private val quote = FareEstimateResponse(estimatedFare = 18500L, currency = "INR")
+    private val quote = FareEstimateResponse(estimatedFare = 18500L, currency = "INR", vehicleType = FareEstimateResponse.VehicleType.BIKE)
     private val selfieId = UUID.randomUUID()
 
     private fun TestScope.viewModel(): BookRideViewModel {
@@ -180,7 +180,7 @@ class BookRideViewModelTest {
 
             assertEquals(booking, vm.uiState.value.booked)
             assertEquals(BookingRequest.PaymentMethod.CASH, sent.captured.paymentMethod)
-            assertEquals(BookingRequest.VehicleType.CAB, sent.captured.vehicleType)
+            assertEquals(BookingRequest.VehicleType.BIKE, sent.captured.vehicleType)
             assertEquals(18500L, sent.captured.expectedFare)
             assertEquals(selfieId, sent.captured.rideSelfieId)
             assertEquals("Lal Chowk, Srinagar", sent.captured.pickupAddress)
@@ -231,7 +231,7 @@ class BookRideViewModelTest {
             vm.onBookTapped()
             val keys = mutableListOf<String>()
             val sentFares = mutableListOf<Long>()
-            val fresh = FareEstimateResponse(estimatedFare = 21000L, currency = "INR")
+            val fresh = FareEstimateResponse(estimatedFare = 21000L, currency = "INR", vehicleType = FareEstimateResponse.VehicleType.BIKE)
             coEvery { repository.uploadSelfie(any()) } returns SelfieUploadOutcome.Uploaded(selfieId)
             coEvery { repository.create(capture(keys), any()) } coAnswers {
                 sentFares += secondArg<BookingRequest>().expectedFare

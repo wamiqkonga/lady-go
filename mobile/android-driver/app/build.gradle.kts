@@ -56,7 +56,9 @@ android {
         debug {
             // Android emulator's alias for the host machine running the backend / the
             // driver-registration website's Vite dev server (frontend/driver-registration, port 5175).
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080\"")
+            // -PLADYGO_DEBUG_API_BASE_URL=... points a debug build at another local port (e.g. a second backend).
+            val debugApiBaseUrl = (project.findProperty("LADYGO_DEBUG_API_BASE_URL") as String?) ?: "http://10.0.2.2:8080"
+            buildConfigField("String", "API_BASE_URL", "\"$debugApiBaseUrl\"")
             buildConfigField("String", "DRIVER_REGISTRATION_URL", "\"http://10.0.2.2:5175\"")
         }
         release {

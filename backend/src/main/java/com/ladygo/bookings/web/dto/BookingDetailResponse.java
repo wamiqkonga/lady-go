@@ -27,5 +27,8 @@ public record BookingDetailResponse(
         Double pickupLatitude,
         Double pickupLongitude,
         Double destinationLatitude,
-        Double destinationLongitude) {
+        Double destinationLongitude,
+        /** Rider's real phone for the captain's "Call rider" button. Driver-facing only, non-null only from
+         *  acceptance until the ride ends (BookingField.COUNTERPART_PHONE); null for riders and history. */
+        String riderPhone) {
 }

@@ -11,5 +11,8 @@ public record DriverSummaryResponse(
         String vehicleMake,
         String vehicleModel,
         String vehicleColor,
-        String vehicleRegistration) {
+        String vehicleRegistration,
+        /** Captain's real phone for the rider's "Call captain" button; non-null only from acceptance until the
+         *  ride ends (BookingField.COUNTERPART_PHONE). Never set for the driver's own view. */
+        String phone) {
 }

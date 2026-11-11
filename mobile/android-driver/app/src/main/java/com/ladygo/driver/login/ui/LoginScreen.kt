@@ -68,6 +68,7 @@ fun LoginScreen(
     LoginContent(
         state = state,
         onPhoneChanged = viewModel::onPhoneChanged,
+        onEmailChanged = viewModel::onEmailChanged,
         onCodeChanged = viewModel::onCodeChanged,
         onRequestOtp = viewModel::onRequestOtp,
         onVerifyOtp = viewModel::onVerifyOtp,
@@ -91,6 +92,7 @@ fun LoginContent(
     onRequestOtp: () -> Unit,
     onVerifyOtp: () -> Unit,
     onBackToPhoneEntry: () -> Unit,
+    onEmailChanged: (String) -> Unit = {},
     onIdentifierChanged: (String) -> Unit = {},
     onPasswordChanged: (String) -> Unit = {},
     onPasswordLogin: () -> Unit = {},
@@ -124,7 +126,7 @@ fun LoginContent(
                     when (state.step) {
                         LoginStep.PASSWORD_ENTRY ->
                             PasswordStep(state, onIdentifierChanged, onPasswordChanged, onPasswordLogin, onForgotPassword, onUseCodeInstead)
-                        LoginStep.PHONE_ENTRY -> PhoneStep(state, onPhoneChanged, onRequestOtp, onUsePasswordInstead)
+                        LoginStep.PHONE_ENTRY -> PhoneStep(state, onPhoneChanged, onEmailChanged, onRequestOtp, onUsePasswordInstead)
                         LoginStep.CODE_ENTRY -> CodeStep(state, onCodeChanged, onVerifyOtp, onBackToPhoneEntry)
                     }
                 }
@@ -151,6 +153,7 @@ fun LoginContent(
 private fun PhoneStep(
     state: LoginUiState,
     onPhoneChanged: (String) -> Unit,
+    onEmailChanged: (String) -> Unit,
     onRequestOtp: () -> Unit,
     onUsePasswordInstead: () -> Unit,
 ) {
@@ -167,6 +170,14 @@ private fun PhoneStep(
         leadingIcon = Icons.Filled.Phone,
         helper = stringResource(R.string.login_phone_helper),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+    )
+    LadyGoTextField(
+        value = state.email,
+        onValueChange = onEmailChanged,
+        label = "Email",
+        leadingIcon = Icons.Filled.Email,
+        helper = stringResource(R.string.login_email_helper),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
     )
     PrimaryButton(
         text = if (state.isLoading) "Sending..." else "Send code",
@@ -228,7 +239,11 @@ private fun CodeStep(
 ) {
     Text(stringResource(R.string.login_code_title), style = MaterialTheme.typography.headlineMedium)
     Text(
-        "Enter the code sent to ${state.phone}.",
+        if (state.email.isBlank()) {
+            stringResource(R.string.login_code_body_plain)
+        } else {
+            stringResource(R.string.login_code_body_email, state.email.trim())
+        },
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -244,7 +259,7 @@ private fun CodeStep(
         onClick = onVerifyOtp,
         enabled = state.code.isNotBlank() && !state.isLoading,
     )
-    QuietButton(text = "Use a different number", onClick = onBackToPhoneEntry, enabled = !state.isLoading)
+    QuietButton(text = "Use a different number or email", onClick = onBackToPhoneEntry, enabled = !state.isLoading)
 }
 
 /** The sign-in was right, but this driver cannot use the app yet: say why, and how to reach the team. */

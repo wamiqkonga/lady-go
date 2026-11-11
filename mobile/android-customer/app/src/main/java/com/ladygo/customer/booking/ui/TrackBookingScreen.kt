@@ -1,5 +1,6 @@
 package com.ladygo.customer.booking.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,6 +63,7 @@ import com.ladygo.customer.ui.components.PinDisplay
 import com.ladygo.customer.ui.components.PrimaryButton
 import com.ladygo.customer.ui.components.QuietButton
 import com.ladygo.customer.ui.components.RouteCard
+import com.ladygo.customer.ui.components.SecondaryButton
 import com.ladygo.customer.ui.components.StateIllustration
 import com.ladygo.customer.ui.components.StatusChip
 import com.ladygo.customer.ui.theme.LadyGoTheme
@@ -78,6 +80,7 @@ fun TrackBookingScreen(
     val state = viewModel.uiState.collectAsStateWithLifecycle().value
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
+    val dialerFailedMessage = stringResource(R.string.track_dialer_failed)
 
     // Poll only while the screen is visible. Live push (STOMP) replaces this in the next slice.
     LaunchedEffect(lifecycleOwner, viewModel) {
@@ -102,6 +105,11 @@ fun TrackBookingScreen(
                 onCancel = { reason -> viewModel.onCancel(reason) },
                 onCancelUnsafe = { reason -> viewModel.onCancel(reason, unsafe = true) },
                 onCall112 = { ExternalIntents.dialEmergency(context) },
+                onCallDriver = { phone ->
+                    if (!ExternalIntents.dial(context, phone)) {
+                        Toast.makeText(context, dialerFailedMessage, Toast.LENGTH_LONG).show()
+                    }
+                },
                 onDone = onDone,
             ),
         map = { st -> LiveTrackMap(st) },
@@ -186,7 +194,7 @@ fun TrackBookingContent(
             safety()
         }
         if (stage == TrackStage.CANCELLED) CancelFeeNote(state.cancelFee, state.cancelFeeCurrency)
-        StageBody(stage, booking)
+        StageBody(stage, booking, actions.onCallDriver)
         if (stage == TrackStage.PAYMENT || stage == TrackStage.FINISHED) rating(booking)
     }
     state.cancelPreview?.let { preview ->
@@ -269,7 +277,19 @@ private fun StageHeader(stage: TrackStage) {
 private fun StageBody(
     stage: TrackStage,
     booking: BookingDetailResponse,
+    onCallDriver: (String) -> Unit,
 ) {
+    // Only present while the ride is accepted/active (server-enforced); a plain dialer hand-off, no permission.
+    val driverPhone = booking.driver?.phone?.takeIf { it.isNotBlank() }
+    if (driverPhone != null && (stage == TrackStage.DRIVER_COMING || stage == TrackStage.IN_TRIP)) {
+        SecondaryButton(
+            text = stringResource(R.string.track_call_driver_action),
+            onClick = { onCallDriver(driverPhone) },
+            icon = Icons.Filled.Phone,
+            modifier = Modifier.testTag("call_captain"),
+        )
+        Text(driverPhone, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("captain_phone"))
+    }
     if (stage == TrackStage.DRIVER_COMING) {
         val driver = booking.driver
         if (driver != null) {
