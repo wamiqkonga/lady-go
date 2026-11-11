@@ -53,6 +53,12 @@ public final class BookingVisibilityPolicy {
     private static final Set<BookingStatus> CASH_CONFIRMED_AT_VISIBLE_TO_DRIVER = EnumSet.of(
             BookingStatus.RIDE_COMPLETED, BookingStatus.PAYMENT_PENDING, BookingStatus.COMPLETED);
 
+    /** Counterpart phone: from acceptance until the ride starts and while it is under way; gone once the
+     *  ride ends or the booking is cancelled. Explicit membership, same discipline as the sets above. */
+    private static final Set<BookingStatus> COUNTERPART_PHONE_VISIBLE = EnumSet.of(
+            BookingStatus.DRIVER_ACCEPTED, BookingStatus.DRIVER_ARRIVING, BookingStatus.DRIVER_ARRIVED,
+            BookingStatus.RIDE_STARTED);
+
     private BookingVisibilityPolicy() {
     }
 
@@ -87,6 +93,9 @@ public final class BookingVisibilityPolicy {
         if (DRIVER_SUMMARY_VISIBLE_TO_CUSTOMER.contains(status)) {
             fields.add(BookingField.DRIVER_SUMMARY);
         }
+        if (COUNTERPART_PHONE_VISIBLE.contains(status)) {
+            fields.add(BookingField.COUNTERPART_PHONE);
+        }
         return fields;
     }
 
@@ -104,6 +113,9 @@ public final class BookingVisibilityPolicy {
         }
         if (CASH_CONFIRMED_AT_VISIBLE_TO_DRIVER.contains(status)) {
             fields.add(BookingField.CASH_CONFIRMED_AT);
+        }
+        if (COUNTERPART_PHONE_VISIBLE.contains(status)) {
+            fields.add(BookingField.COUNTERPART_PHONE);
         }
         // RIDE_PIN and DRIVER_SUMMARY are never in a driver's set, in any status - see their javadoc.
         return fields;

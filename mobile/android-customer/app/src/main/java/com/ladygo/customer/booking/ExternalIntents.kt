@@ -16,6 +16,19 @@ object ExternalIntents {
             false
         }
 
+    /** `ACTION_DIAL` opens the dialer pre-filled with [number] (the captain's); she makes the final tap. False
+     *  when the device has no dialer. */
+    fun dial(
+        context: Context,
+        number: String,
+    ): Boolean =
+        try {
+            context.startActivity(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            true
+        } catch (_: ActivityNotFoundException) {
+            false
+        }
+
     /** Opens the messages app with the text ready for her to send - nothing is sent without her tap, and the app
      *  needs no SMS permission. */
     fun composeSms(

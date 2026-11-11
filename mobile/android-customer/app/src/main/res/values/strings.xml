@@ -98,6 +98,8 @@
     <string name="track_pin_label">Your ride PIN</string>
     <string name="track_pin_hint">Tell this PIN to your driver when she arrives. Only share it in person.</string>
     <string name="track_call_112_action">Call 112</string>
+    <string name="track_call_driver_action">Call captain</string>
+    <string name="track_dialer_failed">No phone app found on this device. Use the number shown here to call from another phone.</string>
     <string name="track_cancel_action">Cancel ride</string>
     <string name="track_cancel_title">Cancel this ride?</string>
     <string name="track_cancel_fee_note">A cancellation fee may apply once a driver has accepted your ride.</string>
